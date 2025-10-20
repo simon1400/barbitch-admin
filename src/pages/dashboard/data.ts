@@ -1,17 +1,17 @@
-// Месяцы
+// Měsíce
 export const monthLabels = [
-  'Январь',
-  'Февраль',
-  'Март',
-  'Апрель',
-  'Май',
-  'Июнь',
-  'Июль',
-  'Август',
-  'Сентябрь',
-  'Октябрь',
-  'Ноябрь',
-  'Декабрь',
+  'Leden',
+  'Únor',
+  'Březen',
+  'Duben',
+  'Květen',
+  'Červen',
+  'Červenec',
+  'Srpen',
+  'Září',
+  'Říjen',
+  'Listopad',
+  'Prosinec',
 ]
 
 export const blockStatsItems = (
@@ -24,31 +24,31 @@ export const blockStatsItems = (
   tipSum: number,
 ) => [
   {
-    title: 'Заработано за кл.',
+    title: 'Vyděláno za klienty',
     value: `${salary.toLocaleString()} Kč`,
   },
   {
-    title: 'Чаевые',
+    title: 'Spropitné',
     value: `${tipSum.toLocaleString()} Kč`,
   },
   {
-    title: 'Доп. зароботок',
+    title: 'Přídavný výdělek',
     value: `${extraProfit.toLocaleString()} Kč`,
   },
   {
-    title: 'Штрафы',
+    title: 'Pokuty',
     value: `-${penalty.toLocaleString()} Kč`,
   },
   {
-    title: 'Списывание за усл.',
+    title: 'Odpis za služby',
     value: `-${payrolls.toLocaleString()} Kč`,
   },
   {
-    title: 'Кол. клиентов',
+    title: 'Počet klientů',
     value: length,
   },
   {
-    title: 'Результат за месяц',
+    title: 'Výsledek za měsíc',
     value: `${result.toLocaleString()} Kč`,
   },
 ]

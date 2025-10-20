@@ -1,10 +1,16 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
-import AdminLayout from './pages/admin/AdminLayout'
-import AdminPage from './pages/admin/AdminPage'
-import GlobalPage from './pages/admin/global/GlobalPage'
-import ChartsPage from './pages/admin/global/charts/ChartsPage'
+import AdminLayout from './pages/dashboard/AdminLayout'
+import AdminPage from './pages/dashboard/AdminPage'
+import GlobalPage from './pages/global/GlobalPage'
+import ChartsPage from './pages/global/charts/ChartsPage'
 import { AppProvider } from './context/AppContext'
+
+// Компонент для защиты маршрутов
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const isAuthenticated = localStorage.getItem('userRole') !== null
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
+}
 
 function App() {
   return (
@@ -13,30 +19,35 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
-            path="/admin"
+            path="/"
             element={
-              <AdminLayout>
-                <AdminPage />
-              </AdminLayout>
+              <ProtectedRoute>
+                <AdminLayout>
+                  <AdminPage />
+                </AdminLayout>
+              </ProtectedRoute>
             }
           />
           <Route
-            path="/admin/global"
+            path="/global"
             element={
-              <AdminLayout>
-                <GlobalPage />
-              </AdminLayout>
+              <ProtectedRoute>
+                <AdminLayout>
+                  <GlobalPage />
+                </AdminLayout>
+              </ProtectedRoute>
             }
           />
           <Route
-            path="/admin/global/charts"
+            path="/global/charts"
             element={
-              <AdminLayout>
-                <ChartsPage />
-              </AdminLayout>
+              <ProtectedRoute>
+                <AdminLayout>
+                  <ChartsPage />
+                </AdminLayout>
+              </ProtectedRoute>
             }
           />
-          <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
     </AppProvider>

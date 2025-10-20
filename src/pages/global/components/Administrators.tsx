@@ -1,8 +1,8 @@
-import type { IFilteredAdminsData } from '../../fetch/allAdminsHours'
+import type { IFilteredAdminsData } from '../../dashboard/fetch/allAdminsHours'
 
-import { findCommonZeroKeys } from '../../../../utils/findCommonZeroKeys'
+import { findCommonZeroKeys } from '../../../utils/findCommonZeroKeys'
 
-import { Cell } from '../../components/Cell'
+import { Cell } from '../../dashboard/components/Cell'
 
 import { TableWrapper } from './TableWrapper'
 

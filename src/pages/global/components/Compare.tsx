@@ -1,4 +1,4 @@
-import { Cell } from '../../components/Cell'
+import { Cell } from '../../dashboard/components/Cell'
 
 import { TableWrapper } from './TableWrapper'
 

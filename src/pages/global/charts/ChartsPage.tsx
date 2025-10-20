@@ -1,4 +1,4 @@
-import { Container } from '../../../../components/Container'
+import { Container } from '../../../components/Container'
 import { useEffect, useState } from 'react'
 
 import { OwnerProtection } from '../components/OwnerProtection'

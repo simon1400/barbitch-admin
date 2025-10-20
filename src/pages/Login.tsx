@@ -28,8 +28,12 @@ const Login = () => {
       localStorage.setItem('userRole', result.role)
       localStorage.setItem('userId', result.id.toString())
 
-      // Перенаправляем на админ-панель
-      navigate('/admin')
+      // Перенаправляем в зависимости от роли
+      if (result.role === 'owner') {
+        navigate('/global')
+      } else {
+        navigate('/')
+      }
     } catch (err) {
       console.error('Login error:', err)
       setError('Произошла ошибка при входе. Попробуйте снова.')
@@ -64,8 +68,8 @@ const Login = () => {
                   />
                 </svg>
               </div>
-              <h2 className={'text-2xl font-bold text-gray-800 mb-2'}>{'Вход в систему'}</h2>
-              <p className={'text-sm text-gray-500'}>{'Введите ваши учетные данные'}</p>
+              <h2 className={'text-2xl font-bold text-gray-800 mb-2'}>{'Přihlášení do systému'}</h2>
+              <p className={'text-sm text-gray-500'}>{'Zadejte své přihlašovací údaje'}</p>
             </div>
 
             {/* Error Message */}
@@ -102,14 +106,14 @@ const Login = () => {
             >
               <div>
                 <label className={'block text-sm font-medium text-gray-700 mb-2'}>
-                  {'Имя пользователя'}
+                  {'Uživatelské jméno'}
                 </label>
                 <input
                   className={
                     'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none'
                   }
                   value={username}
-                  placeholder={'Введите имя пользователя'}
+                  placeholder={'Zadejte uživatelské jméno'}
                   onChange={(e) => {
                     setUsername(e.target.value)
                     setError('')
@@ -121,13 +125,13 @@ const Login = () => {
               </div>
 
               <div>
-                <label className={'block text-sm font-medium text-gray-700 mb-2'}>{'Пароль'}</label>
+                <label className={'block text-sm font-medium text-gray-700 mb-2'}>{'Heslo'}</label>
                 <input
                   className={
                     'w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none'
                   }
                   value={password}
-                  placeholder={'Введите пароль'}
+                  placeholder={'Zadejte heslo'}
                   onChange={(e) => {
                     setPassword(e.target.value)
                     setError('')
@@ -169,10 +173,10 @@ const Login = () => {
                         }
                       />
                     </svg>
-                    <span>{'Вход...'}</span>
+                    <span>{'Přihlašování...'}</span>
                   </>
                 ) : (
-                  'Войти'
+                  'Přihlásit se'
                 )}
               </button>
             </form>
@@ -180,7 +184,7 @@ const Login = () => {
             {/* Footer */}
             <div className={'mt-6 text-center'}>
               <p className={'text-xs text-gray-500'}>
-                {'Защищенный вход для сотрудников и администрации'}
+                {'Zabezpečené přihlášení pro zaměstnance a administraci'}
               </p>
             </div>
           </div>

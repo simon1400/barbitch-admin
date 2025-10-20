@@ -69,7 +69,7 @@ export const getWorks = async (name: string, month: number) => {
     return acc + salary
   }, 0)
 
-  const result = salary + extraProfit - payrolls - penalty
+  const result = salary + extraProfit + tipSum - payrolls - penalty
 
   return {
     works: data[0],

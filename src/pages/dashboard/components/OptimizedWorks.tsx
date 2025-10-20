@@ -59,7 +59,7 @@ const OptimizedWorks = () => {
               'inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4'
             }
           />
-          <p className={'text-gray-600'}>{'Загрузка данных...'}</p>
+          <p className={'text-gray-600'}>{'Načítání dat...'}</p>
         </div>
       </section>
     )
@@ -85,7 +85,7 @@ const OptimizedWorks = () => {
         <div className={'mb-6'}>
           <div className={'flex justify-between flex-col md:flex-row items-center mb-5'}>
             <h2 className={'text-md font-semibold text-gray-700 mb-5 md:mb-0'}>
-              {'История работ'}
+              {'Historie prací'}
             </h2>
             <Select month={month} setMonth={setMonth} />
           </div>
@@ -101,10 +101,10 @@ const OptimizedWorks = () => {
                   <thead>
                     <tr className={'bg-gray-50'}>
                       <Cell title={'#'} asHeader className={'hidden md:table-cell'} />
-                      <Cell title={'Дата'} asHeader />
-                      <Cell title={'Имя клиента'} asHeader />
-                      <Cell title={'Деньги'} asHeader />
-                      <Cell title={'Чай'} asHeader />
+                      <Cell title={'Datum'} asHeader />
+                      <Cell title={'Jméno klienta'} asHeader />
+                      <Cell title={'Peníze'} asHeader />
+                      <Cell title={'Spropitné'} asHeader />
                     </tr>
                   </thead>
                   <tbody>
@@ -143,7 +143,7 @@ const OptimizedWorks = () => {
                     }
                   />
                 </svg>
-                <p className={'text-gray-500'}>{'Нет данных за выбранный месяц'}</p>
+                <p className={'text-gray-500'}>{'Žádné údaje za vybraný měsíc'}</p>
               </div>
             )}
           </div>
@@ -156,7 +156,7 @@ const OptimizedWorks = () => {
               }
             >
               <span className={'flex items-center gap-3 text-sm md:text-base text-gray-600 mb-2'}>
-                <span>{'Всего работ: '}</span>
+                <span>{'Celkem prací: '}</span>
                 <span className={'text-md'}>{data.offersDone.length}</span>
               </span>
               <span className={'text-md font-bold text-primary'}>

@@ -1,6 +1,6 @@
-import { getAdminsHours } from '../../../fetch/allAdminsHours'
-import { getAllWorks } from '../../../fetch/allWorks'
-import { getMoney } from '../../../fetch/costs'
+import { getAdminsHours } from '../../../dashboard/fetch/allAdminsHours'
+import { getAllWorks } from '../../../dashboard/fetch/allWorks'
+import { getMoney } from '../../../dashboard/fetch/costs'
 import { getMonth } from 'date-fns'
 
 export const getGlobalStats = async () => {

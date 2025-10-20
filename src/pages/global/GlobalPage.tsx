@@ -1,10 +1,10 @@
-import Button from '../../../components/Button'
-import { Container } from '../../../components/Container'
+import Button from '../../components/Button'
+import { Container } from '../../components/Container'
 import { useState } from 'react'
 
-import { BlocksContent } from '../components/BlocksContent'
-import { Select } from '../components/Select'
-import { useGlobalMonthData } from '../hooks/useGlobalMonthData'
+import { BlocksContent } from '../dashboard/components/BlocksContent'
+import { Select } from '../dashboard/components/Select'
+import { useGlobalMonthData } from '../dashboard/hooks/useGlobalMonthData'
 
 import { GlobalLineChart } from './charts/components/GlobalLineChart'
 import { Administrators } from './components/Administrators'
@@ -29,7 +29,7 @@ const GlobalMonthStates = () => {
           <div className={'py-6 flex justify-between items-center sticky top-0 z-40'}>
             <Select month={month} setMonth={setMonth} />
             <div>
-              <Button text={'Charts'} to={'/admin/global/charts'} />
+              <Button text={'Charts'} to={'/global/charts'} />
             </div>
           </div>
 

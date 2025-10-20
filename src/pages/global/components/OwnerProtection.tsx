@@ -1,4 +1,4 @@
-import { useAppContext } from '../../../../context/AppContext'
+import { useAppContext } from '../../../context/AppContext'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 
@@ -16,7 +16,7 @@ export const OwnerProtection = ({ children }: OwnerProtectionProps) => {
     const storedRole = localStorage.getItem('userRole')
 
     if (storedRole !== 'owner') {
-      navigate('/admin')
+      navigate('/')
     } else {
       setIsChecking(false)
     }
