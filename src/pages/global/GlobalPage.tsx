@@ -20,6 +20,8 @@ const GlobalMonthStates = () => {
   const [month, setMonth] = useState<number>(new Date().getMonth())
   const data = useGlobalMonthData(month)
 
+  console.log(data)
+
   return (
     <OwnerProtection>
       <QuickNav />

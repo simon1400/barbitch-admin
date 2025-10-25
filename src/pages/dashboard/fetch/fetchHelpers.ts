@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import qs from 'qs'
 
 import { Axios } from '../../../lib/api'
@@ -6,7 +7,7 @@ export const buildQuery = (
   filters: Record<string, any>,
   fields: string[],
   populate?: Record<string, any>,
-  pagination: { page: number; pageSize: number } = { page: 1, pageSize: 200 },
+  pagination: { page: number; pageSize: number } = { page: 1, pageSize: 500 },
 ) => {
   return qs.stringify(
     {

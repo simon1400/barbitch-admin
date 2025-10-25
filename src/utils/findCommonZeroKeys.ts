@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function findCommonZeroKeys(arr: Record<string, any>[]): string[] {
   if (arr.length === 0) return []
 
