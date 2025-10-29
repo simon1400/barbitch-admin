@@ -101,6 +101,7 @@ export function groupAndSumByDateWithGaps(data: Entry[]): GroupedSum[] {
   const result: GroupedSum[] = []
   const currentDate = new Date(dates[0])
   const endDate = new Date(dates[dates.length - 1])
+  endDate.setHours(23, 59, 59, 999)
 
   while (currentDate <= endDate) {
     const dateStr = formatDate(currentDate)
