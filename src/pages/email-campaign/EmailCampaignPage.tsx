@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Container } from '../../components/Container'
 import Button from '../../components/Button'
+const clientUrl = import.meta.env.VITE_CLIENT_URL;
+
+// Example emails list for bulk
+const exampleBulkEmails = `example1@email.com
+example2@email.com
+example3@email.com`
 
 interface EmailRecipient {
   email: string
@@ -20,24 +26,20 @@ interface TemplateConfig {
 const templates: Record<string, TemplateConfig> = {
   'birthday-discount': {
     name: 'Narozeninová sleva',
-    title: 'Všechno nejlepší k narozeninám!',
-    subject: 'Všechno nejlepší k narozeninám! 🎉',
+    title: 'Slavíme 1 rok - Vaše exkluzivní sleva 30%!',
+    subject: 'Slavíme 1 rok - Vaše exkluzivní sleva 30%!',
     variables: ['name', 'discount', 'validUntil'],
     exampleJson: JSON.stringify([
       {
-        email: "example1@email.com",
-        variables: {
-          name: "Jana",
-          discount: "20",
-          validUntil: "31.12.2025"
+        "email": "example1@email.com",
+        "variables": {
+          "name": "Jana",
         }
       },
       {
-        email: "example2@email.com",
-        variables: {
-          name: "Petra",
-          discount: "20",
-          validUntil: "31.12.2025"
+        "email": "example2@email.com",
+        "variables": {
+          "name": "Petra",
         }
       }
     ], null, 2)
@@ -58,11 +60,6 @@ const EmailCampaignPage = () => {
     setSubject(templates[template].subject)
   }, [template])
 
-  // Example emails list for bulk
-  const exampleBulkEmails = `example1@email.com
-example2@email.com
-example3@email.com`
-
   const currentTemplate = templates[template]
 
   const handleSendEmails = async (e: React.FormEvent) => {
@@ -81,6 +78,7 @@ example3@email.com`
             throw new Error('JSON must be an array')
           }
         } catch (error) {
+          console.error(error)
           setMessage({ type: 'error', text: 'Neplatný JSON formát' })
           setLoading(false)
           return
@@ -96,7 +94,7 @@ example3@email.com`
         recipients = emails.map(email => ({ email }))
       }
 
-      const response = await fetch('http://localhost:3000/api/send-bulk-email', {
+      const response = await fetch(`${clientUrl}/api/send-bulk-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -134,12 +132,12 @@ example3@email.com`
   }
 
   return (
-    <section className="pb-20 min-h-screen bg-gray-50">
+    <section className="pb-20 min-h-screen">
       <Container size="lg">
         <div className="py-8">
           {/* Navigation */}
           <div className="mb-6">
-            <Button text="← Zpět na Global" to="/global" />
+            <Button text="Zpět na Global" to="/global" />
           </div>
 
           <div className="mb-8">

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Container } from '../../components/Container'
 import { Axios } from '../../lib/api'
 import Button from '../../components/Button'
+const clientUrl = import.meta.env.VITE_CLIENT_URL;
 
 interface FormData {
   email: string
@@ -104,7 +105,7 @@ const VoucherConfirmationPage = () => {
     setMessage(null)
 
     try {
-      const response = await fetch('http://localhost:3000/api/send-confirmation-voucher', {
+      const response = await fetch(`${clientUrl}/api/send-confirmation-voucher`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -136,12 +137,12 @@ const VoucherConfirmationPage = () => {
   }
 
   return (
-    <section className="pb-20 min-h-screen bg-gray-50">
+    <section className="pb-20 min-h-screen">
       <Container size="lg">
         <div className="py-8">
           {/* Navigation */}
           <div className="mb-6">
-            <Button text="← Zpět na Global" to="/global" />
+            <Button text="Zpět na Global" to="/global" />
           </div>
 
           <div className="mb-8">
