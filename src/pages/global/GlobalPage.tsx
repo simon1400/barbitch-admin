@@ -18,6 +18,7 @@ import { blockReservationsItems, blockStateItems } from './data'
 
 const GlobalMonthStates = () => {
   const [month, setMonth] = useState<number>(new Date().getMonth())
+  const [showMenu, setShowMenu] = useState(false)
   const data = useGlobalMonthData(month)
 
   return (
@@ -28,8 +29,37 @@ const GlobalMonthStates = () => {
           {/* Header with controls */}
           <div className={'py-6 flex justify-between items-center sticky top-0 z-40'}>
             <Select month={month} setMonth={setMonth} />
-            <div className="flex gap-3">
-              <Button text={'Voucher'} to={'/voucher'} />
+            <div className="flex gap-3 items-center">
+              {/* Dropdown Menu */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowMenu(!showMenu)}
+                  className="px-4 py-2 bg-white text-gray-700 font-semibold rounded-lg hover:bg-gray-100 transition-colors shadow-md flex items-center gap-2"
+                >
+                  Nástroje
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {showMenu && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                    <a
+                      href="/voucher-confirmation"
+                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
+                      onClick={() => setShowMenu(false)}
+                    >
+                      Potvrzení voucheru
+                    </a>
+                    <a
+                      href="/email-campaign"
+                      className="block px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
+                      onClick={() => setShowMenu(false)}
+                    >
+                      Email kampaň
+                    </a>
+                  </div>
+                )}
+              </div>
               <Button text={'Charts'} to={'/global/charts'} />
             </div>
           </div>

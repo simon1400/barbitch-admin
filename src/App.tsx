@@ -5,6 +5,7 @@ import AdminPage from './pages/dashboard/AdminPage'
 import GlobalPage from './pages/global/GlobalPage'
 import ChartsPage from './pages/global/charts/ChartsPage'
 import VoucherConfirmationPage from './pages/voucher-confirmation/VoucherConfirmationPage'
+import EmailCampaignPage from './pages/email-campaign/EmailCampaignPage'
 import { AppProvider } from './context/AppContext'
 
 // Компонент для защиты маршрутов
@@ -50,11 +51,21 @@ function App() {
             }
           />
           <Route
-            path="/voucher"
+            path="/voucher-confirmation"
             element={
               <ProtectedRoute>
                 <AdminLayout>
                   <VoucherConfirmationPage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/email-campaign"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <EmailCampaignPage />
                 </AdminLayout>
               </ProtectedRoute>
             }
