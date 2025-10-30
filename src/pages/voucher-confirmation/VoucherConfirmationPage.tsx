@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Container } from '../../components/Container'
+import { Axios } from '../../lib/api'
+import Button from '../../components/Button'
 
 interface FormData {
   email: string
@@ -9,7 +11,24 @@ interface FormData {
   validUntil: string
 }
 
+interface Voucher {
+  id: number
+  name: string
+  for: string
+  sum: number
+  email: string
+  phone: string
+  dateOrder: string
+  datePay: string | null
+  dateRealized: string | null
+  commentAdmin: string
+  comentUser: string
+  idVoucher: string
+}
+
 const VoucherConfirmationPage = () => {
+  const [vouchers, setVouchers] = useState<Voucher[]>([])
+  const [selectedVoucherId, setSelectedVoucherId] = useState<string>('')
   const [formData, setFormData] = useState<FormData>({
     email: '',
     buyerName: '',
@@ -19,7 +38,60 @@ const VoucherConfirmationPage = () => {
   })
 
   const [loading, setLoading] = useState(false)
+  const [loadingVouchers, setLoadingVouchers] = useState(true)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Fetch vouchers from Strapi
+  useEffect(() => {
+    const fetchVouchers = async () => {
+      try {
+        const response = await Axios.get<Voucher[]>('/api/vouchers?filters[dateRealized][$null]=true&filters[datePay][$notNull]=true&sort=dateOrder:desc')
+        // Axios interceptor returns response.data.data, so response is already the array
+        setVouchers((response || []) as unknown as Voucher[])
+      } catch (error) {
+        console.error('Error fetching vouchers:', error)
+        setMessage({ type: 'error', text: 'Nepodařilo se načíst vouchery' })
+      } finally {
+        setLoadingVouchers(false)
+      }
+    }
+
+    fetchVouchers()
+  }, [])
+
+  // Handle voucher selection
+  const handleVoucherSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const voucherId = e.target.value
+    setSelectedVoucherId(voucherId)
+
+    if (!voucherId) {
+      setFormData({
+        email: '',
+        buyerName: '',
+        recipientName: '',
+        voucherId: '',
+        validUntil: '',
+      })
+      return
+    }
+
+    const voucher = vouchers.find(v => v.id.toString() === voucherId)
+    if (voucher) {
+      // Calculate valid until date (6 months from order date)
+      const orderDate = new Date(voucher.dateOrder)
+      const validUntil = new Date(orderDate)
+      validUntil.setMonth(validUntil.getMonth() + 6)
+      const formattedDate = validUntil.toLocaleDateString('cs-CZ')
+
+      setFormData({
+        email: voucher.email || '',
+        buyerName: voucher.name || '',
+        recipientName: voucher.for || '',
+        voucherId: voucher.idVoucher || '',
+        validUntil: formattedDate,
+      })
+    }
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -67,6 +139,11 @@ const VoucherConfirmationPage = () => {
     <section className="pb-20 min-h-screen bg-gray-50">
       <Container size="lg">
         <div className="py-8">
+          {/* Navigation */}
+          <div className="mb-6">
+            <Button text="← Zpět na Global" to="/global" />
+          </div>
+
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Potvrzení voucheru</h1>
             <p className="text-gray-600">
@@ -76,6 +153,36 @@ const VoucherConfirmationPage = () => {
 
           <div className="bg-white shadow-md rounded-xl p-8 max-w-3xl">
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Voucher Select */}
+              <div>
+                <label htmlFor="voucherSelect" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Vybrat voucher ze Strapi
+                </label>
+                {loadingVouchers ? (
+                  <div className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-500">
+                    Načítání voucherů...
+                  </div>
+                ) : (
+                  <select
+                    id="voucherSelect"
+                    value={selectedVoucherId}
+                    onChange={handleVoucherSelect}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
+                  >
+                    <option value="">-- Vyberte voucher nebo vyplňte ručně --</option>
+                    {vouchers.map((voucher) => (
+                      <option key={voucher.id} value={voucher.id}>
+                        #{voucher.idVoucher} - {voucher.name} → {voucher.for} ({voucher.sum} Kč) - {new Date(voucher.dateOrder).toLocaleDateString('cs-CZ')}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <p className="text-sm font-normal text-gray-500 mt-1">
+                  Zobrazeny pouze vouchery bez dateRealized
+                </p>
+              </div>
+
+              <div className="border-t border-gray-200 pt-6"></div>
               {/* Email */}
               <div>
                 <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">

@@ -28,7 +28,8 @@ const GlobalMonthStates = () => {
           {/* Header with controls */}
           <div className={'py-6 flex justify-between items-center sticky top-0 z-40'}>
             <Select month={month} setMonth={setMonth} />
-            <div>
+            <div className="flex gap-3">
+              <Button text={'Voucher'} to={'/voucher'} />
               <Button text={'Charts'} to={'/global/charts'} />
             </div>
           </div>
