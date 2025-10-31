@@ -39,6 +39,7 @@ export interface ResultAdmins {
   advance: number
   salaries: number
   rate?: any
+  excessThreshold: number
 }
 
 export interface IFilteredAdminsData {
@@ -75,6 +76,7 @@ function summarizeAdmins(
         advance: 0,
         salaries: 0,
         rate,
+        excessThreshold: personal?.excessThreshold ?? 0,
       })
     }
     resultMap.get(name)!.sum += hours
@@ -107,7 +109,7 @@ export const getAdminsHours = async (month: number) => {
     ['start', 'sum'],
     {
       personal: {
-        fields: ['name'],
+        fields: ['name', 'excessThreshold'],
         populate: { rates: { fields: ['rate', 'from', 'to', 'typeWork'] } },
       },
     },

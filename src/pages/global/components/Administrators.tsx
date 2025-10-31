@@ -14,8 +14,21 @@ export const Administrators = ({
   sumAdmins: number
 }) => {
   const emptyKeys = new Set(findCommonZeroKeys(data))
+
+  // Рассчитываем общую сумму превышений
+  const totalExcess = data.reduce((sum, item) => {
+    const result = item.sum * item.rate + item.extraProfit - item.penalty - item.payrolls
+    const threshold = item.excessThreshold ?? 0
+    const excess = result > threshold ? result - threshold : 0
+    return sum + excess
+  }, 0)
+
   return (
-    <TableWrapper totalSum={`${sumAdmins.toLocaleString()} Kč`} totalLabel={'Общая сумма'}>
+    <TableWrapper
+      totalSum={`${sumAdmins.toLocaleString()} Kč`}
+      totalLabel={'Общая сумма'}
+      additionalInfo={totalExcess > 0 ? `Общее превышение: ${totalExcess.toLocaleString()} Kč` : undefined}
+    >
       <table className={'w-full text-left table-auto min-w-max'}>
         <thead>
           <tr>
@@ -26,6 +39,7 @@ export const Administrators = ({
             {!emptyKeys.has('extraProfit') && <Cell title={'Доп.'} asHeader />}
             {!emptyKeys.has('payrolls') && <Cell title={'Спис.'} asHeader />}
             <Cell title={'Результат'} asHeader />
+            <Cell title={'Превышение'} asHeader />
             {!emptyKeys.has('advance') && <Cell title={'Аванс'} asHeader />}
             {!emptyKeys.has('salaries') && <Cell title={'ЗП.'} asHeader />}
             {!emptyKeys.has('advance') && <Cell title={'Осталось'} asHeader />}
@@ -34,7 +48,10 @@ export const Administrators = ({
         <tbody>
           {data.map((item) => {
             const result = item.sum * item.rate + item.extraProfit - item.penalty - item.payrolls
+            const threshold = item.excessThreshold ?? 0
+            const excess = result > threshold ? result - threshold : 0
             const splitName = item.name.split(' ')
+
             return (
               <tr key={item.name} className={'hover:bg-gray-50 transition-colors'}>
                 <Cell title={`${splitName[0][0]}. ${splitName[1]}`} />
@@ -52,6 +69,10 @@ export const Administrators = ({
                 <Cell
                   className={'text-primary font-semibold'}
                   title={`${result.toLocaleString()}`}
+                />
+                <Cell
+                  className={excess > 0 ? 'text-orange-600 font-semibold' : ''}
+                  title={excess > 0 ? `+${excess.toLocaleString()}` : '-'}
                 />
                 {!emptyKeys.has('advance') && (
                   <Cell title={item.advance ? `-${item.advance.toLocaleString()}` : ''} />

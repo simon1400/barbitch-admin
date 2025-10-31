@@ -9,6 +9,7 @@ interface IDataAllWorks extends PersonalSumData {
   salonSalaries: string
   tip: string
   date: string
+  excessThreshold?: number
 }
 
 interface Result {
@@ -21,6 +22,7 @@ interface Result {
   payrolls: number
   advance: number
   salaries: number
+  excessThreshold: number
 }
 
 export interface IFilteredData {
@@ -64,6 +66,7 @@ function summarizeWorks(
         payrolls: 0,
         advance: 0,
         salaries: 0,
+        excessThreshold: item.personal?.excessThreshold ?? 0,
       })
     }
 
@@ -95,7 +98,7 @@ export const getAllWorks = async (month: number) => {
   const filters = { date: { $gte: firstDay.toISOString(), $lte: lastDay.toISOString() } }
 
   const serviceQuery = buildQuery(filters, ['staffSalaries', 'salonSalaries', 'tip', 'date'], {
-    personal: { fields: ['name'] },
+    personal: { fields: ['name', 'excessThreshold'] },
   })
 
   const genericQuery = buildQuery(filters, ['sum'], { personal: { fields: ['name'] } })

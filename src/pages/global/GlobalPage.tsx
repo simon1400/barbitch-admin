@@ -154,7 +154,7 @@ const GlobalMonthStates = () => {
                 costs={data.noDphCosts}
                 cash={data.cashMoney}
                 card={data.cardMoney / 1.21}
-                voucherPayed={data.voucherPayed}
+                voucherPayed={data.voucherPayed / 1.21}
                 qrMoney={data.qrMoney / 1.21}
               />
             </div>
