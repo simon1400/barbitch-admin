@@ -52,6 +52,7 @@ export interface PersonalSumData {
   personal: {
     name: string
     rates?: any
+    excessThreshold?: number
   }
 }
 
