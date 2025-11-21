@@ -38,7 +38,7 @@ export const blockStateItems = (
   },
   {
     title: 'Разниця',
-    value: `${(cardMoney + cashMoney + payrollSum + voucherRealized + qrMoney - globalFlow - extraMoney).toLocaleString()} Kč`,
+    value: `${(cardMoney + cashMoney + payrollSum + voucherRealized + qrMoney - globalFlow - extraMoney - voucherPayed).toLocaleString()} Kč`,
   },
   {
     title: 'Затраты на салон',
