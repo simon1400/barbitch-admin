@@ -6,6 +6,7 @@ export const Compare = ({
   income,
   cash,
   card,
+  cardExtraIncome,
   payroll,
   voucherRealized,
   qrMoney,
@@ -13,11 +14,12 @@ export const Compare = ({
   income: number
   cash: number
   card: number
+  cardExtraIncome: number
   payroll: number
   voucherRealized: number
   qrMoney: number
 }) => {
-  const difference = card + cash + payroll + voucherRealized + qrMoney - income
+  const difference = card + cash + payroll + voucherRealized + qrMoney + cardExtraIncome - income
   const differenceColor = difference >= 0 ? 'text-green-600' : 'text-red-600'
 
   return (
@@ -27,6 +29,7 @@ export const Compare = ({
           <thead>
             <tr>
               <Cell title={'Карта'} asHeader />
+              {!!cardExtraIncome && <Cell title={'Доп. доход'} asHeader />}
               <Cell title={'Нал'} asHeader />
               {!!payroll && <Cell title={'Списывание'} asHeader />}
               <Cell title={'Сумма реал'} asHeader />
@@ -39,9 +42,10 @@ export const Compare = ({
           <tbody>
             <tr className={'hover:bg-gray-50 transition-colors'}>
               <Cell title={`+${card.toLocaleString()}`} />
+              {!!cardExtraIncome && <Cell title={`+${cardExtraIncome.toLocaleString()}`} />}
               <Cell title={`+${cash.toLocaleString()}`} />
               {!!payroll && <Cell title={`+${payroll.toLocaleString()}`} />}
-              <Cell title={`=${(card + cash + payroll).toLocaleString()}`} />
+              <Cell title={`=${(card + cardExtraIncome + cash + payroll).toLocaleString()}`} />
               <Cell title={`- ${income.toLocaleString()}`} />
               {!!voucherRealized && <Cell title={`+${voucherRealized.toLocaleString()}`} />}
               {!!qrMoney && <Cell title={`+${qrMoney.toLocaleString()}`} />}

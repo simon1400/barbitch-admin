@@ -3,6 +3,7 @@ export const blockStateItems = (
   globalFlow: number,
   cashMoney: number,
   cardMoney: number,
+  cardExtraIncome: number,
   sumMasters: number,
   sumAdmins: number,
   payrollSum: number,
@@ -20,7 +21,7 @@ export const blockStateItems = (
     title: 'Результат за месяц',
     value: `${(
       cashMoney +
-      (voucherPayed + cardMoney + qrMoney) / 1.21 -
+      (voucherPayed + cardMoney + qrMoney + cardExtraIncome) / 1.21 -
       sumMasters -
       sumAdmins -
       noDphCosts
@@ -28,7 +29,7 @@ export const blockStateItems = (
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`,
-    addValue: `${(voucherPayed + globalFlow - sumMasters - sumAdmins - dphCosts).toLocaleString(
+    addValue: `${(voucherPayed + globalFlow + cardExtraIncome - sumMasters - sumAdmins - dphCosts).toLocaleString(
       'cz-CZ',
       {
         minimumFractionDigits: 2,
@@ -38,7 +39,7 @@ export const blockStateItems = (
   },
   {
     title: 'Разниця',
-    value: `${(cardMoney + cashMoney + payrollSum + voucherRealized + qrMoney - globalFlow - extraMoney - voucherPayed).toLocaleString()} Kč`,
+    value: `${(cardMoney + cardExtraIncome + cashMoney + payrollSum + voucherRealized + qrMoney - globalFlow - extraMoney - voucherPayed).toLocaleString()} Kč`,
   },
   {
     title: 'Затраты на салон',

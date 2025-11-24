@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { getMonthRange } from '../../../utils/getMonthRange'
 
 import { Axios } from '../../../lib/api'
@@ -17,6 +18,7 @@ export interface ICombineData {
   sumCosts: number
   sumNoDphCosts: number
   cardMoney: number
+  cardExtraIncome: number
   cashMoney: number
   payrollSum: number
   voucherRealizedSum: number
@@ -42,7 +44,7 @@ export const getMoney = async (month: number): Promise<ICombineData> => {
       `/api/costs?${buildQueryCost(['sum', 'noDph'], 'date', firstDay, lastDay)}`,
     ),
     Axios.get<IDataCosts[]>(
-      `/api/card-profits?${buildQueryCost(['sum'], 'date', firstDay, lastDay)}`,
+      `/api/card-profits?${buildQueryCost(['sum', 'extraIncome'], 'date', firstDay, lastDay)}`,
     ),
     Axios.get<IDataCosts[]>(
       `/api/extra-profits?${buildQueryCost(['sum'], 'date', firstDay, lastDay)}`,
@@ -72,6 +74,7 @@ export const getMoney = async (month: number): Promise<ICombineData> => {
     sumCosts: sumReducer(dataCosts as any),
     sumNoDphCosts: noDphReducer(dataCosts as any),
     cardMoney: Number((dataCard as any)?.[0]?.sum || 0),
+    cardExtraIncome: Number((dataCard as any)?.[0]?.extraIncome || 0),
     cashMoney: maxProfit,
     payrollSum: sumReducer(dataPayroll as any),
     voucherRealizedSum: sumReducer(dataVouchersRealized as any),

@@ -72,6 +72,7 @@ const GlobalMonthStates = () => {
                 data.globalFlow,
                 data.cashMoney,
                 data.cardMoney,
+                data.cardExtraIncome,
                 data.sumMasters,
                 data.sumAdmins,
                 data.payrollSum,
@@ -142,6 +143,7 @@ const GlobalMonthStates = () => {
                 income={data.globalFlow}
                 cash={data.cashMoney}
                 card={data.cardMoney}
+                cardExtraIncome={data.cardExtraIncome}
                 payroll={data.payrollSum}
                 voucherRealized={data.voucherRealized}
                 qrMoney={data.qrMoney}
