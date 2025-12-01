@@ -31,6 +31,8 @@ const Login = () => {
       // Перенаправляем в зависимости от роли
       if (result.role === 'owner') {
         navigate('/global')
+      } else if (result.role === 'administrator') {
+        navigate('/administrator-cabinet')
       } else {
         navigate('/')
       }

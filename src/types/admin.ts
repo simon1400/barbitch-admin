@@ -1,5 +1,5 @@
 // Роли пользователей
-export type UserRole = 'master' | 'owner'
+export type UserRole = 'master' | 'owner' | 'administrator'
 
 export interface UserData {
   password: string

@@ -1,6 +1,7 @@
 import { Container } from './Container'
 import { LogoutButton } from './LogoutButton'
 import LogoWrap from './LogoWrap'
+import { Link, useLocation } from 'react-router-dom'
 
 export const Top = ({
   title,
@@ -9,6 +10,9 @@ export const Top = ({
   title: string
   admin?: boolean
 }) => {
+  const location = useLocation()
+  const userRole = localStorage.getItem('userRole')
+
   return (
     <section
       aria-labelledby={'top-title'}
@@ -18,6 +22,20 @@ export const Top = ({
         <Container size={'xl'}>
           <div className="flex justify-between items-center py-6">
             <LogoWrap />
+            {admin && userRole === 'administrator' && (
+              <nav className="flex gap-4">
+                <Link
+                  to="/administrator-cabinet"
+                  className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                    location.pathname === '/administrator-cabinet'
+                      ? 'bg-white text-primary'
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  Můj kabinet
+                </Link>
+              </nav>
+            )}
           </div>
         </Container>
       </div>

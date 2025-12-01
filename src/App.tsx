@@ -7,6 +7,7 @@ import GlobalPage from './pages/global/GlobalPage'
 import ChartsPage from './pages/global/charts/ChartsPage'
 import VoucherConfirmationPage from './pages/voucher-confirmation/VoucherConfirmationPage'
 import EmailCampaignPage from './pages/email-campaign/EmailCampaignPage'
+import AdministratorCabinetPage from './pages/administrator/AdministratorCabinetPage'
 import { AppProvider } from './context/AppContext'
 import { checkUserStatus, logout } from './services/auth'
 
@@ -14,6 +15,20 @@ import { checkUserStatus, logout } from './services/auth'
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = localStorage.getItem('userRole') !== null
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
+}
+
+// Компонент для защиты маршрутов администраторов
+const AdministratorRoute = ({ children }: { children: React.ReactNode }) => {
+  const userRole = localStorage.getItem('userRole')
+  const isAdministrator = userRole === 'administrator'
+  return isAdministrator ? <>{children}</> : <Navigate to="/" replace />
+}
+
+// Компонент для защиты маршрутов владельца
+const OwnerRoute = ({ children }: { children: React.ReactNode }) => {
+  const userRole = localStorage.getItem('userRole')
+  const isOwner = userRole === 'owner'
+  return isOwner ? <>{children}</> : <Navigate to="/" replace />
 }
 
 function App() {
@@ -58,9 +73,11 @@ function App() {
             path="/global"
             element={
               <ProtectedRoute>
-                <AdminLayout>
-                  <GlobalPage />
-                </AdminLayout>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <GlobalPage />
+                  </AdminLayout>
+                </OwnerRoute>
               </ProtectedRoute>
             }
           />
@@ -68,9 +85,11 @@ function App() {
             path="/global/charts"
             element={
               <ProtectedRoute>
-                <AdminLayout>
-                  <ChartsPage />
-                </AdminLayout>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <ChartsPage />
+                  </AdminLayout>
+                </OwnerRoute>
               </ProtectedRoute>
             }
           />
@@ -78,9 +97,11 @@ function App() {
             path="/voucher-confirmation"
             element={
               <ProtectedRoute>
-                <AdminLayout>
-                  <VoucherConfirmationPage />
-                </AdminLayout>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <VoucherConfirmationPage />
+                  </AdminLayout>
+                </OwnerRoute>
               </ProtectedRoute>
             }
           />
@@ -88,9 +109,23 @@ function App() {
             path="/email-campaign"
             element={
               <ProtectedRoute>
-                <AdminLayout>
-                  <EmailCampaignPage />
-                </AdminLayout>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <EmailCampaignPage />
+                  </AdminLayout>
+                </OwnerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/administrator-cabinet"
+            element={
+              <ProtectedRoute>
+                <AdministratorRoute>
+                  <AdminLayout>
+                    <AdministratorCabinetPage />
+                  </AdminLayout>
+                </AdministratorRoute>
               </ProtectedRoute>
             }
           />
