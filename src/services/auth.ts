@@ -43,3 +43,27 @@ export async function loginUser(
     }
   }
 }
+
+export async function checkUserStatus(userId: string): Promise<{ isActive: boolean } | null> {
+  try {
+    const response = await fetch(`${API_URL}/api/admin-users/check-status/${userId}`)
+
+    if (!response.ok) {
+      console.error('Failed to check user status')
+      return null
+    }
+
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('Check status error:', error)
+    return null
+  }
+}
+
+export function logout() {
+  localStorage.removeItem('usernameLocalData')
+  localStorage.removeItem('userRole')
+  localStorage.removeItem('userId')
+  window.location.href = '/login'
+}
