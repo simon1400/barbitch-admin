@@ -21,7 +21,7 @@ export const blockStateItems = (
     title: 'Результат за месяц',
     value: `${(
       cashMoney +
-      (voucherPayed + cardMoney + qrMoney + cardExtraIncome) / 1.21 -
+      (cardMoney + qrMoney + cardExtraIncome) / 1.21 -
       sumMasters -
       sumAdmins -
       noDphCosts
@@ -29,7 +29,7 @@ export const blockStateItems = (
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`,
-    addValue: `${(voucherPayed + globalFlow + cardExtraIncome - sumMasters - sumAdmins - dphCosts).toLocaleString(
+    addValue: `${(cashMoney + cardMoney + qrMoney + cardExtraIncome - sumMasters - sumAdmins - dphCosts).toLocaleString(
       'cz-CZ',
       {
         minimumFractionDigits: 2,

@@ -20,10 +20,19 @@ export const getGlobalStats = async () => {
       admins: dataAdmin.sumAdmins,
       result: (
         dataCosts.cashMoney +
-        (dataCosts.voucherPayedSum + dataCosts.cardMoney + dataCosts.qrMoney) / 1.21 -
+        (dataCosts.cardMoney + dataCosts.qrMoney + dataCosts.cardExtraIncome) / 1.21 -
         dataAllWorks.sumMasters -
         dataAdmin.sumAdmins -
         dataCosts.sumNoDphCosts
+      ).toFixed(2),
+      resultDph: (
+        dataCosts.cashMoney +
+        dataCosts.cardMoney + 
+        dataCosts.qrMoney + 
+        dataCosts.cardExtraIncome -
+        dataAllWorks.sumMasters -
+        dataAdmin.sumAdmins -
+        dataCosts.sumCosts
       ).toFixed(2),
     }
     globalStats.push(item)
