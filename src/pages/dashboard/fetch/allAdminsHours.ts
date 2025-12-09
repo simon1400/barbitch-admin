@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { PersonalSumData } from './fetchHelpers'
 
 import { getMonthRange } from '../../../utils/getMonthRange'
@@ -136,6 +137,51 @@ export const getAdminsHours = async (month: number) => {
     salaries,
     firstDay,
     lastDay,
+  )
+
+  return {
+    summary: summary.sort((a, b) => b.sum - a.sum),
+    sumAdmins,
+  }
+}
+
+export const getAdminsHoursByDateRange = async (startDate: Date, endDate: Date) => {
+  const filters = {
+    date: { $gte: startDate.toISOString(), $lte: endDate.toISOString() },
+  }
+
+  const queryWorkTimes = buildQuery(
+    { start: filters.date },
+    ['start', 'sum'],
+    {
+      personal: {
+        fields: ['name', 'excessThreshold'],
+        populate: { rates: { fields: ['rate', 'from', 'to', 'typeWork'] } },
+      },
+    },
+    { page: 1, pageSize: 70 },
+  )
+
+  const genericQuery = buildQuery(filters, ['sum'], { personal: { fields: ['name'] } })
+
+  const [data, penalties, extras, payrolls, advance, salaries] = await Promise.all([
+    fetchData<PersonalSumData>('/api/work-times', queryWorkTimes),
+    fetchData<PersonalSumData>('/api/penalties', genericQuery),
+    fetchData<PersonalSumData>('/api/add-moneys', genericQuery),
+    fetchData<PersonalSumData>('/api/payrolls', genericQuery),
+    fetchData<PersonalSumData>('/api/avanses', genericQuery),
+    fetchData<PersonalSumData>('/api/salaries', genericQuery),
+  ])
+
+  const { summary, sumAdmins } = summarizeAdmins(
+    data,
+    penalties,
+    extras,
+    payrolls,
+    advance,
+    salaries,
+    startDate,
+    endDate,
   )
 
   return {

@@ -30,6 +30,8 @@ export interface IFilteredData {
   globalFlow: number
   sumMasters: number
   sumClientsDone: number
+  averageCheck: number
+  averageMasterSalary: number
 }
 
 function summarizeWorks(
@@ -44,6 +46,7 @@ function summarizeWorks(
   let globalFlow = 0
   let sumMasters = 0
   let sumClientsDone = 0
+  let totalStaffSalaries = 0
 
   data.forEach((item) => {
     const name = item.personal?.name
@@ -54,6 +57,7 @@ function summarizeWorks(
     const tip = Number.parseFloat(item.tip || '0')
 
     globalFlow += staff + salon + tip
+    totalStaffSalaries += staff
 
     if (!resultMap.has(name)) {
       resultMap.set(name, {
@@ -89,7 +93,10 @@ function summarizeWorks(
     sumClientsDone += item.countClient
   })
 
-  return { summary, globalFlow, sumMasters, sumClientsDone }
+  const averageCheck = sumClientsDone > 0 ? Math.round(globalFlow / sumClientsDone) : 0
+  const averageMasterSalary = sumClientsDone > 0 ? Math.round(totalStaffSalaries / sumClientsDone) : 0
+
+  return { summary, globalFlow, sumMasters, sumClientsDone, averageCheck, averageMasterSalary }
 }
 
 export const getAllWorks = async (month: number) => {
@@ -119,6 +126,39 @@ export const getAllWorks = async (month: number) => {
     globalFlow: filteredData.globalFlow,
     sumMasters: filteredData.sumMasters,
     sumClientsDone: filteredData.sumClientsDone,
+    averageCheck: filteredData.averageCheck,
+    averageMasterSalary: filteredData.averageMasterSalary,
+    daysResult: groupAndSumByDateWithGaps(data),
+  }
+}
+
+export const getAllWorksByDateRange = async (startDate: Date, endDate: Date) => {
+  const filters = { date: { $gte: startDate.toISOString(), $lte: endDate.toISOString() } }
+
+  const serviceQuery = buildQuery(filters, ['staffSalaries', 'salonSalaries', 'tip', 'date'], {
+    personal: { fields: ['name', 'excessThreshold'] },
+  })
+
+  const genericQuery = buildQuery(filters, ['sum'], { personal: { fields: ['name'] } })
+
+  const [data, penalties, extras, payrolls, advance, salaries] = await Promise.all([
+    fetchData<IDataAllWorks>('/api/services-provided', serviceQuery),
+    fetchData<PersonalSumData>('/api/penalties', genericQuery),
+    fetchData<PersonalSumData>('/api/add-moneys', genericQuery),
+    fetchData<PersonalSumData>('/api/payrolls', genericQuery),
+    fetchData<PersonalSumData>('/api/avanses', genericQuery),
+    fetchData<PersonalSumData>('/api/salaries', genericQuery),
+  ])
+
+  const filteredData = summarizeWorks(data, penalties, extras, payrolls, advance, salaries)
+
+  return {
+    summary: filteredData.summary.sort((a, b) => b.sum - a.sum),
+    globalFlow: filteredData.globalFlow,
+    sumMasters: filteredData.sumMasters,
+    sumClientsDone: filteredData.sumClientsDone,
+    averageCheck: filteredData.averageCheck,
+    averageMasterSalary: filteredData.averageMasterSalary,
     daysResult: groupAndSumByDateWithGaps(data),
   }
 }

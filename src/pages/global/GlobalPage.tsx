@@ -8,12 +8,11 @@ import { useGlobalMonthData } from '../dashboard/hooks/useGlobalMonthData'
 
 import { GlobalLineChart } from './charts/components/GlobalLineChart'
 import { Administrators } from './components/Administrators'
-import { Compare } from './components/Compare'
 import { Masters } from './components/Masters'
 import { OwnerProtection } from './components/OwnerProtection'
 import { QuickNav } from './components/QuickNav'
 import { StatSection } from './components/StatSection'
-import { Summary } from './components/Summary'
+import { WeeklySection } from './components/WeeklySection'
 import { blockReservationsItems, blockStateItems } from './data'
 
 const GlobalMonthStates = () => {
@@ -136,30 +135,9 @@ const GlobalMonthStates = () => {
             <Administrators data={data.admins} sumAdmins={data.sumAdmins} />
           </StatSection>
 
-          {/* Calculations Section */}
-          <StatSection title={'Расчёты'} id={'calculations'} defaultOpen>
-            <div className={'space-y-6'}>
-              <Compare
-                income={data.globalFlow}
-                cash={data.cashMoney}
-                card={data.cardMoney}
-                cardExtraIncome={data.cardExtraIncome}
-                payroll={data.payrollSum}
-                voucherRealized={data.voucherRealized}
-                qrMoney={data.qrMoney}
-              />
-
-              <Summary
-                income={data.globalFlow}
-                salary={data.sumMasters}
-                salaryAdmin={data.sumAdmins}
-                costs={data.noDphCosts}
-                cash={data.cashMoney}
-                card={data.cardMoney / 1.21}
-                voucherPayed={data.voucherPayed / 1.21}
-                qrMoney={data.qrMoney / 1.21}
-              />
-            </div>
+          {/* Weekly Section */}
+          <StatSection title={'📅 Недельный обзор'} id={'weekly'}>
+            <WeeklySection />
           </StatSection>
         </Container>
       </section>
