@@ -30,13 +30,6 @@ export const WeeklySection = () => {
     <div className={'space-y-8'}>
       {/* Week Selector */}
       <div className={'flex justify-between items-center flex-wrap gap-4'}>
-        <div>
-          <h3 className={'font-semibold text-gray-700'}>{'Выбор недели'}</h3>
-          <p className={'text-sm text-gray-500'}>
-            {data.weekRange.firstDay.toLocaleDateString('cs-CZ', { timeZone: 'UTC' })} -{' '}
-            {data.weekRange.lastDay.toLocaleDateString('cs-CZ', { timeZone: 'UTC' })}
-          </p>
-        </div>
         <WeekSelector onWeekChange={handleWeekChange} currentWeekRange={data.weekRange} />
       </div>
 

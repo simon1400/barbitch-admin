@@ -136,7 +136,7 @@ const GlobalMonthStates = () => {
           </StatSection>
 
           {/* Weekly Section */}
-          <StatSection title={'📅 Недельный обзор'} id={'weekly'}>
+          <StatSection title={'Недельный обзор'} id={'weekly'}>
             <WeeklySection />
           </StatSection>
         </Container>

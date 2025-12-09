@@ -35,28 +35,11 @@ export const WeekSelector = ({ onWeekChange, currentWeekRange }: WeekSelectorPro
     onWeekChange(startDate, endDate)
   }
 
-  const handleCurrentWeek = () => {
-    setWeekOffset(0)
-    const { startDate, endDate } = getWeekDates(0)
-    onWeekChange(startDate, endDate)
-  }
-
   const handleNextWeek = () => {
     const newOffset = weekOffset + 1
     setWeekOffset(newOffset)
     const { startDate, endDate } = getWeekDates(newOffset)
     onWeekChange(startDate, endDate)
-  }
-
-  const formatDateRange = () => {
-    const options: Intl.DateTimeFormatOptions = {
-      day: 'numeric',
-      month: 'short',
-      timeZone: 'UTC',
-    }
-    const start = currentWeekRange.firstDay.toLocaleDateString('cs-CZ', options)
-    const end = currentWeekRange.lastDay.toLocaleDateString('cs-CZ', options)
-    return `${start} - ${end}`
   }
 
   return (
@@ -84,14 +67,12 @@ export const WeekSelector = ({ onWeekChange, currentWeekRange }: WeekSelectorPro
           </svg>
         </button>
 
-        <button
-          onClick={handleCurrentWeek}
-          className={
-            'bg-white border border-accent text-sm hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 px-4 py-2 rounded transition-colors whitespace-nowrap'
-          }
-        >
-          {'Tento týden'}
-        </button>
+        <div>
+          <p className={'text-sm text-gray-500'}>
+            {currentWeekRange.firstDay.toLocaleDateString('cs-CZ', { timeZone: 'UTC' })} -{' '}
+            {currentWeekRange.lastDay.toLocaleDateString('cs-CZ', { timeZone: 'UTC' })}
+          </p>
+        </div>
 
         <button
           onClick={handleNextWeek}
@@ -114,14 +95,6 @@ export const WeekSelector = ({ onWeekChange, currentWeekRange }: WeekSelectorPro
             />
           </svg>
         </button>
-      </div>
-
-      <div
-        className={
-          'text-sm font-medium text-gray-700 bg-gray-50 px-4 py-2 rounded border border-gray-200'
-        }
-      >
-        {formatDateRange()}
       </div>
     </div>
   )
