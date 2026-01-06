@@ -17,8 +17,9 @@ import { blockReservationsItems, blockStateItems } from './data'
 
 const GlobalMonthStates = () => {
   const [month, setMonth] = useState<number>(new Date().getMonth())
+  const [year, setYear] = useState<number>(new Date().getFullYear())
   const [showMenu, setShowMenu] = useState(false)
-  const data = useGlobalMonthData(month)
+  const data = useGlobalMonthData(month, year)
 
   return (
     <OwnerProtection>
@@ -27,7 +28,7 @@ const GlobalMonthStates = () => {
         <Container size={'lg'}>
           {/* Header with controls */}
           <div className={'py-6 flex justify-between items-center sticky top-0 z-40'}>
-            <Select month={month} setMonth={setMonth} />
+            <Select month={month} setMonth={setMonth} year={year} setYear={setYear} />
             <div className="flex gap-3 items-center">
               {/* Dropdown Menu */}
               <div className="relative">

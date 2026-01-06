@@ -14,6 +14,7 @@ import { Select } from './Select'
 
 const OptimizedWorks = () => {
   const [month, setMonth] = useState<number>(new Date().getMonth())
+  const [year, setYear] = useState<number>(new Date().getFullYear())
   const [data, setData] = useState<IDataWorks>()
   const [salary, setSalary] = useState<number>(0)
   const [extraProfit, setExtraProfit] = useState<number>(0)
@@ -31,6 +32,7 @@ const OptimizedWorks = () => {
       const { works, salary, extraProfit, payrolls, penalty, result, tipSum } = await getWorks(
         adminName,
         month,
+        year,
       )
       setData(works)
       setSalary(salary)
@@ -42,7 +44,7 @@ const OptimizedWorks = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [adminName, month])
+  }, [adminName, month, year])
 
   useEffect(() => {
     if (adminName) {
@@ -87,7 +89,7 @@ const OptimizedWorks = () => {
             <h2 className={'text-md font-semibold text-gray-700 mb-5 md:mb-0'}>
               {'Historie prací'}
             </h2>
-            <Select month={month} setMonth={setMonth} />
+            <Select month={month} setMonth={setMonth} year={year} setYear={setYear} />
           </div>
 
           <div

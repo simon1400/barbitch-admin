@@ -68,6 +68,7 @@ const AdministratorCabinetPage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth())
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
   const [workTimesPage, setWorkTimesPage] = useState(1)
   const workTimesPerPage = 10
 
@@ -105,14 +106,14 @@ const AdministratorCabinetPage = () => {
     fetchData()
   }, [username, API_URL])
 
-  // Фильтрация данных по выбранному месяцу
+  // Фильтрация данных по выбранному месяцу и году
   const filteredData = useMemo(() => {
     if (!data) return null
 
     const filterByMonth = (items: any[], dateField: string) => {
       return items.filter((item) => {
         const itemDate = new Date(item[dateField])
-        return itemDate.getMonth() === selectedMonth
+        return itemDate.getMonth() === selectedMonth && itemDate.getFullYear() === selectedYear
       })
     }
 
@@ -136,7 +137,7 @@ const AdministratorCabinetPage = () => {
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       ),
     }
-  }, [data, selectedMonth])
+  }, [data, selectedMonth, selectedYear])
 
   // Объединенные выплаты (только авансы и зарплаты, без премий)
   const allPayments = useMemo(() => {
@@ -193,10 +194,9 @@ const AdministratorCabinetPage = () => {
   }
 
   // Функция для получения ставки для месяца
-  const getRateForMonth = (rates: any[], month: number) => {
+  const getRateForMonth = (rates: any[], month: number, year: number) => {
     if (!rates || rates.length === 0) return 115 // дефолтная ставка
 
-    const year = new Date().getFullYear()
     const monthStart = new Date(year, month, 1)
     const monthEnd = new Date(year, month + 1, 0)
     const MAX_DATE = new Date(8640000000000000)
@@ -214,7 +214,7 @@ const AdministratorCabinetPage = () => {
 
   // Рассчитываем общий заработок
   const totalHours = filteredData.workTimes.reduce((sum, wt) => sum + Number(wt.sum), 0)
-  const rate = getRateForMonth(data.personal.rates, selectedMonth)
+  const rate = getRateForMonth(data.personal.rates, selectedMonth, selectedYear)
   const totalEarnings = totalHours * rate
 
   // Рассчитываем штрафы
@@ -263,7 +263,7 @@ const AdministratorCabinetPage = () => {
             <h1 className={'text-3xl font-bold text-gray-800'}>Личный кабинет</h1>
             <p className={'text-gray-600 mt-2'}>{data.personal.name}</p>
           </div>
-          <Select month={selectedMonth} setMonth={setSelectedMonth} />
+          <Select month={selectedMonth} setMonth={setSelectedMonth} year={selectedYear} setYear={setSelectedYear} />
         </div>
 
         {/* Summary Section */}

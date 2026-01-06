@@ -47,16 +47,16 @@ export const groupByColor = (events: EventItem[]) => {
   return groups
 }
 
-export const getEvents = async (month: number) => {
-  const { firstDay, lastDay } = getMonthRange(2025, month)
+export const getEvents = async (month: number, year: number) => {
+  const { firstDay, lastDay } = getMonthRange(year, month)
   const queryString = new URLSearchParams()
   const queryString2 = new URLSearchParams()
   const queryString3 = new URLSearchParams()
 
   const today = new Date()
   let day = today.getDate()
-  if (today.getMonth() !== month) {
-    day = new Date(new Date().getFullYear(), month + 1, 0).getDate()
+  if (today.getMonth() !== month || today.getFullYear() !== year) {
+    day = new Date(year, month + 1, 0).getDate()
   }
 
   const startToday = new Date(today)

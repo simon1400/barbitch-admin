@@ -17,8 +17,8 @@ interface IDataSumOnly {
   sum: string
 }
 
-export const getWorks = async (name: string, month: number) => {
-  const { firstDay, lastDay } = getMonthRange(2025, month)
+export const getWorks = async (name: string, month: number, year: number) => {
+  const { firstDay, lastDay } = getMonthRange(year, month)
 
   const filtersOffers = {
     name: { $eq: name },

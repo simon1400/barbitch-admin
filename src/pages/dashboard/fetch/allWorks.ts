@@ -99,8 +99,8 @@ function summarizeWorks(
   return { summary, globalFlow, sumMasters, sumClientsDone, averageCheck, averageMasterSalary }
 }
 
-export const getAllWorks = async (month: number) => {
-  const { firstDay, lastDay } = getMonthRange(2025, month)
+export const getAllWorks = async (month: number, year: number) => {
+  const { firstDay, lastDay } = getMonthRange(year, month)
 
   const filters = { date: { $gte: firstDay.toISOString(), $lte: lastDay.toISOString() } }
 

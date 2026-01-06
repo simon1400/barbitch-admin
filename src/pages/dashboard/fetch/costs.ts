@@ -27,8 +27,8 @@ export interface ICombineData {
   qrMoney: number
 }
 
-export const getMoney = async (month: number): Promise<ICombineData> => {
-  const { firstDay, lastDay } = getMonthRange(2025, month)
+export const getMoney = async (month: number, year: number): Promise<ICombineData> => {
+  const { firstDay, lastDay } = getMonthRange(year, month)
 
   const [
     dataCosts,

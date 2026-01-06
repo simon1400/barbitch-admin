@@ -9,7 +9,7 @@ import { getAllWorks } from '../fetch/allWorks'
 import { getMoney } from '../fetch/costs'
 import { getEvents } from '../fetch/getEvents'
 
-export const useGlobalMonthData = (month: number) => {
+export const useGlobalMonthData = (month: number, year: number) => {
   const [data, setData] = useState({
     works: [] as IFilteredData['summary'],
     admins: [] as IFilteredAdminsData['summary'],
@@ -46,10 +46,10 @@ export const useGlobalMonthData = (month: number) => {
 
   const loadData = useCallback(async () => {
     const [worksRes, adminsRes, moneyRes, eventsRes] = await Promise.all([
-      getAllWorks(month),
-      getAdminsHours(month),
-      getMoney(month),
-      getEvents(month),
+      getAllWorks(month, year),
+      getAdminsHours(month, year),
+      getMoney(month, year),
+      getEvents(month, year),
     ])
 
     setData({
@@ -85,7 +85,7 @@ export const useGlobalMonthData = (month: number) => {
       },
       dataMetrics: eventsRes.dataMetrics,
     })
-  }, [month])
+  }, [month, year])
 
   useEffect(() => {
     loadData()
