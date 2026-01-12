@@ -65,7 +65,7 @@ export const ExpensesBarChart = ({ data, title }: Props) => {
             />
             <Legend align={'center'} verticalAlign={'top'} wrapperStyle={{ paddingBottom: '10px' }} />
             <Bar dataKey={'sum'} name={'Сумма'} radius={[8, 8, 0, 0]}>
-              {sortedData.map((entry, index) => (
+              {sortedData.map((_entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Bar>

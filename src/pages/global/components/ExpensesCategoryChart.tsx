@@ -7,6 +7,8 @@ interface Props {
 }
 
 export const ExpensesCategoryChart = ({ data, title }: Props) => {
+  const chartData = data as unknown as Record<string, unknown>[]
+
   const renderCustomLabel = (entry: any) => {
     const percent = ((entry.value / data.reduce((sum, item) => sum + item.sum, 0)) * 100).toFixed(1)
     return `${entry.name}: ${percent}%`
@@ -23,7 +25,7 @@ export const ExpensesCategoryChart = ({ data, title }: Props) => {
         <ResponsiveContainer width={'100%'} height={400}>
           <PieChart>
             <Pie
-              data={data}
+              data={chartData}
               dataKey={'sum'}
               nameKey={'category'}
               cx={'50%'}

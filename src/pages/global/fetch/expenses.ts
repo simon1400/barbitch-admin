@@ -35,9 +35,10 @@ export const getExpenses = async (month: number, year: number): Promise<IExpense
   )
 
   try {
-    const response = await Axios.get<any[]>(`/api/costs?${query}`)
+    const response = await Axios.get<any>(`/api/costs?${query}`)
+    const data = Array.isArray(response) ? response : []
 
-    return response.map((item: any) => ({
+    return data.map((item: any) => ({
       id: item.id || item._id,
       name: item.name || 'Без названия',
       date: item.date,
@@ -66,9 +67,10 @@ export const getAllExpenses = async (): Promise<IExpenseItem[]> => {
   )
 
   try {
-    const response = await Axios.get<any[]>(`/api/costs?${query}`)
+    const response = await Axios.get<any>(`/api/costs?${query}`)
+    const data = Array.isArray(response) ? response : []
 
-    return response.map((item: any) => ({
+    return data.map((item: any) => ({
       id: item.id || item._id,
       name: item.name || 'Без названия',
       date: item.date,
