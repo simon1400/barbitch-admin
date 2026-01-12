@@ -2,6 +2,7 @@ import { Container } from './Container'
 import { LogoutButton } from './LogoutButton'
 import LogoWrap from './LogoWrap'
 import { Link, useLocation } from 'react-router-dom'
+import { GlobalNav } from '../pages/global/components/GlobalNav'
 
 export const Top = ({
   title,
@@ -12,6 +13,9 @@ export const Top = ({
 }) => {
   const location = useLocation()
   const userRole = localStorage.getItem('userRole')
+  const isGlobalPage = location.pathname.startsWith('/global') ||
+                       location.pathname === '/voucher-confirmation' ||
+                       location.pathname === '/email-campaign'
 
   return (
     <section
@@ -42,7 +46,7 @@ export const Top = ({
 
       <div className="flex-1 flex items-end">
         <Container size={'xl'}>
-          <div className={`pb-10 md:pb-15 max-w-[650px]`}>
+          <div className={`pb-10 md:pb-15 ${!isGlobalPage || userRole !== 'owner' ? 'max-w-[650px]' : 'w-full'}`}>
             <h1
               id={'top-title'}
               className={`text-md2 lg:text-top pb-4 uppercase font-bold`}
@@ -51,6 +55,8 @@ export const Top = ({
             </h1>
 
             {admin && <LogoutButton />}
+
+            {admin && isGlobalPage && userRole === 'owner' && <GlobalNav />}
           </div>
         </Container>
       </div>

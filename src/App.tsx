@@ -5,30 +5,76 @@ import AdminLayout from './pages/dashboard/AdminLayout'
 import AdminPage from './pages/dashboard/AdminPage'
 import GlobalPage from './pages/global/GlobalPage'
 import ChartsPage from './pages/global/charts/ChartsPage'
+import WeeklyOverviewPage from './pages/global/WeeklyOverviewPage'
+import SalariesPage from './pages/global/SalariesPage'
+import WeeklyChartsPage from './pages/global/WeeklyChartsPage'
+import ExpensesPage from './pages/global/ExpensesPage'
 import VoucherConfirmationPage from './pages/voucher-confirmation/VoucherConfirmationPage'
 import EmailCampaignPage from './pages/email-campaign/EmailCampaignPage'
 import AdministratorCabinetPage from './pages/administrator/AdministratorCabinetPage'
 import { AppProvider } from './context/AppContext'
 import { checkUserStatus, logout } from './services/auth'
 
+// Получить домашнюю страницу в зависимости от роли
+const getHomePageByRole = (role: string | null): string => {
+  switch (role) {
+    case 'owner':
+      return '/global'
+    case 'administrator':
+      return '/administrator-cabinet'
+    case 'master':
+      return '/'
+    default:
+      return '/login'
+  }
+}
+
 // Компонент для защиты маршрутов
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const isAuthenticated = localStorage.getItem('userRole') !== null
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
+  const userRole = localStorage.getItem('userRole')
+  const isAuthenticated = userRole !== null
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+
+  return <>{children}</>
+}
+
+// Компонент для защиты маршрутов мастера
+const MasterRoute = ({ children }: { children: React.ReactNode }) => {
+  const userRole = localStorage.getItem('userRole')
+  const isMaster = userRole === 'master'
+
+  if (!isMaster) {
+    return <Navigate to={getHomePageByRole(userRole)} replace />
+  }
+
+  return <>{children}</>
 }
 
 // Компонент для защиты маршрутов администраторов
 const AdministratorRoute = ({ children }: { children: React.ReactNode }) => {
   const userRole = localStorage.getItem('userRole')
   const isAdministrator = userRole === 'administrator'
-  return isAdministrator ? <>{children}</> : <Navigate to="/" replace />
+
+  if (!isAdministrator) {
+    return <Navigate to={getHomePageByRole(userRole)} replace />
+  }
+
+  return <>{children}</>
 }
 
 // Компонент для защиты маршрутов владельца
 const OwnerRoute = ({ children }: { children: React.ReactNode }) => {
   const userRole = localStorage.getItem('userRole')
   const isOwner = userRole === 'owner'
-  return isOwner ? <>{children}</> : <Navigate to="/" replace />
+
+  if (!isOwner) {
+    return <Navigate to={getHomePageByRole(userRole)} replace />
+  }
+
+  return <>{children}</>
 }
 
 function App() {
@@ -63,9 +109,11 @@ function App() {
             path="/"
             element={
               <ProtectedRoute>
-                <AdminLayout>
-                  <AdminPage />
-                </AdminLayout>
+                <MasterRoute>
+                  <AdminLayout>
+                    <AdminPage />
+                  </AdminLayout>
+                </MasterRoute>
               </ProtectedRoute>
             }
           />
@@ -88,6 +136,54 @@ function App() {
                 <OwnerRoute>
                   <AdminLayout>
                     <ChartsPage />
+                  </AdminLayout>
+                </OwnerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/global/weekly-overview"
+            element={
+              <ProtectedRoute>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <WeeklyOverviewPage />
+                  </AdminLayout>
+                </OwnerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/global/salaries"
+            element={
+              <ProtectedRoute>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <SalariesPage />
+                  </AdminLayout>
+                </OwnerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/global/expenses"
+            element={
+              <ProtectedRoute>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <ExpensesPage />
+                  </AdminLayout>
+                </OwnerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/global/weekly-charts"
+            element={
+              <ProtectedRoute>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <WeeklyChartsPage />
                   </AdminLayout>
                 </OwnerRoute>
               </ProtectedRoute>

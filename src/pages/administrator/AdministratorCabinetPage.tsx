@@ -1,9 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Container } from '../../components/Container'
 import { useState, useEffect, useMemo } from 'react'
 import { Cell } from '../dashboard/components/Cell'
 import { TableWrapper } from '../global/components/TableWrapper'
 import { StatSection } from '../global/components/StatSection'
 import { Select } from '../dashboard/components/Select'
+import { GlobalLineChart } from '../global/charts/components/GlobalLineChart'
+import { useGlobalMonthData } from '../dashboard/hooks/useGlobalMonthData'
 
 interface AdministratorData {
   username: string
@@ -74,6 +77,9 @@ const AdministratorCabinetPage = () => {
 
   const username = localStorage.getItem('usernameLocalData')
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:1337'
+
+  // Получаем глобальные данные для графиков
+  const globalData = useGlobalMonthData(selectedMonth, selectedYear)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -310,6 +316,22 @@ const AdministratorCabinetPage = () => {
                 {result.toLocaleString()} Kč
               </div>
             </div>
+          </div>
+        </StatSection>
+
+        {/* Charts Section */}
+        <StatSection title={'Графики'} id={'charts'} defaultOpen>
+          <div className={'space-y-6'}>
+
+            <GlobalLineChart
+              data={globalData.dataMetrics}
+              title={'Записи'}
+              lines={[
+                { dataKey: 'countPayed', stroke: '#e71e6e', name: 'Резервации' },
+                { dataKey: 'countCanceled', stroke: '#161615', name: 'Отмены' },
+                { dataKey: 'countNoshow', stroke: 'orange', name: 'Не пришли' },
+              ]}
+            />
           </div>
         </StatSection>
 
