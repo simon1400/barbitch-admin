@@ -1,40 +1,66 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Container } from '../../../components/Container'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 
 import { OwnerProtection } from '../components/OwnerProtection'
 
 import { ChartsLoader } from './components/ChartsLoader'
 import { GlobalLineChart } from './components/GlobalLineChart'
 import { getGlobalStats } from './fetch/global'
+import { getAllExpenses } from '../fetch/expenses'
+import type { IExpenseItem } from '../fetch/expenses'
+import { ExpensesBarChart } from '../components/ExpensesBarChart'
 
 const GlobalMonthStats = () => {
   const [data, setData] = useState([])
   const [totalResult, setTotalResult] = useState<number>(0)
   const [totalResultWithDph, setTotalResultWithDph] = useState<number>(0)
   const [totalFlow, setTotalFlow] = useState<number>(0)
+  const [expenses, setExpenses] = useState<IExpenseItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     setIsLoading(true)
-    getGlobalStats()
-      .then((res: any) => {
-        setData(res.globalStats)
+    Promise.all([getGlobalStats(), getAllExpenses()])
+      .then(([statsRes, expensesRes]: any) => {
+        setData(statsRes.globalStats)
         setTotalResult(
-          res.globalStats.reduce((sum: number, item: any) => sum + Number(item.result || 0), 0),
+          statsRes.globalStats.reduce((sum: number, item: any) => sum + Number(item.result || 0), 0),
         )
         setTotalResultWithDph(
-          res.globalStats.reduce((sum: number, item: any) => sum + Number(item.resultDph || 0), 0),
+          statsRes.globalStats.reduce((sum: number, item: any) => sum + Number(item.resultDph || 0), 0),
         )
         setTotalFlow(
-          res.globalStats.reduce((sum: number, item: any) => sum + Number(item.flow || 0), 0),
+          statsRes.globalStats.reduce((sum: number, item: any) => sum + Number(item.flow || 0), 0),
         )
+        setExpenses(expensesRes)
       })
       .finally(() => {
         // Минимальная задержка для показа прелоадера
         setTimeout(() => setIsLoading(false), 500)
       })
   }, [])
+
+  // Группируем затраты по категориям для графика
+  const expensesChartData = useMemo(() => {
+    const grouped = expenses.reduce((acc, expense) => {
+      const categoryName = expense.category || 'Другое'
+      const existing = acc.find((item) => item.name === categoryName)
+      if (existing) {
+        existing.sum += expense.sum
+        existing.noDph = (existing.noDph || 0) + (expense.noDph || 0)
+      } else {
+        acc.push({
+          name: categoryName,
+          sum: expense.sum,
+          noDph: expense.noDph || 0,
+        })
+      }
+      return acc
+    }, [] as { name: string; sum: number; noDph: number }[])
+
+    return grouped
+  }, [expenses])
 
   if (isLoading) {
     return <ChartsLoader />
@@ -64,6 +90,12 @@ const GlobalMonthStats = () => {
           </div>
 
           <div className={'space-y-8'}>
+            {expenses.length > 0 && (
+              <ExpensesBarChart
+                data={expensesChartData}
+                title={'Затраты по категориям за всё время'}
+              />
+            )}
             <GlobalLineChart
               data={data}
               title={'Результат'}
