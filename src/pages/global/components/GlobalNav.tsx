@@ -10,6 +10,7 @@ const navItems: NavItem[] = [
   { path: '/global/weekly-overview', label: 'Недельный обзор' },
   { path: '/global/salaries', label: 'Зарплаты' },
   { path: '/global/expenses', label: 'Затраты' },
+  { path: '/global/procedures-stats', label: 'Статистика процедур' },
   { path: '/global/weekly-charts', label: 'Недельные графики' },
   { path: '/global/charts', label: 'Чарты глобальные' },
   { path: '/voucher-confirmation', label: 'Potvrzení voucheru' },

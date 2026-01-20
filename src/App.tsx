@@ -9,6 +9,7 @@ import WeeklyOverviewPage from './pages/global/WeeklyOverviewPage'
 import SalariesPage from './pages/global/SalariesPage'
 import WeeklyChartsPage from './pages/global/WeeklyChartsPage'
 import ExpensesPage from './pages/global/ExpensesPage'
+import ProceduresStatsPage from './pages/global/ProceduresStatsPage'
 import VoucherConfirmationPage from './pages/voucher-confirmation/VoucherConfirmationPage'
 import EmailCampaignPage from './pages/email-campaign/EmailCampaignPage'
 import AdministratorCabinetPage from './pages/administrator/AdministratorCabinetPage'
@@ -184,6 +185,18 @@ function App() {
                 <OwnerRoute>
                   <AdminLayout>
                     <WeeklyChartsPage />
+                  </AdminLayout>
+                </OwnerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/global/procedures-stats"
+            element={
+              <ProtectedRoute>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <ProceduresStatsPage />
                   </AdminLayout>
                 </OwnerRoute>
               </ProtectedRoute>
