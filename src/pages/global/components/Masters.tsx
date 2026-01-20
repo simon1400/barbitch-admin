@@ -6,6 +6,9 @@ import { Cell } from '../../dashboard/components/Cell'
 
 import { TableWrapper } from './TableWrapper'
 
+// Администраторы, которые также работают мастерами - их превышение считается в таблице администраторов
+const ADMIN_MASTERS = ['Oleksandra Fishchuk']
+
 export const Masters = ({
   data,
   sumMasters,
@@ -15,8 +18,10 @@ export const Masters = ({
 }) => {
   const emptyKeys = new Set(findCommonZeroKeys(data))
 
-  // Рассчитываем общую сумму превышений
+  // Рассчитываем общую сумму превышений (исключая администраторов-мастеров)
   const totalExcess = data.reduce((sum, item) => {
+    // Пропускаем администраторов-мастеров - их превышение в таблице администраторов
+    if (ADMIN_MASTERS.includes(item.name)) return sum
     const result = item.sum + item.sumTip + item.extraProfit - item.penalty - item.payrolls
     const threshold = item.excessThreshold ?? 0
     const excess = result > threshold ? result - threshold : 0
@@ -48,9 +53,14 @@ export const Masters = ({
         </thead>
         <tbody>
           {data.map((item) => {
-            const result = item.sum + item.sumTip + item.extraProfit - item.penalty - item.payrolls
+            const isAdminMaster = ADMIN_MASTERS.includes(item.name)
+            // Для администраторов-мастеров: результат = только заработок + чаевые (без штрафов/премий/списываний)
+            const result = isAdminMaster
+              ? item.sum + item.sumTip
+              : item.sum + item.sumTip + item.extraProfit - item.penalty - item.payrolls
             const threshold = item.excessThreshold ?? 0
-            const excess = result > threshold ? result - threshold : 0
+            // Для администраторов-мастеров превышение не показываем (оно в таблице администраторов)
+            const excess = isAdminMaster ? 0 : (result > threshold ? result - threshold : 0)
 
             return (
               <tr key={item.name} className={'hover:bg-gray-50 transition-colors'}>
@@ -61,13 +71,13 @@ export const Masters = ({
                   <Cell title={item.sumTip ? `${item.sumTip.toLocaleString()}` : ''} />
                 )}
                 {!emptyKeys.has('penalty') && (
-                  <Cell title={item.penalty ? `-${item.penalty.toLocaleString()}` : ''} />
+                  <Cell title={isAdminMaster ? '' : (item.penalty ? `-${item.penalty.toLocaleString()}` : '')} />
                 )}
                 {!emptyKeys.has('extraProfit') && (
-                  <Cell title={item.extraProfit ? `${item.extraProfit.toLocaleString()}` : ''} />
+                  <Cell title={isAdminMaster ? '' : (item.extraProfit ? `${item.extraProfit.toLocaleString()}` : '')} />
                 )}
                 {!emptyKeys.has('payrolls') && (
-                  <Cell title={item.payrolls ? `-${item.payrolls.toLocaleString()}` : ''} />
+                  <Cell title={isAdminMaster ? '' : (item.payrolls ? `-${item.payrolls.toLocaleString()}` : '')} />
                 )}
                 <Cell
                   className={'text-primary font-semibold'}

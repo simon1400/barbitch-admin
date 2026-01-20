@@ -8,6 +8,57 @@ import { Select } from '../dashboard/components/Select'
 import { GlobalLineChart } from '../global/charts/components/GlobalLineChart'
 import { useGlobalMonthData } from '../dashboard/hooks/useGlobalMonthData'
 
+interface ServiceProvided {
+  id: number
+  date: string
+  staffSalaries: string | number
+  salonSalaries: string | number
+  tip: string | number
+  clientName?: string
+  offer?: {
+    id: number
+    title: string
+  }
+}
+
+interface MasterData {
+  personalId: number
+  name: string
+  ratePercent: number
+  excessThreshold: number
+  servicesProvided: ServiceProvided[]
+  penalties: Array<{
+    id: number
+    sum: number
+    date: string
+    comment: string
+  }>
+  payrolls: Array<{
+    id: number
+    sum: number
+    date: string
+    comment: string
+  }>
+  advances: Array<{
+    id: number
+    sum: number
+    date: string
+    comment: string
+  }>
+  extraProfits: Array<{
+    id: number
+    sum: number | string
+    date: string
+    title: string
+  }>
+  salaries: Array<{
+    id: number
+    sum: number
+    date: string
+    comment: string
+  }>
+}
+
 interface AdministratorData {
   username: string
   role: string
@@ -55,6 +106,7 @@ interface AdministratorData {
     title: string
   }>
   shifts: any[]
+  masterData: MasterData | null
 }
 
 interface Payment {
@@ -145,6 +197,39 @@ const AdministratorCabinetPage = () => {
     }
   }, [data, selectedMonth, selectedYear])
 
+  // Фильтрация данных мастера по выбранному месяцу и году
+  const filteredMasterData = useMemo(() => {
+    if (!data?.masterData) return null
+
+    const filterByMonth = (items: any[], dateField: string) => {
+      return items.filter((item) => {
+        const itemDate = new Date(item[dateField])
+        return itemDate.getMonth() === selectedMonth && itemDate.getFullYear() === selectedYear
+      })
+    }
+
+    return {
+      servicesProvided: filterByMonth(data.masterData.servicesProvided, 'date').sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      ),
+      penalties: filterByMonth(data.masterData.penalties, 'date').sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      ),
+      payrolls: filterByMonth(data.masterData.payrolls, 'date').sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      ),
+      advances: filterByMonth(data.masterData.advances, 'date').sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      ),
+      extraProfits: filterByMonth(data.masterData.extraProfits, 'date').sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      ),
+      salaries: filterByMonth(data.masterData.salaries, 'date').sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      ),
+    }
+  }, [data, selectedMonth, selectedYear])
+
   // Объединенные выплаты (только авансы и зарплаты, без премий)
   const allPayments = useMemo(() => {
     if (!filteredData) return []
@@ -176,6 +261,31 @@ const AdministratorCabinetPage = () => {
       .sort((a, b) => new Date(b.from).getTime() - new Date(a.from).getTime())
       .slice(0, 5)
   }, [data])
+
+  // Рассчитываем заработок мастера (если есть данные мастера)
+  // ВАЖНО: useMemo должен быть до условных return
+  // Премии и штрафы НЕ включаем - они уже учтены в основном финансовом обзоре (один человек)
+  const masterEarnings = useMemo(() => {
+    if (!filteredMasterData || !data?.masterData) return null
+
+    const staffSalaries = filteredMasterData.servicesProvided.reduce(
+      (sum, sp) => sum + Number(sp.staffSalaries || 0),
+      0
+    )
+    const tips = filteredMasterData.servicesProvided.reduce(
+      (sum, sp) => sum + Number(sp.tip || 0),
+      0
+    )
+    // Результат мастера = только заработок за услуги + чаевые
+    const totalResult = staffSalaries + tips
+
+    return {
+      staffSalaries,
+      tips,
+      result: totalResult,
+      servicesCount: filteredMasterData.servicesProvided.length,
+    }
+  }, [filteredMasterData, data?.masterData])
 
   if (loading) {
     return (
@@ -232,8 +342,11 @@ const AdministratorCabinetPage = () => {
   // Рассчитываем списывания
   const totalPayrolls = filteredData.payrolls.reduce((sum, p) => sum + Number(p.sum), 0)
 
-  // Рассчитываем результат
+  // Рассчитываем результат администратора
   const result = totalEarnings + totalBonuses - totalPenalties - totalPayrolls
+
+  // Общий результат (администратор + мастер)
+  const totalCombinedResult = result + (masterEarnings?.result || 0)
 
   // Рассчитываем общую сумму выплат
   const totalPayments = allPayments.reduce((sum, p) => sum + Number(p.sum), 0)
@@ -265,10 +378,6 @@ const AdministratorCabinetPage = () => {
       <Container size={'lg'}>
         {/* Header with month selector */}
         <div className={'py-6 flex justify-between items-center'}>
-          <div>
-            <h1 className={'text-3xl font-bold text-gray-800'}>Личный кабинет</h1>
-            <p className={'text-gray-600 mt-2'}>{data.personal.name}</p>
-          </div>
           <Select month={selectedMonth} setMonth={setSelectedMonth} year={selectedYear} setYear={setSelectedYear} />
         </div>
 
@@ -318,6 +427,49 @@ const AdministratorCabinetPage = () => {
             </div>
           </div>
         </StatSection>
+
+        {/* Master Earnings Section */}
+        {masterEarnings && data?.masterData && (
+          <StatSection title={`Заработок мастера (${data.masterData.name})`} id={'master-earnings'} defaultOpen>
+            <div className={'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}>
+              <div className={'bg-white p-6 rounded-lg shadow-md border border-gray-200'}>
+                <div className={'text-sm text-gray-600'}>Услуг оказано</div>
+                <div className={'text-2xl font-bold text-gray-800 mt-2'}>
+                  {masterEarnings.servicesCount}
+                </div>
+              </div>
+
+              <div className={'bg-white p-6 rounded-lg shadow-md border border-gray-200'}>
+                <div className={'text-sm text-gray-600'}>Заработок за услуги</div>
+                <div className={'text-2xl font-bold text-primary mt-2'}>
+                  {masterEarnings.staffSalaries.toLocaleString()} Kč
+                </div>
+              </div>
+
+              <div className={'bg-white p-6 rounded-lg shadow-md border border-gray-200'}>
+                <div className={'text-sm text-gray-600'}>Чаевые</div>
+                <div className={'text-2xl font-bold text-blue-600 mt-2'}>
+                  +{masterEarnings.tips.toLocaleString()} Kč
+                </div>
+              </div>
+
+              <div className={'bg-white p-6 rounded-lg shadow-md border border-gray-200'}>
+                <div className={'text-sm text-gray-600'}>Итого за мастера</div>
+                <div className={'text-2xl font-bold text-purple-600 mt-2'}>
+                  {masterEarnings.result.toLocaleString()} Kč
+                </div>
+              </div>
+            </div>
+
+            {/* Общий итог */}
+            <div className={'mt-6 bg-gradient-to-r from-primary to-pink-500 p-6 rounded-lg shadow-md'}>
+              <div className={'text-sm text-white opacity-80'}>Общий результат (Администратор + Мастер)</div>
+              <div className={'text-3xl font-bold text-white mt-2'}>
+                {totalCombinedResult.toLocaleString()} Kč
+              </div>
+            </div>
+          </StatSection>
+        )}
 
         {/* Charts Section */}
         <StatSection title={'Графики'} id={'charts'} defaultOpen>
@@ -517,6 +669,45 @@ const AdministratorCabinetPage = () => {
                         className={`${getPaymentTypeColor(payment.type)} font-semibold`}
                       />
                       <Cell title={payment.comment || '-'} />
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableWrapper>
+          </StatSection>
+        )}
+
+        {/* Master Services Section */}
+        {filteredMasterData && filteredMasterData.servicesProvided.length > 0 && (
+          <StatSection title={'Оказанные услуги (Мастер)'} id={'master-services'}>
+            <TableWrapper
+              totalSum={`${masterEarnings?.staffSalaries.toLocaleString() || 0} Kč`}
+              totalLabel={'Всего заработано за услуги'}
+            >
+              <table className={'w-full text-left table-auto min-w-max'}>
+                <thead>
+                  <tr>
+                    <Cell title={'Дата'} asHeader />
+                    <Cell title={'Клиент'} asHeader />
+                    <Cell title={'Услуга'} asHeader />
+                    <Cell title={'Заработок'} asHeader />
+                    <Cell title={'Чаевые'} asHeader />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredMasterData.servicesProvided.map((service) => (
+                    <tr key={service.id} className={'hover:bg-gray-50 transition-colors'}>
+                      <Cell title={new Date(service.date).toLocaleDateString('ru-RU')} />
+                      <Cell title={service.clientName || '-'} />
+                      <Cell title={service.offer?.title || '-'} />
+                      <Cell
+                        title={`${Number(service.staffSalaries || 0).toLocaleString()} Kč`}
+                        className={'text-primary font-semibold'}
+                      />
+                      <Cell
+                        title={Number(service.tip || 0) > 0 ? `+${Number(service.tip).toLocaleString()} Kč` : '-'}
+                        className={'text-blue-600'}
+                      />
                     </tr>
                   ))}
                 </tbody>
