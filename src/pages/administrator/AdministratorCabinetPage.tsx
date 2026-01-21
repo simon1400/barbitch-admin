@@ -428,8 +428,8 @@ const AdministratorCabinetPage = () => {
           </div>
         </StatSection>
 
-        {/* Master Earnings Section */}
-        {masterEarnings && data?.masterData && (
+        {/* Master Earnings Section - показываем только если есть хотя бы одна проведённая услуга */}
+        {masterEarnings && data?.masterData && masterEarnings.servicesCount > 0 && (
           <StatSection title={`Заработок мастера (${data.masterData.name})`} id={'master-earnings'} defaultOpen>
             <div className={'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}>
               <div className={'bg-white p-6 rounded-lg shadow-md border border-gray-200'}>

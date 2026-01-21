@@ -73,8 +73,8 @@ export const getMoney = async (month: number, year: number): Promise<ICombineDat
   return {
     sumCosts: sumReducer(dataCosts as any),
     sumNoDphCosts: noDphReducer(dataCosts as any),
-    cardMoney: Number((dataCard as any)?.[0]?.sum || 0),
-    cardExtraIncome: Number((dataCard as any)?.[0]?.extraIncome || 0),
+    cardMoney: sumReducer(dataCard as any),
+    cardExtraIncome: (dataCard as any).reduce((acc: number, item: any) => acc + Number(item.extraIncome || 0), 0),
     cashMoney: maxProfit,
     payrollSum: sumReducer(dataPayroll as any),
     voucherRealizedSum: sumReducer(dataVouchersRealized as any),

@@ -3,7 +3,7 @@ import type { IDataWorks } from '../fetch/works'
 import { Container } from '../../../components/Container'
 import { useAppContext } from '../../../context/AppContext'
 import { formatDate } from '../../../utils/parseDate'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useMemo } from 'react'
 
 import { blockStatsItems } from '../data'
 import { getWorks } from '../fetch/works'
@@ -11,6 +11,7 @@ import { getWorks } from '../fetch/works'
 import { BlocksContent } from './BlocksContent'
 import { Cell } from './Cell'
 import { Select } from './Select'
+import { GlobalLineChart } from '../../global/charts/components/GlobalLineChart'
 
 const OptimizedWorks = () => {
   const [month, setMonth] = useState<number>(new Date().getMonth())
@@ -22,14 +23,54 @@ const OptimizedWorks = () => {
   const [penalty, setPenalty] = useState<number>(0)
   const [result, setResult] = useState<number>(0)
   const [tipSum, setTipSum] = useState<number>(0)
+  const [chartData, setChartData] = useState<Array<{ date: string; countPayed: number; countCanceled: number; countNoshow: number }>>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
 
   const { adminName } = useAppContext()
 
+  // Fallback данные для графика на основе услуг (если нет noonaEmployeeId)
+  const fallbackChartData = useMemo(() => {
+    if (!data?.offersDone || data.offersDone.length === 0) return []
+
+    // Группируем услуги по дате
+    const countByDate = new Map<string, number>()
+
+    for (const offer of data.offersDone) {
+      const d = new Date(offer.date)
+      const day = String(d.getDate()).padStart(2, '0')
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const formatted = `${day}.${m}`
+
+      countByDate.set(formatted, (countByDate.get(formatted) || 0) + 1)
+    }
+
+    // Создаём массив для всех дней месяца
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    const result = []
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = String(day).padStart(2, '0')
+      const m = String(month + 1).padStart(2, '0')
+      const formatted = `${d}.${m}`
+
+      result.push({
+        date: formatted,
+        countPayed: countByDate.get(formatted) || 0,
+        countCanceled: 0,
+        countNoshow: 0,
+      })
+    }
+
+    return result
+  }, [data, month, year])
+
+  // Используем данные из Noona если есть, иначе fallback
+  const displayChartData = chartData.length > 0 ? chartData : fallbackChartData
+
   const loadData = useCallback(async () => {
     setIsLoading(true)
     try {
-      const { works, salary, extraProfit, payrolls, penalty, result, tipSum } = await getWorks(
+      const { works, salary, extraProfit, payrolls, penalty, result, tipSum, chartData: noonaChartData } = await getWorks(
         adminName,
         month,
         year,
@@ -41,6 +82,7 @@ const OptimizedWorks = () => {
       setPenalty(penalty)
       setResult(result)
       setTipSum(tipSum)
+      setChartData(noonaChartData)
     } finally {
       setIsLoading(false)
     }
@@ -82,6 +124,21 @@ const OptimizedWorks = () => {
             tipSum,
           )}
         />
+
+        {/* Chart Section - показываем только если есть услуги */}
+        {data?.offersDone && data.offersDone.length > 0 && (
+          <div className={'mb-6'}>
+            <GlobalLineChart
+              data={displayChartData}
+              title={'Moje rezervace'}
+              lines={[
+                { dataKey: 'countPayed', stroke: '#e71e6e', name: 'Rezervace' },
+                { dataKey: 'countCanceled', stroke: '#161615', name: 'Zrušené' },
+                { dataKey: 'countNoshow', stroke: 'orange', name: 'Nepřišli' },
+              ]}
+            />
+          </div>
+        )}
 
         {/* Table Section */}
         <div className={'mb-6'}>

@@ -7,18 +7,26 @@ import { buildQuery, fetchData, summarizeGeneric } from './fetchHelpers'
 
 interface RateItem {
   rate: number | string
+  hourlyRate?: number | string | null
   from?: string | null
   to?: string | null
+  typeWork?: string | null
+}
+
+interface RateInfo {
+  rate: number // Почасовая ставка (или hourlyRate для HPP)
+  fixedMonthlyRate: number | null // Фиксированная месячная зарплата (только для HPP)
+  isFixedMonthly: boolean // true если HPP (фиксированная месячная зарплата)
 }
 
 const MAX_DATE = new Date(8640000000000000) // бесконечная дата
 
-function getRateForMonth(
+function getRateInfoForMonth(
   rates: RateItem[] | undefined,
   monthStart: Date,
   monthEnd: Date,
-): number | null {
-  if (!rates || !rates.length) return null
+): RateInfo {
+  if (!rates || !rates.length) return { rate: 115, fixedMonthlyRate: null, isFixedMonthly: false }
 
   const found = rates.find((r) => {
     const from = r.from ? new Date(r.from) : new Date(0)
@@ -26,9 +34,27 @@ function getRateForMonth(
     return from <= monthEnd && to >= monthStart
   })
 
-  const val = found?.rate
-  const num = typeof val === 'string' ? Number(val) : val
-  return Number.isFinite(num as number) ? (num as number) : null
+  if (!found) return { rate: 115, fixedMonthlyRate: null, isFixedMonthly: false }
+
+  const isFixedMonthly = found.typeWork === 'hpp'
+
+  // Для HPP: rate - фиксированная месячная, hourlyRate - почасовая
+  // Для DPP: rate - почасовая
+  const rateVal = found.rate
+  const rateNum = typeof rateVal === 'string' ? Number(rateVal) : rateVal
+  const mainRate = Number.isFinite(rateNum as number) ? (rateNum as number) : 115
+
+  if (isFixedMonthly) {
+    // HPP: используем hourlyRate как почасовую ставку, rate как фиксированную месячную
+    const hourlyVal = found.hourlyRate
+    const hourlyNum = typeof hourlyVal === 'string' ? Number(hourlyVal) : hourlyVal
+    const hourlyRate = Number.isFinite(hourlyNum as number) ? (hourlyNum as number) : 115
+
+    return { rate: hourlyRate, fixedMonthlyRate: mainRate, isFixedMonthly: true }
+  }
+
+  // DPP: rate - почасовая ставка
+  return { rate: mainRate, fixedMonthlyRate: null, isFixedMonthly: false }
 }
 
 export interface ResultAdmins {
@@ -39,7 +65,9 @@ export interface ResultAdmins {
   payrolls: number
   advance: number
   salaries: number
-  rate?: any
+  rate: number // Почасовая ставка
+  fixedMonthlyRate: number | null // Фиксированная месячная зарплата (только для HPP)
+  isFixedMonthly: boolean
   excessThreshold: number
 }
 
@@ -66,8 +94,7 @@ function summarizeAdmins(
     if (!name) return
     const hours = Number.parseFloat(sum || '0')
     if (!resultMap.has(name)) {
-      const rate =
-        getRateForMonth(personal?.rates as unknown as RateItem[], monthStart, monthEnd) ?? 115
+      const rateInfo = getRateInfoForMonth(personal?.rates as unknown as RateItem[], monthStart, monthEnd)
       resultMap.set(name, {
         name,
         sum: 0,
@@ -76,7 +103,9 @@ function summarizeAdmins(
         payrolls: 0,
         advance: 0,
         salaries: 0,
-        rate,
+        rate: rateInfo.rate,
+        fixedMonthlyRate: rateInfo.fixedMonthlyRate,
+        isFixedMonthly: rateInfo.isFixedMonthly,
         excessThreshold: personal?.excessThreshold ?? 0,
       })
     }
@@ -91,8 +120,16 @@ function summarizeAdmins(
 
   const summary = Array.from(resultMap.values())
   summary.forEach((item) => {
-    const rate = item.rate ?? 115
-    sumAdmins += item.sum * rate + item.extraProfit - item.penalty - item.payrolls
+    let contribution: number
+    if (item.isFixedMonthly && item.fixedMonthlyRate !== null) {
+      // HPP - фиксированная месячная зарплата
+      // fixedMonthlyRate - месячная зарплата, rate - почасовая (для других расчётов)
+      contribution = item.fixedMonthlyRate + item.extraProfit - item.penalty - item.payrolls
+    } else {
+      // DPP - почасовая оплата
+      contribution = item.sum * item.rate + item.extraProfit - item.penalty - item.payrolls
+    }
+    sumAdmins += contribution
   })
 
   return { summary, sumAdmins }
@@ -111,7 +148,7 @@ export const getAdminsHours = async (month: number, year: number) => {
     {
       personal: {
         fields: ['name', 'excessThreshold'],
-        populate: { rates: { fields: ['rate', 'from', 'to', 'typeWork'] } },
+        populate: { rates: { fields: ['rate', 'hourlyRate', 'from', 'to', 'typeWork'] } },
       },
     },
     { page: 1, pageSize: 70 },
@@ -156,7 +193,7 @@ export const getAdminsHoursByDateRange = async (startDate: Date, endDate: Date) 
     {
       personal: {
         fields: ['name', 'excessThreshold'],
-        populate: { rates: { fields: ['rate', 'from', 'to', 'typeWork'] } },
+        populate: { rates: { fields: ['rate', 'hourlyRate', 'from', 'to', 'typeWork'] } },
       },
     },
     { page: 1, pageSize: 70 },

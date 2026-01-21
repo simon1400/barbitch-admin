@@ -100,8 +100,8 @@ const GlobalMonthStats = () => {
               data={data}
               title={'Результат'}
               lines={[
-                { dataKey: 'result', stroke: 'green', name: 'Результат без DPH', strokeWidth: 3 },
-                { dataKey: 'resultDph', stroke: 'blue', name: 'Результат c DPH', strokeWidth: 3 }
+                { dataKey: 'resultDph', stroke: 'blue', name: 'Результат c DPH', strokeWidth: 3 },
+                { dataKey: 'result', stroke: 'green', name: 'Результат без DPH', strokeWidth: 3 }
               ]}
             />
             <GlobalLineChart

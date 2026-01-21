@@ -1,9 +1,12 @@
 import { getMonthRange } from '../../../utils/getMonthRange'
+import { NoonaHQ } from '../../../lib/noona'
 
-import { buildQuery, fetchData } from './fetchHelpers'
+import { buildQuery, fetchData, groupCountReservationByDate, type InputItemReservation } from './fetchHelpers'
+import { splitEventsByStatus, groupByColor } from './getEvents'
 
 export interface IDataWorks {
   name: string
+  noonaEmployeeId?: string
   offersDone: {
     id: number
     date: string
@@ -17,6 +20,13 @@ interface IDataSumOnly {
   sum: string
 }
 
+interface ChartDataItem {
+  date: string
+  countPayed: number
+  countCanceled: number
+  countNoshow: number
+}
+
 export const getWorks = async (name: string, month: number, year: number) => {
   const { firstDay, lastDay } = getMonthRange(year, month)
 
@@ -24,7 +34,7 @@ export const getWorks = async (name: string, month: number, year: number) => {
     name: { $eq: name },
   }
 
-  const offersQuery = buildQuery(filtersOffers, ['name'], {
+  const offersQuery = buildQuery(filtersOffers, ['name', 'noonaEmployeeId'], {
     offersDone: {
       sort: ['date:desc'],
       filters: {
@@ -71,6 +81,44 @@ export const getWorks = async (name: string, month: number, year: number) => {
 
   const result = salary + extraProfit + tipSum - payrolls - penalty
 
+  // Получаем данные для графика из Noona API если есть noonaEmployeeId
+  let chartData: ChartDataItem[] = []
+  const noonaEmployeeId = data[0]?.noonaEmployeeId
+
+  if (noonaEmployeeId) {
+    try {
+      const queryString = new URLSearchParams()
+      const queryParams: Record<string, string | string[]> = {
+        select: ['id', 'event_types.color', 'customer_name', 'status', 'ends_at'],
+        filter: JSON.stringify({
+          from: firstDay.toISOString(),
+          to: lastDay.toISOString(),
+          employee_id: noonaEmployeeId,
+        }),
+      }
+
+      Object.entries(queryParams).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          value.forEach((val) => queryString.append(key, val))
+        } else {
+          queryString.append(key, String(value))
+        }
+      })
+
+      const eventsResponse = await NoonaHQ.get(`/8qcJwRg6dbNh6Gqvm/events?${queryString.toString()}`)
+      const { cancelled, noshow, others } = splitEventsByStatus(eventsResponse.data)
+      const groupedByColor = groupByColor(others)
+
+      chartData = groupCountReservationByDate({
+        Payed: (groupedByColor['#FF787D'] || []) as InputItemReservation[],
+        Canceled: cancelled as InputItemReservation[],
+        Noshow: noshow as InputItemReservation[],
+      }) as ChartDataItem[]
+    } catch (error) {
+      console.error('Error fetching Noona events for master:', error)
+    }
+  }
+
   return {
     works: data[0],
     salary,
@@ -79,5 +127,6 @@ export const getWorks = async (name: string, month: number, year: number) => {
     penalty,
     result,
     tipSum,
+    chartData,
   }
 }

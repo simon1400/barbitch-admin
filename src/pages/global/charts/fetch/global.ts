@@ -28,14 +28,14 @@ export const getGlobalStats = async () => {
         allCostsWhithotAdmins: dataCosts.sumNoDphCosts + dataAllWorks.sumMasters,
         allCosts: dataCosts.sumNoDphCosts + dataAllWorks.sumMasters + dataAdmin.sumAdmins,
         admins: dataAdmin.sumAdmins,
-        result: (
+        result: Math.round(
           dataCosts.cashMoney +
           (dataCosts.cardMoney + dataCosts.qrMoney + dataCosts.cardExtraIncome) / 1.21 -
           dataAllWorks.sumMasters -
           dataAdmin.sumAdmins -
           dataCosts.sumNoDphCosts
-        ).toFixed(2),
-        resultDph: (
+        ),
+        resultDph: Math.round(
           dataCosts.cashMoney +
           dataCosts.cardMoney +
           dataCosts.qrMoney +
@@ -43,7 +43,7 @@ export const getGlobalStats = async () => {
           dataAllWorks.sumMasters -
           dataAdmin.sumAdmins -
           dataCosts.sumCosts
-        ).toFixed(2),
+        ),
       }
       globalStats.push(item)
     }
