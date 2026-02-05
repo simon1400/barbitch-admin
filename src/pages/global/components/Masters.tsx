@@ -18,13 +18,19 @@ export const Masters = ({
 }) => {
   const emptyKeys = new Set(findCommonZeroKeys(data))
 
+  // Проверяем, есть ли авансы или зарплаты у кого-либо
+  const hasAdvanceOrSalary = !emptyKeys.has('advance') || !emptyKeys.has('salaries')
+
   // Рассчитываем общую сумму превышений (исключая администраторов-мастеров)
   const totalExcess = data.reduce((sum, item) => {
     // Пропускаем администраторов-мастеров - их превышение в таблице администраторов
     if (ADMIN_MASTERS.includes(item.name)) return sum
     const result = item.sum + item.sumTip + item.extraProfit - item.penalty - item.payrolls
+    const remaining = result - item.advance - item.salaries
     const threshold = item.excessThreshold ?? 0
-    const excess = result > threshold ? result - threshold : 0
+    // Считаем от остатка если есть авансы/зарплаты, иначе от результата
+    const baseForExcess = hasAdvanceOrSalary ? remaining : result
+    const excess = baseForExcess > threshold ? baseForExcess - threshold : 0
     return sum + excess
   }, 0)
 
@@ -45,9 +51,10 @@ export const Masters = ({
             {!emptyKeys.has('extraProfit') && <Cell title={'Доп.'} asHeader />}
             {!emptyKeys.has('payrolls') && <Cell title={'Спис.'} asHeader />}
             <Cell title={'Результат'} asHeader />
-            <Cell title={'Превышение'} asHeader />
+
             {!emptyKeys.has('advance') && <Cell title={'Аванс'} asHeader />}
             {!emptyKeys.has('salaries') && <Cell title={'ЗП.'} asHeader />}
+            {totalExcess > 0 && <Cell title={'Превышение'} asHeader />}
             {!emptyKeys.has('advance') && <Cell title={'Осталось'} asHeader />}
           </tr>
         </thead>
@@ -58,13 +65,21 @@ export const Masters = ({
             const result = isAdminMaster
               ? item.sum + item.sumTip
               : item.sum + item.sumTip + item.extraProfit - item.penalty - item.payrolls
+            const remaining = result - item.advance - item.salaries
             const threshold = item.excessThreshold ?? 0
+            // Считаем превышение от остатка если есть авансы/зарплаты, иначе от результата
+            const baseForExcess = hasAdvanceOrSalary ? remaining : result
             // Для администраторов-мастеров превышение не показываем (оно в таблице администраторов)
-            const excess = isAdminMaster ? 0 : (result > threshold ? result - threshold : 0)
+            const excess = isAdminMaster ? 0 : (baseForExcess > threshold ? baseForExcess - threshold : 0)
+            const splitName = item.name.split(' ')
 
             return (
               <tr key={item.name} className={'hover:bg-gray-50 transition-colors'}>
-                <Cell title={item.name} />
+                <Cell
+                  title={`${splitName[0][0]}. ${splitName[1]}`}
+                  className="cursor-pointer"
+                  onClick={() => navigator.clipboard.writeText(item.name)}
+                />
                 <Cell title={`${item.countClient}`} />
                 <Cell title={`${item.sum.toLocaleString()}`} />
                 {!emptyKeys.has('sumTip') && (
@@ -83,20 +98,23 @@ export const Masters = ({
                   className={'text-primary font-semibold'}
                   title={`${result.toLocaleString()}`}
                 />
-                <Cell
-                  className={excess > 0 ? 'text-orange-600 font-semibold' : ''}
-                  title={excess > 0 ? `+${excess.toLocaleString()}` : '-'}
-                />
+                
                 {!emptyKeys.has('advance') && (
                   <Cell title={item.advance ? `-${item.advance.toLocaleString()}` : ''} />
                 )}
                 {!emptyKeys.has('salaries') && (
                   <Cell title={item.salaries ? `-${item.salaries.toLocaleString()}` : ''} />
                 )}
+                {totalExcess > 0 && (
+                  <Cell
+                    className={excess > 0 ? 'text-orange-600 font-semibold' : ''}
+                    title={excess > 0 ? `+${excess.toLocaleString()}` : '-'}
+                  />
+                )}
                 {(!emptyKeys.has('advance') || !emptyKeys.has('salaries')) && (
                   <Cell
                     className={'text-primary font-semibold'}
-                    title={`${(result - item.advance - item.salaries).toLocaleString()}`}
+                    title={remaining >= 0 ? `${remaining.toLocaleString()}` : ''}
                   />
                 )}
               </tr>

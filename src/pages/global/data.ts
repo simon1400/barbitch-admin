@@ -1,3 +1,5 @@
+import { toLocalStringDigits } from "../../utils/toLocalString"
+
 export const blockStateItems = (
   noDphCosts: number,
   globalFlow: number,
@@ -19,23 +21,15 @@ export const blockStateItems = (
   },
   {
     title: 'Результат за месяц',
-    value: `${(
+    value: `${toLocalStringDigits(
       cashMoney +
-      (cardMoney + qrMoney + cardExtraIncome) / 1.21 -
+      cardExtraIncome+
+      (cardMoney + qrMoney) / 1.21 -
       sumMasters -
       sumAdmins -
       noDphCosts
-    ).toLocaleString('cz-CZ', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`,
-    addValue: `${(cashMoney + cardMoney + qrMoney + cardExtraIncome - sumMasters - sumAdmins - dphCosts).toLocaleString(
-      'cz-CZ',
-      {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      },
-    )} - s DPH`,
+    )}`,
+    addValue: `${toLocalStringDigits(cashMoney + cardMoney + qrMoney + cardExtraIncome - sumMasters - sumAdmins - dphCosts)} - s DPH`,
   },
   {
     title: 'Разниця',
@@ -60,9 +54,9 @@ export const blockReservationsItems = (
   clientsPayed: number,
   clientsNoshow: number,
   clientsCanceled: number,
-  clientsFree: number,
+  // clientsFree: number,
   clientsFixed: number,
-  clientsPersonal: number,
+  // clientsPersonal: number,
   sumClientsDone: number,
   clientsPastPayed: number,
   countCreatedMonthReservation: number,
@@ -93,18 +87,18 @@ export const blockReservationsItems = (
     title: 'Отменили',
     value: clientsCanceled,
   },
-  {
-    title: 'Бесплатные',
-    value: clientsFree,
-  },
+  // {
+  //   title: 'Бесплатные',
+  //   value: clientsFree,
+  // },
   {
     title: 'Оправа',
     value: clientsFixed,
   },
-  {
-    title: 'Персонал',
-    value: clientsPersonal,
-  },
+  // {
+  //   title: 'Персонал',
+  //   value: clientsPersonal,
+  // },
   {
     title: 'Зарезерв. за месяц',
     value: countCreatedMonthReservation,

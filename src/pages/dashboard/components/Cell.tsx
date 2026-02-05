@@ -5,10 +5,12 @@ export const Cell = React.memo(
     title,
     asHeader,
     className = '',
+    onClick,
   }: {
     title: string
     asHeader?: boolean
     className?: string
+    onClick?: () => void
   }) =>
     asHeader ? (
       <th className={`p-4 border-b border-blue-gray-100 bg-blue-gray-50 ${className}`}>
@@ -17,8 +19,8 @@ export const Cell = React.memo(
         </p>
       </th>
     ) : (
-      <td className={`p-4 border-b border-blue-gray-50 ${className}`}>
-        <span className={'block font-sans text-sm font-medium text-blue-gray-900'}>{title}</span>
+      <td className={`p-4 border-b border-blue-gray-50 ${onClick ? 'group' : ''}`} onClick={onClick}>
+        <span className={`block font-sans text-sm font-medium text-blue-gray-900 ${className} ${onClick ? 'group-hover:text-primary' : ''}`}>{title}</span>
       </td>
     ),
 )
