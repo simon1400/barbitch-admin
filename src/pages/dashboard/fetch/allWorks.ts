@@ -10,6 +10,7 @@ interface IDataAllWorks extends PersonalSumData {
   tip: string
   date: string
   excessThreshold?: number
+  cash: boolean
 }
 
 interface Result {
@@ -32,6 +33,8 @@ export interface IFilteredData {
   sumClientsDone: number
   averageCheck: number
   averageMasterSalary: number
+  salonSalariesCash: number
+  salonSalariesCard: number
 }
 
 function summarizeWorks(
@@ -47,6 +50,8 @@ function summarizeWorks(
   let sumMasters = 0
   let sumClientsDone = 0
   let totalStaffSalaries = 0
+  let salonSalariesCash = 0
+  let salonSalariesCard = 0
 
   data.forEach((item) => {
     const name = item.personal?.name
@@ -58,6 +63,12 @@ function summarizeWorks(
 
     globalFlow += staff + salon + tip
     totalStaffSalaries += staff
+
+    if (item.cash) {
+      salonSalariesCash += salon
+    } else {
+      salonSalariesCard += salon - ((salon + staff + tip) * 0.21)
+    }
 
     if (!resultMap.has(name)) {
       resultMap.set(name, {
@@ -100,7 +111,7 @@ function summarizeWorks(
   const averageCheck = sumClientsDone > 0 ? Math.round(globalFlow / sumClientsDone) : 0
   const averageMasterSalary = sumClientsDone > 0 ? Math.round(totalStaffSalaries / sumClientsDone) : 0
 
-  return { summary, globalFlow, sumMasters, sumClientsDone, averageCheck, averageMasterSalary }
+  return { summary, globalFlow, sumMasters, sumClientsDone, averageCheck, averageMasterSalary, salonSalariesCash, salonSalariesCard }
 }
 
 export const getAllWorks = async (month: number, year: number) => {
@@ -108,7 +119,7 @@ export const getAllWorks = async (month: number, year: number) => {
 
   const filters = { date: { $gte: firstDay.toISOString(), $lte: lastDay.toISOString() } }
 
-  const serviceQuery = buildQuery(filters, ['staffSalaries', 'salonSalaries', 'tip', 'date'], {
+  const serviceQuery = buildQuery(filters, ['staffSalaries', 'salonSalaries', 'tip', 'date', 'cash'], {
     personal: { fields: ['name', 'excessThreshold'] },
   })
 
@@ -132,6 +143,8 @@ export const getAllWorks = async (month: number, year: number) => {
     sumClientsDone: filteredData.sumClientsDone,
     averageCheck: filteredData.averageCheck,
     averageMasterSalary: filteredData.averageMasterSalary,
+    salonSalariesCash: filteredData.salonSalariesCash,
+    salonSalariesCard: filteredData.salonSalariesCard,
     daysResult: groupAndSumByDateWithGaps(data),
   }
 }
@@ -139,7 +152,7 @@ export const getAllWorks = async (month: number, year: number) => {
 export const getAllWorksByDateRange = async (startDate: Date, endDate: Date) => {
   const filters = { date: { $gte: startDate.toISOString(), $lte: endDate.toISOString() } }
 
-  const serviceQuery = buildQuery(filters, ['staffSalaries', 'salonSalaries', 'tip', 'date'], {
+  const serviceQuery = buildQuery(filters, ['staffSalaries', 'salonSalaries', 'tip', 'date', 'cash'], {
     personal: { fields: ['name', 'excessThreshold'] },
   })
 
@@ -163,6 +176,8 @@ export const getAllWorksByDateRange = async (startDate: Date, endDate: Date) => 
     sumClientsDone: filteredData.sumClientsDone,
     averageCheck: filteredData.averageCheck,
     averageMasterSalary: filteredData.averageMasterSalary,
+    salonSalariesCash: filteredData.salonSalariesCash,
+    salonSalariesCard: filteredData.salonSalariesCard,
     daysResult: groupAndSumByDateWithGaps(data),
   }
 }

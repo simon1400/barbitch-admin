@@ -14,16 +14,18 @@ export const blockStateItems = (
   qrMoney: number,
   extraMoney: number,
   dphCosts: number,
+  salonSalariesCash: number,
+  salonSalariesCard: number,
 ) => [
   {
-    title: 'За услуги',
+    title: 'Оборот',
     value: `${globalFlow.toLocaleString()} Kč`,
   },
   {
     title: 'Результат за месяц',
     value: `${toLocalStringDigits(
       cashMoney +
-      cardExtraIncome+
+      cardExtraIncome +
       (cardMoney + qrMoney) / 1.21 -
       sumMasters -
       sumAdmins -
@@ -46,6 +48,10 @@ export const blockStateItems = (
   {
     title: 'Зарплаты админам',
     value: `${sumAdmins.toLocaleString()}`,
+  },
+  {
+    title: 'Результат по услугам',
+    value: `${toLocalStringDigits(salonSalariesCash + cardExtraIncome + salonSalariesCard - sumAdmins - noDphCosts)}`
   },
 ]
 

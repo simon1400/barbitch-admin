@@ -14,6 +14,22 @@ const GlobalMonthStates = () => {
   const [year, setYear] = useState<number>(new Date().getFullYear())
   const data = useGlobalMonthData(month, year)
 
+  console.log('data.salonSalariesCash + (data.salonSalariesCard / 1.21)', data.salonSalariesCash + (data.salonSalariesCard / 1.21))
+  console.log('data.salonSalariesCash + (data.salonSalariesCard / 1.21)', data.salonSalariesCash + data.salonSalariesCard)
+  // console.log('data.salonSalariesCash + (data.salonSalariesCard / 1.21)',  + data.salonSalariesCard)
+  // console.log('data.noDphCosts', data.noDphCosts)
+  console.log('data.salonSalariesCard', data.salonSalariesCard)
+  console.log('data.cardMoney', data.cardMoney)
+  // console.log('data.cardExtraIncome', data.cardExtraIncome)
+  // console.log('data.cardMoney + data.qrMoney', data.cardMoney / 1.21)
+  console.log('masters', data.sumMasters)
+  // console.log('admin', data.sumAdmins)
+  // console.log('cash', data.cashMoney)
+
+  // console.log('sumSalonSalaries',  data.salonSalariesCash + (data.salonSalariesCard / 1.21) + data.cardExtraIncome - data.sumAdmins - data.noDphCosts - data.sumMasters)
+  // console.log('sum', (data.cardMoney / 1.21) +data.cardExtraIncome + data.cashMoney - data.sumMasters - data.sumAdmins - data.noDphCosts)
+  
+
   return (
     <OwnerProtection>
       <section className={'pb-20 min-h-screen'}>
@@ -40,6 +56,8 @@ const GlobalMonthStates = () => {
                 data.qrMoney,
                 data.extraMoney,
                 data.costs,
+                data.salonSalariesCash,
+                data.salonSalariesCard,
               )}
             />
           </StatSection>
