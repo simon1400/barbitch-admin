@@ -113,7 +113,7 @@ export const getWorks = async (name: string, month: number, year: number) => {
         Payed: (groupedByColor['#FF787D'] || []) as InputItemReservation[],
         Canceled: cancelled as InputItemReservation[],
         Noshow: noshow as InputItemReservation[],
-      }) as ChartDataItem[]
+      }) as unknown as ChartDataItem[]
     } catch (error) {
       console.error('Error fetching Noona events for master:', error)
     }
