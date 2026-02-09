@@ -30,6 +30,7 @@ export const useGlobalMonthData = (month: number, year: number) => {
     qrMoney: 0,
     salonSalariesCash: 0,
     salonSalariesCard: 0,
+    taxesSum: 0,
     clients: {
       all: 0,
       canceled: 0,
@@ -74,6 +75,7 @@ export const useGlobalMonthData = (month: number, year: number) => {
       qrMoney: moneyRes.qrMoney,
       salonSalariesCash: worksRes.salonSalariesCash,
       salonSalariesCard: worksRes.salonSalariesCard,
+      taxesSum: moneyRes.taxesSum,
       clients: {
         all: eventsRes.all,
         canceled: eventsRes.cancelled,

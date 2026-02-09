@@ -25,6 +25,7 @@ export interface ICombineData {
   voucherPayedSum: number
   extraMoneySum: number
   qrMoney: number
+  taxesSum: number
 }
 
 export const getMoney = async (month: number, year: number): Promise<ICombineData> => {
@@ -39,6 +40,7 @@ export const getMoney = async (month: number, year: number): Promise<ICombineDat
     dataVouchersRealized,
     dataVouchersPayed,
     dataQrMoney,
+    dataTaxes,
   ] = await Promise.all([
     Axios.get<IDataCosts[]>(
       `/api/costs?${buildQueryCost(['sum', 'noDph'], 'date', firstDay, lastDay)}`,
@@ -58,6 +60,7 @@ export const getMoney = async (month: number, year: number): Promise<ICombineDat
       `/api/vouchers?${buildQueryCost(['sum'], 'datePay', firstDay, lastDay)}`,
     ),
     Axios.get<IDataCosts[]>(`/api/qr-pays?${buildQueryCost(['sum'], 'date', firstDay, lastDay)}`),
+    Axios.get<IDataCosts[]>(`/api/taxes?${buildQueryCost(['sum'], 'date', firstDay, lastDay)}`),
   ])
 
   const sumReducer = (arr: { sum: number }[]) =>
@@ -81,6 +84,7 @@ export const getMoney = async (month: number, year: number): Promise<ICombineDat
     voucherPayedSum: sumReducer(dataVouchersPayed as any),
     extraMoneySum: sumReducer(dataExtra as any),
     qrMoney: sumReducer(dataQrMoney as any),
+    taxesSum: sumReducer(dataTaxes as any),
   }
 }
 

@@ -16,6 +16,7 @@ export const blockStateItems = (
   dphCosts: number,
   salonSalariesCash: number,
   salonSalariesCard: number,
+  taxesSum: number,
 ) => [
   {
     title: 'Оборот',
@@ -29,9 +30,10 @@ export const blockStateItems = (
       (cardMoney + qrMoney) / 1.21 -
       sumMasters -
       sumAdmins -
-      noDphCosts
+      noDphCosts -
+      taxesSum
     )}`,
-    addValue: `${toLocalStringDigits(cashMoney + cardMoney + qrMoney + cardExtraIncome - sumMasters - sumAdmins - dphCosts)} - s DPH`,
+    addValue: `${toLocalStringDigits(cashMoney + cardMoney + qrMoney + cardExtraIncome - sumMasters - sumAdmins - dphCosts - taxesSum)} - s DPH`,
   },
   {
     title: 'Разниця',
@@ -48,6 +50,10 @@ export const blockStateItems = (
   {
     title: 'Зарплаты админам',
     value: `${sumAdmins.toLocaleString()}`,
+  },
+  {
+    title: 'Налоги',
+    value: `${taxesSum.toLocaleString()}`,
   },
   {
     title: 'Результат по услугам',

@@ -48,7 +48,8 @@ export const Administrators = ({
             {!emptyKeys.has('advance') && <Cell title={'Аванс'} asHeader />}
             {!emptyKeys.has('salaries') && <Cell title={'ЗП.'} asHeader />}
             {totalExcess > 0 && <Cell title={'Превышение'} asHeader />}
-            {!emptyKeys.has('advance') && <Cell title={'Осталось'} asHeader />}
+            {(!emptyKeys.has('advance') || !emptyKeys.has('salaries')) && <Cell title={'Осталось'} asHeader />}
+            {!emptyKeys.has('taxes') && <Cell title={'Налоги'} asHeader />}
           </tr>
         </thead>
         <tbody>
@@ -98,8 +99,11 @@ export const Administrators = ({
                 {(!emptyKeys.has('advance') || !emptyKeys.has('salaries')) && (
                   <Cell
                     className={'text-primary font-semibold'}
-                    title={remaining >= 0 ? `${remaining.toLocaleString()}` : ''}
+                    title={`${remaining.toLocaleString()}`}
                   />
+                )}
+                {!emptyKeys.has('taxes') && (
+                  <Cell title={item.taxes ? `${item.taxes.toLocaleString()}` : ''} />
                 )}
               </tr>
             )

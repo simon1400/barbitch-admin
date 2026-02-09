@@ -65,6 +65,7 @@ export interface ResultAdmins {
   payrolls: number
   advance: number
   salaries: number
+  taxes: number
   rate: number // Почасовая ставка
   fixedMonthlyRate: number | null // Фиксированная месячная зарплата (только для HPP)
   isFixedMonthly: boolean
@@ -83,6 +84,7 @@ function summarizeAdmins(
   payrolls: PersonalSumData[],
   advance: PersonalSumData[],
   salaries: PersonalSumData[],
+  taxes: PersonalSumData[],
   monthStart: Date,
   monthEnd: Date,
 ): IFilteredAdminsData {
@@ -103,6 +105,7 @@ function summarizeAdmins(
         payrolls: 0,
         advance: 0,
         salaries: 0,
+        taxes: 0,
         rate: rateInfo.rate,
         fixedMonthlyRate: rateInfo.fixedMonthlyRate,
         isFixedMonthly: rateInfo.isFixedMonthly,
@@ -117,6 +120,7 @@ function summarizeAdmins(
   summarizeGeneric(resultMap, payrolls, 'payrolls')
   summarizeGeneric(resultMap, advance, 'advance')
   summarizeGeneric(resultMap, salaries, 'salaries')
+  summarizeGeneric(resultMap, taxes, 'taxes')
 
   const summary = Array.from(resultMap.values())
   summary.forEach((item) => {
@@ -156,13 +160,14 @@ export const getAdminsHours = async (month: number, year: number) => {
 
   const genericQuery = buildQuery(filters, ['sum'], { personal: { fields: ['name'] } })
 
-  const [data, penalties, extras, payrolls, advance, salaries] = await Promise.all([
+  const [data, penalties, extras, payrolls, advance, salaries, taxes] = await Promise.all([
     fetchData<PersonalSumData>('/api/work-times', queryWorkTimes),
     fetchData<PersonalSumData>('/api/penalties', genericQuery),
     fetchData<PersonalSumData>('/api/add-moneys', genericQuery),
     fetchData<PersonalSumData>('/api/payrolls', genericQuery),
     fetchData<PersonalSumData>('/api/avanses', genericQuery),
     fetchData<PersonalSumData>('/api/salaries', genericQuery),
+    fetchData<PersonalSumData>('/api/taxes', genericQuery),
   ])
 
   const { summary, sumAdmins } = summarizeAdmins(
@@ -172,6 +177,7 @@ export const getAdminsHours = async (month: number, year: number) => {
     payrolls,
     advance,
     salaries,
+    taxes,
     firstDay,
     lastDay,
   )
@@ -201,13 +207,14 @@ export const getAdminsHoursByDateRange = async (startDate: Date, endDate: Date) 
 
   const genericQuery = buildQuery(filters, ['sum'], { personal: { fields: ['name'] } })
 
-  const [data, penalties, extras, payrolls, advance, salaries] = await Promise.all([
+  const [data, penalties, extras, payrolls, advance, salaries, taxes] = await Promise.all([
     fetchData<PersonalSumData>('/api/work-times', queryWorkTimes),
     fetchData<PersonalSumData>('/api/penalties', genericQuery),
     fetchData<PersonalSumData>('/api/add-moneys', genericQuery),
     fetchData<PersonalSumData>('/api/payrolls', genericQuery),
     fetchData<PersonalSumData>('/api/avanses', genericQuery),
     fetchData<PersonalSumData>('/api/salaries', genericQuery),
+    fetchData<PersonalSumData>('/api/taxes', genericQuery),
   ])
 
   const { summary, sumAdmins } = summarizeAdmins(
@@ -217,6 +224,7 @@ export const getAdminsHoursByDateRange = async (startDate: Date, endDate: Date) 
     payrolls,
     advance,
     salaries,
+    taxes,
     startDate,
     endDate,
   )

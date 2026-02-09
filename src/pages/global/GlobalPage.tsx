@@ -58,6 +58,7 @@ const GlobalMonthStates = () => {
                 data.costs,
                 data.salonSalariesCash,
                 data.salonSalariesCard,
+                data.taxesSum,
               )}
             />
           </StatSection>
