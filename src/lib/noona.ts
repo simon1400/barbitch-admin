@@ -1,6 +1,7 @@
 import axios from 'axios'
 
-const addBearerToken = (config: Parameters<Parameters<typeof axios.interceptors.request.use>[0]>[0]) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const addBearerToken = (config: any) => {
   const token = import.meta.env.VITE_NOONA_TOKEN
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
