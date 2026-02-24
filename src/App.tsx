@@ -13,6 +13,7 @@ import ProceduresStatsPage from './pages/global/ProceduresStatsPage'
 import VoucherConfirmationPage from './pages/voucher-confirmation/VoucherConfirmationPage'
 import EmailCampaignPage from './pages/email-campaign/EmailCampaignPage'
 import AdministratorCabinetPage from './pages/administrator/AdministratorCabinetPage'
+import NoonaServicePage from './pages/global/NoonaServicePage'
 import { AppProvider } from './context/AppContext'
 import { checkUserStatus, logout } from './services/auth'
 
@@ -221,6 +222,18 @@ function App() {
                 <OwnerRoute>
                   <AdminLayout>
                     <EmailCampaignPage />
+                  </AdminLayout>
+                </OwnerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/global/noona-services"
+            element={
+              <ProtectedRoute>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <NoonaServicePage />
                   </AdminLayout>
                 </OwnerRoute>
               </ProtectedRoute>

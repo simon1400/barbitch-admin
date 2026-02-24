@@ -7,6 +7,7 @@ import { StatSection } from '../global/components/StatSection'
 import { Select } from '../dashboard/components/Select'
 import { GlobalLineChart } from '../global/charts/components/GlobalLineChart'
 import { useGlobalMonthData } from '../dashboard/hooks/useGlobalMonthData'
+import { NoonaServiceForm } from '../global/components/NoonaServiceForm'
 
 interface ServiceProvided {
   id: number
@@ -765,6 +766,9 @@ const AdministratorCabinetPage = () => {
             </div>
           </StatSection>
         )}
+        <StatSection title={'Добавить процедуры в Noona'} id={'noona-services'}>
+          <NoonaServiceForm />
+        </StatSection>
       </Container>
     </section>
   )

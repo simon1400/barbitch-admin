@@ -5,6 +5,8 @@ import { isBefore, isEqual, parseISO } from 'date-fns'
 import { getMonthRange } from '../../../utils/getMonthRange'
 import { NoonaHQ } from '../../../lib/noona'
 
+const COMPANY_ID = import.meta.env.VITE_NOONA_COMPANY_ID as string
+
 import { groupCountReservationByDate } from './fetchHelpers'
 
 interface EventItem {
@@ -112,7 +114,7 @@ export const getEvents = async (month: number, year: number) => {
     }
   })
 
-  const data = await NoonaHQ.get(`/8qcJwRg6dbNh6Gqvm/events?${queryString.toString()}`)
+  const data = await NoonaHQ.get(`/${COMPANY_ID}/events?${queryString.toString()}`)
   const { cancelled, noshow, others } = splitEventsByStatus(data.data)
   const groupedByColor = groupByColor(others)
 
@@ -130,10 +132,10 @@ export const getEvents = async (month: number, year: number) => {
   })
 
   const createdReservationData = await NoonaHQ.get(
-    `/8qcJwRg6dbNh6Gqvm/events?${queryString2.toString()}`,
+    `/${COMPANY_ID}/events?${queryString2.toString()}`,
   )
   const createdReservationTodayData = await NoonaHQ.get(
-    `/8qcJwRg6dbNh6Gqvm/events?${queryString3.toString()}`,
+    `/${COMPANY_ID}/events?${queryString3.toString()}`,
   )
 
   const countCreatedMonthReservation = createdReservationData.headers['x-total-count']

@@ -15,6 +15,7 @@ const navItems: NavItem[] = [
   { path: '/global/charts', label: 'Чарты глобальные' },
   { path: '/voucher-confirmation', label: 'Potvrzení voucheru' },
   { path: '/email-campaign', label: 'Email kampaň' },
+  { path: '/global/noona-services', label: 'Процедуры Noona' },
 ]
 
 export const GlobalNav = () => {

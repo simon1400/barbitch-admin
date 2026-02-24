@@ -1,6 +1,8 @@
 import { getMonthRange } from '../../../utils/getMonthRange'
 import { NoonaHQ } from '../../../lib/noona'
 
+const COMPANY_ID = import.meta.env.VITE_NOONA_COMPANY_ID as string
+
 import { buildQuery, fetchData, groupCountReservationByDate, type InputItemReservation } from './fetchHelpers'
 import { splitEventsByStatus, groupByColor } from './getEvents'
 
@@ -105,7 +107,7 @@ export const getWorks = async (name: string, month: number, year: number) => {
         }
       })
 
-      const eventsResponse = await NoonaHQ.get(`/8qcJwRg6dbNh6Gqvm/events?${queryString.toString()}`)
+      const eventsResponse = await NoonaHQ.get(`/${COMPANY_ID}/events?${queryString.toString()}`)
       const { cancelled, noshow, others } = splitEventsByStatus(eventsResponse.data)
       const groupedByColor = groupByColor(others)
 
