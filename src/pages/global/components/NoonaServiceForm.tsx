@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getNoonaEmployees, type NoonaEmployee } from '../fetch/noonaEmployees'
+import { getNoonaCategories, type NoonaCategory } from '../fetch/noonaCategories'
 import { createNoonaService, type CreateServiceResult } from '../fetch/noonaServices'
 
 interface ProcedureRow {
@@ -22,6 +23,8 @@ const makeRow = (): ProcedureRow => ({
 export const NoonaServiceForm = () => {
   const [employees, setEmployees] = useState<NoonaEmployee[]>([])
   const [loadingEmps, setLoadingEmps] = useState(true)
+  const [categories, setCategories] = useState<NoonaCategory[]>([])
+  const [categoryId, setCategoryId] = useState<string>('')
   const [rows, setRows] = useState<ProcedureRow[]>([makeRow()])
   const [submitting, setSubmitting] = useState(false)
   const [results, setResults] = useState<CreateServiceResult[]>([])
@@ -32,6 +35,8 @@ export const NoonaServiceForm = () => {
       .then(setEmployees)
       .catch(() => setEmployees([]))
       .finally(() => setLoadingEmps(false))
+
+    getNoonaCategories().then(setCategories).catch(() => setCategories([]))
   }, [])
 
   const updateRow = (id: number, field: keyof ProcedureRow, value: string | string[]) => {
@@ -74,6 +79,7 @@ export const NoonaServiceForm = () => {
         minutes: Number(row.minutes),
         price: Number(row.price),
         employeeIds: row.employeeIds,
+        categoryId: categoryId || undefined,
       })
       created.push(result)
     }
@@ -100,6 +106,26 @@ export const NoonaServiceForm = () => {
 
   return (
     <div>
+      {categories.length > 0 && (
+        <div className="mb-5">
+          <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+            Категория
+          </label>
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-white min-w-[240px]"
+          >
+            <option value="">— Без категории —</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.title ?? cat.name ?? cat.id}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="space-y-4">
         {rows.map((row, idx) => (
           <div
@@ -237,6 +263,9 @@ export const NoonaServiceForm = () => {
                     <span className="ml-3 text-sm text-gray-500 font-mono">{r.id}</span>
                   ) : (
                     <span className="ml-3 text-sm text-red-500">{r.error}</span>
+                  )}
+                  {r.status === 'ok' && r.warning && (
+                    <span className="ml-3 text-sm text-amber-600">{r.warning}</span>
                   )}
                 </div>
                 {r.status === 'ok' && (
