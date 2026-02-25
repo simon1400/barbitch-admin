@@ -13,6 +13,7 @@ import {
   type NoonaServiceItem,
 } from '../fetch/noonaServices'
 import { fetchExistingAddonGroup, saveBookingAddonGroup, type ExistingAddonGroupRecord } from '../fetch/strapiAddonGroups'
+import { saveOfferings, type SaveOfferingsResult } from '../fetch/strapiOfferings'
 
 interface Row {
   id: number
@@ -23,7 +24,7 @@ interface Row {
 let nextId = 1
 const makeRow = (): Row => ({ id: nextId++, label: '', priceDiff: '' })
 
-type Status = 'idle' | 'noona' | 'strapi' | 'done' | 'error'
+type Status = 'idle' | 'noona' | 'strapi' | 'offerings' | 'done' | 'error'
 
 export const NoonaServiceForm = () => {
   // --- Категории ---
@@ -57,6 +58,7 @@ export const NoonaServiceForm = () => {
   const [status, setStatus] = useState<Status>('idle')
   const [combosResult, setCombosResult] = useState<FullCombosResult | null>(null)
   const [strapiId, setStrapiId] = useState<string | null>(null)
+  const [offeringsResult, setOfferingsResult] = useState<SaveOfferingsResult | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
 
@@ -278,6 +280,7 @@ export const NoonaServiceForm = () => {
     }
 
     setStatus('strapi')
+    let savedId: string
     try {
       const saved = await saveBookingAddonGroup({
         baseNoonaId: selectedService.id,
@@ -287,15 +290,29 @@ export const NoonaServiceForm = () => {
         modifiers: newModifierInputs,
         combos,
       })
-      setStrapiId(String(saved.id))
-      setStatus('done')
+      savedId = String(saved.id)
+      setStrapiId(savedId)
     } catch (err) {
       type ApiErr = { message?: string; response?: { data?: { error?: { message?: string } } } }
       const e = err as ApiErr
       const msg = e?.response?.data?.error?.message ?? e?.message ?? 'Ошибка'
       setErrorMsg(`Noona: OK. Strapi: ${msg}`)
       setStatus('error')
+      return
     }
+
+    setStatus('offerings')
+    const newlyCreated = [
+      ...combos.addonResults.map((c) => c.result),
+      ...combos.baseModifierResults.map((c) => c.result),
+      ...combos.addonModifierResults.map((c) => c.result),
+    ]
+    const offeringInputs = newlyCreated
+      .filter((r) => r.status === 'ok' && r.id !== '—')
+      .map((r) => ({ title: r.title, price: r.price }))
+    const offerRes = await saveOfferings(offeringInputs)
+    setOfferingsResult(offerRes)
+    setStatus('done')
   }
 
   const copyId = (id: string) => {
@@ -304,7 +321,7 @@ export const NoonaServiceForm = () => {
     setTimeout(() => setCopied(null), 2000)
   }
 
-  const isSubmitting = status === 'noona' || status === 'strapi'
+  const isSubmitting = status === 'noona' || status === 'strapi' || status === 'offerings'
 
   // --- Рендер секции строк (addons или modifiers) ---
   const renderRowSection = (
@@ -443,6 +460,13 @@ export const NoonaServiceForm = () => {
         {status === 'done' && strapiId && (
           <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700">
             Strapi booking-addon-group сохранён (ID: {strapiId})
+          </div>
+        )}
+        {status === 'done' && offeringsResult && (
+          <div className="mt-2 bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-700">
+            Offerings: создано {offeringsResult.created}
+            {offeringsResult.skipped > 0 && `, пропущено ${offeringsResult.skipped} (уже есть)`}
+            {offeringsResult.errors > 0 && `, ошибок ${offeringsResult.errors}`}
           </div>
         )}
       </div>
@@ -608,7 +632,9 @@ export const NoonaServiceForm = () => {
           ? 'Создаём в Noona...'
           : status === 'strapi'
             ? 'Сохраняем в Strapi...'
-            : `Создать (${comboStats?.newCount ?? totalCombos} в Noona) + сохранить в Strapi`}
+            : status === 'offerings'
+              ? 'Сохраняем в Услуги...'
+              : `Создать (${comboStats?.newCount ?? totalCombos} в Noona) + сохранить в Strapi`}
       </button>
 
       {renderResults()}

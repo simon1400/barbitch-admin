@@ -76,6 +76,7 @@ export interface CreateServicePayload {
 export interface CreateServiceResult {
   id: string
   title: string
+  price: number
   status: 'ok' | 'error'
   error?: string
   warning?: string
@@ -206,9 +207,9 @@ const createHiddenNoonaService = async (
     if (categoryId && newId !== '—') {
       await addServiceToGroup(categoryId, newId).catch(() => {})
     }
-    return { id: newId, title, status: 'ok' }
+    return { id: newId, title, price, status: 'ok' }
   } catch (err) {
-    return { id: '—', title, status: 'error', error: getErrorMessage(err) }
+    return { id: '—', title, price: 0, status: 'error', error: getErrorMessage(err) }
   }
 }
 
@@ -390,8 +391,8 @@ export const createNoonaService = async (
       await addServiceToGroup(payload.categoryId, newId).catch(() => {})
     }
 
-    return { id: newId, title: payload.title, status: 'ok', warning }
+    return { id: newId, title: payload.title, price: payload.price, status: 'ok', warning }
   } catch (err) {
-    return { id: '—', title: payload.title, status: 'error', error: getErrorMessage(err) }
+    return { id: '—', title: payload.title, price: 0, status: 'error', error: getErrorMessage(err) }
   }
 }
