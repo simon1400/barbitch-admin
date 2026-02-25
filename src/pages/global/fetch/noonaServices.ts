@@ -136,7 +136,21 @@ export const searchNoonaServices = async (query: string): Promise<NoonaServiceIt
   }
   const q = query.trim().toLowerCase()
   if (!q) return cachedServices.slice(0, 10)
-  return cachedServices.filter((s) => s.title.toLowerCase().includes(q)).slice(0, 10)
+  const matches = cachedServices.filter((s) => s.title.toLowerCase().includes(q))
+  matches.sort((a, b) => {
+    const aTitle = a.title.toLowerCase()
+    const bTitle = b.title.toLowerCase()
+    const aExact = aTitle === q
+    const bExact = bTitle === q
+    if (aExact && !bExact) return -1
+    if (!aExact && bExact) return 1
+    const aStarts = aTitle.startsWith(q)
+    const bStarts = bTitle.startsWith(q)
+    if (aStarts && !bStarts) return -1
+    if (!aStarts && bStarts) return 1
+    return a.title.length - b.title.length
+  })
+  return matches.slice(0, 15)
 }
 
 // ─── Combo / full-matrix helpers ─────────────────────────────────────────────
