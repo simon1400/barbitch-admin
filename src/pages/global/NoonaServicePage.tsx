@@ -8,7 +8,7 @@ export default function NoonaServicePage() {
       <section className="pb-20 min-h-screen">
         <Container size="lg">
           <div className="pt-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Добавить процедуры в Noona</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Варианты услуги в Noona</h2>
             <NoonaServiceForm />
           </div>
         </Container>
