@@ -229,6 +229,10 @@ const createHiddenNoonaService = async (
 
 const toKey = (label: string) => label.toLowerCase().replace(/\s+/g, '-')
 
+// If a part already starts with '+', join with a space only (no extra '+')
+const buildTitle = (base: string, ...parts: string[]): string =>
+  parts.reduce((acc, part) => acc + (part.startsWith('+') ? ' ' : ' + ') + part, base)
+
 // Creates Noona services only for MISSING combinations:
 //   • new addons — base service + all subsets of allModifiers
 //   • existing addons — only subsets NOT already in existingAddonContext.existingModResultKeys
@@ -248,7 +252,7 @@ export const createMissingCombinations = async (
   // 1. New addons — create base (no modifier) service
   for (const addon of newAddons) {
     const r = await createHiddenNoonaService(
-      `${baseTitle} ${addon.label}`, minutes, basePrice + addon.priceDiff, categoryId,
+      buildTitle(baseTitle, addon.label), minutes, basePrice + addon.priceDiff, categoryId,
     )
     result.addonResults.push({ addon, result: r })
   }
@@ -262,7 +266,7 @@ export const createMissingCombinations = async (
     const modifierKeys = subset.map((m) => toKey(m.label)).sort().join(',')
     if (existingBaseModResultKeys.has(modifierKeys)) continue
     const r = await createHiddenNoonaService(
-      `${baseTitle} ${subset.map((m) => m.label).join(' ')}`,
+      buildTitle(baseTitle, ...subset.map((m) => m.label)),
       minutes,
       basePrice + subset.reduce((s, m) => s + m.priceDiff, 0),
       categoryId,
@@ -275,7 +279,7 @@ export const createMissingCombinations = async (
     for (const subset of allSubsets) {
       const modifierKeys = subset.map((m) => toKey(m.label)).sort().join(',')
       const r = await createHiddenNoonaService(
-        `${baseTitle} ${addon.label} ${subset.map((m) => m.label).join(' ')}`,
+        buildTitle(baseTitle, addon.label, ...subset.map((m) => m.label)),
         minutes,
         basePrice + addon.priceDiff + subset.reduce((s, m) => s + m.priceDiff, 0),
         categoryId,
@@ -291,7 +295,7 @@ export const createMissingCombinations = async (
       const modifierKeys = subset.map((m) => toKey(m.label)).sort().join(',')
       if (ctx.existingModResultKeys.has(modifierKeys)) continue
       const r = await createHiddenNoonaService(
-        `${baseTitle} ${ctx.label} ${subset.map((m) => m.label).join(' ')}`,
+        buildTitle(baseTitle, ctx.label, ...subset.map((m) => m.label)),
         minutes,
         basePrice + ctx.priceDiff + subset.reduce((s, m) => s + m.priceDiff, 0),
         categoryId,
@@ -320,7 +324,7 @@ export const createFullServiceCombinations = async (
   // 1. Каждый addon без модификаторов → addon.result_noona_id
   for (const addon of addons) {
     const r = await createHiddenNoonaService(
-      `${baseTitle} ${addon.label}`,
+      buildTitle(baseTitle, addon.label),
       minutes,
       basePrice + addon.priceDiff,
       categoryId,
@@ -339,7 +343,7 @@ export const createFullServiceCombinations = async (
       .sort()
       .join(',')
     const r = await createHiddenNoonaService(
-      `${baseTitle} ${subset.map((m) => m.label).join(' ')}`,
+      buildTitle(baseTitle, ...subset.map((m) => m.label)),
       minutes,
       basePrice + subset.reduce((s, m) => s + m.priceDiff, 0),
       categoryId,
@@ -355,7 +359,7 @@ export const createFullServiceCombinations = async (
         .sort()
         .join(',')
       const r = await createHiddenNoonaService(
-        `${baseTitle} ${addon.label} ${subset.map((m) => m.label).join(' ')}`,
+        buildTitle(baseTitle, addon.label, ...subset.map((m) => m.label)),
         minutes,
         basePrice + addon.priceDiff + subset.reduce((s, m) => s + m.priceDiff, 0),
         categoryId,
