@@ -14,6 +14,7 @@ import VoucherConfirmationPage from './pages/voucher-confirmation/VoucherConfirm
 import EmailCampaignPage from './pages/email-campaign/EmailCampaignPage'
 import AdministratorCabinetPage from './pages/administrator/AdministratorCabinetPage'
 import NoonaServicePage from './pages/global/NoonaServicePage'
+import NoonaActivityPage from './pages/global/NoonaActivityPage'
 import { AppProvider } from './context/AppContext'
 import { checkUserStatus, logout } from './services/auth'
 
@@ -234,6 +235,18 @@ function App() {
                 <OwnerRoute>
                   <AdminLayout>
                     <NoonaServicePage />
+                  </AdminLayout>
+                </OwnerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/global/noona-activity"
+            element={
+              <ProtectedRoute>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <NoonaActivityPage />
                   </AdminLayout>
                 </OwnerRoute>
               </ProtectedRoute>

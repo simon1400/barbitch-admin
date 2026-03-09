@@ -16,6 +16,7 @@ const navItems: NavItem[] = [
   { path: '/voucher-confirmation', label: 'Potvrzení voucheru' },
   { path: '/email-campaign', label: 'Email kampaň' },
   { path: '/global/noona-services', label: 'Процедуры Noona' },
+  { path: '/global/noona-activity', label: 'История Noona' },
 ]
 
 export const GlobalNav = () => {
