@@ -2,9 +2,18 @@ import axios from 'axios'
 import { checkUserStatus, logout } from '../services/auth'
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:1337'
+const strapiToken = import.meta.env.VITE_STRAPI_TOKEN as string | undefined
 
 export const Axios = axios.create({
   baseURL: apiUrl,
+})
+
+// Add auth token for mutating requests (PUT, POST, DELETE)
+Axios.interceptors.request.use((config) => {
+  if (strapiToken && config.method && ['put', 'post', 'delete', 'patch'].includes(config.method)) {
+    config.headers.Authorization = `Bearer ${strapiToken}`
+  }
+  return config
 })
 
 // Флаг для предотвращения множественных проверок
