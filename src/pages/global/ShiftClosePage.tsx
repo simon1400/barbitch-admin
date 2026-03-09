@@ -58,7 +58,7 @@ export default function ShiftClosePage() {
     setProfitDelta(null)
     try {
       const date = new Date(result.date)
-      const month = date.getMonth() + 1
+      const month = date.getMonth()
       const year = date.getFullYear()
 
       const before = await fetchMonthlyResult(month, year)
