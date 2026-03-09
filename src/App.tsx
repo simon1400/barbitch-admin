@@ -1,22 +1,24 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import Login from './pages/Login'
 import AdminLayout from './pages/dashboard/AdminLayout'
-import AdminPage from './pages/dashboard/AdminPage'
-import GlobalPage from './pages/global/GlobalPage'
-import ChartsPage from './pages/global/charts/ChartsPage'
-import WeeklyOverviewPage from './pages/global/WeeklyOverviewPage'
-import SalariesPage from './pages/global/SalariesPage'
-import WeeklyChartsPage from './pages/global/WeeklyChartsPage'
-import ExpensesPage from './pages/global/ExpensesPage'
-import ProceduresStatsPage from './pages/global/ProceduresStatsPage'
-import VoucherConfirmationPage from './pages/voucher-confirmation/VoucherConfirmationPage'
-import EmailCampaignPage from './pages/email-campaign/EmailCampaignPage'
-import AdministratorCabinetPage from './pages/administrator/AdministratorCabinetPage'
-import NoonaServicePage from './pages/global/NoonaServicePage'
-import NoonaActivityPage from './pages/global/NoonaActivityPage'
 import { AppProvider } from './context/AppContext'
 import { checkUserStatus, logout } from './services/auth'
+
+const AdminPage = lazy(() => import('./pages/dashboard/AdminPage'))
+const GlobalPage = lazy(() => import('./pages/global/GlobalPage'))
+const ChartsPage = lazy(() => import('./pages/global/charts/ChartsPage'))
+const WeeklyOverviewPage = lazy(() => import('./pages/global/WeeklyOverviewPage'))
+const SalariesPage = lazy(() => import('./pages/global/SalariesPage'))
+const WeeklyChartsPage = lazy(() => import('./pages/global/WeeklyChartsPage'))
+const ExpensesPage = lazy(() => import('./pages/global/ExpensesPage'))
+const ProceduresStatsPage = lazy(() => import('./pages/global/ProceduresStatsPage'))
+const VoucherConfirmationPage = lazy(() => import('./pages/voucher-confirmation/VoucherConfirmationPage'))
+const EmailCampaignPage = lazy(() => import('./pages/email-campaign/EmailCampaignPage'))
+const AdministratorCabinetPage = lazy(() => import('./pages/administrator/AdministratorCabinetPage'))
+const NoonaServicePage = lazy(() => import('./pages/global/NoonaServicePage'))
+const NoonaActivityPage = lazy(() => import('./pages/global/NoonaActivityPage'))
+const ShiftClosePage = lazy(() => import('./pages/global/ShiftClosePage'))
 
 // Получить домашнюю страницу в зависимости от роли
 const getHomePageByRole = (role: string | null): string => {
@@ -106,6 +108,7 @@ function App() {
   return (
     <AppProvider>
       <Router>
+        <Suspense>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
@@ -253,6 +256,18 @@ function App() {
             }
           />
           <Route
+            path="/global/shift-close"
+            element={
+              <ProtectedRoute>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <ShiftClosePage />
+                  </AdminLayout>
+                </OwnerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/administrator-cabinet"
             element={
               <ProtectedRoute>
@@ -265,6 +280,7 @@ function App() {
             }
           />
         </Routes>
+        </Suspense>
       </Router>
     </AppProvider>
   )
