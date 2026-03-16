@@ -19,6 +19,7 @@ const AdministratorCabinetPage = lazy(() => import('./pages/administrator/Admini
 const NoonaServicePage = lazy(() => import('./pages/global/NoonaServicePage'))
 const NoonaActivityPage = lazy(() => import('./pages/global/NoonaActivityPage'))
 const ShiftClosePage = lazy(() => import('./pages/global/ShiftClosePage'))
+const BlogAIPage = lazy(() => import('./pages/global/BlogAIPage'))
 
 // Получить домашнюю страницу в зависимости от роли
 const getHomePageByRole = (role: string | null): string => {
@@ -262,6 +263,18 @@ function App() {
                 <OwnerRoute>
                   <AdminLayout>
                     <ShiftClosePage />
+                  </AdminLayout>
+                </OwnerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/global/blog-ai"
+            element={
+              <ProtectedRoute>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <BlogAIPage />
                   </AdminLayout>
                 </OwnerRoute>
               </ProtectedRoute>

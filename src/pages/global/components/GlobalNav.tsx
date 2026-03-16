@@ -18,6 +18,7 @@ const navItems: NavItem[] = [
   { path: '/global/noona-services', label: 'Процедуры Noona' },
   { path: '/global/noona-activity', label: 'История Noona' },
   { path: '/global/shift-close', label: 'Uzavření směny' },
+  { path: '/global/blog-ai', label: 'Blog AI' },
 ]
 
 export const GlobalNav = () => {
