@@ -54,7 +54,7 @@ export async function generatePlan(month: number, year: number) {
 // Generate article for a topic
 export async function generateArticle(topicId: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return Axios.post(`/api/blog-ai/generate-article/${topicId}`) as unknown as { blogPost: any; article: any };
+  return Axios.post(`/api/blog-ai/generate-article/${topicId}`, {}, { timeout: 120000 }) as unknown as { blogPost: any; article: any };
 }
 
 // Approve topic
