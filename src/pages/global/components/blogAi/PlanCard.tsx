@@ -34,15 +34,14 @@ export function PlanCard({ plan, strapiUrl, onUpdate }: PlanCardProps) {
       {/* Plan header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <h2 className="text-md md:text-lg font-bold text-gray-800">
+          <h2 className="text-md md:text-md font-bold text-gray-800">
             {MONTH_NAMES[plan.month]} {plan.year}
           </h2>
           <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${status.bg} ${status.color}`}>
             {status.label}
           </span>
           <span className="text-xs text-gray-500">
-            {topics.length} témat
-            {proposed > 0 && ` · ${proposed} ke schválení`}
+            {proposed > 0 && `${proposed} ke schválení`}
             {approved > 0 && ` · ${approved} schváleno`}
             {generated > 0 && ` · ${generated} vygenerováno`}
           </span>

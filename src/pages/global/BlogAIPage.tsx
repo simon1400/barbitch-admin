@@ -33,10 +33,7 @@ export default function BlogAIPage() {
       <section className="pb-20 min-h-screen">
         <Container size="lg">
           <div className="mt-8 mb-6">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800">Blog AI</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              AI analyzuje váš blog, navrhne témata a generuje SEO-optimalizované články.
-            </p>
+            <h1 className="text-md md:text-lg font-bold text-gray-800">Blog AI</h1>
           </div>
 
           <PlanGenerator onGenerated={loadPlans} />

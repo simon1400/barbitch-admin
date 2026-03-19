@@ -63,14 +63,14 @@ export function TopicCard({ topic, strapiUrl, onUpdate }: TopicCardProps) {
     <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-2">
-        <h3 className="font-semibold text-gray-800 text-sm leading-snug">{topic.title}</h3>
+        <h3 className="font-bold text-gray-800 text-sm leading-snug">{topic.title}</h3>
         <span className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${status.bg} ${status.color}`}>
           {status.label}
         </span>
       </div>
 
       {/* Description */}
-      <p className="text-xs text-gray-500 leading-relaxed mb-3">{topic.description}</p>
+      <p className="text-xss font-normal text-gray-500 leading-relaxed mb-3">{topic.description}</p>
 
       {/* Keywords */}
       {topic.keywords?.length > 0 && (
@@ -84,11 +84,16 @@ export function TopicCard({ topic, strapiUrl, onUpdate }: TopicCardProps) {
       )}
 
       {/* Meta */}
-      <div className="flex items-center gap-3 text-[11px] text-gray-400 mb-3">
-        {topic.scheduledDate && <span>{formatDate(topic.scheduledDate)}</span>}
-        <span>/{topic.targetSlug}</span>
+      <div className="text-[11px] text-gray-400 mb-3">
+        {topic.scheduledDate && <span className={'block mb-2'}>Date: <span className={'inline-block px-1.5 py-0.5 bg-green-100 text-gray-500 rounded'}>{formatDate(topic.scheduledDate)}</span></span>}
+        <span className={'block mb-2'}>Slug:  <span className={'font-bold text-yellow-800'}>/{topic.targetSlug}</span></span>
         {topic.internalLinks?.length > 0 && (
-          <span>Links: {topic.internalLinks.join(', ')}</span>
+          <div className={'flex gap-3'}>
+            <span>Links:</span>
+            <div>
+              {topic.internalLinks.map(item => <div className={'mb-1'}><span className={'inline-block px-1.5 py-0.5 bg-blue-100 text-gray-500 rounded'}>{item}</span></div>)}
+            </div>
+          </div>
         )}
       </div>
 

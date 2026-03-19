@@ -32,14 +32,13 @@ export function PlanGenerator({ onGenerated }: PlanGeneratorProps) {
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-      <h2 className="font-semibold text-gray-800 mb-1">Nový obsahový plán</h2>
-      <p className="text-sm text-gray-500 mb-4">
+      <h2 className="text-sm1 font-bold text-gray-800 mb-1">Nový obsahový plán</h2>
+      <p className="text-xs font-semibold text-gray-500 mb-4">
         AI analyzuje stávající blog, vyhodnotí sezónnost a navrhne 4 témata.
       </p>
 
       <div className="flex items-end gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">Měsíc</label>
           <select
             value={month}
             onChange={(e) => setMonth(Number(e.target.value))}
@@ -53,7 +52,6 @@ export function PlanGenerator({ onGenerated }: PlanGeneratorProps) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-600 mb-1">Rok</label>
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
