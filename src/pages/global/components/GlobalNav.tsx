@@ -20,6 +20,7 @@ const navItems: NavItem[] = [
   { path: '/global/shift-close', label: 'Uzavření směny' },
   { path: '/global/blog-ai', label: 'Blog AI' },
   { path: '/global/reviews', label: 'Google Reviews' },
+  { path: '/global/master-priority', label: 'Priorita masterů' },
 ]
 
 export const GlobalNav = () => {
