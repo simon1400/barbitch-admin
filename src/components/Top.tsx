@@ -20,26 +20,29 @@ export const Top = ({
   return (
     <section
       aria-labelledby={'top-title'}
-      className={`h-[545px] mix-blend-multiply flex flex-col relative z-10 mb-13.5 bg-gradient-to-t from-[rgba(231,30,110,1)] to-[rgba(255,0,101,0.5)]`}
+      className={`min-h-[545px] mix-blend-multiply flex flex-col relative z-10 mb-13.5 bg-gradient-to-t from-[rgba(231,30,110,1)] to-[rgba(255,0,101,0.5)]`}
     >
       <div className="w-full">
         <Container size={'xl'}>
           <div className="flex justify-between items-center py-6">
             <LogoWrap />
-            {admin && userRole === 'administrator' && (
-              <nav className="flex gap-4">
-                <Link
-                  to="/administrator-cabinet"
-                  className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-                    location.pathname === '/administrator-cabinet'
-                      ? 'bg-white text-primary'
-                      : 'bg-white/20 text-white hover:bg-white/30'
-                  }`}
-                >
-                  Můj kabinet
-                </Link>
-              </nav>
-            )}
+            <div className="flex items-center gap-4">
+              {admin && userRole === 'administrator' && (
+                <nav className="flex gap-4">
+                  <Link
+                    to="/administrator-cabinet"
+                    className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+                      location.pathname === '/administrator-cabinet'
+                        ? 'bg-white text-primary'
+                        : 'bg-white/20 text-white hover:bg-white/30'
+                    }`}
+                  >
+                    Můj kabinet
+                  </Link>
+                </nav>
+              )}
+              {admin && <LogoutButton />}
+            </div>
           </div>
         </Container>
       </div>
@@ -53,8 +56,6 @@ export const Top = ({
             >
               {title}
             </h1>
-
-            {admin && <LogoutButton />}
 
             {admin && isGlobalPage && userRole === 'owner' && <GlobalNav />}
           </div>

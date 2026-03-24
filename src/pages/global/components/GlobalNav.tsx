@@ -27,13 +27,13 @@ export const GlobalNav = () => {
   const location = useLocation()
 
   return (
-    <nav className="mt-6">
-      <div className="flex flex-wrap gap-3">
+    <nav className="mt-4 -mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0">
+      <div className="grid grid-rows-3 grid-flow-col auto-cols-max gap-1.5 md:flex md:flex-wrap md:w-auto">
         {navItems.map((item) => (
           <Link
             key={item.path}
             to={item.path}
-            className={`px-5 py-2.5 rounded-lg font-semibold transition-colors ${
+            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap ${
               location.pathname === item.path
                 ? 'bg-white text-primary'
                 : 'bg-white/20 text-white hover:bg-white/30'

@@ -17,7 +17,7 @@ export const LogoutButton = () => {
 
   return (
     <div>
-      <Button text={'Odhlasit se'} id={'logout-button'} href={'/'} onClick={logout} />
+      <Button text={'Odhlasit se'} id={'logout-button'} href={'/'} onClick={logout} small />
     </div>
   )
 }

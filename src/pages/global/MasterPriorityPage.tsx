@@ -67,8 +67,10 @@ export default function MasterPriorityPage() {
                 >
                   <div className="flex-1 min-w-0">
                     <span className="font-semibold text-gray-800">{master.name}</span>
-                    {master.noonaEmployeeId && (
+                    {master.noonaEmployeeId ? (
                       <p className="text-xs text-gray-400 mt-0.5">Noona ID: {master.noonaEmployeeId}</p>
+                    ) : (
+                      <p className="text-xs text-red-500 mt-0.5">Chybí Noona ID — priorita nebude fungovat!</p>
                     )}
                   </div>
 
