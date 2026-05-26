@@ -22,6 +22,8 @@ const ShiftClosePage = lazy(() => import('./pages/global/ShiftClosePage'))
 const BlogAIPage = lazy(() => import('./pages/global/BlogAIPage'))
 const ReviewSyncPage = lazy(() => import('./pages/global/ReviewSyncPage'))
 const MasterPriorityPage = lazy(() => import('./pages/global/MasterPriorityPage'))
+const PriceIncreasePage = lazy(() => import('./pages/global/PriceIncreasePage'))
+const JuniorServicesPage = lazy(() => import('./pages/global/JuniorServicesPage'))
 
 // Получить домашнюю страницу в зависимости от роли
 const getHomePageByRole = (role: string | null): string => {
@@ -301,6 +303,30 @@ function App() {
                 <OwnerRoute>
                   <AdminLayout>
                     <MasterPriorityPage />
+                  </AdminLayout>
+                </OwnerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/global/price-increase"
+            element={
+              <ProtectedRoute>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <PriceIncreasePage />
+                  </AdminLayout>
+                </OwnerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/global/junior-services"
+            element={
+              <ProtectedRoute>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <JuniorServicesPage />
                   </AdminLayout>
                 </OwnerRoute>
               </ProtectedRoute>
