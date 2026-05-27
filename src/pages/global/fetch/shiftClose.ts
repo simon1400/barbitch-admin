@@ -184,7 +184,20 @@ export const fetchMonthlyResult = async (month: number, year: number) => {
     moneyRes.sumCosts -
     moneyRes.taxesSum
 
-  return { result, resultDph }
+  // "Разниця" — недостача между реальными деньгами и записями (в идеале 0).
+  // Та же формула, что в blockStateItems (data.ts) — блок "Разниця" на главной.
+  const difference =
+    moneyRes.cardMoney +
+    moneyRes.cardExtraIncome +
+    moneyRes.cashMoney +
+    moneyRes.payrollSum +
+    moneyRes.voucherRealizedSum +
+    moneyRes.qrMoney -
+    worksRes.globalFlow -
+    moneyRes.extraMoneySum -
+    moneyRes.voucherPayedSum
+
+  return { result, resultDph, difference }
 }
 
 // Publish all draft records for a specific date + save/update card profit

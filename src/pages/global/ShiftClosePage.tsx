@@ -25,7 +25,12 @@ export default function ShiftClosePage() {
   const [publishing, setPublishing] = useState(false)
   const [published, setPublished] = useState(false)
   const [publishError, setPublishError] = useState<string | null>(null)
-  const [profitDelta, setProfitDelta] = useState<{ before: number; after: number } | null>(null)
+  const [profitDelta, setProfitDelta] = useState<{
+    before: number
+    after: number
+    diffBefore: number
+    diffAfter: number
+  } | null>(null)
 
   const handleCheck = async () => {
     setLoading(true)
@@ -65,7 +70,12 @@ export default function ShiftClosePage() {
       await publishShift(result.date, Number(cardSum))
       const after = await fetchMonthlyResult(month, year)
 
-      setProfitDelta({ before: before.result, after: after.result })
+      setProfitDelta({
+        before: before.result,
+        after: after.result,
+        diffBefore: before.difference,
+        diffAfter: after.difference,
+      })
       setPublished(true)
     } catch (e) {
       console.error(e)

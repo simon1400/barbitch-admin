@@ -7,7 +7,12 @@ interface PublishSectionProps {
   publishing: boolean
   published: boolean
   publishError: string | null
-  profitDelta: { before: number; after: number } | null
+  profitDelta: {
+    before: number
+    after: number
+    diffBefore: number
+    diffAfter: number
+  } | null
   onPublish: () => void
 }
 
@@ -83,6 +88,48 @@ export const PublishSection = ({
           </div>
         </div>
       )}
+
+      {published && profitDelta && (() => {
+        const shiftDiff = profitDelta.diffAfter - profitDelta.diffBefore
+        const ok = shiftDiff === 0
+        return (
+          <div
+            className={`mt-4 rounded-xl border-2 p-5 ${
+              ok ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">
+                  Rozdíl proti minulé směně (nedostatek)
+                </p>
+                <p
+                  className={`text-3xl font-bold ${
+                    ok ? 'text-green-600' : 'text-red-600'
+                  }`}
+                >
+                  {ok
+                    ? '✓ Sedí (0 Kč)'
+                    : `${shiftDiff > 0 ? '+' : ''}${fmt(shiftDiff)} Kč`}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-500">Celkový rozdíl za měsíc</p>
+                <p className="text-sm text-gray-500">
+                  {fmt(profitDelta.diffBefore)} →{' '}
+                  <span
+                    className={`font-semibold ${
+                      profitDelta.diffAfter === 0 ? 'text-green-700' : 'text-red-700'
+                    }`}
+                  >
+                    {fmt(profitDelta.diffAfter)} Kč
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   </StatSection>
 )
