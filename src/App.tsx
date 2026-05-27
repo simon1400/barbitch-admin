@@ -7,23 +7,28 @@ import { checkUserStatus, logout } from './services/auth'
 
 const AdminPage = lazy(() => import('./pages/dashboard/AdminPage'))
 const GlobalPage = lazy(() => import('./pages/global/GlobalPage'))
-const ChartsPage = lazy(() => import('./pages/global/charts/ChartsPage'))
-const WeeklyOverviewPage = lazy(() => import('./pages/global/WeeklyOverviewPage'))
 const SalariesPage = lazy(() => import('./pages/global/SalariesPage'))
-const WeeklyChartsPage = lazy(() => import('./pages/global/WeeklyChartsPage'))
 const ExpensesPage = lazy(() => import('./pages/global/ExpensesPage'))
-const ProceduresStatsPage = lazy(() => import('./pages/global/ProceduresStatsPage'))
 const VoucherConfirmationPage = lazy(() => import('./pages/voucher-confirmation/VoucherConfirmationPage'))
 const EmailCampaignPage = lazy(() => import('./pages/email-campaign/EmailCampaignPage'))
 const AdministratorCabinetPage = lazy(() => import('./pages/administrator/AdministratorCabinetPage'))
-const NoonaServicePage = lazy(() => import('./pages/global/NoonaServicePage'))
-const NoonaActivityPage = lazy(() => import('./pages/global/NoonaActivityPage'))
 const ShiftClosePage = lazy(() => import('./pages/global/ShiftClosePage'))
 const BlogAIPage = lazy(() => import('./pages/global/BlogAIPage'))
 const ReviewSyncPage = lazy(() => import('./pages/global/ReviewSyncPage'))
 const MasterPriorityPage = lazy(() => import('./pages/global/MasterPriorityPage'))
-const PriceIncreasePage = lazy(() => import('./pages/global/PriceIncreasePage'))
-const JuniorServicesPage = lazy(() => import('./pages/global/JuniorServicesPage'))
+// Unified Noona module — layout with URL sub-route tabs
+const NoonaPage = lazy(() => import('./pages/global/noona/NoonaPage'))
+const NoonaServicesTab = lazy(() => import('./pages/global/noona/tabs/ServicesTab'))
+const NoonaManageTab = lazy(() => import('./pages/global/noona/tabs/ManageTab'))
+const NoonaPriceIncreaseTab = lazy(() => import('./pages/global/noona/tabs/PriceIncreaseTab'))
+const NoonaHistoryTab = lazy(() => import('./pages/global/noona/tabs/HistoryTab'))
+const NoonaJuniorTab = lazy(() => import('./pages/global/noona/tabs/JuniorTab'))
+// Unified analytics module — layout with URL sub-route tabs
+const AnalyticsPage = lazy(() => import('./pages/global/analytics/AnalyticsPage'))
+const AnalyticsOverviewTab = lazy(() => import('./pages/global/analytics/tabs/OverviewTab'))
+const AnalyticsProceduresTab = lazy(() => import('./pages/global/analytics/tabs/ProceduresTab'))
+const AnalyticsChartsTab = lazy(() => import('./pages/global/analytics/tabs/ChartsTab'))
+const AnalyticsGlobalChartsTab = lazy(() => import('./pages/global/analytics/tabs/GlobalChartsTab'))
 
 // Получить домашнюю страницу в зависимости от роли
 const getHomePageByRole = (role: string | null): string => {
@@ -142,27 +147,38 @@ function App() {
           />
           <Route
             path="/global/charts"
-            element={
-              <ProtectedRoute>
-                <OwnerRoute>
-                  <AdminLayout>
-                    <ChartsPage />
-                  </AdminLayout>
-                </OwnerRoute>
-              </ProtectedRoute>
-            }
+            element={<Navigate to="/global/analytics/global" replace />}
           />
           <Route
-            path="/global/weekly-overview"
+            path="/global/analytics"
             element={
               <ProtectedRoute>
                 <OwnerRoute>
                   <AdminLayout>
-                    <WeeklyOverviewPage />
+                    <AnalyticsPage />
                   </AdminLayout>
                 </OwnerRoute>
               </ProtectedRoute>
             }
+          >
+            <Route index element={<Navigate to="/global/analytics/overview" replace />} />
+            <Route path="overview" element={<AnalyticsOverviewTab />} />
+            <Route path="procedures" element={<AnalyticsProceduresTab />} />
+            <Route path="charts" element={<AnalyticsChartsTab />} />
+            <Route path="global" element={<AnalyticsGlobalChartsTab />} />
+          </Route>
+          {/* Legacy URL redirects — old standalone analytics pages now live as tabs */}
+          <Route
+            path="/global/weekly-overview"
+            element={<Navigate to="/global/analytics/overview" replace />}
+          />
+          <Route
+            path="/global/procedures-stats"
+            element={<Navigate to="/global/analytics/procedures" replace />}
+          />
+          <Route
+            path="/global/weekly-charts"
+            element={<Navigate to="/global/analytics/charts" replace />}
           />
           <Route
             path="/global/salaries"
@@ -183,30 +199,6 @@ function App() {
                 <OwnerRoute>
                   <AdminLayout>
                     <ExpensesPage />
-                  </AdminLayout>
-                </OwnerRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/global/weekly-charts"
-            element={
-              <ProtectedRoute>
-                <OwnerRoute>
-                  <AdminLayout>
-                    <WeeklyChartsPage />
-                  </AdminLayout>
-                </OwnerRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/global/procedures-stats"
-            element={
-              <ProtectedRoute>
-                <OwnerRoute>
-                  <AdminLayout>
-                    <ProceduresStatsPage />
                   </AdminLayout>
                 </OwnerRoute>
               </ProtectedRoute>
@@ -237,28 +229,32 @@ function App() {
             }
           />
           <Route
-            path="/global/noona-services"
+            path="/global/noona"
             element={
               <ProtectedRoute>
                 <OwnerRoute>
                   <AdminLayout>
-                    <NoonaServicePage />
+                    <NoonaPage />
                   </AdminLayout>
                 </OwnerRoute>
               </ProtectedRoute>
             }
+          >
+            <Route index element={<Navigate to="/global/noona/services" replace />} />
+            <Route path="services" element={<NoonaServicesTab />} />
+            <Route path="manage" element={<NoonaManageTab />} />
+            <Route path="price-increase" element={<NoonaPriceIncreaseTab />} />
+            <Route path="history" element={<NoonaHistoryTab />} />
+            <Route path="junior" element={<NoonaJuniorTab />} />
+          </Route>
+          {/* Legacy URL redirects — old standalone pages now live as Noona tabs */}
+          <Route
+            path="/global/noona-services"
+            element={<Navigate to="/global/noona/services" replace />}
           />
           <Route
             path="/global/noona-activity"
-            element={
-              <ProtectedRoute>
-                <OwnerRoute>
-                  <AdminLayout>
-                    <NoonaActivityPage />
-                  </AdminLayout>
-                </OwnerRoute>
-              </ProtectedRoute>
-            }
+            element={<Navigate to="/global/noona/history" replace />}
           />
           <Route
             path="/global/shift-close"
@@ -310,27 +306,11 @@ function App() {
           />
           <Route
             path="/global/price-increase"
-            element={
-              <ProtectedRoute>
-                <OwnerRoute>
-                  <AdminLayout>
-                    <PriceIncreasePage />
-                  </AdminLayout>
-                </OwnerRoute>
-              </ProtectedRoute>
-            }
+            element={<Navigate to="/global/noona/price-increase" replace />}
           />
           <Route
             path="/global/junior-services"
-            element={
-              <ProtectedRoute>
-                <OwnerRoute>
-                  <AdminLayout>
-                    <JuniorServicesPage />
-                  </AdminLayout>
-                </OwnerRoute>
-              </ProtectedRoute>
-            }
+            element={<Navigate to="/global/noona/junior" replace />}
           />
           <Route
             path="/administrator-cabinet"

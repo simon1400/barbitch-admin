@@ -115,11 +115,16 @@ function summarizeAdmins(
     resultMap.get(name)!.sum += hours
   })
 
-  summarizeGeneric(resultMap, penalty, 'penalty', ['Mariia Medvedeva'])
-  summarizeGeneric(resultMap, extra, 'extraProfit', ['Mariia Medvedeva'])
-  summarizeGeneric(resultMap, payrolls, 'payrolls')
-  summarizeGeneric(resultMap, advance, 'advance')
-  summarizeGeneric(resultMap, salaries, 'salaries')
+  // Mariia Medvedeva работает и мастером, и администратором. Все её личные
+  // корректировки (штрафы/премии/списывания/авансы/зарплаты) учитываются ТОЛЬКО
+  // в таблице мастеров, иначе они дублируются в обеих таблицах.
+  const excludeFromAdmins = ['Mariia Medvedeva']
+
+  summarizeGeneric(resultMap, penalty, 'penalty', excludeFromAdmins)
+  summarizeGeneric(resultMap, extra, 'extraProfit', excludeFromAdmins)
+  summarizeGeneric(resultMap, payrolls, 'payrolls', excludeFromAdmins)
+  summarizeGeneric(resultMap, advance, 'advance', excludeFromAdmins)
+  summarizeGeneric(resultMap, salaries, 'salaries', excludeFromAdmins)
   summarizeGeneric(resultMap, taxes, 'taxes')
 
   const summary = Array.from(resultMap.values())
