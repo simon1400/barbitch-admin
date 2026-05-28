@@ -1,3 +1,4 @@
+import type { PublishFailure } from '../../fetch/shiftClose'
 import { StatSection } from '../StatSection'
 import { fmt } from './helpers'
 
@@ -7,6 +8,7 @@ interface PublishSectionProps {
   publishing: boolean
   published: boolean
   publishError: string | null
+  publishFailures?: PublishFailure[]
   profitDelta: {
     before: number
     after: number
@@ -22,6 +24,7 @@ export const PublishSection = ({
   publishing,
   published,
   publishError,
+  publishFailures = [],
   profitDelta,
   onPublish,
 }: PublishSectionProps) => (
@@ -58,6 +61,35 @@ export const PublishSection = ({
 
       {publishError && (
         <p className="text-sm text-red-600 font-medium mt-3">{publishError}</p>
+      )}
+
+      {publishFailures.length > 0 && (
+        <div className="mt-4 rounded-xl border-2 border-red-200 bg-red-50 p-4">
+          <p className="text-sm font-semibold text-red-800 mb-2">
+            Záznamy, které se nepodařilo publikovat ({publishFailures.length}):
+          </p>
+          <ul className="space-y-2">
+            {publishFailures.map((f, i) => (
+              <li
+                key={i}
+                className="text-sm bg-white border border-red-200 rounded-lg p-3"
+              >
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                    {f.collection}
+                  </span>
+                  <span className="font-semibold text-gray-800">{f.label}</span>
+                </div>
+                <p className="text-xs text-red-700 mt-1.5 font-mono break-words">
+                  {f.message}
+                </p>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-gray-600 mt-3">
+            Opravte tyto záznamy v Strapi (vyplňte chybějící povinná pole) a klikněte na <b>Uzavřít směnu</b> znovu.
+          </p>
+        </div>
       )}
 
       {published && profitDelta && (

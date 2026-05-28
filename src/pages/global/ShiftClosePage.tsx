@@ -2,7 +2,15 @@ import { useState } from 'react'
 import { Container } from '../../components/Container'
 import { OwnerProtection } from './components/OwnerProtection'
 import { StatSection } from './components/StatSection'
-import { checkShift, publishShift, fetchMonthlyResult, type ShiftCheckResult } from './fetch/shiftClose'
+import {
+  checkShift,
+  publishShift,
+  fetchMonthlyResult,
+  FLAG_META,
+  VERIFY_FLAGS,
+  type ShiftCheckResult,
+  type PublishFailure,
+} from './fetch/shiftClose'
 import {
   ComparisonCard,
   ServiceProvidedCard,
@@ -25,6 +33,7 @@ export default function ShiftClosePage() {
   const [publishing, setPublishing] = useState(false)
   const [published, setPublished] = useState(false)
   const [publishError, setPublishError] = useState<string | null>(null)
+  const [publishFailures, setPublishFailures] = useState<PublishFailure[]>([])
   const [profitDelta, setProfitDelta] = useState<{
     before: number
     after: number
@@ -38,6 +47,7 @@ export default function ShiftClosePage() {
     setResult(null)
     setPublished(false)
     setPublishError(null)
+    setPublishFailures([])
     setProfitDelta(null)
     try {
       const data = await checkShift(selectedDate)
@@ -59,6 +69,7 @@ export default function ShiftClosePage() {
 
     setPublishing(true)
     setPublishError(null)
+    setPublishFailures([])
     setPublished(false)
     setProfitDelta(null)
     try {
@@ -67,7 +78,7 @@ export default function ShiftClosePage() {
       const year = date.getFullYear()
 
       const before = await fetchMonthlyResult(month, year)
-      await publishShift(result.date, Number(cardSum))
+      const { failures } = await publishShift(result.date, Number(cardSum))
       const after = await fetchMonthlyResult(month, year)
 
       setProfitDelta({
@@ -76,7 +87,16 @@ export default function ShiftClosePage() {
         diffBefore: before.difference,
         diffAfter: after.difference,
       })
-      setPublished(true)
+
+      if (failures.length > 0) {
+        setPublishFailures(failures)
+        setPublishError(
+          `Některé záznamy (${failures.length}) se nepodařilo publikovat — opravte je ve Strapi a zkuste znovu.`,
+        )
+        // NOT marking as published — user must fix the records first
+      } else {
+        setPublished(true)
+      }
     } catch (e) {
       console.error(e)
       setPublishError('Chyba při publikaci. Zkuste to znovu.')
@@ -85,12 +105,42 @@ export default function ShiftClosePage() {
     }
   }
 
-  const overallStatus = result
-    ? result.cash.found &&
-      result.serviceProvided.found &&
-      result.workTime.found &&
-      result.comparison.match
+  // 'ok' = vše v pořádku, 'warn' = chybí záznam / nesoulad / žluté/fialové flagy, 'error' = 🟥 ztráta
+  type OverallLevel = 'ok' | 'warn' | 'error'
+  const overall: OverallLevel | null = result
+    ? (() => {
+        const fc = result.serviceProvided.flagCounts
+        // Highest severity flag in any record wins
+        let topSeverity: 0 | 1 | 2 = 0
+        for (const f of VERIFY_FLAGS) {
+          if (fc[f] > 0 && FLAG_META[f].severity > topSeverity) {
+            topSeverity = FLAG_META[f].severity
+          }
+        }
+        if (topSeverity === 2) return 'error'
+        const baseOk =
+          result.cash.found &&
+          result.serviceProvided.found &&
+          result.workTime.found &&
+          result.comparison.match
+        if (!baseOk) return 'warn'
+        if (topSeverity === 1) return 'warn'
+        if (result.serviceProvided.unverified > 0) return 'warn'
+        return 'ok'
+      })()
     : null
+
+  const overallMessages: Record<OverallLevel, string> = {
+    ok: 'Směna vypadá kompletní',
+    warn: 'Některé záznamy chybí, neshodují se nebo vyžadují kontrolu',
+    error: 'Pozor: některé služby mají chyby v platbách (🟥 ztráta)',
+  }
+
+  const overallStyles: Record<OverallLevel, { bg: string; icon: string }> = {
+    ok: { bg: 'bg-green-50 border-green-200', icon: '✅' },
+    warn: { bg: 'bg-yellow-50 border-yellow-200', icon: '⚠️' },
+    error: { bg: 'bg-red-50 border-red-200', icon: '🟥' },
+  }
 
   return (
     <OwnerProtection>
@@ -138,25 +188,37 @@ export default function ShiftClosePage() {
           {result && !loading && (
             <>
               {/* Overall status */}
-              <div
-                className={`rounded-xl p-5 mb-6 border ${
-                  overallStatus
-                    ? 'bg-green-50 border-green-200'
-                    : 'bg-yellow-50 border-yellow-200'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{overallStatus ? '✅' : '⚠️'}</span>
-                  <div>
-                    <p className="font-semibold text-gray-800">
-                      {overallStatus
-                        ? 'Směna vypadá kompletní'
-                        : 'Některé záznamy chybí nebo se neshodují'}
-                    </p>
-                    <p className="text-sm text-gray-600">Datum: {result.date}</p>
+              {overall && (
+                <div className={`rounded-xl p-5 mb-6 border ${overallStyles[overall].bg}`}>
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{overallStyles[overall].icon}</span>
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-800">{overallMessages[overall]}</p>
+                      <p className="text-sm text-gray-600">Datum: {result.date}</p>
+                      {(() => {
+                        const fc = result.serviceProvided.flagCounts
+                        const visible = VERIFY_FLAGS.filter(
+                          (f) => f !== 'ok' && f !== 'sleva' && fc[f] > 0,
+                        )
+                        const hasUnverified = result.serviceProvided.unverified > 0
+                        if (visible.length === 0 && !hasUnverified) return null
+                        return (
+                          <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-700">
+                            {visible.map((f) => (
+                              <span key={f}>
+                                {FLAG_META[f].emoji} {FLAG_META[f].label}: <b>{fc[f]}</b>
+                              </span>
+                            ))}
+                            {hasUnverified && (
+                              <span>Neověřeno: <b>{result.serviceProvided.unverified}</b></span>
+                            )}
+                          </div>
+                        )
+                      })()}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <ComparisonCard result={result} />
 
@@ -176,6 +238,7 @@ export default function ShiftClosePage() {
                 publishing={publishing}
                 published={published}
                 publishError={publishError}
+                publishFailures={publishFailures}
                 profitDelta={profitDelta}
                 onPublish={handlePublishShift}
               />
