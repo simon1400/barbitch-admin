@@ -16,6 +16,7 @@ const ShiftClosePage = lazy(() => import('./pages/global/ShiftClosePage'))
 const BlogAIPage = lazy(() => import('./pages/global/BlogAIPage'))
 const ReviewSyncPage = lazy(() => import('./pages/global/ReviewSyncPage'))
 const MasterPriorityPage = lazy(() => import('./pages/global/MasterPriorityPage'))
+const ErrorLogsPage = lazy(() => import('./pages/global/ErrorLogsPage'))
 // Unified Noona module — layout with URL sub-route tabs
 const NoonaPage = lazy(() => import('./pages/global/noona/NoonaPage'))
 const NoonaServicesTab = lazy(() => import('./pages/global/noona/tabs/ServicesTab'))
@@ -299,6 +300,18 @@ function App() {
                 <OwnerRoute>
                   <AdminLayout>
                     <MasterPriorityPage />
+                  </AdminLayout>
+                </OwnerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/global/error-logs"
+            element={
+              <ProtectedRoute>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <ErrorLogsPage />
                   </AdminLayout>
                 </OwnerRoute>
               </ProtectedRoute>

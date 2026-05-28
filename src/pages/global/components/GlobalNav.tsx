@@ -17,6 +17,7 @@ const navItems: NavItem[] = [
   { path: '/global/blog-ai', label: 'Blog AI' },
   { path: '/global/reviews', label: 'Google Reviews' },
   { path: '/global/master-priority', label: 'Priorita masterů' },
+  { path: '/global/error-logs', label: 'Error Logs' },
 ]
 
 export const GlobalNav = () => {
