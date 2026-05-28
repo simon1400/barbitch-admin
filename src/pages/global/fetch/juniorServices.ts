@@ -251,8 +251,10 @@ const createJuniorEventType = async (
   targetCategoryId: string,
 ): Promise<string> => {
   const vatId = await getVatId()
-  // Junior копии всегда hidden=true в Noona: они не должны появляться в marketplace
-  // listings на /book. Доступны только через подмену event_type при выборе junior-мастера.
+  // Junior копии создаются visible (hidden=false) — это критично!
+  // hidden=true блокирует слоты в marketplace API (/time_slots не отдаёт hidden).
+  // Из публичного списка /book + /cenik + /service/* они фильтруются Strapi-side
+  // через getJuniorNoonaIds() (см. service-junior-map). См. memory junior-master-pricing.md
   const body: Record<string, unknown> = {
     company: COMPANY_ID,
     title: seniorTitle,
@@ -260,7 +262,7 @@ const createJuniorEventType = async (
     color: '#9B7EE8',
     variations: [{ prices: [{ amount: juniorPrice, currency: 'CZK' }] }],
     connections: {
-      hidden: true,
+      hidden: false,
       customer_selects: 'employee',
       service_needs: 'employee',
     },
