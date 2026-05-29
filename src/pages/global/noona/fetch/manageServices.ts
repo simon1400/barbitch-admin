@@ -106,17 +106,20 @@ interface NoonaVariations {
   variations: Array<{ id?: string; prices: Array<{ id?: string; amount: number; currency?: string }> }>
 }
 
-// Strapi addon-group component shapes used in PUT body
+// Strapi addon-group component shapes used in PUT body.
+// Component `id`s are preserved so Strapi 5 updates entries IN PLACE
+// (replacing without ids can mishandle nested components & orphans rows).
 export interface AddonGroupData {
   title?: string // only set when renaming the base service
   base_price: number
-  modifiers: Array<{ key: string; label: string; price_diff: number }>
-  base_modifier_results: Array<{ modifier_keys: string; result_noona_id: string }>
+  modifiers: Array<{ id?: number; key: string; label: string; price_diff: number }>
+  base_modifier_results: Array<{ id?: number; modifier_keys: string; result_noona_id: string }>
   addons: Array<{
+    id?: number
     label: string
     price_diff: number
     result_noona_id: string
-    modifier_results: Array<{ modifier_keys: string; result_noona_id: string }>
+    modifier_results: Array<{ id?: number; modifier_keys: string; result_noona_id: string }>
   }>
 }
 
@@ -168,19 +171,28 @@ const buildVariations = (et: ManagedEventType, newAmount: number): NoonaVariatio
   })),
 })
 
-// Convert a fetched group into the plain AddonGroupData shape (drops ids)
+// Convert a fetched group into the AddonGroupData shape, KEEPING component ids
+// so the Strapi PUT updates entries in place instead of recreating them.
 const toData = (group: StrapiAddonGroup): AddonGroupData => ({
   base_price: group.base_price,
-  modifiers: group.modifiers.map((m) => ({ key: m.key, label: m.label, price_diff: m.price_diff })),
+  modifiers: group.modifiers.map((m) => ({
+    ...(m.id != null ? { id: m.id } : {}),
+    key: m.key,
+    label: m.label,
+    price_diff: m.price_diff,
+  })),
   base_modifier_results: group.base_modifier_results.map((r) => ({
+    ...(r.id != null ? { id: r.id } : {}),
     modifier_keys: r.modifier_keys,
     result_noona_id: r.result_noona_id,
   })),
   addons: group.addons.map((a) => ({
+    ...(a.id != null ? { id: a.id } : {}),
     label: a.label,
     price_diff: a.price_diff,
     result_noona_id: a.result_noona_id,
     modifier_results: (a.modifier_results ?? []).map((r) => ({
+      ...(r.id != null ? { id: r.id } : {}),
       modifier_keys: r.modifier_keys,
       result_noona_id: r.result_noona_id,
     })),
@@ -313,12 +325,27 @@ export const buildPriceEditPlan = ({
     }
   }
 
-  // Strapi addon-group component values
+  // Strapi addon-group component values.
+  // before/after must reflect the FIELD that actually changes (not always base_price),
+  // otherwise an addon/modifier edit looks like "650 → 650" and seems to do nothing.
+  let agBefore = group.base_price
+  let agAfter = next.base_price
+  let agLabel = `Strapi addon-group: базовая цена «${group.title}»`
+  if (target.kind === 'addon') {
+    agBefore = group.addons.find((a) => a.label === target.label)?.price_diff ?? 0
+    agAfter = newValue
+    agLabel = `Strapi addon-group: вариант «${target.label}» (+Kč)`
+  } else if (target.kind === 'modifier') {
+    const oldMod = group.modifiers.find((m) => m.key === target.key)
+    agBefore = oldMod?.price_diff ?? 0
+    agAfter = newValue
+    agLabel = `Strapi addon-group: дополнение «${oldMod?.label ?? target.key}» (+Kč)`
+  }
   ops.push({
     key: `addon-group:${group.documentId}`,
-    label: `Strapi addon-group: ${group.title}`,
-    before: group.base_price,
-    after: next.base_price,
+    label: agLabel,
+    before: agBefore,
+    after: agAfter,
     op: { kind: 'addon-group-put', documentId: group.documentId, data: next },
   })
 
