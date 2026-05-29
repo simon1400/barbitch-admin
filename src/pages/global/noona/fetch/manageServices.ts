@@ -398,11 +398,38 @@ export const buildRenamePlan = ({
   }
 
   const expected = expectedTitles(next, newBaseTitle, group.base_noona_id)
+
+  // Scope the rename to ONLY the event_types affected by this target.
+  // Without this, every combo whose stored title doesn't already match its
+  // rebuilt title (legacy/inconsistent titles) would be "corrected" too —
+  // renaming one addon would touch base + other addons + modifier combos.
+  const affected = new Set<string>()
+  if (target.kind === 'base') {
+    for (const id of expected.keys()) affected.add(id) // base prefix is in every title
+  } else if (target.kind === 'addon') {
+    const a = group.addons.find((x) => x.label === target.label)
+    if (a) {
+      if (a.result_noona_id) affected.add(a.result_noona_id)
+      for (const mr of a.modifier_results ?? []) affected.add(mr.result_noona_id)
+    }
+  } else {
+    const includesKey = (keys: string) => keysFromString(keys).includes(target.key)
+    for (const bmr of group.base_modifier_results) {
+      if (includesKey(bmr.modifier_keys)) affected.add(bmr.result_noona_id)
+    }
+    for (const a of group.addons) {
+      for (const mr of a.modifier_results ?? []) {
+        if (includesKey(mr.modifier_keys)) affected.add(mr.result_noona_id)
+      }
+    }
+  }
+
   const offerByTitle = new Map(offerings.map((o) => [o.title, o]))
   const juniorBySenior = new Map(juniorMaps.map((jm) => [jm.senior_noona_id, jm]))
   const ops: PlannedManageOp[] = []
 
   for (const [id, newTitle] of expected) {
+    if (!affected.has(id)) continue
     const et = eventTypes.get(id)
     if (!et || et.title === newTitle) continue
 
