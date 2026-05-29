@@ -2,20 +2,26 @@ import type { ManageOp, PlannedManageOp } from '../../fetch/manageServices'
 
 const KIND_LABEL: Record<ManageOp['kind'], string> = {
   'noona-price': 'Цена Noona',
+  'noona-title': 'Название Noona',
   'hide-event-type': 'Скрыть в Noona',
   'addon-group-put': 'Strapi группа',
   'addon-group-delete': 'Удалить группу',
   'offer-price': 'Цена offer',
+  'offer-title': 'Название offer',
   'junior-map-delete': 'Junior-map',
+  'junior-map-title': 'Junior-map',
 }
 
 const KIND_COLOR: Record<ManageOp['kind'], string> = {
   'noona-price': 'bg-blue-50 text-blue-700',
+  'noona-title': 'bg-indigo-50 text-indigo-700',
   'hide-event-type': 'bg-amber-50 text-amber-700',
   'addon-group-put': 'bg-violet-50 text-violet-700',
   'addon-group-delete': 'bg-red-50 text-red-700',
   'offer-price': 'bg-green-50 text-green-700',
+  'offer-title': 'bg-teal-50 text-teal-700',
   'junior-map-delete': 'bg-red-50 text-red-700',
+  'junior-map-title': 'bg-purple-50 text-purple-700',
 }
 
 interface Props {

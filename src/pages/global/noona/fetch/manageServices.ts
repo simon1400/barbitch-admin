@@ -108,6 +108,7 @@ interface NoonaVariations {
 
 // Strapi addon-group component shapes used in PUT body
 export interface AddonGroupData {
+  title?: string // only set when renaming the base service
   base_price: number
   modifiers: Array<{ key: string; label: string; price_diff: number }>
   base_modifier_results: Array<{ modifier_keys: string; result_noona_id: string }>
@@ -121,11 +122,14 @@ export interface AddonGroupData {
 
 export type ManageOp =
   | { kind: 'noona-price'; id: string; payload: NoonaVariations }
+  | { kind: 'noona-title'; id: string; title: string }
   | { kind: 'hide-event-type'; id: string; connections: Record<string, unknown> }
   | { kind: 'addon-group-put'; documentId: string; data: AddonGroupData }
   | { kind: 'addon-group-delete'; documentId: string }
   | { kind: 'offer-price'; documentId: string; newPrice: number }
+  | { kind: 'offer-title'; documentId: string; title: string }
   | { kind: 'junior-map-delete'; documentId: string }
+  | { kind: 'junior-map-title'; documentId: string; title: string }
 
 export interface PlannedManageOp {
   key: string
@@ -194,6 +198,43 @@ const expectedPrices = (data: AddonGroupData, baseNoonaId: string): Map<string, 
     map.set(a.result_noona_id, data.base_price + a.price_diff)
     for (const mr of a.modifier_results) {
       map.set(mr.result_noona_id, data.base_price + a.price_diff + sumMods(mr.modifier_keys, data.modifiers))
+    }
+  }
+  return map
+}
+
+// ─── Title helpers (mirror the create form's buildTitle exactly) ────────────────
+
+// If a part already starts with '+', join with a space only (no extra '+').
+// Identical to noonaServices.ts buildTitle — combo titles must match creation.
+const buildComboTitle = (base: string, ...parts: string[]): string =>
+  parts.reduce((acc, part) => acc + (part.startsWith('+') ? ' ' : ' + ') + part, base)
+
+// Modifier labels for a modifier_keys string, in the modifiers-array order
+// (same order the title was built with at creation time).
+const labelsForKeys = (modifier_keys: string, modifiers: AddonGroupData['modifiers']): string[] => {
+  const set = new Set(keysFromString(modifier_keys))
+  return modifiers.filter((m) => set.has(m.key)).map((m) => m.label)
+}
+
+// Expected title of every Noona event_type in the group, by id — rebuilt from structure.
+const expectedTitles = (
+  data: AddonGroupData,
+  baseTitle: string,
+  baseNoonaId: string,
+): Map<string, string> => {
+  const map = new Map<string, string>()
+  map.set(baseNoonaId, baseTitle)
+  for (const bmr of data.base_modifier_results) {
+    map.set(bmr.result_noona_id, buildComboTitle(baseTitle, ...labelsForKeys(bmr.modifier_keys, data.modifiers)))
+  }
+  for (const a of data.addons) {
+    map.set(a.result_noona_id, buildComboTitle(baseTitle, a.label))
+    for (const mr of a.modifier_results) {
+      map.set(
+        mr.result_noona_id,
+        buildComboTitle(baseTitle, a.label, ...labelsForKeys(mr.modifier_keys, data.modifiers)),
+      )
     }
   }
   return map
@@ -278,6 +319,122 @@ export const buildPriceEditPlan = ({
     label: `Strapi addon-group: ${group.title}`,
     before: group.base_price,
     after: next.base_price,
+    op: { kind: 'addon-group-put', documentId: group.documentId, data: next },
+  })
+
+  return ops
+}
+
+// Rename target — same shape as PriceTarget (base / addon by label / modifier by key)
+export type RenameTarget = PriceTarget
+
+export interface BuildRenameInput {
+  group: StrapiAddonGroup
+  target: RenameTarget
+  newName: string
+  eventTypes: Map<string, ManagedEventType>
+  offerings: StrapiOffering[]
+  juniorMaps: JuniorMapRecord[]
+}
+
+// Rename a base service / addon / modifier everywhere:
+//   • Noona base + every combo title that embeds the renamed part (rebuilt from structure)
+//   • matching `offer` titles (matched by the CURRENT title)
+//   • junior Noona copies (share the senior title) + service-junior-map.title
+//   • the Strapi addon-group field (group.title / addons[].label / modifiers[].label)
+// Modifier key is kept stable — only the display label changes.
+export const buildRenamePlan = ({
+  group,
+  target,
+  newName,
+  eventTypes,
+  offerings,
+  juniorMaps,
+}: BuildRenameInput): PlannedManageOp[] => {
+  const trimmed = newName.trim()
+  if (!trimmed) return []
+
+  const newBaseTitle = target.kind === 'base' ? trimmed : group.title
+
+  // Apply the rename to a working copy of the addon-group data
+  const next = toData(group)
+  if (target.kind === 'base') {
+    next.title = trimmed
+  } else if (target.kind === 'addon') {
+    const a = next.addons.find((x) => x.label === target.label)
+    if (!a) return []
+    a.label = trimmed
+  } else {
+    const m = next.modifiers.find((x) => x.key === target.key)
+    if (!m) return []
+    m.label = trimmed // key stays the same — modifier_keys references remain valid
+  }
+
+  const expected = expectedTitles(next, newBaseTitle, group.base_noona_id)
+  const offerByTitle = new Map(offerings.map((o) => [o.title, o]))
+  const juniorBySenior = new Map(juniorMaps.map((jm) => [jm.senior_noona_id, jm]))
+  const ops: PlannedManageOp[] = []
+
+  for (const [id, newTitle] of expected) {
+    const et = eventTypes.get(id)
+    if (!et || et.title === newTitle) continue
+
+    // 1. Noona event_type title (senior / base / combo)
+    ops.push({
+      key: `noona-title:${id}`,
+      label: `Noona: «${et.title}» → «${newTitle}»`,
+      before: null,
+      after: null,
+      op: { kind: 'noona-title', id, title: newTitle },
+    })
+
+    // 2. offer matched by the CURRENT title
+    const offer = offerByTitle.get(et.title)
+    if (offer && offer.title !== newTitle) {
+      ops.push({
+        key: `offer-title:${offer.documentId}`,
+        label: `Offer: «${offer.title}» → «${newTitle}»`,
+        before: null,
+        after: null,
+        op: { kind: 'offer-title', documentId: offer.documentId, title: newTitle },
+      })
+    }
+
+    // 3. junior copy (shares the senior title) + the junior map record
+    const jm = juniorBySenior.get(id)
+    if (jm) {
+      const juniorEt = eventTypes.get(jm.junior_noona_id)
+      if (juniorEt && juniorEt.title !== newTitle) {
+        ops.push({
+          key: `noona-title:${jm.junior_noona_id}`,
+          label: `Noona junior: «${juniorEt.title}» → «${newTitle}»`,
+          before: null,
+          after: null,
+          op: { kind: 'noona-title', id: jm.junior_noona_id, title: newTitle },
+        })
+      }
+      ops.push({
+        key: `junior-map-title:${jm.documentId}`,
+        label: `Junior-map: название → «${newTitle}»`,
+        before: null,
+        after: null,
+        op: { kind: 'junior-map-title', documentId: jm.documentId, title: newTitle },
+      })
+    }
+  }
+
+  // 4. Strapi addon-group field
+  const fieldLabel =
+    target.kind === 'base'
+      ? `название → «${trimmed}»`
+      : target.kind === 'addon'
+        ? `вариант «${target.label}» → «${trimmed}»`
+        : `дополнение → «${trimmed}»`
+  ops.push({
+    key: `addon-group:${group.documentId}`,
+    label: `Strapi addon-group: ${fieldLabel}`,
+    before: null,
+    after: null,
     op: { kind: 'addon-group-put', documentId: group.documentId, data: next },
   })
 
@@ -396,6 +553,9 @@ export const applyOp = async (planned: PlannedManageOp): Promise<OpResult> => {
       case 'noona-price':
         await NoonaHQBase.post(`/event_types/${op.id}`, op.payload)
         break
+      case 'noona-title':
+        await NoonaHQBase.post(`/event_types/${op.id}`, { title: op.title })
+        break
       case 'hide-event-type':
         await NoonaHQBase.post(`/event_types/${op.id}`, { connections: op.connections })
         break
@@ -408,8 +568,14 @@ export const applyOp = async (planned: PlannedManageOp): Promise<OpResult> => {
       case 'offer-price':
         await StrapiAdmin.put(`/api/offerings/${op.documentId}`, { data: { price: op.newPrice } })
         break
+      case 'offer-title':
+        await StrapiAdmin.put(`/api/offerings/${op.documentId}`, { data: { title: op.title } })
+        break
       case 'junior-map-delete':
         await StrapiAdmin.delete(`/api/service-junior-maps/${op.documentId}`)
+        break
+      case 'junior-map-title':
+        await StrapiAdmin.put(`/api/service-junior-maps/${op.documentId}`, { data: { title: op.title } })
         break
     }
     return { planned, status: 'ok' }

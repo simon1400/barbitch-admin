@@ -7,6 +7,7 @@ import {
   buildDeleteModifierPlan,
   buildDeleteServicePlan,
   buildPriceEditPlan,
+  buildRenamePlan,
   fetchAllAddonGroups,
   fetchAllOfferings,
   fetchEventTypesWithConnections,
@@ -16,6 +17,7 @@ import {
   type OpResult,
   type PlannedManageOp,
   type PriceTarget,
+  type RenameTarget,
   type StrapiAddonGroup,
   type StrapiOffering,
 } from '../fetch/manageServices'
@@ -88,6 +90,11 @@ export default function ManageTab() {
     setResults([])
     setPlan(buildPriceEditPlan({ group: selectedGroup, target, newValue, eventTypes: etMap, offerings }))
   }
+  const onRename = (target: RenameTarget, newName: string) => {
+    if (!selectedGroup) return
+    setResults([])
+    setPlan(buildRenamePlan({ group: selectedGroup, target, newName, eventTypes: etMap, offerings, juniorMaps }))
+  }
   const onDeleteAddon = (label: string) => {
     if (!selectedGroup) return
     setResults([])
@@ -138,8 +145,9 @@ export default function ManageTab() {
     <>
       <h3 className="text-2xl font-bold text-gray-800 mb-2">Správa služeb</h3>
       <p className="text-sm text-gray-500 mb-6">
-        Удаление и смена цены услуг, вариантов и дополнений. Изменения проходят по Noona (база + все
-        combo), Strapi addon-group и offer (по названию). История смен/зарплат не трогается.
+        Переименование, удаление и смена цены услуг, вариантов и дополнений. Изменения проходят по
+        Noona (база + все combo), Strapi addon-group, offer (по названию) и junior-копиям. История
+        смен/зарплат не трогается.
       </p>
 
       {loadStatus === 'loading' && (
@@ -180,6 +188,7 @@ export default function ManageTab() {
               key={`${selectedGroup.documentId}:${dataVersion}`}
               group={selectedGroup}
               onPriceEdit={onPriceEdit}
+              onRename={onRename}
               onDeleteAddon={onDeleteAddon}
               onDeleteModifier={onDeleteModifier}
               onDeleteService={onDeleteService}

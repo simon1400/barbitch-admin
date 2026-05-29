@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import type { PriceTarget, StrapiAddonGroup } from '../../fetch/manageServices'
+import type { PriceTarget, RenameTarget, StrapiAddonGroup } from '../../fetch/manageServices'
 
 interface Props {
   group: StrapiAddonGroup
   onPriceEdit: (target: PriceTarget, newValue: number) => void
+  onRename: (target: RenameTarget, newName: string) => void
   onDeleteAddon: (label: string) => void
   onDeleteModifier: (key: string) => void
   onDeleteService: () => void
@@ -19,33 +20,72 @@ const numOrNull = (s: string): number | null => {
 export const ServiceEditor = ({
   group,
   onPriceEdit,
+  onRename,
   onDeleteAddon,
   onDeleteModifier,
   onDeleteService,
   disabled,
 }: Props) => {
   const [base, setBase] = useState(String(group.base_price))
+  const [baseTitle, setBaseTitle] = useState(group.title)
   const [addonVals, setAddonVals] = useState<Record<string, string>>(
     Object.fromEntries(group.addons.map((a) => [a.label, String(a.price_diff)])),
   )
   const [modVals, setModVals] = useState<Record<string, string>>(
     Object.fromEntries(group.modifiers.map((m) => [m.key, String(m.price_diff)])),
   )
+  // Rename inputs are keyed by the STABLE identifier (addon label / modifier key),
+  // so editing the name never breaks the price/delete buttons that reference it.
+  const [addonNames, setAddonNames] = useState<Record<string, string>>(
+    Object.fromEntries(group.addons.map((a) => [a.label, a.label])),
+  )
+  const [modNames, setModNames] = useState<Record<string, string>>(
+    Object.fromEntries(group.modifiers.map((m) => [m.key, m.label])),
+  )
 
   const priceBtn =
     'px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50'
+  const renameBtn =
+    'px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-semibold hover:bg-indigo-600 transition-colors disabled:opacity-50'
   const delBtn =
     'px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors disabled:opacity-50'
   const input =
     'w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary'
+  const nameInput =
+    'flex-1 min-w-40 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary'
+
+  const renameDisabled = (current: string, value: string) =>
+    disabled || value.trim() === '' || value.trim() === current
 
   return (
     <div className="space-y-4">
       {/* Base */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
         <div className="font-semibold text-gray-700 text-sm mb-3">База — {group.title}</div>
+
+        {/* Base name */}
+        <div className="flex flex-wrap items-center gap-3 mb-3">
+          <span className="text-xs text-gray-500 w-20">Название</span>
+          <input
+            type="text"
+            value={baseTitle}
+            onChange={(e) => setBaseTitle(e.target.value)}
+            disabled={disabled}
+            className={nameInput}
+          />
+          <button
+            type="button"
+            className={renameBtn}
+            disabled={renameDisabled(group.title, baseTitle)}
+            onClick={() => onRename({ kind: 'base' }, baseTitle)}
+          >
+            Переименовать
+          </button>
+        </div>
+
+        {/* Base price */}
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-gray-500">Базовая цена (Kč)</span>
+          <span className="text-xs text-gray-500 w-20">Базовая цена</span>
           <input
             type="number"
             value={base}
@@ -65,7 +105,7 @@ export const ServiceEditor = ({
             Сменить цену
           </button>
           <span className="text-[11px] text-gray-400">
-            пересчитает все combo и offer по этой услуге
+            переименование/цена пересчитают все combo, offer и junior-копию
           </span>
         </div>
       </div>
@@ -78,10 +118,24 @@ export const ServiceEditor = ({
         {group.addons.length === 0 ? (
           <div className="text-sm text-gray-400">Нет вариантов</div>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             {group.addons.map((a) => (
-              <div key={a.label} className="flex flex-wrap items-center gap-3 border-b last:border-b-0 pb-2 last:pb-0">
-                <span className="text-sm text-gray-700 flex-1 min-w-40">{a.label}</span>
+              <div key={a.label} className="flex flex-wrap items-center gap-3 border-b last:border-b-0 pb-3 last:pb-0">
+                <input
+                  type="text"
+                  value={addonNames[a.label] ?? ''}
+                  onChange={(e) => setAddonNames((p) => ({ ...p, [a.label]: e.target.value }))}
+                  disabled={disabled}
+                  className={nameInput}
+                />
+                <button
+                  type="button"
+                  className={renameBtn}
+                  disabled={renameDisabled(a.label, addonNames[a.label] ?? '')}
+                  onClick={() => onRename({ kind: 'addon', label: a.label }, addonNames[a.label] ?? '')}
+                >
+                  Название
+                </button>
                 <span className="text-xs text-gray-500">+Kč</span>
                 <input
                   type="number"
@@ -127,10 +181,24 @@ export const ServiceEditor = ({
         {group.modifiers.length === 0 ? (
           <div className="text-sm text-gray-400">Нет дополнений</div>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             {group.modifiers.map((m) => (
-              <div key={m.key} className="flex flex-wrap items-center gap-3 border-b last:border-b-0 pb-2 last:pb-0">
-                <span className="text-sm text-gray-700 flex-1 min-w-40">{m.label}</span>
+              <div key={m.key} className="flex flex-wrap items-center gap-3 border-b last:border-b-0 pb-3 last:pb-0">
+                <input
+                  type="text"
+                  value={modNames[m.key] ?? ''}
+                  onChange={(e) => setModNames((p) => ({ ...p, [m.key]: e.target.value }))}
+                  disabled={disabled}
+                  className={nameInput}
+                />
+                <button
+                  type="button"
+                  className={renameBtn}
+                  disabled={renameDisabled(m.label, modNames[m.key] ?? '')}
+                  onClick={() => onRename({ kind: 'modifier', key: m.key }, modNames[m.key] ?? '')}
+                >
+                  Название
+                </button>
                 <span className="text-xs text-gray-500">+Kč</span>
                 <input
                   type="number"
