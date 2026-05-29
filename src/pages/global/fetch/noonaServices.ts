@@ -175,6 +175,9 @@ export interface AddonInput {
 export interface ModifierInput {
   label: string
   priceDiff: number
+  // Existing modifiers reuse their STORED key (which may differ from toKey(label)
+  // after a rename). New modifiers leave this undefined → derived from the label.
+  key?: string
 }
 
 // addonResults       — каждый addon без модификаторов     (addon.result_noona_id)
@@ -229,6 +232,10 @@ const createHiddenNoonaService = async (
 
 const toKey = (label: string) => label.toLowerCase().replace(/\s+/g, '-')
 
+// Canonical key for a modifier: reuse its stored key if present (existing modifier
+// whose label was renamed), otherwise derive from the label (new modifier).
+const modKey = (m: { key?: string; label: string }) => m.key ?? toKey(m.label)
+
 // If a part already starts with '+', join with a space only (no extra '+')
 const buildTitle = (base: string, ...parts: string[]): string =>
   parts.reduce((acc, part) => acc + (part.startsWith('+') ? ' ' : ' + ') + part, base)
@@ -263,7 +270,7 @@ export const createMissingCombinations = async (
 
   // 2. Base × missing modifier subsets
   for (const subset of allSubsets) {
-    const modifierKeys = subset.map((m) => toKey(m.label)).sort().join(',')
+    const modifierKeys = subset.map(modKey).sort().join(',')
     if (existingBaseModResultKeys.has(modifierKeys)) continue
     const r = await createHiddenNoonaService(
       buildTitle(baseTitle, ...subset.map((m) => m.label)),
@@ -277,7 +284,7 @@ export const createMissingCombinations = async (
   // 3. New addons × all modifier subsets (all are new for them)
   for (const addon of newAddons) {
     for (const subset of allSubsets) {
-      const modifierKeys = subset.map((m) => toKey(m.label)).sort().join(',')
+      const modifierKeys = subset.map(modKey).sort().join(',')
       const r = await createHiddenNoonaService(
         buildTitle(baseTitle, addon.label, ...subset.map((m) => m.label)),
         minutes,
@@ -292,7 +299,7 @@ export const createMissingCombinations = async (
   for (const ctx of existingAddonContexts) {
     const addonInput: AddonInput = { label: ctx.label, priceDiff: ctx.priceDiff }
     for (const subset of allSubsets) {
-      const modifierKeys = subset.map((m) => toKey(m.label)).sort().join(',')
+      const modifierKeys = subset.map(modKey).sort().join(',')
       if (ctx.existingModResultKeys.has(modifierKeys)) continue
       const r = await createHiddenNoonaService(
         buildTitle(baseTitle, ctx.label, ...subset.map((m) => m.label)),
@@ -339,7 +346,7 @@ export const createFullServiceCombinations = async (
   // 2. База + каждое подмножество модификаторов → base_modifier_results
   for (const subset of modSubsets) {
     const modifierKeys = subset
-      .map((m) => toKey(m.label))
+      .map(modKey)
       .sort()
       .join(',')
     const r = await createHiddenNoonaService(
@@ -355,7 +362,7 @@ export const createFullServiceCombinations = async (
   for (const addon of addons) {
     for (const subset of modSubsets) {
       const modifierKeys = subset
-        .map((m) => toKey(m.label))
+        .map(modKey)
         .sort()
         .join(',')
       const r = await createHiddenNoonaService(

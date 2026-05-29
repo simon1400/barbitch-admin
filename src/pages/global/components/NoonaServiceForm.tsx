@@ -151,6 +151,7 @@ export const NoonaServiceForm = () => {
     const existingModInputs: ModifierInput[] = (existingGroup?.modifiers ?? []).map((m) => ({
       label: m.label,
       priceDiff: m.price_diff,
+      key: m.key, // reuse stored key (may differ from toKey(label) after a rename)
     }))
     const allMods = [...existingModInputs, ...validModifiers]
     const formAddonLabels = new Set(validAddons.map((a) => a.label.trim()))
@@ -238,6 +239,7 @@ export const NoonaServiceForm = () => {
     const existingModInputs: ModifierInput[] = (existing?.modifiers ?? []).map((m) => ({
       label: m.label,
       priceDiff: m.price_diff,
+      key: m.key, // reuse stored key (may differ from toKey(label) after a rename)
     }))
     const allModifiers: ModifierInput[] = [...existingModInputs, ...newModifierInputs]
 
