@@ -10,6 +10,7 @@ const KIND_LABEL: Record<ManageOp['kind'], string> = {
   'offer-title': 'Название offer',
   'junior-map-delete': 'Junior-map',
   'junior-map-title': 'Junior-map',
+  'junior-map-price': 'Junior-map цена',
 }
 
 const KIND_COLOR: Record<ManageOp['kind'], string> = {
@@ -22,6 +23,7 @@ const KIND_COLOR: Record<ManageOp['kind'], string> = {
   'offer-title': 'bg-teal-50 text-teal-700',
   'junior-map-delete': 'bg-red-50 text-red-700',
   'junior-map-title': 'bg-purple-50 text-purple-700',
+  'junior-map-price': 'bg-purple-50 text-purple-700',
 }
 
 interface Props {

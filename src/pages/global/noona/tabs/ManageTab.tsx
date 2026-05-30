@@ -88,7 +88,7 @@ export default function ManageTab() {
   const onPriceEdit = (target: PriceTarget, newValue: number) => {
     if (!selectedGroup) return
     setResults([])
-    setPlan(buildPriceEditPlan({ group: selectedGroup, target, newValue, eventTypes: etMap, offerings }))
+    setPlan(buildPriceEditPlan({ group: selectedGroup, target, newValue, eventTypes: etMap, offerings, juniorMaps }))
   }
   const onRename = (target: RenameTarget, newName: string) => {
     if (!selectedGroup) return
@@ -98,12 +98,12 @@ export default function ManageTab() {
   const onDeleteAddon = (label: string) => {
     if (!selectedGroup) return
     setResults([])
-    setPlan(buildDeleteAddonPlan(selectedGroup, label, etMap))
+    setPlan(buildDeleteAddonPlan(selectedGroup, label, etMap, juniorMaps))
   }
   const onDeleteModifier = (key: string) => {
     if (!selectedGroup) return
     setResults([])
-    setPlan(buildDeleteModifierPlan(selectedGroup, key, etMap))
+    setPlan(buildDeleteModifierPlan(selectedGroup, key, etMap, juniorMaps))
   }
   const onDeleteService = () => {
     if (!selectedGroup) return

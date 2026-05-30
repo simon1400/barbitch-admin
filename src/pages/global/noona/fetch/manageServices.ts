@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { NoonaHQ, NoonaHQBase } from '../../../../lib/noona'
+import { calcJuniorPrice } from '../../../../constants/junior'
 import {
   fetchAllAddonGroups,
   fetchAllOfferings,
@@ -81,6 +82,8 @@ export interface JuniorMapRecord {
   documentId: string
   senior_noona_id: string
   junior_noona_id: string
+  senior_price?: number
+  junior_price?: number
 }
 
 export const fetchJuniorMaps = async (): Promise<JuniorMapRecord[]> => {
@@ -89,6 +92,7 @@ export const fetchJuniorMaps = async (): Promise<JuniorMapRecord[]> => {
   while (true) {
     const res = await StrapiAdmin.get(
       `/api/service-junior-maps?fields[0]=senior_noona_id&fields[1]=junior_noona_id` +
+        `&fields[2]=senior_price&fields[3]=junior_price` +
         `&pagination[page]=${page}&pagination[pageSize]=200`,
     )
     const data = res.data?.data ?? []
@@ -133,6 +137,7 @@ export type ManageOp =
   | { kind: 'offer-title'; documentId: string; title: string }
   | { kind: 'junior-map-delete'; documentId: string }
   | { kind: 'junior-map-title'; documentId: string; title: string }
+  | { kind: 'junior-map-price'; documentId: string; seniorPrice: number; juniorPrice: number }
 
 export interface PlannedManageOp {
   key: string
@@ -277,6 +282,7 @@ export interface BuildPriceEditInput {
   newValue: number // base: absolute base_price; addon/modifier: absolute price_diff
   eventTypes: Map<string, ManagedEventType>
   offerings: StrapiOffering[]
+  juniorMaps?: JuniorMapRecord[]
 }
 
 // Recompute every affected Noona combo + addon-group + matching offers from the new value.
@@ -286,6 +292,7 @@ export const buildPriceEditPlan = ({
   newValue,
   eventTypes,
   offerings,
+  juniorMaps = [],
 }: BuildPriceEditInput): PlannedManageOp[] => {
   const next = toData(group)
   if (target.kind === 'base') next.base_price = newValue
@@ -299,6 +306,7 @@ export const buildPriceEditPlan = ({
 
   const expected = expectedPrices(next, group.base_noona_id)
   const offerByTitle = new Map(offerings.map((o) => [o.title, o]))
+  const juniorBySenior = new Map(juniorMaps.map((jm) => [jm.senior_noona_id, jm]))
   const ops: PlannedManageOp[] = []
 
   // Noona price updates (only where amount actually changes) + offer sync by title
@@ -324,6 +332,8 @@ export const buildPriceEditPlan = ({
         op: { kind: 'offer-price', documentId: offer.documentId, newPrice: price },
       })
     }
+    // Re-scale the junior copy (−20%) for this senior combo
+    ops.push(...juniorRepriceOps(id, price, juniorBySenior, eventTypes))
   }
 
   // Strapi addon-group component values.
@@ -507,6 +517,62 @@ const hideOp = (id: string, eventTypes: Map<string, ManagedEventType>): PlannedM
   }
 }
 
+// When a senior combo is DELETED (hidden), its junior copy must follow:
+// hide the junior event_type + delete the service-junior-map record.
+// Without this, junior masters keep offering a "deleted" variant.
+const juniorDeleteOps = (
+  seniorId: string,
+  juniorBySenior: Map<string, JuniorMapRecord>,
+  eventTypes: Map<string, ManagedEventType>,
+): PlannedManageOp[] => {
+  const jm = juniorBySenior.get(seniorId)
+  if (!jm) return []
+  const ops: PlannedManageOp[] = []
+  if (jm.junior_noona_id) ops.push(hideOp(jm.junior_noona_id, eventTypes))
+  ops.push({
+    key: `junior-map:${jm.documentId}`,
+    label: `Удалить junior-маппинг: ${seniorId} → ${jm.junior_noona_id}`,
+    before: null,
+    after: null,
+    op: { kind: 'junior-map-delete', documentId: jm.documentId },
+  })
+  return ops
+}
+
+// When a senior combo is REPRICED, its junior copy must be re-scaled (−20%)
+// and the service-junior-map prices updated. Without this junior prices drift.
+const juniorRepriceOps = (
+  seniorId: string,
+  newSeniorPrice: number,
+  juniorBySenior: Map<string, JuniorMapRecord>,
+  eventTypes: Map<string, ManagedEventType>,
+): PlannedManageOp[] => {
+  const jm = juniorBySenior.get(seniorId)
+  if (!jm) return []
+  const newJuniorPrice = calcJuniorPrice(newSeniorPrice)
+  const ops: PlannedManageOp[] = []
+  const jEt = eventTypes.get(jm.junior_noona_id)
+  if (jEt && jEt.price !== newJuniorPrice) {
+    ops.push({
+      key: `noona-price:${jm.junior_noona_id}`,
+      label: `Junior: ${jEt.title}`,
+      before: jEt.price,
+      after: newJuniorPrice,
+      op: { kind: 'noona-price', id: jm.junior_noona_id, payload: buildVariations(jEt, newJuniorPrice) },
+    })
+  }
+  if (jm.senior_price !== newSeniorPrice || jm.junior_price !== newJuniorPrice) {
+    ops.push({
+      key: `junior-map-price:${jm.documentId}`,
+      label: `Junior-map цена: ${newSeniorPrice} / ${newJuniorPrice}`,
+      before: jm.junior_price ?? null,
+      after: newJuniorPrice,
+      op: { kind: 'junior-map-price', documentId: jm.documentId, seniorPrice: newSeniorPrice, juniorPrice: newJuniorPrice },
+    })
+  }
+  return ops
+}
+
 export interface BuildDeleteServiceInput {
   group: StrapiAddonGroup
   eventTypes: Map<string, ManagedEventType>
@@ -550,11 +616,18 @@ export const buildDeleteAddonPlan = (
   group: StrapiAddonGroup,
   addonLabel: string,
   eventTypes: Map<string, ManagedEventType>,
+  juniorMaps: JuniorMapRecord[] = [],
 ): PlannedManageOp[] => {
   const addon = group.addons.find((a) => a.label === addonLabel)
   if (!addon) return []
   const hideIds = [addon.result_noona_id, ...(addon.modifier_results ?? []).map((r) => r.result_noona_id)]
-  const ops: PlannedManageOp[] = hideIds.filter(Boolean).map((id) => hideOp(id, eventTypes))
+  const juniorBySenior = new Map(juniorMaps.map((jm) => [jm.senior_noona_id, jm]))
+  const ops: PlannedManageOp[] = []
+  for (const id of hideIds.filter(Boolean)) {
+    ops.push(hideOp(id, eventTypes))
+    // also hide the junior copy of this combo + drop its junior-map record
+    ops.push(...juniorDeleteOps(id, juniorBySenior, eventTypes))
+  }
 
   const next = toData(group)
   next.addons = next.addons.filter((a) => a.label !== addonLabel)
@@ -572,6 +645,7 @@ export const buildDeleteModifierPlan = (
   group: StrapiAddonGroup,
   modifierKey: string,
   eventTypes: Map<string, ManagedEventType>,
+  juniorMaps: JuniorMapRecord[] = [],
 ): PlannedManageOp[] => {
   const includesKey = (modifier_keys: string) => keysFromString(modifier_keys).includes(modifierKey)
 
@@ -580,7 +654,12 @@ export const buildDeleteModifierPlan = (
   for (const a of group.addons)
     for (const mr of a.modifier_results ?? []) if (includesKey(mr.modifier_keys)) hideIds.push(mr.result_noona_id)
 
-  const ops: PlannedManageOp[] = hideIds.filter(Boolean).map((id) => hideOp(id, eventTypes))
+  const juniorBySenior = new Map(juniorMaps.map((jm) => [jm.senior_noona_id, jm]))
+  const ops: PlannedManageOp[] = []
+  for (const id of hideIds.filter(Boolean)) {
+    ops.push(hideOp(id, eventTypes))
+    ops.push(...juniorDeleteOps(id, juniorBySenior, eventTypes))
+  }
 
   const next = toData(group)
   next.modifiers = next.modifiers.filter((m) => m.key !== modifierKey)
@@ -631,6 +710,11 @@ export const applyOp = async (planned: PlannedManageOp): Promise<OpResult> => {
         break
       case 'junior-map-title':
         await StrapiAdmin.put(`/api/service-junior-maps/${op.documentId}`, { data: { title: op.title } })
+        break
+      case 'junior-map-price':
+        await StrapiAdmin.put(`/api/service-junior-maps/${op.documentId}`, {
+          data: { senior_price: op.seniorPrice, junior_price: op.juniorPrice },
+        })
         break
     }
     return { planned, status: 'ok' }
