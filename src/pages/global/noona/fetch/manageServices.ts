@@ -39,6 +39,9 @@ export const toKey = (label: string) => label.toLowerCase().replace(/\s+/g, '-')
 export interface ManagedEventType {
   id: string
   title: string
+  // Noona stores the display name in title_translations ({ locale: title }); the
+  // top-level `title` is read-only/derived. Renames MUST write title_translations.
+  titleTranslations: Record<string, string>
   hidden: boolean
   price: number
   variations: Array<{ id?: string; prices: Array<{ id?: string; amount: number; currency?: string }> }>
@@ -50,6 +53,7 @@ export const fetchEventTypesWithConnections = async (): Promise<ManagedEventType
   const items: Array<{
     id?: string
     title?: string
+    title_translations?: Record<string, string>
     connections?: Record<string, unknown>
     variations?: Array<{ id?: string; prices?: Array<{ id?: string; amount?: number; currency?: string }> }>
   }> = Array.isArray(res.data) ? res.data : []
@@ -68,6 +72,7 @@ export const fetchEventTypesWithConnections = async (): Promise<ManagedEventType
       return {
         id: s.id!,
         title: s.title ?? '(без названия)',
+        titleTranslations: s.title_translations ?? {},
         hidden: Boolean((s.connections as { hidden?: boolean } | undefined)?.hidden),
         price: variations[0]?.prices[0]?.amount ?? 0,
         variations,
@@ -129,7 +134,7 @@ export interface AddonGroupData {
 
 export type ManageOp =
   | { kind: 'noona-price'; id: string; payload: NoonaVariations }
-  | { kind: 'noona-title'; id: string; title: string }
+  | { kind: 'noona-title'; id: string; title: string; titleTranslations: Record<string, string> }
   | { kind: 'hide-event-type'; id: string; connections: Record<string, unknown> }
   | { kind: 'addon-group-put'; documentId: string; data: AddonGroupData }
   | { kind: 'addon-group-delete'; documentId: string }
@@ -363,6 +368,14 @@ export const buildPriceEditPlan = ({
   return ops
 }
 
+// Noona renames must write `title_translations` ({ locale: title }) — the top-level
+// `title` is read-only (POST {title} returns 200 but is ignored). Czech-only salon,
+// so we set `cs` and preserve any other existing locales.
+const titleTranslationsFor = (
+  et: ManagedEventType | undefined,
+  newTitle: string,
+): Record<string, string> => ({ ...(et?.titleTranslations ?? {}), cs: newTitle })
+
 // Rename target — same shape as PriceTarget (base / addon by label / modifier by key)
 export type RenameTarget = PriceTarget
 
@@ -450,7 +463,7 @@ export const buildRenamePlan = ({
       label: `Noona: «${et.title}» → «${newTitle}»`,
       before: null,
       after: null,
-      op: { kind: 'noona-title', id, title: newTitle },
+      op: { kind: 'noona-title', id, title: newTitle, titleTranslations: titleTranslationsFor(et, newTitle) },
     })
 
     // 2. offer matched by the CURRENT title
@@ -475,7 +488,7 @@ export const buildRenamePlan = ({
           label: `Noona junior: «${juniorEt.title}» → «${newTitle}»`,
           before: null,
           after: null,
-          op: { kind: 'noona-title', id: jm.junior_noona_id, title: newTitle },
+          op: { kind: 'noona-title', id: jm.junior_noona_id, title: newTitle, titleTranslations: titleTranslationsFor(juniorEt, newTitle) },
         })
       }
       ops.push({
@@ -688,7 +701,8 @@ export const applyOp = async (planned: PlannedManageOp): Promise<OpResult> => {
         await NoonaHQBase.post(`/event_types/${op.id}`, op.payload)
         break
       case 'noona-title':
-        await NoonaHQBase.post(`/event_types/${op.id}`, { title: op.title })
+        // Noona ignores top-level `title` on update — must write title_translations
+        await NoonaHQBase.post(`/event_types/${op.id}`, { title_translations: op.titleTranslations })
         break
       case 'hide-event-type':
         await NoonaHQBase.post(`/event_types/${op.id}`, { connections: op.connections })
