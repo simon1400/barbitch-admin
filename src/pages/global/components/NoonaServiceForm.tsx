@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   createMissingCombinations,
-  getAllSubsets,
+  getValidSubsets,
   getNoonaCategories,
   searchNoonaServices,
   type AddonInput,
@@ -19,10 +19,11 @@ interface Row {
   id: number
   label: string
   priceDiff: string
+  group: string
 }
 
 let nextId = 1
-const makeRow = (): Row => ({ id: nextId++, label: '', priceDiff: '' })
+const makeRow = (): Row => ({ id: nextId++, label: '', priceDiff: '', group: '' })
 
 type Status = 'idle' | 'noona' | 'strapi' | 'offerings' | 'done' | 'error'
 
@@ -108,7 +109,7 @@ export const NoonaServiceForm = () => {
     }
 
     if (validModifiers.length > 0) {
-      const modSubsets = getAllSubsets(validModifiers)
+      const modSubsets = getValidSubsets(validModifiers)
 
       // База + дополнения
       groups.push({
@@ -148,12 +149,29 @@ export const NoonaServiceForm = () => {
   const comboStats = useMemo(() => {
     if (!selectedService || (validAddons.length === 0 && validModifiers.length === 0)) return null
 
-    const existingModInputs: ModifierInput[] = (existingGroup?.modifiers ?? []).map((m) => ({
-      label: m.label,
-      priceDiff: m.price_diff,
-      key: m.key, // reuse stored key (may differ from toKey(label) after a rename)
+    type ModItem = { key: string; group?: string }
+    // Existing modifiers keep their STORED key (matches stored modifier_keys);
+    // new form modifiers derive key from the label. Form modifiers stay free
+    // unless the user assigned a group.
+    const existingModItems: ModItem[] = (existingGroup?.modifiers ?? []).map((m) => ({
+      key: m.key,
+      group: m.group?.trim() || undefined,
     }))
-    const allMods = [...existingModInputs, ...validModifiers]
+    const formModItems: ModItem[] = validModifiers.map((m) => ({
+      key: toKeyLocal(m.label),
+      group: m.group.trim() || undefined,
+    }))
+
+    // Dedup by key — a re-entered modifier (form) wins so its group applies
+    const byKey = new Map<string, ModItem>()
+    for (const m of existingModItems) byKey.set(m.key, m)
+    for (const m of formModItems) byKey.set(m.key, m)
+    const allMods = [...byKey.values()]
+
+    const formKeySet = new Set(formModItems.map((m) => m.key))
+    const keyOf = (subset: ModItem[]) => subset.map((m) => m.key).sort().join(',')
+    const isFormOnly = (subset: ModItem[]) => subset.every((m) => formKeySet.has(m.key))
+
     const formAddonLabels = new Set(validAddons.map((a) => a.label.trim()))
     const existingAddonContexts = (existingGroup?.addons ?? []).filter(
       (ea) => !formAddonLabels.has(ea.label),
@@ -170,25 +188,20 @@ export const NoonaServiceForm = () => {
     let skippedCount = 0
 
     if (allMods.length > 0) {
-      const allSubsets = getAllSubsets(allMods)
-      // Keys of subsets that consist ONLY of new (form) modifiers
-      const formModKeys = new Set(
-        getAllSubsets(validModifiers).map((s) => s.map((m) => toKeyLocal(m.label)).sort().join(',')),
-      )
+      const allSubsets = getValidSubsets(allMods)
 
       // Base × modifier subsets
       for (const subset of allSubsets) {
-        const key = subset.map((m) => toKeyLocal(m.label)).sort().join(',')
+        const key = keyOf(subset)
         if (existingBaseKeys.has(key)) skippedCount++
-        else if (formModKeys.has(key)) fromForm++
+        else if (isFormOnly(subset)) fromForm++
         else crossCount++ // contains at least one existing mod key
       }
 
       // Form addons × all modifier subsets
       for (let i = 0; i < validAddons.length; i++) {
         for (const subset of allSubsets) {
-          const key = subset.map((m) => toKeyLocal(m.label)).sort().join(',')
-          if (formModKeys.has(key)) fromForm++
+          if (isFormOnly(subset)) fromForm++
           else crossCount++
         }
       }
@@ -197,7 +210,7 @@ export const NoonaServiceForm = () => {
       for (const ea of existingAddonContexts) {
         const existingMRKeys = new Set((ea.modifier_results ?? []).map((r) => r.modifier_keys))
         for (const subset of allSubsets) {
-          const key = subset.map((m) => toKeyLocal(m.label)).sort().join(',')
+          const key = keyOf(subset)
           if (existingMRKeys.has(key)) skippedCount++
           else crossCount++
         }
@@ -230,18 +243,26 @@ export const NoonaServiceForm = () => {
     const newModifierInputs: ModifierInput[] = validModifiers.map((r) => ({
       label: r.label.trim(),
       priceDiff: Number(r.priceDiff || 0),
+      group: r.group.trim() || undefined,
     }))
 
     // Fetch existing record to build complete context for cross-combos
     const existing = await fetchExistingAddonGroup(selectedService.id)
 
-    // All modifiers = existing (from Strapi) + new (from form)
+    // All modifiers = existing (from Strapi) + new (from form).
+    // Existing modifiers keep their stored key/label/group; if a form modifier
+    // re-enters the same key, the form entry wins (so its group applies).
     const existingModInputs: ModifierInput[] = (existing?.modifiers ?? []).map((m) => ({
       label: m.label,
       priceDiff: m.price_diff,
       key: m.key, // reuse stored key (may differ from toKey(label) after a rename)
+      group: m.group,
     }))
-    const allModifiers: ModifierInput[] = [...existingModInputs, ...newModifierInputs]
+    const keyOfMod = (m: ModifierInput) => m.key ?? toKeyLocal(m.label)
+    const byKey = new Map<string, ModifierInput>()
+    for (const m of existingModInputs) byKey.set(keyOfMod(m), m)
+    for (const m of newModifierInputs) byKey.set(keyOfMod(m), m) // form wins
+    const allModifiers: ModifierInput[] = [...byKey.values()]
 
     // Existing addons — skip those re-submitted via the form (treat as new)
     const newAddonLabels = new Set(newAddonInputs.map((a) => a.label))
@@ -332,6 +353,7 @@ export const NoonaServiceForm = () => {
     rows: Row[],
     setRows: React.Dispatch<React.SetStateAction<Row[]>>,
     placeholder: string,
+    withGroup = false,
   ) => (
     <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm mb-4">
       <div className="mb-4">
@@ -381,6 +403,26 @@ export const NoonaServiceForm = () => {
                 className="w-[100px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
               />
             </div>
+            {withGroup && (
+              <div>
+                {idx === 0 && (
+                  <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+                    Группа
+                  </label>
+                )}
+                <input
+                  type="text"
+                  value={row.group}
+                  onChange={(e) =>
+                    setRows((prev) =>
+                      prev.map((r) => (r.id === row.id ? { ...r, group: e.target.value } : r)),
+                    )
+                  }
+                  placeholder="напр. design"
+                  className="w-[130px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            )}
             <button
               onClick={() => setRows((prev) => prev.filter((r) => r.id !== row.id))}
               disabled={rows.length === 1}
@@ -576,10 +618,11 @@ export const NoonaServiceForm = () => {
       {/* Дополнения (modifiers) — чекбоксы в клиенте, добавляются к базе И к каждому варианту */}
       {renderRowSection(
         'Дополнения (modifiers)',
-        '— чекбоксы, добавляются к базе и к каждому варианту',
+        '— чекбоксы. Одинаковая «группа» = взаимоисключающие (макс. 1). Пусто = свободное',
         modifierRows,
         setModifierRows,
         'Posílení nehtů',
+        true,
       )}
 
       {/* Предпросмотр */}

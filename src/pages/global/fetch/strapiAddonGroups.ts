@@ -4,7 +4,7 @@ import type { AddonInput, FullCombosResult, ModifierInput } from './noonaService
 export interface ExistingAddonGroupRecord {
   id: number
   documentId: string
-  modifiers: { key: string; label: string; price_diff: number }[]
+  modifiers: { key: string; label: string; price_diff: number; group?: string }[]
   base_modifier_results: { modifier_keys: string; result_noona_id: string }[]
   addons: {
     label: string
@@ -30,7 +30,7 @@ const toKey = (label: string) => label.toLowerCase().replace(/\s+/g, '-')
 
 // ─── Strapi component shapes ───────────────────────────────────────────────────
 
-interface StrapiModifier { id?: number; key: string; label: string; price_diff: number }
+interface StrapiModifier { id?: number; key: string; label: string; price_diff: number; group?: string }
 interface StrapiModResult { id?: number; modifier_keys: string; result_noona_id: string }
 interface StrapiAddon {
   id?: number
@@ -88,6 +88,7 @@ export const saveBookingAddonGroup = async (
     key: toKey(m.label),
     label: m.label,
     price_diff: m.priceDiff,
+    group: m.group,
   }))
 
   const newBaseModifierResults: StrapiModResult[] = combos.baseModifierResults
@@ -134,10 +135,17 @@ export const saveBookingAddonGroup = async (
 
     // Strapi 5 rejects component ids in PUT body → strip all ids from existing components
 
-    // Merge modifiers — add only new keys
+    // Merge modifiers — add only new keys. Keep existing label/price (avoid
+    // rename desync) but adopt the form's `group` when the same key re-appears.
     const existingModKeys = new Set(existingMods.map((m) => m.key))
+    const newModByKey = new Map(newModifiers.map((m) => [m.key, m]))
     const mergedModifiers = [
-      ...existingMods.map((m) => ({ key: m.key, label: m.label, price_diff: m.price_diff })),
+      ...existingMods.map((m) => ({
+        key: m.key,
+        label: m.label,
+        price_diff: m.price_diff,
+        group: newModByKey.get(m.key)?.group ?? m.group,
+      })),
       ...newModifiers.filter((m) => !existingModKeys.has(m.key)),
     ]
 

@@ -167,6 +167,46 @@ export function getAllSubsets<T>(arr: T[]): T[][] {
   return result
 }
 
+// Like getAllSubsets, but respects mutually-exclusive groups:
+//   • items WITHOUT a group are independent (each toggles in/out)
+//   • items sharing a non-empty `group` are mutually exclusive — at most ONE
+//     per group can appear in a subset (states: none / item1 / item2 / …)
+// When no item has a group, the output is identical to getAllSubsets(items).
+// Used so combos like "Design L1 + Design L2" are never generated.
+export function getValidSubsets<T extends { group?: string }>(items: T[]): T[][] {
+  const free: T[] = []
+  const groups = new Map<string, T[]>()
+  for (const it of items) {
+    const g = it.group?.trim()
+    if (g) {
+      const arr = groups.get(g)
+      if (arr) arr.push(it)
+      else groups.set(g, [it])
+    } else {
+      free.push(it)
+    }
+  }
+
+  // Each dimension is a list of choices; a choice is a subset of length 0 or 1.
+  const dimensions: T[][][] = []
+  for (const f of free) dimensions.push([[], [f]]) // absent / present
+  for (const members of groups.values()) {
+    const choices: T[][] = [[]] // none selected from this group
+    for (const m of members) choices.push([m])
+    dimensions.push(choices)
+  }
+
+  let acc: T[][] = [[]]
+  for (const dim of dimensions) {
+    const next: T[][] = []
+    for (const cur of acc) {
+      for (const choice of dim) next.push([...cur, ...choice])
+    }
+    acc = next
+  }
+  return acc.filter((s) => s.length > 0)
+}
+
 export interface AddonInput {
   label: string
   priceDiff: number
@@ -178,6 +218,9 @@ export interface ModifierInput {
   // Existing modifiers reuse their STORED key (which may differ from toKey(label)
   // after a rename). New modifiers leave this undefined → derived from the label.
   key?: string
+  // Mutually-exclusive group. Modifiers sharing the same non-empty group can't be
+  // combined (max 1 per group). Empty/undefined → independent (free checkbox).
+  group?: string
 }
 
 // addonResults       — каждый addon без модификаторов     (addon.result_noona_id)
@@ -201,7 +244,13 @@ export interface ExistingAddonContext {
   existingModResultKeys: Set<string> // modifier_keys combos already stored in Strapi
 }
 
-const createHiddenNoonaService = async (
+// Creates a combo event_type in Noona. ⚠️ MUST be VISIBLE (hidden: false):
+// the marketplace /time_slots API returns NO slots for hidden event_types, so a
+// hidden combo can't be booked online (same root cause as the junior bug, s49).
+// These combos are kept out of the public lists (/book, /cenik, /service/*) on the
+// CLIENT side — it filters every addon-group result_noona_id (getHiddenServiceIds /
+// collectHiddenIds), NOT by Noona's hidden flag. So visible here is safe and required.
+const createComboNoonaService = async (
   title: string,
   minutes: number,
   price: number,
@@ -215,7 +264,7 @@ const createHiddenNoonaService = async (
       duration: minutes,
       color: '#FF787D',
       variations: [{ prices: [{ amount: price, currency: 'CZK' }] }],
-      connections: { hidden: true, customer_selects: 'employee', service_needs: 'employee' },
+      connections: { hidden: false, customer_selects: 'employee', service_needs: 'employee' },
     }
     if (vatId) body.vat = vatId
     const res = await NoonaHQBase.post(`/event_types`, body)
@@ -258,7 +307,7 @@ export const createMissingCombinations = async (
 
   // 1. New addons — create base (no modifier) service
   for (const addon of newAddons) {
-    const r = await createHiddenNoonaService(
+    const r = await createComboNoonaService(
       buildTitle(baseTitle, addon.label), minutes, basePrice + addon.priceDiff, categoryId,
     )
     result.addonResults.push({ addon, result: r })
@@ -266,13 +315,13 @@ export const createMissingCombinations = async (
 
   if (allModifiers.length === 0) return result
 
-  const allSubsets = getAllSubsets(allModifiers)
+  const allSubsets = getValidSubsets(allModifiers)
 
   // 2. Base × missing modifier subsets
   for (const subset of allSubsets) {
     const modifierKeys = subset.map(modKey).sort().join(',')
     if (existingBaseModResultKeys.has(modifierKeys)) continue
-    const r = await createHiddenNoonaService(
+    const r = await createComboNoonaService(
       buildTitle(baseTitle, ...subset.map((m) => m.label)),
       minutes,
       basePrice + subset.reduce((s, m) => s + m.priceDiff, 0),
@@ -285,7 +334,7 @@ export const createMissingCombinations = async (
   for (const addon of newAddons) {
     for (const subset of allSubsets) {
       const modifierKeys = subset.map(modKey).sort().join(',')
-      const r = await createHiddenNoonaService(
+      const r = await createComboNoonaService(
         buildTitle(baseTitle, addon.label, ...subset.map((m) => m.label)),
         minutes,
         basePrice + addon.priceDiff + subset.reduce((s, m) => s + m.priceDiff, 0),
@@ -301,7 +350,7 @@ export const createMissingCombinations = async (
     for (const subset of allSubsets) {
       const modifierKeys = subset.map(modKey).sort().join(',')
       if (ctx.existingModResultKeys.has(modifierKeys)) continue
-      const r = await createHiddenNoonaService(
+      const r = await createComboNoonaService(
         buildTitle(baseTitle, ctx.label, ...subset.map((m) => m.label)),
         minutes,
         basePrice + ctx.priceDiff + subset.reduce((s, m) => s + m.priceDiff, 0),
@@ -330,7 +379,7 @@ export const createFullServiceCombinations = async (
 
   // 1. Каждый addon без модификаторов → addon.result_noona_id
   for (const addon of addons) {
-    const r = await createHiddenNoonaService(
+    const r = await createComboNoonaService(
       buildTitle(baseTitle, addon.label),
       minutes,
       basePrice + addon.priceDiff,
@@ -341,7 +390,7 @@ export const createFullServiceCombinations = async (
 
   if (modifiers.length === 0) return result
 
-  const modSubsets = getAllSubsets(modifiers)
+  const modSubsets = getValidSubsets(modifiers)
 
   // 2. База + каждое подмножество модификаторов → base_modifier_results
   for (const subset of modSubsets) {
@@ -349,7 +398,7 @@ export const createFullServiceCombinations = async (
       .map(modKey)
       .sort()
       .join(',')
-    const r = await createHiddenNoonaService(
+    const r = await createComboNoonaService(
       buildTitle(baseTitle, ...subset.map((m) => m.label)),
       minutes,
       basePrice + subset.reduce((s, m) => s + m.priceDiff, 0),
@@ -365,7 +414,7 @@ export const createFullServiceCombinations = async (
         .map(modKey)
         .sort()
         .join(',')
-      const r = await createHiddenNoonaService(
+      const r = await createComboNoonaService(
         buildTitle(baseTitle, addon.label, ...subset.map((m) => m.label)),
         minutes,
         basePrice + addon.priceDiff + subset.reduce((s, m) => s + m.priceDiff, 0),

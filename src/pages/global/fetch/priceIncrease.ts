@@ -36,7 +36,7 @@ export interface StrapiAddonGroup {
   base_noona_id: string
   base_price: number
   title: string
-  modifiers: Array<{ id?: number; key: string; label: string; price_diff: number }>
+  modifiers: Array<{ id?: number; key: string; label: string; price_diff: number; group?: string }>
   base_modifier_results: Array<{ id?: number; modifier_keys: string; result_noona_id: string }>
   addons: Array<{
     id?: number
@@ -74,7 +74,7 @@ export interface PlannedChange {
         documentId: string
         next: {
           base_price: number
-          modifiers: Array<{ key: string; label: string; price_diff: number }>
+          modifiers: Array<{ key: string; label: string; price_diff: number; group?: string }>
           base_modifier_results: Array<{ modifier_keys: string; result_noona_id: string }>
           addons: Array<{
             label: string
@@ -271,6 +271,7 @@ export const buildPlan = ({
       key: m.key,
       label: m.label,
       price_diff: scaleInt(m.price_diff, percent),
+      group: m.group, // preserve mutually-exclusive group
     }))
     const newAddons = ag.addons.map((a) => ({
       label: a.label,

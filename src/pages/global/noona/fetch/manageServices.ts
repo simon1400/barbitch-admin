@@ -112,7 +112,7 @@ interface NoonaVariations {
 export interface AddonGroupData {
   title?: string // only set when renaming the base service
   base_price: number
-  modifiers: Array<{ id?: number; key: string; label: string; price_diff: number }>
+  modifiers: Array<{ id?: number; key: string; label: string; price_diff: number; group?: string }>
   base_modifier_results: Array<{ id?: number; modifier_keys: string; result_noona_id: string }>
   addons: Array<{
     id?: number
@@ -180,6 +180,7 @@ const toData = (group: StrapiAddonGroup): AddonGroupData => ({
     key: m.key,
     label: m.label,
     price_diff: m.price_diff,
+    group: m.group, // preserve mutually-exclusive group on price/rename PUT
   })),
   base_modifier_results: group.base_modifier_results.map((r) => ({
     ...(r.id != null ? { id: r.id } : {}),
