@@ -109,6 +109,32 @@ export const fetchJuniorMaps = async (): Promise<JuniorMapRecord[]> => {
   return all
 }
 
+// Set of SERVICE TITLES that have at least one FUTURE booking (from today on),
+// fetched once. Used to decide hard-delete vs hide: never delete a service whose
+// name has an upcoming reservation. Matching by title (not id) protects both the
+// senior combo and its junior copy (they share the title) in one shot, and avoids
+// a per-operation request. Returns null on failure so callers fail SAFE (hide).
+export const fetchFutureBookedTitles = async (): Promise<Set<string> | null> => {
+  try {
+    const today = new Date().toISOString().slice(0, 10)
+    const end = new Date(Date.now() + 366 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const res = await NoonaHQ.get(`/${COMPANY_ID}/events?from=${today}&to=${end}`)
+    const events: Array<{ event_types?: Array<string | { title?: string }> }> = Array.isArray(res.data)
+      ? res.data
+      : []
+    const titles = new Set<string>()
+    for (const e of events) {
+      for (const t of e.event_types ?? []) {
+        const title = typeof t === 'string' ? '' : (t?.title ?? '').trim()
+        if (title) titles.add(title)
+      }
+    }
+    return titles
+  } catch {
+    return null // unknown → caller must hide, not delete
+  }
+}
+
 // ─── Operations ──────────────────────────────────────────────────────────────
 
 interface NoonaVariations {
@@ -136,6 +162,7 @@ export type ManageOp =
   | { kind: 'noona-price'; id: string; payload: NoonaVariations }
   | { kind: 'noona-title'; id: string; title: string; titleTranslations: Record<string, string> }
   | { kind: 'hide-event-type'; id: string; connections: Record<string, unknown> }
+  | { kind: 'delete-event-type'; id: string }
   | { kind: 'addon-group-put'; documentId: string; data: AddonGroupData }
   | { kind: 'addon-group-delete'; documentId: string }
   | { kind: 'offer-price'; documentId: string; newPrice: number }
@@ -538,6 +565,29 @@ const hideOp = (id: string, eventTypes: Map<string, ManagedEventType>): PlannedM
   }
 }
 
+// Remove an event_type when deleting a service/variant/modifier:
+//   • hard-DELETE in Noona ONLY when its title is NOT in the future-booked set
+//   • otherwise HIDE (keeps the upcoming reservation intact) — also the safe
+//     fallback when protectedTitles is null (booking data failed to load)
+const removeOp = (
+  id: string,
+  eventTypes: Map<string, ManagedEventType>,
+  protectedTitles: Set<string> | null,
+): PlannedManageOp => {
+  const et = eventTypes.get(id)
+  const title = (et?.title ?? '').trim()
+  if (protectedTitles && title && !protectedTitles.has(title)) {
+    return {
+      key: `delete:${id}`,
+      label: `Удалить из Noona: ${et?.title ?? id}`,
+      before: null,
+      after: null,
+      op: { kind: 'delete-event-type', id },
+    }
+  }
+  return hideOp(id, eventTypes) // future booking exists or unknown → hide (safe)
+}
+
 // When a senior combo is DELETED (hidden), its junior copy must follow:
 // hide the junior event_type + delete the service-junior-map record.
 // Without this, junior masters keep offering a "deleted" variant.
@@ -545,11 +595,12 @@ const juniorDeleteOps = (
   seniorId: string,
   juniorBySenior: Map<string, JuniorMapRecord>,
   eventTypes: Map<string, ManagedEventType>,
+  futureBooked: Set<string> | null,
 ): PlannedManageOp[] => {
   const jm = juniorBySenior.get(seniorId)
   if (!jm) return []
   const ops: PlannedManageOp[] = []
-  if (jm.junior_noona_id) ops.push(hideOp(jm.junior_noona_id, eventTypes))
+  if (jm.junior_noona_id) ops.push(removeOp(jm.junior_noona_id, eventTypes, futureBooked))
   ops.push({
     key: `junior-map:${jm.documentId}`,
     label: `Удалить junior-маппинг: ${seniorId} → ${jm.junior_noona_id}`,
@@ -598,21 +649,23 @@ export interface BuildDeleteServiceInput {
   group: StrapiAddonGroup
   eventTypes: Map<string, ManagedEventType>
   juniorMaps: JuniorMapRecord[]
+  futureBooked?: Set<string> | null
 }
 
 export const buildDeleteServicePlan = ({
   group,
   eventTypes,
   juniorMaps,
+  futureBooked = null,
 }: BuildDeleteServiceInput): PlannedManageOp[] => {
   const ids = allGroupIds(group)
   const idSet = new Set(ids)
-  const ops: PlannedManageOp[] = ids.map((id) => hideOp(id, eventTypes))
+  const ops: PlannedManageOp[] = ids.map((id) => removeOp(id, eventTypes, futureBooked))
 
   // Junior cleanup — maps whose senior is any of the deleted ids
   for (const jm of juniorMaps) {
     if (!idSet.has(jm.senior_noona_id)) continue
-    if (jm.junior_noona_id) ops.push(hideOp(jm.junior_noona_id, eventTypes))
+    if (jm.junior_noona_id) ops.push(removeOp(jm.junior_noona_id, eventTypes, futureBooked))
     ops.push({
       key: `junior-map:${jm.documentId}`,
       label: `Удалить junior-маппинг: ${jm.senior_noona_id} → ${jm.junior_noona_id}`,
@@ -638,6 +691,7 @@ export const buildDeleteAddonPlan = (
   addonLabel: string,
   eventTypes: Map<string, ManagedEventType>,
   juniorMaps: JuniorMapRecord[] = [],
+  futureBooked: Set<string> | null = null,
 ): PlannedManageOp[] => {
   const addon = group.addons.find((a) => a.label === addonLabel)
   if (!addon) return []
@@ -645,9 +699,9 @@ export const buildDeleteAddonPlan = (
   const juniorBySenior = new Map(juniorMaps.map((jm) => [jm.senior_noona_id, jm]))
   const ops: PlannedManageOp[] = []
   for (const id of hideIds.filter(Boolean)) {
-    ops.push(hideOp(id, eventTypes))
-    // also hide the junior copy of this combo + drop its junior-map record
-    ops.push(...juniorDeleteOps(id, juniorBySenior, eventTypes))
+    ops.push(removeOp(id, eventTypes, futureBooked))
+    // also remove the junior copy of this combo + drop its junior-map record
+    ops.push(...juniorDeleteOps(id, juniorBySenior, eventTypes, futureBooked))
   }
 
   const next = toData(group)
@@ -667,6 +721,7 @@ export const buildDeleteModifierPlan = (
   modifierKey: string,
   eventTypes: Map<string, ManagedEventType>,
   juniorMaps: JuniorMapRecord[] = [],
+  futureBooked: Set<string> | null = null,
 ): PlannedManageOp[] => {
   const includesKey = (modifier_keys: string) => keysFromString(modifier_keys).includes(modifierKey)
 
@@ -678,8 +733,8 @@ export const buildDeleteModifierPlan = (
   const juniorBySenior = new Map(juniorMaps.map((jm) => [jm.senior_noona_id, jm]))
   const ops: PlannedManageOp[] = []
   for (const id of hideIds.filter(Boolean)) {
-    ops.push(hideOp(id, eventTypes))
-    ops.push(...juniorDeleteOps(id, juniorBySenior, eventTypes))
+    ops.push(removeOp(id, eventTypes, futureBooked))
+    ops.push(...juniorDeleteOps(id, juniorBySenior, eventTypes, futureBooked))
   }
 
   const next = toData(group)
@@ -715,6 +770,9 @@ export const applyOp = async (planned: PlannedManageOp): Promise<OpResult> => {
           title: op.title,
           title_translations: op.titleTranslations,
         })
+        break
+      case 'delete-event-type':
+        await NoonaHQBase.delete(`/event_types/${op.id}`)
         break
       case 'hide-event-type':
         await NoonaHQBase.post(`/event_types/${op.id}`, { connections: op.connections })

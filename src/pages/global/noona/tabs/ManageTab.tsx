@@ -11,6 +11,7 @@ import {
   fetchAllAddonGroups,
   fetchAllOfferings,
   fetchEventTypesWithConnections,
+  fetchFutureBookedTitles,
   fetchJuniorMaps,
   type JuniorMapRecord,
   type ManagedEventType,
@@ -31,22 +32,27 @@ export default function ManageTab() {
   const [eventTypes, setEventTypes] = useState<ManagedEventType[]>([])
   const [offerings, setOfferings] = useState<StrapiOffering[]>([])
   const [juniorMaps, setJuniorMaps] = useState<JuniorMapRecord[]>([])
+  // Titles of services with FUTURE bookings — excluded from hard-delete (hidden instead).
+  // null = booking data unavailable → delete plans fail safe to hide.
+  const [futureBooked, setFutureBooked] = useState<Set<string> | null>(null)
   const [dataVersion, setDataVersion] = useState(0)
 
   const loadAll = async () => {
     setLoadStatus('loading')
     setLoadError(null)
     try {
-      const [grp, ets, offs, jm] = await Promise.all([
+      const [grp, ets, offs, jm, fb] = await Promise.all([
         fetchAllAddonGroups(),
         fetchEventTypesWithConnections(),
         fetchAllOfferings(),
         fetchJuniorMaps(),
+        fetchFutureBookedTitles(),
       ])
       setGroups(grp)
       setEventTypes(ets)
       setOfferings(offs)
       setJuniorMaps(jm)
+      setFutureBooked(fb)
       setLoadStatus('ready')
       setDataVersion((v) => v + 1)
     } catch (err) {
@@ -98,17 +104,17 @@ export default function ManageTab() {
   const onDeleteAddon = (label: string) => {
     if (!selectedGroup) return
     setResults([])
-    setPlan(buildDeleteAddonPlan(selectedGroup, label, etMap, juniorMaps))
+    setPlan(buildDeleteAddonPlan(selectedGroup, label, etMap, juniorMaps, futureBooked))
   }
   const onDeleteModifier = (key: string) => {
     if (!selectedGroup) return
     setResults([])
-    setPlan(buildDeleteModifierPlan(selectedGroup, key, etMap, juniorMaps))
+    setPlan(buildDeleteModifierPlan(selectedGroup, key, etMap, juniorMaps, futureBooked))
   }
   const onDeleteService = () => {
     if (!selectedGroup) return
     setResults([])
-    setPlan(buildDeleteServicePlan({ group: selectedGroup, eventTypes: etMap, juniorMaps }))
+    setPlan(buildDeleteServicePlan({ group: selectedGroup, eventTypes: etMap, juniorMaps, futureBooked }))
   }
 
   // ── Apply ───────────────────────────────────────────────────────────────────
