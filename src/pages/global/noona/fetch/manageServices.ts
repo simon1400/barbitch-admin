@@ -369,12 +369,20 @@ export const buildPriceEditPlan = ({
 }
 
 // Noona renames must write `title_translations` ({ locale: title }) — the top-level
-// `title` is read-only (POST {title} returns 200 but is ignored). Czech-only salon,
-// so we set `cs` and preserve any other existing locales.
+// `title` is read-only (POST {title} returns 200 but is ignored). Event_types vary:
+// some have a `cs` translation, some have none (tt=null), some only `en`. A service
+// title is the same string in every locale, so we set EVERY existing locale to the
+// new title AND ensure `cs` — that way the display changes whichever locale Noona
+// resolves. Verified to update both `cs` and tt=null combos.
 const titleTranslationsFor = (
   et: ManagedEventType | undefined,
   newTitle: string,
-): Record<string, string> => ({ ...(et?.titleTranslations ?? {}), cs: newTitle })
+): Record<string, string> => {
+  const out: Record<string, string> = {}
+  for (const locale of Object.keys(et?.titleTranslations ?? {})) out[locale] = newTitle
+  out.cs = newTitle
+  return out
+}
 
 // Rename target — same shape as PriceTarget (base / addon by label / modifier by key)
 export type RenameTarget = PriceTarget
@@ -701,8 +709,12 @@ export const applyOp = async (planned: PlannedManageOp): Promise<OpResult> => {
         await NoonaHQBase.post(`/event_types/${op.id}`, op.payload)
         break
       case 'noona-title':
-        // Noona ignores top-level `title` on update — must write title_translations
-        await NoonaHQBase.post(`/event_types/${op.id}`, { title_translations: op.titleTranslations })
+        // Noona ignores top-level `title` on update — the real source is
+        // title_translations. We send both (title harmless) and set every locale.
+        await NoonaHQBase.post(`/event_types/${op.id}`, {
+          title: op.title,
+          title_translations: op.titleTranslations,
+        })
         break
       case 'hide-event-type':
         await NoonaHQBase.post(`/event_types/${op.id}`, { connections: op.connections })
