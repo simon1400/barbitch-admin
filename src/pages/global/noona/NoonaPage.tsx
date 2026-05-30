@@ -13,6 +13,7 @@ interface NoonaTab {
 const tabs: NoonaTab[] = [
   { to: 'services', label: 'Pridat +' },
   { to: 'manage', label: 'Správa služeb' },
+  { to: 'masters', label: 'Mistři' },
   { to: 'price-increase', label: 'Změna cen' },
   { to: 'history', label: 'Historie' },
   { to: 'junior', label: 'Junior služby' },

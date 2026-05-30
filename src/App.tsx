@@ -21,6 +21,7 @@ const ErrorLogsPage = lazy(() => import('./pages/global/ErrorLogsPage'))
 const NoonaPage = lazy(() => import('./pages/global/noona/NoonaPage'))
 const NoonaServicesTab = lazy(() => import('./pages/global/noona/tabs/ServicesTab'))
 const NoonaManageTab = lazy(() => import('./pages/global/noona/tabs/ManageTab'))
+const NoonaMastersTab = lazy(() => import('./pages/global/noona/tabs/MastersTab'))
 const NoonaPriceIncreaseTab = lazy(() => import('./pages/global/noona/tabs/PriceIncreaseTab'))
 const NoonaHistoryTab = lazy(() => import('./pages/global/noona/tabs/HistoryTab'))
 const NoonaJuniorTab = lazy(() => import('./pages/global/noona/tabs/JuniorTab'))
@@ -244,6 +245,7 @@ function App() {
             <Route index element={<Navigate to="/global/noona/services" replace />} />
             <Route path="services" element={<NoonaServicesTab />} />
             <Route path="manage" element={<NoonaManageTab />} />
+            <Route path="masters" element={<NoonaMastersTab />} />
             <Route path="price-increase" element={<NoonaPriceIncreaseTab />} />
             <Route path="history" element={<NoonaHistoryTab />} />
             <Route path="junior" element={<NoonaJuniorTab />} />
