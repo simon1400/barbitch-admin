@@ -14,6 +14,8 @@ import {
 } from '../fetch/noonaServices'
 import { fetchExistingAddonGroup, saveBookingAddonGroup, type ExistingAddonGroupRecord } from '../fetch/strapiAddonGroups'
 import { saveOfferings, type SaveOfferingsResult } from '../fetch/strapiOfferings'
+import { createJuniorCopies, type JuniorCopyInput, type JuniorCopyResult } from '../fetch/juniorServices'
+import { JUNIOR_DISCOUNT_PERCENT } from '../../../constants/junior'
 
 interface Row {
   id: number
@@ -25,12 +27,16 @@ interface Row {
 let nextId = 1
 const makeRow = (): Row => ({ id: nextId++, label: '', priceDiff: '', group: '' })
 
-type Status = 'idle' | 'noona' | 'strapi' | 'offerings' | 'done' | 'error'
+type Status = 'idle' | 'noona' | 'strapi' | 'offerings' | 'junior' | 'done' | 'error'
 
 export const NoonaServiceForm = () => {
   // --- Категории ---
   const [categories, setCategories] = useState<NoonaCategory[]>([])
   const [categoryId, setCategoryId] = useState<string>('')
+
+  // --- Junior-копии (-20%) ---
+  const [createJunior, setCreateJunior] = useState(false)
+  const [juniorCategoryId, setJuniorCategoryId] = useState<string>('')
 
   useEffect(() => {
     getNoonaCategories().then(setCategories)
@@ -60,6 +66,7 @@ export const NoonaServiceForm = () => {
   const [combosResult, setCombosResult] = useState<FullCombosResult | null>(null)
   const [strapiId, setStrapiId] = useState<string | null>(null)
   const [offeringsResult, setOfferingsResult] = useState<SaveOfferingsResult | null>(null)
+  const [juniorResult, setJuniorResult] = useState<JuniorCopyResult[] | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
 
@@ -230,11 +237,16 @@ export const NoonaServiceForm = () => {
       setErrorMsg('Добавьте хотя бы один вариант или дополнение')
       return
     }
+    if (createJunior && !juniorCategoryId) {
+      setErrorMsg('Выберите junior-категорию для копий')
+      return
+    }
 
     setStatus('noona')
     setErrorMsg(null)
     setCombosResult(null)
     setStrapiId(null)
+    setJuniorResult(null)
 
     const newAddonInputs: AddonInput[] = validAddons.map((r) => ({
       label: r.label.trim(),
@@ -335,6 +347,31 @@ export const NoonaServiceForm = () => {
       .map((r) => ({ title: r.title, price: r.price }))
     const offerRes = await saveOfferings(offeringInputs)
     setOfferingsResult(offerRes)
+
+    // Junior-копии (-20%) — для базовой услуги + всех созданных комбо.
+    // Уже существующие (по service-junior-map) пропускаются автоматически.
+    if (createJunior && juniorCategoryId) {
+      setStatus('junior')
+      const juniorInputs: JuniorCopyInput[] = [
+        {
+          senior_noona_id: selectedService.id,
+          title: selectedService.title,
+          senior_price: selectedService.price,
+          duration: selectedService.duration,
+        },
+        ...newlyCreated
+          .filter((r) => r.status === 'ok' && r.id !== '—')
+          .map((r) => ({
+            senior_noona_id: r.id,
+            title: r.title,
+            senior_price: r.price,
+            duration: selectedService.duration,
+          })),
+      ]
+      const jr = await createJuniorCopies(juniorInputs, juniorCategoryId)
+      setJuniorResult(jr)
+    }
+
     setStatus('done')
   }
 
@@ -344,7 +381,8 @@ export const NoonaServiceForm = () => {
     setTimeout(() => setCopied(null), 2000)
   }
 
-  const isSubmitting = status === 'noona' || status === 'strapi' || status === 'offerings'
+  const isSubmitting =
+    status === 'noona' || status === 'strapi' || status === 'offerings' || status === 'junior'
 
   // --- Рендер секции строк (addons или modifiers) ---
   const renderRowSection = (
@@ -513,6 +551,23 @@ export const NoonaServiceForm = () => {
             {offeringsResult.errors > 0 && `, ошибок ${offeringsResult.errors}`}
           </div>
         )}
+        {status === 'done' && juniorResult && (
+          <div className="mt-2 bg-purple-50 border border-purple-200 rounded-lg px-4 py-3 text-sm text-purple-700">
+            Junior-копии (−{JUNIOR_DISCOUNT_PERCENT}%): создано{' '}
+            {juniorResult.filter((r) => r.status === 'ok').length}
+            {juniorResult.some((r) => r.status === 'skipped') &&
+              `, пропущено ${juniorResult.filter((r) => r.status === 'skipped').length} (уже есть)`}
+            {juniorResult.some((r) => r.status === 'error') &&
+              `, ошибок ${juniorResult.filter((r) => r.status === 'error').length}`}
+            {juniorResult
+              .filter((r) => r.status === 'error')
+              .map((r, i) => (
+                <div key={i} className="text-xs text-red-600 mt-1">
+                  {r.title}: {r.error}
+                </div>
+              ))}
+          </div>
+        )}
       </div>
     )
   }
@@ -625,6 +680,47 @@ export const NoonaServiceForm = () => {
         true,
       )}
 
+      {/* Junior-копии (-20%) */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm mb-4">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={createJunior}
+            onChange={(e) => setCreateJunior(e.target.checked)}
+            className="w-4 h-4 accent-primary"
+          />
+          <span className="font-semibold text-gray-600 text-sm">
+            Создать junior-копии (−{JUNIOR_DISCOUNT_PERCENT}%)
+          </span>
+        </label>
+        <p className="text-xs text-gray-400 mt-1 ml-7">
+          Для базовой услуги и всех созданных комбо создаются junior-версии со скидкой{' '}
+          {JUNIOR_DISCOUNT_PERCENT}% + запись в маппинг. Уже существующие пропускаются.
+        </p>
+        {createJunior && (
+          <div className="mt-3 ml-7">
+            <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+              Junior-категория в Noona
+            </label>
+            <select
+              value={juniorCategoryId}
+              onChange={(e) => setJuniorCategoryId(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            >
+              <option value="">— Выберите категорию —</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.title}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">
+              Напр. «Nehty - Junior» для ногтей; для ресниц — своя junior-категория
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Предпросмотр */}
       {previewGroups && totalCombos > 0 && (
         <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 mb-4">
@@ -679,7 +775,9 @@ export const NoonaServiceForm = () => {
             ? 'Сохраняем в Strapi...'
             : status === 'offerings'
               ? 'Сохраняем в Услуги...'
-              : `Создать (${comboStats?.newCount ?? totalCombos} в Noona) + сохранить в Strapi`}
+              : status === 'junior'
+                ? 'Создаём junior-копии...'
+                : `Создать (${comboStats?.newCount ?? totalCombos} в Noona) + сохранить в Strapi`}
       </button>
 
       {renderResults()}
