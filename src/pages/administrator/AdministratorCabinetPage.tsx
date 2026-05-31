@@ -7,7 +7,6 @@ import { StatSection } from '../global/components/StatSection'
 import { Select } from '../dashboard/components/Select'
 import { GlobalLineChart } from '../global/charts/components/GlobalLineChart'
 import { useGlobalMonthData } from '../dashboard/hooks/useGlobalMonthData'
-import { NoonaServiceForm } from '../global/components/NoonaServiceForm'
 
 interface ServiceProvided {
   id: number
@@ -106,7 +105,6 @@ interface AdministratorData {
     date: string
     title: string
   }>
-  shifts: any[]
   masterData: MasterData | null
 }
 
@@ -254,14 +252,6 @@ const AdministratorCabinetPage = () => {
     if (!filteredData) return 0
     return Math.ceil(filteredData.workTimes.length / workTimesPerPage)
   }, [filteredData])
-
-  // Последние 5 смен
-  const recentShifts = useMemo(() => {
-    if (!data) return []
-    return [...data.shifts]
-      .sort((a, b) => new Date(b.from).getTime() - new Date(a.from).getTime())
-      .slice(0, 5)
-  }, [data])
 
   // Рассчитываем заработок мастера (если есть данные мастера)
   // ВАЖНО: useMemo должен быть до условных return
@@ -716,59 +706,6 @@ const AdministratorCabinetPage = () => {
             </TableWrapper>
           </StatSection>
         )}
-
-        {/* Shifts Section */}
-        {data.shifts.length > 0 && (
-          <StatSection title={'Рабочие смены'} id={'shifts'}>
-            <div className={'space-y-4'}>
-              {recentShifts.map((shift) => (
-                <div
-                  key={shift.id}
-                  className={'bg-white p-4 md:p-6 rounded-lg shadow-md border border-gray-200'}
-                >
-                  <div className={'font-semibold text-gray-800 mb-3 md:mb-4 text-sm md:text-base'}>
-                    {new Date(shift.from).toLocaleDateString('ru-RU')} -{' '}
-                    {new Date(shift.to).toLocaleDateString('ru-RU')}
-                  </div>
-                  {shift.days && (
-                    <div className={'grid grid-cols-7 gap-1 md:gap-2'}>
-                      {['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'].map(
-                        (day, index) => {
-                          const dayKey = [
-                            'monday',
-                            'tuesday',
-                            'wednesday',
-                            'thursday',
-                            'friday',
-                            'saturday',
-                            'sunday',
-                          ][index]
-                          const person = shift.days[dayKey]
-                          return (
-                            <div
-                              key={day}
-                              className={'text-center p-1.5 md:p-2 bg-gray-50 rounded border border-gray-200'}
-                            >
-                              <div className={'text-[10px] md:text-xs font-medium text-gray-600 mb-0.5 md:mb-1'}>
-                                {day.substring(0, 2)}
-                              </div>
-                              <div className={'text-[10px] md:text-xs text-gray-800 break-words leading-tight'}>
-                                {person || '-'}
-                              </div>
-                            </div>
-                          )
-                        },
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </StatSection>
-        )}
-        <StatSection title={'Добавить процедуры в Noona'} id={'noona-services'}>
-          <NoonaServiceForm />
-        </StatSection>
       </Container>
     </section>
   )
