@@ -8,6 +8,7 @@ import {
   buildDeleteServicePlan,
   buildPriceEditPlan,
   buildRenamePlan,
+  buildReorderPlan,
   fetchAllAddonGroups,
   fetchAllOfferings,
   fetchEventTypesWithConnections,
@@ -100,6 +101,11 @@ export default function ManageTab() {
     if (!selectedGroup) return
     setResults([])
     setPlan(buildRenamePlan({ group: selectedGroup, target, newName, eventTypes: etMap, offerings, juniorMaps }))
+  }
+  const onReorder = (kind: 'addon' | 'modifier', orderedIds: string[]) => {
+    if (!selectedGroup) return
+    setResults([])
+    setPlan(buildReorderPlan(selectedGroup, kind, orderedIds))
   }
   const onDeleteAddon = (label: string) => {
     if (!selectedGroup) return
@@ -195,6 +201,7 @@ export default function ManageTab() {
               group={selectedGroup}
               onPriceEdit={onPriceEdit}
               onRename={onRename}
+              onReorder={onReorder}
               onDeleteAddon={onDeleteAddon}
               onDeleteModifier={onDeleteModifier}
               onDeleteService={onDeleteService}

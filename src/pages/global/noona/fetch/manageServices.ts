@@ -754,6 +754,42 @@ export const buildDeleteModifierPlan = (
   return ops
 }
 
+// ─── Reorder ─────────────────────────────────────────────────────────────────
+// Changes the display order of variants / additions on the client booking page.
+// The client (/book/[serviceId]/extras) renders addons & modifiers in the exact
+// order they sit in the Strapi addon-group arrays (modifier groups are clustered
+// by first appearance). Strapi 5 stores repeatable-component order by array index
+// and returns it on populate, so a single PUT with reordered arrays is enough —
+// Noona / offers / junior copies are untouched.
+
+export const buildReorderPlan = (
+  group: StrapiAddonGroup,
+  kind: 'addon' | 'modifier',
+  orderedIds: string[], // addons → labels, modifiers → keys (in the new order)
+): PlannedManageOp[] => {
+  const next = toData(group)
+  if (kind === 'addon') {
+    const byLabel = new Map(next.addons.map((a) => [a.label, a]))
+    const reordered = orderedIds.map((l) => byLabel.get(l)).filter(Boolean) as AddonGroupData['addons']
+    for (const a of next.addons) if (!orderedIds.includes(a.label)) reordered.push(a) // safety: keep stragglers
+    next.addons = reordered
+  } else {
+    const byKey = new Map(next.modifiers.map((m) => [m.key, m]))
+    const reordered = orderedIds.map((k) => byKey.get(k)).filter(Boolean) as AddonGroupData['modifiers']
+    for (const m of next.modifiers) if (!orderedIds.includes(m.key)) reordered.push(m)
+    next.modifiers = reordered
+  }
+  return [
+    {
+      key: `addon-group:${group.documentId}`,
+      label: `Strapi addon-group: новый порядок ${kind === 'addon' ? 'вариантов' : 'дополнений'} «${group.title}»`,
+      before: null,
+      after: null,
+      op: { kind: 'addon-group-put', documentId: group.documentId, data: next },
+    },
+  ]
+}
+
 // ─── Apply ───────────────────────────────────────────────────────────────────
 
 export const applyOp = async (planned: PlannedManageOp): Promise<OpResult> => {
