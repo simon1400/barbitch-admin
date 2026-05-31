@@ -53,7 +53,7 @@ export default function PriorityTab() {
       {loading ? (
         <div className="text-gray-500">Načítání...</div>
       ) : masters.length === 0 ? (
-        <div className="text-gray-500">Žádní masteri nenalezeni.</div>
+        <div className="text-gray-500">Žádní masteři nenalezeni.</div>
       ) : (
         <div className="grid gap-4">
           {masters.map((master) => (
