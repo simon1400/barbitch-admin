@@ -7,7 +7,6 @@ import { checkUserStatus, logout } from './services/auth'
 
 const AdminPage = lazy(() => import('./pages/dashboard/AdminPage'))
 const GlobalPage = lazy(() => import('./pages/global/GlobalPage'))
-const SalariesPage = lazy(() => import('./pages/global/SalariesPage'))
 const ExpensesPage = lazy(() => import('./pages/global/ExpensesPage'))
 const VoucherConfirmationPage = lazy(() => import('./pages/voucher-confirmation/VoucherConfirmationPage'))
 const EmailCampaignPage = lazy(() => import('./pages/email-campaign/EmailCampaignPage'))
@@ -15,7 +14,6 @@ const AdministratorCabinetPage = lazy(() => import('./pages/administrator/Admini
 const ShiftClosePage = lazy(() => import('./pages/global/ShiftClosePage'))
 const BlogAIPage = lazy(() => import('./pages/global/BlogAIPage'))
 const ReviewSyncPage = lazy(() => import('./pages/global/ReviewSyncPage'))
-const MasterPriorityPage = lazy(() => import('./pages/global/MasterPriorityPage'))
 const ErrorLogsPage = lazy(() => import('./pages/global/ErrorLogsPage'))
 // Unified Noona module — layout with URL sub-route tabs
 const NoonaPage = lazy(() => import('./pages/global/noona/NoonaPage'))
@@ -31,6 +29,11 @@ const AnalyticsOverviewTab = lazy(() => import('./pages/global/analytics/tabs/Ov
 const AnalyticsProceduresTab = lazy(() => import('./pages/global/analytics/tabs/ProceduresTab'))
 const AnalyticsChartsTab = lazy(() => import('./pages/global/analytics/tabs/ChartsTab'))
 const AnalyticsGlobalChartsTab = lazy(() => import('./pages/global/analytics/tabs/GlobalChartsTab'))
+// Unified team module — layout with URL sub-route tabs
+const TeamPage = lazy(() => import('./pages/global/team/TeamPage'))
+const TeamSalariesTab = lazy(() => import('./pages/global/team/tabs/SalariesTab'))
+const TeamPriorityTab = lazy(() => import('./pages/global/team/tabs/PriorityTab'))
+const TeamTimeOffTab = lazy(() => import('./pages/global/team/tabs/TimeOffTab'))
 
 // Получить домашнюю страницу в зависимости от роли
 const getHomePageByRole = (role: string | null): string => {
@@ -183,16 +186,30 @@ function App() {
             element={<Navigate to="/global/analytics/charts" replace />}
           />
           <Route
-            path="/global/salaries"
+            path="/global/team"
             element={
               <ProtectedRoute>
                 <OwnerRoute>
                   <AdminLayout>
-                    <SalariesPage />
+                    <TeamPage />
                   </AdminLayout>
                 </OwnerRoute>
               </ProtectedRoute>
             }
+          >
+            <Route index element={<Navigate to="/global/team/salaries" replace />} />
+            <Route path="salaries" element={<TeamSalariesTab />} />
+            <Route path="priority" element={<TeamPriorityTab />} />
+            <Route path="time-off" element={<TeamTimeOffTab />} />
+          </Route>
+          {/* Legacy URL redirects — old standalone pages now live as Team tabs */}
+          <Route
+            path="/global/salaries"
+            element={<Navigate to="/global/team/salaries" replace />}
+          />
+          <Route
+            path="/global/master-priority"
+            element={<Navigate to="/global/team/priority" replace />}
           />
           <Route
             path="/global/expenses"
@@ -290,18 +307,6 @@ function App() {
                 <OwnerRoute>
                   <AdminLayout>
                     <ReviewSyncPage />
-                  </AdminLayout>
-                </OwnerRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/global/master-priority"
-            element={
-              <ProtectedRoute>
-                <OwnerRoute>
-                  <AdminLayout>
-                    <MasterPriorityPage />
                   </AdminLayout>
                 </OwnerRoute>
               </ProtectedRoute>

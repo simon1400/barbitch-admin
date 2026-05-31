@@ -8,7 +8,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { path: '/global', label: 'Главная' },
   { path: '/global/analytics', label: 'Аналитика' },
-  { path: '/global/salaries', label: 'Зарплаты' },
+  { path: '/global/team', label: 'Команда' },
   { path: '/global/expenses', label: 'Затраты' },
   { path: '/voucher-confirmation', label: 'Potvrzení voucheru' },
   { path: '/email-campaign', label: 'Email kampaň' },
@@ -16,7 +16,6 @@ const navItems: NavItem[] = [
   { path: '/global/shift-close', label: 'Uzavření směny' },
   { path: '/global/blog-ai', label: 'Blog AI' },
   { path: '/global/reviews', label: 'Google Reviews' },
-  { path: '/global/master-priority', label: 'Priorita masterů' },
   { path: '/global/error-logs', label: 'Error Logs' },
 ]
 
@@ -24,7 +23,7 @@ export const GlobalNav = () => {
   const location = useLocation()
 
   // Parent routes with sub-route tabs — highlight on any matching /path/* (e.g. /global/noona/services)
-  const parentRoutes = ['/global/noona', '/global/analytics']
+  const parentRoutes = ['/global/noona', '/global/analytics', '/global/team']
   const isActive = (path: string) =>
     parentRoutes.includes(path)
       ? location.pathname.startsWith(path)
