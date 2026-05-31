@@ -1,7 +1,7 @@
 import { Container } from './Container'
 import { LogoutButton } from './LogoutButton'
 import LogoWrap from './LogoWrap'
-import { Link, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { GlobalNav } from '../pages/global/components/GlobalNav'
 
 export const Top = ({
@@ -27,20 +27,6 @@ export const Top = ({
           <div className="flex justify-between items-center py-6">
             <LogoWrap />
             <div className="flex items-center gap-4">
-              {admin && userRole === 'administrator' && (
-                <nav className="flex gap-4">
-                  <Link
-                    to="/administrator-cabinet"
-                    className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-                      location.pathname === '/administrator-cabinet'
-                        ? 'bg-white text-primary'
-                        : 'bg-white/20 text-white hover:bg-white/30'
-                    }`}
-                  >
-                    Můj kabinet
-                  </Link>
-                </nav>
-              )}
               {admin && <LogoutButton />}
             </div>
           </div>
