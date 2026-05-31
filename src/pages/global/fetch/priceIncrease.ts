@@ -36,13 +36,14 @@ export interface StrapiAddonGroup {
   base_noona_id: string
   base_price: number
   title: string
-  modifiers: Array<{ id?: number; key: string; label: string; price_diff: number; group?: string }>
+  modifiers: Array<{ id?: number; key: string; label: string; price_diff: number; group?: string; description?: string }>
   base_modifier_results: Array<{ id?: number; modifier_keys: string; result_noona_id: string }>
   addons: Array<{
     id?: number
     label: string
     price_diff: number
     result_noona_id: string
+    description?: string
     modifier_results?: Array<{ id?: number; modifier_keys: string; result_noona_id: string }>
   }>
 }
@@ -74,12 +75,13 @@ export interface PlannedChange {
         documentId: string
         next: {
           base_price: number
-          modifiers: Array<{ key: string; label: string; price_diff: number; group?: string }>
+          modifiers: Array<{ key: string; label: string; price_diff: number; group?: string; description?: string }>
           base_modifier_results: Array<{ modifier_keys: string; result_noona_id: string }>
           addons: Array<{
             label: string
             price_diff: number
             result_noona_id: string
+            description?: string
             modifier_results: Array<{ modifier_keys: string; result_noona_id: string }>
           }>
         }
@@ -272,11 +274,13 @@ export const buildPlan = ({
       label: m.label,
       price_diff: scaleInt(m.price_diff, percent),
       group: m.group, // preserve mutually-exclusive group
+      description: m.description, // preserve client info text
     }))
     const newAddons = ag.addons.map((a) => ({
       label: a.label,
       price_diff: scaleInt(a.price_diff, percent),
       result_noona_id: a.result_noona_id,
+      description: a.description, // preserve client info text
       modifier_results: (a.modifier_results ?? []).map((r) => ({
         modifier_keys: r.modifier_keys,
         result_noona_id: r.result_noona_id,

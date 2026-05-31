@@ -1,11 +1,17 @@
 import { useState } from 'react'
-import type { PriceTarget, RenameTarget, StrapiAddonGroup } from '../../fetch/manageServices'
+import type {
+  DescriptionTarget,
+  PriceTarget,
+  RenameTarget,
+  StrapiAddonGroup,
+} from '../../fetch/manageServices'
 
 interface Props {
   group: StrapiAddonGroup
   onPriceEdit: (target: PriceTarget, newValue: number) => void
   onRename: (target: RenameTarget, newName: string) => void
   onReorder: (kind: 'addon' | 'modifier', orderedIds: string[]) => void
+  onSaveDescription: (target: DescriptionTarget, description: string) => void
   onDeleteAddon: (label: string) => void
   onDeleteModifier: (key: string) => void
   onDeleteService: () => void
@@ -32,6 +38,7 @@ export const ServiceEditor = ({
   onPriceEdit,
   onRename,
   onReorder,
+  onSaveDescription,
   onDeleteAddon,
   onDeleteModifier,
   onDeleteService,
@@ -52,6 +59,14 @@ export const ServiceEditor = ({
   )
   const [modNames, setModNames] = useState<Record<string, string>>(
     Object.fromEntries(group.modifiers.map((m) => [m.key, m.label])),
+  )
+  // Client-facing info text (shown via "info" toggle on /book/[serviceId]/extras).
+  // Keyed by the stable identifier (addon label / modifier key), like names above.
+  const [addonDesc, setAddonDesc] = useState<Record<string, string>>(
+    Object.fromEntries(group.addons.map((a) => [a.label, a.description ?? ''])),
+  )
+  const [modDesc, setModDesc] = useState<Record<string, string>>(
+    Object.fromEntries(group.modifiers.map((m) => [m.key, m.description ?? ''])),
   )
 
   // Display order (drives the client booking page). Local until "Сохранить порядок".
@@ -80,9 +95,15 @@ export const ServiceEditor = ({
     'w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary'
   const nameInput =
     'flex-1 min-w-40 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary'
+  const descInput =
+    'flex-1 min-w-40 border border-gray-300 rounded-lg px-2 py-1.5 text-sm resize-y focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary'
+  const descBtn =
+    'px-3 py-1.5 rounded-lg bg-sky-500 text-white text-xs font-semibold hover:bg-sky-600 transition-colors disabled:opacity-50 self-start'
 
   const renameDisabled = (current: string, value: string) =>
     disabled || value.trim() === '' || value.trim() === current
+  const descDisabled = (current: string | undefined, value: string) =>
+    disabled || (current ?? '') === value
 
   return (
     <div className="space-y-4">
@@ -229,6 +250,26 @@ export const ServiceEditor = ({
                   >
                     Удалить
                   </button>
+                  <div className="w-full flex items-start gap-3">
+                    <textarea
+                      rows={2}
+                      value={addonDesc[a.label] ?? ''}
+                      onChange={(e) => setAddonDesc((p) => ({ ...p, [a.label]: e.target.value }))}
+                      disabled={disabled}
+                      placeholder="Описание варианта для клиента (показывается по «info» на сайте)"
+                      className={descInput}
+                    />
+                    <button
+                      type="button"
+                      className={descBtn}
+                      disabled={descDisabled(a.description, addonDesc[a.label] ?? '')}
+                      onClick={() =>
+                        onSaveDescription({ kind: 'addon', label: a.label }, addonDesc[a.label] ?? '')
+                      }
+                    >
+                      Описание
+                    </button>
+                  </div>
                 </div>
               )
             })}
@@ -337,6 +378,26 @@ export const ServiceEditor = ({
                   >
                     Удалить
                   </button>
+                  <div className="w-full flex items-start gap-3">
+                    <textarea
+                      rows={2}
+                      value={modDesc[m.key] ?? ''}
+                      onChange={(e) => setModDesc((p) => ({ ...p, [m.key]: e.target.value }))}
+                      disabled={disabled}
+                      placeholder="Описание дополнения для клиента (показывается по «info» на сайте)"
+                      className={descInput}
+                    />
+                    <button
+                      type="button"
+                      className={descBtn}
+                      disabled={descDisabled(m.description, modDesc[m.key] ?? '')}
+                      onClick={() =>
+                        onSaveDescription({ kind: 'modifier', key: m.key }, modDesc[m.key] ?? '')
+                      }
+                    >
+                      Описание
+                    </button>
+                  </div>
                 </div>
               )
             })}

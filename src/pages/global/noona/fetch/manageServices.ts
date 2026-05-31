@@ -147,13 +147,14 @@ interface NoonaVariations {
 export interface AddonGroupData {
   title?: string // only set when renaming the base service
   base_price: number
-  modifiers: Array<{ id?: number; key: string; label: string; price_diff: number; group?: string }>
+  modifiers: Array<{ id?: number; key: string; label: string; price_diff: number; group?: string; description?: string }>
   base_modifier_results: Array<{ id?: number; modifier_keys: string; result_noona_id: string }>
   addons: Array<{
     id?: number
     label: string
     price_diff: number
     result_noona_id: string
+    description?: string
     modifier_results: Array<{ id?: number; modifier_keys: string; result_noona_id: string }>
   }>
 }
@@ -218,6 +219,7 @@ const toData = (group: StrapiAddonGroup): AddonGroupData => ({
     label: m.label,
     price_diff: m.price_diff,
     group: m.group, // preserve mutually-exclusive group on price/rename PUT
+    description: m.description, // preserve client info text on every PUT
   })),
   base_modifier_results: group.base_modifier_results.map((r) => ({
     ...(r.id != null ? { id: r.id } : {}),
@@ -229,6 +231,7 @@ const toData = (group: StrapiAddonGroup): AddonGroupData => ({
     label: a.label,
     price_diff: a.price_diff,
     result_noona_id: a.result_noona_id,
+    description: a.description, // preserve client info text on every PUT
     modifier_results: (a.modifier_results ?? []).map((r) => ({
       ...(r.id != null ? { id: r.id } : {}),
       modifier_keys: r.modifier_keys,
@@ -552,6 +555,44 @@ export const buildRenamePlan = ({
   })
 
   return ops
+}
+
+// Description target — only addon (by label) / modifier (by key). The base service
+// already shows its own description (from Noona) on the main service list.
+export type DescriptionTarget =
+  | { kind: 'addon'; label: string }
+  | { kind: 'modifier'; key: string }
+
+// Set the client-facing info text on a variant / addition. Strapi-only: the field
+// lives on the addon-group component, so a single PUT is enough — Noona, offers and
+// junior copies don't carry it.
+export const buildDescriptionPlan = (
+  group: StrapiAddonGroup,
+  target: DescriptionTarget,
+  newDescription: string,
+): PlannedManageOp[] => {
+  const next = toData(group)
+  const text = newDescription.trim() === '' ? undefined : newDescription
+  if (target.kind === 'addon') {
+    const a = next.addons.find((x) => x.label === target.label)
+    if (!a) return []
+    a.description = text
+  } else {
+    const m = next.modifiers.find((x) => x.key === target.key)
+    if (!m) return []
+    m.description = text
+  }
+  const what =
+    target.kind === 'addon' ? `вариант «${target.label}»` : `дополнение «${target.key}»`
+  return [
+    {
+      key: `addon-group:${group.documentId}`,
+      label: `Strapi addon-group: описание — ${what}`,
+      before: null,
+      after: null,
+      op: { kind: 'addon-group-put', documentId: group.documentId, data: next },
+    },
+  ]
 }
 
 const hideOp = (id: string, eventTypes: Map<string, ManagedEventType>): PlannedManageOp => {

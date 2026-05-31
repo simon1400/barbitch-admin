@@ -30,13 +30,14 @@ const toKey = (label: string) => label.toLowerCase().replace(/\s+/g, '-')
 
 // ─── Strapi component shapes ───────────────────────────────────────────────────
 
-interface StrapiModifier { id?: number; key: string; label: string; price_diff: number; group?: string }
+interface StrapiModifier { id?: number; key: string; label: string; price_diff: number; group?: string; description?: string }
 interface StrapiModResult { id?: number; modifier_keys: string; result_noona_id: string }
 interface StrapiAddon {
   id?: number
   label: string
   price_diff: number
   result_noona_id: string
+  description?: string
   modifier_results?: StrapiModResult[]
 }
 interface StrapiEntry {
@@ -145,6 +146,7 @@ export const saveBookingAddonGroup = async (
         label: m.label,
         price_diff: m.price_diff,
         group: newModByKey.get(m.key)?.group ?? m.group,
+        description: m.description, // preserve client info text
       })),
       ...newModifiers.filter((m) => !existingModKeys.has(m.key)),
     ]
@@ -172,6 +174,7 @@ export const saveBookingAddonGroup = async (
           label: ea.label,
           price_diff: ea.price_diff,
           result_noona_id: ea.result_noona_id,
+          description: ea.description, // preserve client info text
           modifier_results: [
             ...existingMRs,
             ...newAddon.modifier_results.filter((r) => !existingMRKeys.has(r.modifier_keys)),
@@ -187,6 +190,7 @@ export const saveBookingAddonGroup = async (
           label: ea.label,
           price_diff: ea.price_diff,
           result_noona_id: ea.result_noona_id,
+          description: ea.description, // preserve client info text
           modifier_results: [
             ...existingMRs,
             ...crossComboMRs.filter((r) => !existingMRKeys.has(r.modifier_keys)),

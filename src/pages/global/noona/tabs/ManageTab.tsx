@@ -6,6 +6,7 @@ import {
   buildDeleteAddonPlan,
   buildDeleteModifierPlan,
   buildDeleteServicePlan,
+  buildDescriptionPlan,
   buildPriceEditPlan,
   buildRenamePlan,
   buildReorderPlan,
@@ -15,6 +16,7 @@ import {
   fetchFutureBookedTitles,
   fetchJuniorMaps,
   type JuniorMapRecord,
+  type DescriptionTarget,
   type ManagedEventType,
   type OpResult,
   type PlannedManageOp,
@@ -106,6 +108,11 @@ export default function ManageTab() {
     if (!selectedGroup) return
     setResults([])
     setPlan(buildReorderPlan(selectedGroup, kind, orderedIds))
+  }
+  const onSaveDescription = (target: DescriptionTarget, description: string) => {
+    if (!selectedGroup) return
+    setResults([])
+    setPlan(buildDescriptionPlan(selectedGroup, target, description))
   }
   const onDeleteAddon = (label: string) => {
     if (!selectedGroup) return
@@ -202,6 +209,7 @@ export default function ManageTab() {
               onPriceEdit={onPriceEdit}
               onRename={onRename}
               onReorder={onReorder}
+              onSaveDescription={onSaveDescription}
               onDeleteAddon={onDeleteAddon}
               onDeleteModifier={onDeleteModifier}
               onDeleteService={onDeleteService}
