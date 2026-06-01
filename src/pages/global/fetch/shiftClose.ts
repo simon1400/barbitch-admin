@@ -100,11 +100,14 @@ const computeFlagsFromValues = (
   sale: unknown,
 ): VerifyFlag[] => {
   const { mustStaff, mustSalonNow, hasSale } = computeMustValues(offerPrice, ratePercent, sale)
+  // Round to whole crowns before comparing — kills float noise (e.g. 1112*0.3 =
+  // 333.59999999999997) that otherwise makes an exact 333.6 false-flag mistr_up/ztrata.
+  const r = (n: number) => Math.round(n * 100) / 100
   const flags: VerifyFlag[] = []
-  if (staffSalaries > mustStaff) flags.push('mistr_up')
-  if (staffSalaries < mustStaff) flags.push('mistr_down')
-  if (salonSalaries > mustSalonNow) flags.push('salon_up')
-  if (salonSalaries < mustSalonNow) flags.push('ztrata')
+  if (r(staffSalaries) > r(mustStaff)) flags.push('mistr_up')
+  if (r(staffSalaries) < r(mustStaff)) flags.push('mistr_down')
+  if (r(salonSalaries) > r(mustSalonNow)) flags.push('salon_up')
+  if (r(salonSalaries) < r(mustSalonNow)) flags.push('ztrata')
   if (hasSale) flags.push('sleva')
   if (flags.length === 0) flags.push('ok')
   return flags
@@ -139,8 +142,9 @@ export const getFlagDelta = (item: any, flag: VerifyFlag): number | null => {
   const ratePercent = Number(item?.personal?.ratePercent)
   if (!Number.isFinite(offerPrice) || !Number.isFinite(ratePercent) || offerPrice <= 0) return null
   const { mustStaff, mustSalonNow } = computeMustValues(offerPrice, ratePercent, item?.sale)
-  const staffDelta = (Number(item?.staffSalaries) || 0) - mustStaff
-  const salonDelta = (Number(item?.salonSalaries) || 0) - mustSalonNow
+  const r = (n: number) => Math.round(n * 100) / 100
+  const staffDelta = r((Number(item?.staffSalaries) || 0) - mustStaff)
+  const salonDelta = r((Number(item?.salonSalaries) || 0) - mustSalonNow)
   switch (flag) {
     case 'salon_up': return salonDelta
     case 'ztrata':   return salonDelta
