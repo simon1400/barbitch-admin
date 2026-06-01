@@ -128,17 +128,13 @@ function summarizeAdmins(
   summarizeGeneric(resultMap, taxes, 'taxes')
 
   const summary = Array.from(resultMap.values())
+  // Администраторы ВСЕГДА получают почасовую оплату, независимо от типа
+  // контракта (HPP/DPP). Поле typeWork хранит лишь тип договора (важно для
+  // налогов/отчётности) и НЕ означает фиксированный месячный оклад. Формула
+  // совпадает с расчётом строки «Результат» в Administrators.tsx, поэтому
+  // итог «Общая сумма» и значения по строкам всегда сходятся.
   summary.forEach((item) => {
-    let contribution: number
-    if (item.isFixedMonthly && item.fixedMonthlyRate !== null) {
-      // HPP - фиксированная месячная зарплата
-      // fixedMonthlyRate - месячная зарплата, rate - почасовая (для других расчётов)
-      contribution = item.fixedMonthlyRate + item.extraProfit - item.penalty - item.payrolls
-    } else {
-      // DPP - почасовая оплата
-      contribution = item.sum * item.rate + item.extraProfit - item.penalty - item.payrolls
-    }
-    sumAdmins += contribution
+    sumAdmins += item.sum * item.rate + item.extraProfit - item.penalty - item.payrolls
   })
 
   return { summary, sumAdmins }
