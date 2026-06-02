@@ -66,6 +66,13 @@ export const FLAG_META: Record<VerifyFlag, FlagMeta> = {
   },
 }
 
+// Цены хранятся строками; junior-цены (−20%) бывают с запятой ("237,6").
+// Number("237,6") = NaN → 0. Нормализуем запятую перед парсом.
+const toNum = (v: unknown): number => {
+  const n = Number(String(v ?? '').replace(',', '.').replace(/\s/g, ''))
+  return Number.isFinite(n) ? n : 0
+}
+
 // Parse discount string ("20%", "0.2", "20") → fraction 0..1
 const parseSaleRate = (raw: unknown): number => {
   if (raw == null) return 0
@@ -128,8 +135,8 @@ export const getItemFlags = (item: any): VerifyFlag[] => {
     return computeFlagsFromValues(
       offerPrice,
       ratePercent,
-      Number(item?.staffSalaries) || 0,
-      Number(item?.salonSalaries) || 0,
+      toNum(item?.staffSalaries),
+      toNum(item?.salonSalaries),
       item?.sale,
     )
   }
@@ -143,8 +150,8 @@ export const getFlagDelta = (item: any, flag: VerifyFlag): number | null => {
   if (!Number.isFinite(offerPrice) || !Number.isFinite(ratePercent) || offerPrice <= 0) return null
   const { mustStaff, mustSalonNow } = computeMustValues(offerPrice, ratePercent, item?.sale)
   const r = (n: number) => Math.round(n * 100) / 100
-  const staffDelta = r((Number(item?.staffSalaries) || 0) - mustStaff)
-  const salonDelta = r((Number(item?.salonSalaries) || 0) - mustSalonNow)
+  const staffDelta = r(toNum(item?.staffSalaries) - mustStaff)
+  const salonDelta = r(toNum(item?.salonSalaries) - mustSalonNow)
   switch (flag) {
     case 'salon_up': return salonDelta
     case 'ztrata':   return salonDelta

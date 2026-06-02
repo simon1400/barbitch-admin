@@ -34,6 +34,13 @@ const ExternalLinkIcon = () => (
   </svg>
 )
 
+// Цены хранятся строками; junior-цены (−20%) могут быть с запятой как разделителем
+// (напр. "237,6"). Number("237,6") = NaN → раньше показывало 0. Нормализуем запятую.
+const toNum = (v: unknown): number => {
+  const n = Number(String(v ?? '').replace(',', '.').replace(/\s/g, ''))
+  return Number.isFinite(n) ? n : 0
+}
+
 const formatDelta = (delta: number | null): string => {
   if (delta === null || !Number.isFinite(delta)) return ''
   const sign = delta > 0 ? '+' : '−'
@@ -114,7 +121,7 @@ export const ServiceProvidedCard = ({ data }: { data: ShiftCheckResult['serviceP
                     </td>
                     <td className="py-2 pr-3">{item.personal?.name || '—'}</td>
                     <td className="py-2 pr-3">
-                      {(Number(item.salonSalaries) || 0) + (Number(item.staffSalaries) || 0)} Kč
+                      {Number((toNum(item.salonSalaries) + toNum(item.staffSalaries)).toFixed(2))} Kč
                     </td>
                     <td className="py-2 pr-3">{item.tip ? `${item.tip} Kč` : '—'}</td>
                     <td className="py-2 pr-3">{item.cash ? 'Ano' : 'Ne'}</td>
@@ -150,15 +157,19 @@ export const ServiceProvidedCard = ({ data }: { data: ShiftCheckResult['serviceP
               <tr className="border-t-2 border-gray-300 font-semibold text-gray-800">
                 <td className="pt-2 pr-3" colSpan={2}>Celkem</td>
                 <td className="pt-2 pr-3">
-                  {data.items.reduce(
-                    (sum: number, item: any) =>
-                      sum + (Number(item.salonSalaries) || 0) + (Number(item.staffSalaries) || 0),
-                    0,
+                  {Number(
+                    data.items
+                      .reduce(
+                        (sum: number, item: any) =>
+                          sum + toNum(item.salonSalaries) + toNum(item.staffSalaries),
+                        0,
+                      )
+                      .toFixed(2),
                   )} Kč
                 </td>
                 <td className="pt-2 pr-3">
-                  {data.items.reduce((sum: number, item: any) => sum + (Number(item.tip) || 0), 0) || '—'}
-                  {data.items.some((i: any) => Number(i.tip) > 0) ? ' Kč' : ''}
+                  {data.items.reduce((sum: number, item: any) => sum + toNum(item.tip), 0) || '—'}
+                  {data.items.some((i: any) => toNum(i.tip) > 0) ? ' Kč' : ''}
                 </td>
                 <td className="pt-2" colSpan={3}></td>
               </tr>
