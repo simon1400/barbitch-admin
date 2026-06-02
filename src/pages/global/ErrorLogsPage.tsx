@@ -183,7 +183,7 @@ export default function ErrorLogsPage() {
                 return (
                   <div
                     key={log.documentId}
-                    className={`bg-white rounded-lg shadow-sm border ${
+                    className={`min-w-0 bg-white rounded-lg shadow-sm border ${
                       log.resolved ? 'opacity-60' : ''
                     }`}
                   >

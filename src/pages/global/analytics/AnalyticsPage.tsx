@@ -14,6 +14,7 @@ const tabs: AnalyticsTab[] = [
   { to: 'procedures', label: 'Статистика процедур' },
   { to: 'charts', label: 'Недельные графики' },
   { to: 'global', label: 'Чарты глобальные' },
+  { to: 'clients', label: 'Клиенты' },
 ]
 
 export default function AnalyticsPage() {

@@ -11,6 +11,29 @@ import { CheckCard } from './CheckCard'
 import { CommentPopover, hasComment } from './CommentPopover'
 import { sortByClientName } from './helpers'
 
+const STRAPI_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:1337'
+
+const strapiLink = (documentId: string) =>
+  `${STRAPI_URL}/admin/content-manager/collection-types/api::service-provided.service-provided/${documentId}?status=draft`
+
+const ExternalLinkIcon = () => (
+  <svg
+    width="15"
+    height="15"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M15 3h6v6" />
+    <path d="M10 14 21 3" />
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+  </svg>
+)
+
 const formatDelta = (delta: number | null): string => {
   if (delta === null || !Number.isFinite(delta)) return ''
   const sign = delta > 0 ? '+' : '−'
@@ -74,7 +97,8 @@ export const ServiceProvidedCard = ({ data }: { data: ShiftCheckResult['serviceP
                 <th className="pb-2 pr-3">Celkem</th>
                 <th className="pb-2 pr-3">Tip</th>
                 <th className="pb-2 pr-3">Hotově</th>
-                <th className="pb-2">Verify</th>
+                <th className="pb-2 pr-3">Verify</th>
+                <th className="pb-2"></th>
               </tr>
             </thead>
             <tbody>
@@ -94,7 +118,7 @@ export const ServiceProvidedCard = ({ data }: { data: ShiftCheckResult['serviceP
                     </td>
                     <td className="py-2 pr-3">{item.tip ? `${item.tip} Kč` : '—'}</td>
                     <td className="py-2 pr-3">{item.cash ? 'Ano' : 'Ne'}</td>
-                    <td className="py-2">
+                    <td className="py-2 pr-3">
                       {flags.length === 0 ? (
                         <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
                           N/A
@@ -103,6 +127,19 @@ export const ServiceProvidedCard = ({ data }: { data: ShiftCheckResult['serviceP
                         <span className="inline-flex flex-wrap gap-1">
                           {flags.map((f) => <FlagChip key={f} flag={f} item={item} />)}
                         </span>
+                      )}
+                    </td>
+                    <td className="py-2">
+                      {item.documentId && (
+                        <a
+                          href={strapiLink(item.documentId)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Otevřít ve Strapi"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:text-primary hover:bg-gray-100 transition-colors"
+                        >
+                          <ExternalLinkIcon />
+                        </a>
                       )}
                     </td>
                   </tr>
@@ -123,7 +160,7 @@ export const ServiceProvidedCard = ({ data }: { data: ShiftCheckResult['serviceP
                   {data.items.reduce((sum: number, item: any) => sum + (Number(item.tip) || 0), 0) || '—'}
                   {data.items.some((i: any) => Number(i.tip) > 0) ? ' Kč' : ''}
                 </td>
-                <td className="pt-2" colSpan={2}></td>
+                <td className="pt-2" colSpan={3}></td>
               </tr>
             </tfoot>
           </table>

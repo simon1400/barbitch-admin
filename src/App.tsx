@@ -29,6 +29,7 @@ const AnalyticsOverviewTab = lazy(() => import('./pages/global/analytics/tabs/Ov
 const AnalyticsProceduresTab = lazy(() => import('./pages/global/analytics/tabs/ProceduresTab'))
 const AnalyticsChartsTab = lazy(() => import('./pages/global/analytics/tabs/ChartsTab'))
 const AnalyticsGlobalChartsTab = lazy(() => import('./pages/global/analytics/tabs/GlobalChartsTab'))
+const AnalyticsClientsTab = lazy(() => import('./pages/global/analytics/tabs/ClientsTab'))
 // Unified team module — layout with URL sub-route tabs
 const TeamPage = lazy(() => import('./pages/global/team/TeamPage'))
 const TeamSalariesTab = lazy(() => import('./pages/global/team/tabs/SalariesTab'))
@@ -171,6 +172,7 @@ function App() {
             <Route path="procedures" element={<AnalyticsProceduresTab />} />
             <Route path="charts" element={<AnalyticsChartsTab />} />
             <Route path="global" element={<AnalyticsGlobalChartsTab />} />
+            <Route path="clients" element={<AnalyticsClientsTab />} />
           </Route>
           {/* Legacy URL redirects — old standalone analytics pages now live as tabs */}
           <Route
