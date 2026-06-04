@@ -8,7 +8,11 @@ import type {
 
 interface Props {
   group: StrapiAddonGroup
+  // Base service duration (minutes) — lives on the Noona event_type, not in the
+  // addon-group, so it's passed in separately.
+  baseDuration: number
   onPriceEdit: (target: PriceTarget, newValue: number) => void
+  onDurationEdit: (target: PriceTarget, newValue: number) => void
   onRename: (target: RenameTarget, newName: string) => void
   onReorder: (kind: 'addon' | 'modifier', orderedIds: string[]) => void
   onSaveDescription: (target: DescriptionTarget, description: string) => void
@@ -35,7 +39,9 @@ const swap = (arr: string[], i: number, dir: -1 | 1): string[] => {
 
 export const ServiceEditor = ({
   group,
+  baseDuration,
   onPriceEdit,
+  onDurationEdit,
   onRename,
   onReorder,
   onSaveDescription,
@@ -46,11 +52,19 @@ export const ServiceEditor = ({
 }: Props) => {
   const [base, setBase] = useState(String(group.base_price))
   const [baseTitle, setBaseTitle] = useState(group.title)
+  const [baseDur, setBaseDur] = useState(String(baseDuration))
   const [addonVals, setAddonVals] = useState<Record<string, string>>(
     Object.fromEntries(group.addons.map((a) => [a.label, String(a.price_diff)])),
   )
   const [modVals, setModVals] = useState<Record<string, string>>(
     Object.fromEntries(group.modifiers.map((m) => [m.key, String(m.price_diff)])),
+  )
+  // Duration diffs (minutes) — keyed by stable identifier like the price/name maps
+  const [addonDurVals, setAddonDurVals] = useState<Record<string, string>>(
+    Object.fromEntries(group.addons.map((a) => [a.label, String(a.duration_diff ?? 0)])),
+  )
+  const [modDurVals, setModDurVals] = useState<Record<string, string>>(
+    Object.fromEntries(group.modifiers.map((m) => [m.key, String(m.duration_diff ?? 0)])),
   )
   // Rename inputs are keyed by the STABLE identifier (addon label / modifier key),
   // so editing the name never breaks the price/delete buttons that reference it.
@@ -83,6 +97,8 @@ export const ServiceEditor = ({
 
   const priceBtn =
     'px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50'
+  const durBtn =
+    'px-3 py-1.5 rounded-lg bg-cyan-600 text-white text-xs font-semibold hover:bg-cyan-700 transition-colors disabled:opacity-50'
   const renameBtn =
     'px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-semibold hover:bg-indigo-600 transition-colors disabled:opacity-50'
   const delBtn =
@@ -104,6 +120,173 @@ export const ServiceEditor = ({
     disabled || value.trim() === '' || value.trim() === current
   const descDisabled = (current: string | undefined, value: string) =>
     disabled || (current ?? '') === value
+
+  const fieldLabel = 'text-[11px] font-semibold text-gray-400 uppercase tracking-wide'
+
+  // One row for a variant (addon) or addition (modifier). Both share the same
+  // layout — only the stable id (label vs key) and the modifier-only group badge
+  // differ — so a single helper keeps the two lists visually identical.
+  const renderEditRow = (kind: 'addon' | 'modifier', id: string, idx: number) => {
+    const isAddon = kind === 'addon'
+    const order = isAddon ? addonOrder : modOrder
+    const setOrder = isAddon ? setAddonOrder : setModOrder
+    const names = isAddon ? addonNames : modNames
+    const setNames = isAddon ? setAddonNames : setModNames
+    const priceVals = isAddon ? addonVals : modVals
+    const setPriceVals = isAddon ? setAddonVals : setModVals
+    const durVals = isAddon ? addonDurVals : modDurVals
+    const setDurVals = isAddon ? setAddonDurVals : setModDurVals
+    const descVals = isAddon ? addonDesc : modDesc
+    const setDescVals = isAddon ? setAddonDesc : setModDesc
+
+    const addon = isAddon ? addonByLabel.get(id) : undefined
+    const mod = isAddon ? undefined : modByKey.get(id)
+    if (isAddon ? !addon : !mod) return null
+
+    const currentName = isAddon ? addon!.label : mod!.label
+    const priceCurrent = isAddon ? addon!.price_diff : mod!.price_diff
+    const durCurrent = (isAddon ? addon!.duration_diff : mod!.duration_diff) ?? 0
+    const descCurrent = isAddon ? addon!.description : mod!.description
+    const groupBadge = isAddon ? undefined : mod!.group?.trim()
+
+    const target: PriceTarget = isAddon ? { kind: 'addon', label: id } : { kind: 'modifier', key: id }
+    const descTarget: DescriptionTarget = isAddon
+      ? { kind: 'addon', label: id }
+      : { kind: 'modifier', key: id }
+
+    const nameVal = names[id] ?? ''
+    const priceVal = priceVals[id] ?? ''
+    const durVal = durVals[id] ?? ''
+    const descVal = descVals[id] ?? ''
+
+    return (
+      <div key={`${kind}:${id}`} className="flex gap-3 rounded-lg border border-gray-200 bg-gray-50/60 p-3">
+        {/* reorder */}
+        <div className="flex flex-col gap-1 shrink-0 pt-0.5">
+          <button
+            type="button"
+            className={arrowBtn}
+            disabled={disabled || idx === 0}
+            onClick={() => setOrder((p) => swap(p, idx, -1))}
+            title="Выше"
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            className={arrowBtn}
+            disabled={disabled || idx === order.length - 1}
+            onClick={() => setOrder((p) => swap(p, idx, 1))}
+            title="Ниже"
+          >
+            ↓
+          </button>
+        </div>
+
+        <div className="flex-1 min-w-0 space-y-2.5">
+          {/* Name + group + rename */}
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              value={nameVal}
+              onChange={(e) => setNames((p) => ({ ...p, [id]: e.target.value }))}
+              disabled={disabled}
+              className={nameInput}
+            />
+            {groupBadge && (
+              <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-md px-2 py-1 whitespace-nowrap">
+                {groupBadge}
+              </span>
+            )}
+            <button
+              type="button"
+              className={renameBtn}
+              disabled={renameDisabled(currentName, nameVal)}
+              onClick={() => onRename(target, nameVal)}
+            >
+              Название
+            </button>
+          </div>
+
+          {/* Price · duration · delete */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <div className="flex items-center gap-1.5">
+              <span className={fieldLabel}>+Kč</span>
+              <input
+                type="number"
+                value={priceVal}
+                onChange={(e) => setPriceVals((p) => ({ ...p, [id]: e.target.value }))}
+                disabled={disabled}
+                className={input}
+              />
+              <button
+                type="button"
+                className={priceBtn}
+                disabled={disabled || numOrNull(priceVal) === null || numOrNull(priceVal) === priceCurrent}
+                onClick={() => {
+                  const v = numOrNull(priceVal)
+                  if (v !== null) onPriceEdit(target, v)
+                }}
+              >
+                Цена
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className={fieldLabel}>+мин</span>
+              <input
+                type="number"
+                value={durVal}
+                onChange={(e) => setDurVals((p) => ({ ...p, [id]: e.target.value }))}
+                disabled={disabled}
+                className={input}
+              />
+              <button
+                type="button"
+                className={durBtn}
+                disabled={disabled || numOrNull(durVal) === null || numOrNull(durVal) === durCurrent}
+                onClick={() => {
+                  const v = numOrNull(durVal)
+                  if (v !== null) onDurationEdit(target, v)
+                }}
+              >
+                Время
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className={`${delBtn} ml-auto`}
+              disabled={disabled}
+              onClick={() => (isAddon ? onDeleteAddon(id) : onDeleteModifier(id))}
+            >
+              Удалить
+            </button>
+          </div>
+
+          {/* Description */}
+          <div className="flex items-start gap-2">
+            <textarea
+              rows={2}
+              value={descVal}
+              onChange={(e) => setDescVals((p) => ({ ...p, [id]: e.target.value }))}
+              disabled={disabled}
+              placeholder={`Описание ${isAddon ? 'варианта' : 'дополнения'} для клиента (показывается по «info» на сайте)`}
+              className={descInput}
+            />
+            <button
+              type="button"
+              className={descBtn}
+              disabled={descDisabled(descCurrent, descVal)}
+              onClick={() => onSaveDescription(descTarget, descVal)}
+            >
+              Описание
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -156,6 +339,32 @@ export const ServiceEditor = ({
             переименование/цена пересчитают все combo, offer и junior-копию
           </span>
         </div>
+
+        {/* Base duration */}
+        <div className="flex flex-wrap items-center gap-3 mt-3">
+          <span className="text-xs text-gray-500 w-20">Время (мин)</span>
+          <input
+            type="number"
+            value={baseDur}
+            onChange={(e) => setBaseDur(e.target.value)}
+            disabled={disabled}
+            className={input}
+          />
+          <button
+            type="button"
+            className={durBtn}
+            disabled={disabled || numOrNull(baseDur) === null || numOrNull(baseDur) === baseDuration}
+            onClick={() => {
+              const v = numOrNull(baseDur)
+              if (v !== null) onDurationEdit({ kind: 'base' }, v)
+            }}
+          >
+            Сменить время
+          </button>
+          <span className="text-[11px] text-gray-400">
+            пересчитает длительность всех combo и junior-копий
+          </span>
+        </div>
       </div>
 
       {/* Addons */}
@@ -179,100 +388,7 @@ export const ServiceEditor = ({
           <div className="text-sm text-gray-400">Нет вариантов</div>
         ) : (
           <div className="flex flex-col gap-3">
-            {addonOrder.map((label, idx) => {
-              const a = addonByLabel.get(label)
-              if (!a) return null
-              return (
-                <div key={label} className="flex flex-wrap items-center gap-3 border-b last:border-b-0 pb-3 last:pb-0">
-                  <div className="flex flex-col gap-1">
-                    <button
-                      type="button"
-                      className={arrowBtn}
-                      disabled={disabled || idx === 0}
-                      onClick={() => setAddonOrder((p) => swap(p, idx, -1))}
-                      title="Выше"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      className={arrowBtn}
-                      disabled={disabled || idx === addonOrder.length - 1}
-                      onClick={() => setAddonOrder((p) => swap(p, idx, 1))}
-                      title="Ниже"
-                    >
-                      ↓
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    value={addonNames[a.label] ?? ''}
-                    onChange={(e) => setAddonNames((p) => ({ ...p, [a.label]: e.target.value }))}
-                    disabled={disabled}
-                    className={nameInput}
-                  />
-                  <button
-                    type="button"
-                    className={renameBtn}
-                    disabled={renameDisabled(a.label, addonNames[a.label] ?? '')}
-                    onClick={() => onRename({ kind: 'addon', label: a.label }, addonNames[a.label] ?? '')}
-                  >
-                    Название
-                  </button>
-                  <span className="text-xs text-gray-500">+Kč</span>
-                  <input
-                    type="number"
-                    value={addonVals[a.label] ?? ''}
-                    onChange={(e) => setAddonVals((p) => ({ ...p, [a.label]: e.target.value }))}
-                    disabled={disabled}
-                    className={input}
-                  />
-                  <button
-                    type="button"
-                    className={priceBtn}
-                    disabled={
-                      disabled ||
-                      numOrNull(addonVals[a.label] ?? '') === null ||
-                      numOrNull(addonVals[a.label] ?? '') === a.price_diff
-                    }
-                    onClick={() => {
-                      const v = numOrNull(addonVals[a.label] ?? '')
-                      if (v !== null) onPriceEdit({ kind: 'addon', label: a.label }, v)
-                    }}
-                  >
-                    Цена
-                  </button>
-                  <button
-                    type="button"
-                    className={delBtn}
-                    disabled={disabled}
-                    onClick={() => onDeleteAddon(a.label)}
-                  >
-                    Удалить
-                  </button>
-                  <div className="w-full flex items-start gap-3">
-                    <textarea
-                      rows={2}
-                      value={addonDesc[a.label] ?? ''}
-                      onChange={(e) => setAddonDesc((p) => ({ ...p, [a.label]: e.target.value }))}
-                      disabled={disabled}
-                      placeholder="Описание варианта для клиента (показывается по «info» на сайте)"
-                      className={descInput}
-                    />
-                    <button
-                      type="button"
-                      className={descBtn}
-                      disabled={descDisabled(a.description, addonDesc[a.label] ?? '')}
-                      onClick={() =>
-                        onSaveDescription({ kind: 'addon', label: a.label }, addonDesc[a.label] ?? '')
-                      }
-                    >
-                      Описание
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
+            {addonOrder.map((label, idx) => renderEditRow('addon', label, idx))}
           </div>
         )}
       </div>
@@ -302,105 +418,7 @@ export const ServiceEditor = ({
           <div className="text-sm text-gray-400">Нет дополнений</div>
         ) : (
           <div className="flex flex-col gap-3">
-            {modOrder.map((key, idx) => {
-              const m = modByKey.get(key)
-              if (!m) return null
-              return (
-                <div key={key} className="flex flex-wrap items-center gap-3 border-b last:border-b-0 pb-3 last:pb-0">
-                  <div className="flex flex-col gap-1">
-                    <button
-                      type="button"
-                      className={arrowBtn}
-                      disabled={disabled || idx === 0}
-                      onClick={() => setModOrder((p) => swap(p, idx, -1))}
-                      title="Выше"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      className={arrowBtn}
-                      disabled={disabled || idx === modOrder.length - 1}
-                      onClick={() => setModOrder((p) => swap(p, idx, 1))}
-                      title="Ниже"
-                    >
-                      ↓
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    value={modNames[m.key] ?? ''}
-                    onChange={(e) => setModNames((p) => ({ ...p, [m.key]: e.target.value }))}
-                    disabled={disabled}
-                    className={nameInput}
-                  />
-                  {m.group?.trim() && (
-                    <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-md px-2 py-1 whitespace-nowrap">
-                      {m.group.trim()}
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    className={renameBtn}
-                    disabled={renameDisabled(m.label, modNames[m.key] ?? '')}
-                    onClick={() => onRename({ kind: 'modifier', key: m.key }, modNames[m.key] ?? '')}
-                  >
-                    Название
-                  </button>
-                  <span className="text-xs text-gray-500">+Kč</span>
-                  <input
-                    type="number"
-                    value={modVals[m.key] ?? ''}
-                    onChange={(e) => setModVals((p) => ({ ...p, [m.key]: e.target.value }))}
-                    disabled={disabled}
-                    className={input}
-                  />
-                  <button
-                    type="button"
-                    className={priceBtn}
-                    disabled={
-                      disabled ||
-                      numOrNull(modVals[m.key] ?? '') === null ||
-                      numOrNull(modVals[m.key] ?? '') === m.price_diff
-                    }
-                    onClick={() => {
-                      const v = numOrNull(modVals[m.key] ?? '')
-                      if (v !== null) onPriceEdit({ kind: 'modifier', key: m.key }, v)
-                    }}
-                  >
-                    Цена
-                  </button>
-                  <button
-                    type="button"
-                    className={delBtn}
-                    disabled={disabled}
-                    onClick={() => onDeleteModifier(m.key)}
-                  >
-                    Удалить
-                  </button>
-                  <div className="w-full flex items-start gap-3">
-                    <textarea
-                      rows={2}
-                      value={modDesc[m.key] ?? ''}
-                      onChange={(e) => setModDesc((p) => ({ ...p, [m.key]: e.target.value }))}
-                      disabled={disabled}
-                      placeholder="Описание дополнения для клиента (показывается по «info» на сайте)"
-                      className={descInput}
-                    />
-                    <button
-                      type="button"
-                      className={descBtn}
-                      disabled={descDisabled(m.description, modDesc[m.key] ?? '')}
-                      onClick={() =>
-                        onSaveDescription({ kind: 'modifier', key: m.key }, modDesc[m.key] ?? '')
-                      }
-                    >
-                      Описание
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
+            {modOrder.map((key, idx) => renderEditRow('modifier', key, idx))}
           </div>
         )}
       </div>

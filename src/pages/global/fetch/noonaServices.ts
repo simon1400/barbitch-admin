@@ -77,6 +77,9 @@ export interface CreateServiceResult {
   id: string
   title: string
   price: number
+  // Total duration of this (combo) service in minutes — base + addon + Σ modifiers.
+  // Carried so junior copies reuse the SAME per-combo duration, not the base one.
+  minutes: number
   status: 'ok' | 'error'
   error?: string
   warning?: string
@@ -210,11 +213,15 @@ export function getValidSubsets<T extends { group?: string }>(items: T[]): T[][]
 export interface AddonInput {
   label: string
   priceDiff: number
+  // Extra minutes this variant adds to the base service duration (default 0).
+  durationDiff: number
 }
 
 export interface ModifierInput {
   label: string
   priceDiff: number
+  // Extra minutes this addition adds to the base service duration (default 0).
+  durationDiff: number
   // Existing modifiers reuse their STORED key (which may differ from toKey(label)
   // after a rename). New modifiers leave this undefined → derived from the label.
   key?: string
@@ -241,6 +248,7 @@ export interface FullCombosResult {
 export interface ExistingAddonContext {
   label: string
   priceDiff: number
+  durationDiff: number
   existingModResultKeys: Set<string> // modifier_keys combos already stored in Strapi
 }
 
@@ -273,9 +281,9 @@ const createComboNoonaService = async (
     if (categoryId && newId !== '—') {
       await addServiceToGroup(categoryId, newId).catch(() => {})
     }
-    return { id: newId, title, price, status: 'ok' }
+    return { id: newId, title, price, minutes, status: 'ok' }
   } catch (err) {
-    return { id: '—', title, price: 0, status: 'error', error: getErrorMessage(err) }
+    return { id: '—', title, price: 0, minutes, status: 'error', error: getErrorMessage(err) }
   }
 }
 
@@ -308,7 +316,10 @@ export const createMissingCombinations = async (
   // 1. New addons — create base (no modifier) service
   for (const addon of newAddons) {
     const r = await createComboNoonaService(
-      buildTitle(baseTitle, addon.label), minutes, basePrice + addon.priceDiff, categoryId,
+      buildTitle(baseTitle, addon.label),
+      minutes + addon.durationDiff,
+      basePrice + addon.priceDiff,
+      categoryId,
     )
     result.addonResults.push({ addon, result: r })
   }
@@ -323,7 +334,7 @@ export const createMissingCombinations = async (
     if (existingBaseModResultKeys.has(modifierKeys)) continue
     const r = await createComboNoonaService(
       buildTitle(baseTitle, ...subset.map((m) => m.label)),
-      minutes,
+      minutes + subset.reduce((s, m) => s + m.durationDiff, 0),
       basePrice + subset.reduce((s, m) => s + m.priceDiff, 0),
       categoryId,
     )
@@ -336,7 +347,7 @@ export const createMissingCombinations = async (
       const modifierKeys = subset.map(modKey).sort().join(',')
       const r = await createComboNoonaService(
         buildTitle(baseTitle, addon.label, ...subset.map((m) => m.label)),
-        minutes,
+        minutes + addon.durationDiff + subset.reduce((s, m) => s + m.durationDiff, 0),
         basePrice + addon.priceDiff + subset.reduce((s, m) => s + m.priceDiff, 0),
         categoryId,
       )
@@ -346,13 +357,13 @@ export const createMissingCombinations = async (
 
   // 4. Existing addons × missing modifier subsets
   for (const ctx of existingAddonContexts) {
-    const addonInput: AddonInput = { label: ctx.label, priceDiff: ctx.priceDiff }
+    const addonInput: AddonInput = { label: ctx.label, priceDiff: ctx.priceDiff, durationDiff: ctx.durationDiff }
     for (const subset of allSubsets) {
       const modifierKeys = subset.map(modKey).sort().join(',')
       if (ctx.existingModResultKeys.has(modifierKeys)) continue
       const r = await createComboNoonaService(
         buildTitle(baseTitle, ctx.label, ...subset.map((m) => m.label)),
-        minutes,
+        minutes + ctx.durationDiff + subset.reduce((s, m) => s + m.durationDiff, 0),
         basePrice + ctx.priceDiff + subset.reduce((s, m) => s + m.priceDiff, 0),
         categoryId,
       )
@@ -381,7 +392,7 @@ export const createFullServiceCombinations = async (
   for (const addon of addons) {
     const r = await createComboNoonaService(
       buildTitle(baseTitle, addon.label),
-      minutes,
+      minutes + addon.durationDiff,
       basePrice + addon.priceDiff,
       categoryId,
     )
@@ -400,7 +411,7 @@ export const createFullServiceCombinations = async (
       .join(',')
     const r = await createComboNoonaService(
       buildTitle(baseTitle, ...subset.map((m) => m.label)),
-      minutes,
+      minutes + subset.reduce((s, m) => s + m.durationDiff, 0),
       basePrice + subset.reduce((s, m) => s + m.priceDiff, 0),
       categoryId,
     )
@@ -416,7 +427,7 @@ export const createFullServiceCombinations = async (
         .join(',')
       const r = await createComboNoonaService(
         buildTitle(baseTitle, addon.label, ...subset.map((m) => m.label)),
-        minutes,
+        minutes + addon.durationDiff + subset.reduce((s, m) => s + m.durationDiff, 0),
         basePrice + addon.priceDiff + subset.reduce((s, m) => s + m.priceDiff, 0),
         categoryId,
       )
@@ -465,8 +476,8 @@ export const createNoonaService = async (
       await addServiceToGroup(payload.categoryId, newId).catch(() => {})
     }
 
-    return { id: newId, title: payload.title, price: payload.price, status: 'ok', warning }
+    return { id: newId, title: payload.title, price: payload.price, minutes: payload.minutes, status: 'ok', warning }
   } catch (err) {
-    return { id: '—', title: payload.title, price: 0, status: 'error', error: getErrorMessage(err) }
+    return { id: '—', title: payload.title, price: 0, minutes: payload.minutes, status: 'error', error: getErrorMessage(err) }
   }
 }

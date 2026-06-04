@@ -2,6 +2,7 @@ import type { ManageOp, PlannedManageOp } from '../../fetch/manageServices'
 
 const KIND_LABEL: Record<ManageOp['kind'], string> = {
   'noona-price': 'Цена Noona',
+  'noona-duration': 'Время Noona',
   'noona-title': 'Название Noona',
   'hide-event-type': 'Скрыть в Noona',
   'delete-event-type': 'Удалить из Noona',
@@ -16,6 +17,7 @@ const KIND_LABEL: Record<ManageOp['kind'], string> = {
 
 const KIND_COLOR: Record<ManageOp['kind'], string> = {
   'noona-price': 'bg-blue-50 text-blue-700',
+  'noona-duration': 'bg-cyan-50 text-cyan-700',
   'noona-title': 'bg-indigo-50 text-indigo-700',
   'hide-event-type': 'bg-amber-50 text-amber-700',
   'delete-event-type': 'bg-red-100 text-red-800',
@@ -62,10 +64,10 @@ export const PlanPreview = ({ ops, onApply, onCancel, applying, progress }: Prop
                 </td>
                 <td className="py-2 text-gray-700">{o.label}</td>
                 <td className="py-2 text-right tabular-nums text-gray-500">
-                  {o.before === null ? '—' : `${o.before} Kč`}
+                  {o.before === null ? '—' : `${o.before} ${o.unit ?? 'Kč'}`}
                 </td>
                 <td className="py-2 text-right tabular-nums font-semibold text-primary">
-                  {o.after === null ? '—' : `${o.after} Kč`}
+                  {o.after === null ? '—' : `${o.after} ${o.unit ?? 'Kč'}`}
                 </td>
               </tr>
             ))}

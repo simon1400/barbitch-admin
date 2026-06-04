@@ -4,11 +4,12 @@ import type { AddonInput, FullCombosResult, ModifierInput } from './noonaService
 export interface ExistingAddonGroupRecord {
   id: number
   documentId: string
-  modifiers: { key: string; label: string; price_diff: number; group?: string }[]
+  modifiers: { key: string; label: string; price_diff: number; duration_diff?: number; group?: string }[]
   base_modifier_results: { modifier_keys: string; result_noona_id: string }[]
   addons: {
     label: string
     price_diff: number
+    duration_diff?: number
     result_noona_id: string
     modifier_results?: { modifier_keys: string; result_noona_id: string }[]
   }[]
@@ -30,12 +31,13 @@ const toKey = (label: string) => label.toLowerCase().replace(/\s+/g, '-')
 
 // ─── Strapi component shapes ───────────────────────────────────────────────────
 
-interface StrapiModifier { id?: number; key: string; label: string; price_diff: number; group?: string; description?: string }
+interface StrapiModifier { id?: number; key: string; label: string; price_diff: number; duration_diff?: number; group?: string; description?: string }
 interface StrapiModResult { id?: number; modifier_keys: string; result_noona_id: string }
 interface StrapiAddon {
   id?: number
   label: string
   price_diff: number
+  duration_diff?: number
   result_noona_id: string
   description?: string
   modifier_results?: StrapiModResult[]
@@ -89,6 +91,7 @@ export const saveBookingAddonGroup = async (
     key: toKey(m.label),
     label: m.label,
     price_diff: m.priceDiff,
+    duration_diff: m.durationDiff,
     group: m.group,
   }))
 
@@ -103,6 +106,7 @@ export const saveBookingAddonGroup = async (
       return {
         label: addon.label,
         price_diff: addon.priceDiff,
+        duration_diff: addon.durationDiff,
         result_noona_id: addonResult.result.id,
         modifier_results: combos.addonModifierResults
           .filter((amr) => amr.addon.label === addon.label && amr.result.status === 'ok')
@@ -145,6 +149,7 @@ export const saveBookingAddonGroup = async (
         key: m.key,
         label: m.label,
         price_diff: m.price_diff,
+        duration_diff: m.duration_diff, // preserve combo duration math
         group: newModByKey.get(m.key)?.group ?? m.group,
         description: m.description, // preserve client info text
       })),
@@ -173,6 +178,7 @@ export const saveBookingAddonGroup = async (
         mergedAddons.push({
           label: ea.label,
           price_diff: ea.price_diff,
+          duration_diff: ea.duration_diff, // preserve combo duration math
           result_noona_id: ea.result_noona_id,
           description: ea.description, // preserve client info text
           modifier_results: [
@@ -189,6 +195,7 @@ export const saveBookingAddonGroup = async (
         mergedAddons.push({
           label: ea.label,
           price_diff: ea.price_diff,
+          duration_diff: ea.duration_diff, // preserve combo duration math
           result_noona_id: ea.result_noona_id,
           description: ea.description, // preserve client info text
           modifier_results: [

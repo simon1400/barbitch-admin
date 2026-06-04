@@ -7,6 +7,7 @@ import {
   buildDeleteModifierPlan,
   buildDeleteServicePlan,
   buildDescriptionPlan,
+  buildDurationEditPlan,
   buildPriceEditPlan,
   buildRenamePlan,
   buildReorderPlan,
@@ -99,6 +100,11 @@ export default function ManageTab() {
     setResults([])
     setPlan(buildPriceEditPlan({ group: selectedGroup, target, newValue, eventTypes: etMap, offerings, juniorMaps }))
   }
+  const onDurationEdit = (target: PriceTarget, newValue: number) => {
+    if (!selectedGroup) return
+    setResults([])
+    setPlan(buildDurationEditPlan({ group: selectedGroup, target, newValue, eventTypes: etMap, juniorMaps }))
+  }
   const onRename = (target: RenameTarget, newName: string) => {
     if (!selectedGroup) return
     setResults([])
@@ -164,9 +170,9 @@ export default function ManageTab() {
     <>
       <h3 className="text-2xl font-bold text-gray-800 mb-2">Správa služeb</h3>
       <p className="text-sm text-gray-500 mb-6">
-        Переименование, удаление и смена цены услуг, вариантов и дополнений. Изменения проходят по
-        Noona (база + все combo), Strapi addon-group, offer (по названию) и junior-копиям. История
-        смен/зарплат не трогается.
+        Переименование, удаление, смена цены и времени услуг, вариантов и дополнений. Изменения
+        проходят по Noona (база + все combo), Strapi addon-group, offer (по названию) и junior-копиям.
+        История смен/зарплат не трогается.
       </p>
 
       {loadStatus === 'loading' && (
@@ -206,7 +212,9 @@ export default function ManageTab() {
             <ServiceEditor
               key={`${selectedGroup.documentId}:${dataVersion}`}
               group={selectedGroup}
+              baseDuration={etMap.get(selectedGroup.base_noona_id)?.duration ?? 0}
               onPriceEdit={onPriceEdit}
+              onDurationEdit={onDurationEdit}
               onRename={onRename}
               onReorder={onReorder}
               onSaveDescription={onSaveDescription}

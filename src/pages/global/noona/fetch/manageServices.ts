@@ -44,6 +44,7 @@ export interface ManagedEventType {
   titleTranslations: Record<string, string>
   hidden: boolean
   price: number
+  duration: number // minutes — used to recompute combo durations on a duration edit
   variations: Array<{ id?: string; prices: Array<{ id?: string; amount: number; currency?: string }> }>
   connections: Record<string, unknown>
 }
@@ -54,6 +55,7 @@ export const fetchEventTypesWithConnections = async (): Promise<ManagedEventType
     id?: string
     title?: string
     title_translations?: Record<string, string>
+    duration?: number
     connections?: Record<string, unknown>
     variations?: Array<{ id?: string; prices?: Array<{ id?: string; amount?: number; currency?: string }> }>
   }> = Array.isArray(res.data) ? res.data : []
@@ -75,6 +77,7 @@ export const fetchEventTypesWithConnections = async (): Promise<ManagedEventType
         titleTranslations: s.title_translations ?? {},
         hidden: Boolean((s.connections as { hidden?: boolean } | undefined)?.hidden),
         price: variations[0]?.prices[0]?.amount ?? 0,
+        duration: s.duration ?? 0,
         variations,
         connections: s.connections ?? {},
       }
@@ -147,12 +150,13 @@ interface NoonaVariations {
 export interface AddonGroupData {
   title?: string // only set when renaming the base service
   base_price: number
-  modifiers: Array<{ id?: number; key: string; label: string; price_diff: number; group?: string; description?: string }>
+  modifiers: Array<{ id?: number; key: string; label: string; price_diff: number; duration_diff?: number; group?: string; description?: string }>
   base_modifier_results: Array<{ id?: number; modifier_keys: string; result_noona_id: string }>
   addons: Array<{
     id?: number
     label: string
     price_diff: number
+    duration_diff?: number
     result_noona_id: string
     description?: string
     modifier_results: Array<{ id?: number; modifier_keys: string; result_noona_id: string }>
@@ -161,6 +165,7 @@ export interface AddonGroupData {
 
 export type ManageOp =
   | { kind: 'noona-price'; id: string; payload: NoonaVariations }
+  | { kind: 'noona-duration'; id: string; duration: number }
   | { kind: 'noona-title'; id: string; title: string; titleTranslations: Record<string, string> }
   | { kind: 'hide-event-type'; id: string; connections: Record<string, unknown> }
   | { kind: 'delete-event-type'; id: string }
@@ -177,6 +182,9 @@ export interface PlannedManageOp {
   label: string
   before: number | null
   after: number | null
+  // Display unit for before/after in the preview. Defaults to 'Kč' (price ops);
+  // duration ops set 'мин'.
+  unit?: 'Kč' | 'мин'
   op: ManageOp
 }
 
@@ -218,6 +226,7 @@ const toData = (group: StrapiAddonGroup): AddonGroupData => ({
     key: m.key,
     label: m.label,
     price_diff: m.price_diff,
+    duration_diff: m.duration_diff, // preserve combo duration math on every PUT
     group: m.group, // preserve mutually-exclusive group on price/rename PUT
     description: m.description, // preserve client info text on every PUT
   })),
@@ -230,6 +239,7 @@ const toData = (group: StrapiAddonGroup): AddonGroupData => ({
     ...(a.id != null ? { id: a.id } : {}),
     label: a.label,
     price_diff: a.price_diff,
+    duration_diff: a.duration_diff, // preserve combo duration math on every PUT
     result_noona_id: a.result_noona_id,
     description: a.description, // preserve client info text on every PUT
     modifier_results: (a.modifier_results ?? []).map((r) => ({
@@ -251,6 +261,36 @@ const expectedPrices = (data: AddonGroupData, baseNoonaId: string): Map<string, 
     map.set(a.result_noona_id, data.base_price + a.price_diff)
     for (const mr of a.modifier_results) {
       map.set(mr.result_noona_id, data.base_price + a.price_diff + sumMods(mr.modifier_keys, data.modifiers))
+    }
+  }
+  return map
+}
+
+// Σ duration_diff (minutes) of modifiers present in a combo (missing → 0)
+const sumModsDur = (modifier_keys: string, modifiers: AddonGroupData['modifiers']): number => {
+  const set = new Set(keysFromString(modifier_keys))
+  return modifiers.reduce((s, m) => (set.has(m.key) ? s + (m.duration_diff ?? 0) : s), 0)
+}
+
+// Expected duration (minutes) of every Noona event_type in the group, by id:
+// base + addon.duration_diff + Σ modifier.duration_diff. Mirrors expectedPrices.
+const expectedDurations = (
+  data: AddonGroupData,
+  baseNoonaId: string,
+  baseDuration: number,
+): Map<string, number> => {
+  const map = new Map<string, number>()
+  map.set(baseNoonaId, baseDuration)
+  for (const bmr of data.base_modifier_results) {
+    map.set(bmr.result_noona_id, baseDuration + sumModsDur(bmr.modifier_keys, data.modifiers))
+  }
+  for (const a of data.addons) {
+    map.set(a.result_noona_id, baseDuration + (a.duration_diff ?? 0))
+    for (const mr of a.modifier_results) {
+      map.set(
+        mr.result_noona_id,
+        baseDuration + (a.duration_diff ?? 0) + sumModsDur(mr.modifier_keys, data.modifiers),
+      )
     }
   }
   return map
@@ -394,6 +434,105 @@ export const buildPriceEditPlan = ({
     after: agAfter,
     op: { kind: 'addon-group-put', documentId: group.documentId, data: next },
   })
+
+  return ops
+}
+
+// ─── Duration edit ─────────────────────────────────────────────────────────────
+
+// Same shape as PriceTarget (base / addon by label / modifier by key)
+export type DurationTarget = PriceTarget
+
+export interface BuildDurationEditInput {
+  group: StrapiAddonGroup
+  target: DurationTarget
+  // base: absolute base duration (minutes); addon/modifier: absolute duration_diff
+  newValue: number
+  eventTypes: Map<string, ManagedEventType>
+  juniorMaps?: JuniorMapRecord[]
+}
+
+// Recompute every affected Noona combo DURATION (+ its junior copy, which shares the
+// senior duration) and the addon-group component value from a new minutes value.
+// Mirrors buildPriceEditPlan, but durations live on the Noona event_type (not in the
+// addon-group as a base field), so:
+//   • base target    → updates base Noona event_type duration + ALL combos; NO Strapi
+//                       addon-group change (base duration isn't stored there)
+//   • addon/modifier  → updates only the combos that use it + stores duration_diff
+export const buildDurationEditPlan = ({
+  group,
+  target,
+  newValue,
+  eventTypes,
+  juniorMaps = [],
+}: BuildDurationEditInput): PlannedManageOp[] => {
+  const next = toData(group)
+  const currentBaseDuration = eventTypes.get(group.base_noona_id)?.duration ?? 0
+  let baseDuration = currentBaseDuration
+  if (target.kind === 'base') baseDuration = newValue
+  else if (target.kind === 'addon') {
+    const a = next.addons.find((x) => x.label === target.label)
+    if (a) a.duration_diff = newValue
+  } else {
+    const m = next.modifiers.find((x) => x.key === target.key)
+    if (m) m.duration_diff = newValue
+  }
+
+  const expected = expectedDurations(next, group.base_noona_id, baseDuration)
+  const juniorBySenior = new Map(juniorMaps.map((jm) => [jm.senior_noona_id, jm]))
+  const ops: PlannedManageOp[] = []
+
+  for (const [id, dur] of expected) {
+    const et = eventTypes.get(id)
+    if (!et) continue
+    if (dur !== et.duration) {
+      ops.push({
+        key: `noona-duration:${id}`,
+        label: et.title + (et.hidden ? ' (hidden combo)' : ''),
+        before: et.duration,
+        after: dur,
+        unit: 'мин',
+        op: { kind: 'noona-duration', id, duration: dur },
+      })
+    }
+    // The junior copy shares the SAME duration as its senior combo (junior = −20%
+    // price only). Keep it in sync so junior bookings get the right slot length.
+    const jm = juniorBySenior.get(id)
+    if (jm) {
+      const jEt = eventTypes.get(jm.junior_noona_id)
+      if (jEt && jEt.duration !== dur) {
+        ops.push({
+          key: `noona-duration:${jm.junior_noona_id}`,
+          label: `Junior: ${jEt.title}`,
+          before: jEt.duration,
+          after: dur,
+          unit: 'мин',
+          op: { kind: 'noona-duration', id: jm.junior_noona_id, duration: dur },
+        })
+      }
+    }
+  }
+
+  // Strapi addon-group stores duration_diff — only for addon/modifier targets
+  // (the base service duration is not kept in the addon-group).
+  if (target.kind !== 'base') {
+    const agBefore =
+      target.kind === 'addon'
+        ? (group.addons.find((a) => a.label === target.label)?.duration_diff ?? 0)
+        : (group.modifiers.find((m) => m.key === target.key)?.duration_diff ?? 0)
+    const agLabel =
+      target.kind === 'addon'
+        ? `Strapi addon-group: вариант «${target.label}» (+мин)`
+        : `Strapi addon-group: дополнение «${group.modifiers.find((m) => m.key === target.key)?.label ?? target.key}» (+мин)`
+    ops.push({
+      key: `addon-group:${group.documentId}`,
+      label: agLabel,
+      before: agBefore,
+      after: newValue,
+      unit: 'мин',
+      op: { kind: 'addon-group-put', documentId: group.documentId, data: next },
+    })
+  }
 
   return ops
 }
@@ -839,6 +978,11 @@ export const applyOp = async (planned: PlannedManageOp): Promise<OpResult> => {
     switch (op.kind) {
       case 'noona-price':
         await NoonaHQBase.post(`/event_types/${op.id}`, op.payload)
+        break
+      case 'noona-duration':
+        // Partial update — Noona accepts a top-level scalar like it does for
+        // connections/title_translations (verified pattern). Only `duration` changes.
+        await NoonaHQBase.post(`/event_types/${op.id}`, { duration: op.duration })
         break
       case 'noona-title':
         // Noona ignores top-level `title` on update — the real source is

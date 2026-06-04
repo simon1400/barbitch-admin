@@ -21,11 +21,12 @@ interface Row {
   id: number
   label: string
   priceDiff: string
+  durationDiff: string
   group: string
 }
 
 let nextId = 1
-const makeRow = (): Row => ({ id: nextId++, label: '', priceDiff: '', group: '' })
+const makeRow = (): Row => ({ id: nextId++, label: '', priceDiff: '', durationDiff: '', group: '' })
 
 type Status = 'idle' | 'noona' | 'strapi' | 'offerings' | 'junior' | 'done' | 'error'
 
@@ -102,7 +103,7 @@ export const NoonaServiceForm = () => {
   const previewGroups = useMemo(() => {
     if (!selectedService || (validAddons.length === 0 && validModifiers.length === 0)) return null
     const base = selectedService
-    const groups: { title: string; items: { name: string; price: number }[] }[] = []
+    const groups: { title: string; items: { name: string; price: number; minutes: number }[] }[] = []
 
     // Варианты без дополнений
     if (validAddons.length > 0) {
@@ -111,6 +112,7 @@ export const NoonaServiceForm = () => {
         items: validAddons.map((a) => ({
           name: `${base.title} ${a.label}`,
           price: base.price + Number(a.priceDiff || 0),
+          minutes: base.duration + Number(a.durationDiff || 0),
         })),
       })
     }
@@ -124,12 +126,13 @@ export const NoonaServiceForm = () => {
         items: modSubsets.map((subset) => ({
           name: `${base.title} ${subset.map((m) => m.label).join(' ')}`,
           price: base.price + subset.reduce((s, m) => s + Number(m.priceDiff || 0), 0),
+          minutes: base.duration + subset.reduce((s, m) => s + Number(m.durationDiff || 0), 0),
         })),
       })
 
       // Варианты + дополнения
       if (validAddons.length > 0) {
-        const items: { name: string; price: number }[] = []
+        const items: { name: string; price: number; minutes: number }[] = []
         for (const addon of validAddons) {
           for (const subset of modSubsets) {
             items.push({
@@ -138,6 +141,10 @@ export const NoonaServiceForm = () => {
                 base.price +
                 Number(addon.priceDiff || 0) +
                 subset.reduce((s, m) => s + Number(m.priceDiff || 0), 0),
+              minutes:
+                base.duration +
+                Number(addon.durationDiff || 0) +
+                subset.reduce((s, m) => s + Number(m.durationDiff || 0), 0),
             })
           }
         }
@@ -251,10 +258,12 @@ export const NoonaServiceForm = () => {
     const newAddonInputs: AddonInput[] = validAddons.map((r) => ({
       label: r.label.trim(),
       priceDiff: Number(r.priceDiff || 0),
+      durationDiff: Number(r.durationDiff || 0),
     }))
     const newModifierInputs: ModifierInput[] = validModifiers.map((r) => ({
       label: r.label.trim(),
       priceDiff: Number(r.priceDiff || 0),
+      durationDiff: Number(r.durationDiff || 0),
       group: r.group.trim() || undefined,
     }))
 
@@ -267,6 +276,7 @@ export const NoonaServiceForm = () => {
     const existingModInputs: ModifierInput[] = (existing?.modifiers ?? []).map((m) => ({
       label: m.label,
       priceDiff: m.price_diff,
+      durationDiff: m.duration_diff ?? 0,
       key: m.key, // reuse stored key (may differ from toKey(label) after a rename)
       group: m.group,
     }))
@@ -283,6 +293,7 @@ export const NoonaServiceForm = () => {
       .map((ea) => ({
         label: ea.label,
         priceDiff: ea.price_diff,
+        durationDiff: ea.duration_diff ?? 0,
         existingModResultKeys: new Set((ea.modifier_results ?? []).map((r) => r.modifier_keys)),
       }))
 
@@ -365,7 +376,7 @@ export const NoonaServiceForm = () => {
             senior_noona_id: r.id,
             title: r.title,
             senior_price: r.price,
-            duration: selectedService.duration,
+            duration: r.minutes, // per-combo duration (base + addon + Σ modifiers)
           })),
       ]
       const jr = await createJuniorCopies(juniorInputs, juniorCategoryId)
@@ -439,6 +450,27 @@ export const NoonaServiceForm = () => {
                 min={0}
                 placeholder="200"
                 className="w-[100px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div>
+              {idx === 0 && (
+                <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+                  +мин
+                </label>
+              )}
+              <input
+                type="number"
+                value={row.durationDiff}
+                onChange={(e) =>
+                  setRows((prev) =>
+                    prev.map((r) =>
+                      r.id === row.id ? { ...r, durationDiff: e.target.value } : r,
+                    ),
+                  )
+                }
+                min={0}
+                placeholder="0"
+                className="w-[90px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
               />
             </div>
             {withGroup && (
@@ -734,7 +766,7 @@ export const NoonaServiceForm = () => {
                 {group.items.map((item, i) => (
                   <li key={i} className="text-sm text-gray-700">
                     <span className="font-medium">{item.name}</span>
-                    <span className="ml-2 text-gray-400">{item.price} Kč</span>
+                    <span className="ml-2 text-gray-400">{item.minutes} мин · {item.price} Kč</span>
                   </li>
                 ))}
               </ul>
