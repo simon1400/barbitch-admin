@@ -95,26 +95,26 @@ export const ServiceEditor = ({
   const addonOrderChanged = addonOrder.join('|') !== origAddonOrder.join('|')
   const modOrderChanged = modOrder.join('|') !== origModOrder.join('|')
 
-  const priceBtn =
+  // One consistent style for every "apply change" button (rename / price / time /
+  // description / save order). Red is reserved for delete (a meaningful exception,
+  // not a colour for its own sake); arrows stay neutral gray.
+  const actionBtn =
     'px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50'
-  const durBtn =
-    'px-3 py-1.5 rounded-lg bg-cyan-600 text-white text-xs font-semibold hover:bg-cyan-700 transition-colors disabled:opacity-50'
-  const renameBtn =
-    'px-3 py-1.5 rounded-lg bg-indigo-500 text-white text-xs font-semibold hover:bg-indigo-600 transition-colors disabled:opacity-50'
+  const priceBtn = actionBtn
+  const durBtn = actionBtn
+  const renameBtn = actionBtn
+  const saveOrderBtn = actionBtn
+  const descBtn = `${actionBtn} self-start`
   const delBtn =
     'px-3 py-1.5 rounded-lg bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors disabled:opacity-50'
   const arrowBtn =
     'w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 text-sm font-bold hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed'
-  const saveOrderBtn =
-    'px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 transition-colors disabled:opacity-50'
   const input =
     'w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary'
   const nameInput =
     'flex-1 min-w-40 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary'
   const descInput =
     'flex-1 min-w-40 border border-gray-300 rounded-lg px-2 py-1.5 text-sm resize-y focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary'
-  const descBtn =
-    'px-3 py-1.5 rounded-lg bg-sky-500 text-white text-xs font-semibold hover:bg-sky-600 transition-colors disabled:opacity-50 self-start'
 
   const renameDisabled = (current: string, value: string) =>
     disabled || value.trim() === '' || value.trim() === current
@@ -194,7 +194,7 @@ export const ServiceEditor = ({
               className={nameInput}
             />
             {groupBadge && (
-              <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-md px-2 py-1 whitespace-nowrap">
+              <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 rounded-md px-2 py-1 whitespace-nowrap">
                 {groupBadge}
               </span>
             )}

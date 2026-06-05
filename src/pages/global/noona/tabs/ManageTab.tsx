@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { PlanPreview, ResultsTable, ServiceEditor, ServiceSelector } from '../components/manage'
 import {
@@ -12,10 +12,10 @@ import {
   buildRenamePlan,
   buildReorderPlan,
   fetchAllAddonGroups,
-  fetchAllOfferings,
   fetchEventTypesWithConnections,
   fetchFutureBookedTitles,
-  fetchJuniorMaps,
+  fetchJuniorMapsForService,
+  fetchOfferingsForService,
   type JuniorMapRecord,
   type DescriptionTarget,
   type ManagedEventType,
@@ -34,35 +34,76 @@ export default function ManageTab() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [groups, setGroups] = useState<StrapiAddonGroup[]>([])
   const [eventTypes, setEventTypes] = useState<ManagedEventType[]>([])
+  // offerings / juniorMaps hold ONLY the currently-selected service's rows (fetched on
+  // select via a $startsWith filter), not the whole ~2.4k offerings / ~1k maps tables.
   const [offerings, setOfferings] = useState<StrapiOffering[]>([])
   const [juniorMaps, setJuniorMaps] = useState<JuniorMapRecord[]>([])
+  const [serviceDataLoading, setServiceDataLoading] = useState(false)
+  const selectSeq = useRef(0) // guards against out-of-order service-data fetches
   // Titles of services with FUTURE bookings — excluded from hard-delete (hidden instead).
-  // null = booking data unavailable → delete plans fail safe to hide.
+  // Fetched LAZILY (a full year of Noona events is heavy) only when a delete is started,
+  // so the common edit path (price/duration/rename) never pays for it. null = unavailable
+  // → delete plans fail safe to hide. `futureBookedLoaded` distinguishes "not fetched yet".
   const [futureBooked, setFutureBooked] = useState<Set<string> | null>(null)
+  const [futureBookedLoaded, setFutureBookedLoaded] = useState(false)
   const [dataVersion, setDataVersion] = useState(0)
 
-  const loadAll = async () => {
+  // Upfront load is cheap: addon-groups (the selector) + the full Noona event_types list
+  // (one ~0.3s request). The heavy per-service data (offerings/junior-maps) is fetched
+  // only when a service is selected. Returns fresh groups so callers can re-select.
+  const loadAll = async (): Promise<StrapiAddonGroup[]> => {
     setLoadStatus('loading')
     setLoadError(null)
+    setFutureBookedLoaded(false) // invalidate cached future-bookings → next delete refetches fresh
     try {
-      const [grp, ets, offs, jm, fb] = await Promise.all([
+      const [grp, ets] = await Promise.all([
         fetchAllAddonGroups(),
         fetchEventTypesWithConnections(),
-        fetchAllOfferings(),
-        fetchJuniorMaps(),
-        fetchFutureBookedTitles(),
       ])
       setGroups(grp)
       setEventTypes(ets)
-      setOfferings(offs)
-      setJuniorMaps(jm)
-      setFutureBooked(fb)
       setLoadStatus('ready')
       setDataVersion((v) => v + 1)
+      return grp
     } catch (err) {
       setLoadError((err as { message?: string })?.message ?? 'Ошибка загрузки')
       setLoadStatus('error')
+      return []
     }
+  }
+
+  // Load only the selected service's offerings + junior-maps (scoped by base title).
+  // Guarded by selectSeq so a slow earlier fetch can't overwrite a newer selection.
+  const [serviceDataError, setServiceDataError] = useState<string | null>(null)
+  const loadServiceData = async (group: StrapiAddonGroup) => {
+    const seq = ++selectSeq.current
+    setServiceDataLoading(true)
+    setServiceDataError(null)
+    setOfferings([])
+    setJuniorMaps([])
+    try {
+      const [offs, jm] = await Promise.all([
+        fetchOfferingsForService(group.title),
+        fetchJuniorMapsForService(group.title),
+      ])
+      if (seq !== selectSeq.current) return // superseded by a newer selection
+      setOfferings(offs)
+      setJuniorMaps(jm)
+    } catch (err) {
+      if (seq !== selectSeq.current) return
+      setServiceDataError((err as { message?: string })?.message ?? 'Ошибка загрузки данных услуги')
+    } finally {
+      if (seq === selectSeq.current) setServiceDataLoading(false)
+    }
+  }
+
+  // Fetch the future-booked titles on demand (first delete), then cache for the session.
+  const ensureFutureBooked = async (): Promise<Set<string> | null> => {
+    if (futureBookedLoaded) return futureBooked
+    const fb = await fetchFutureBookedTitles()
+    setFutureBooked(fb)
+    setFutureBookedLoaded(true)
+    return fb
   }
 
   useEffect(() => {
@@ -92,6 +133,7 @@ export default function ManageTab() {
   const selectGroup = (g: StrapiAddonGroup) => {
     setSelectedId(g.documentId)
     resetPlanState()
+    loadServiceData(g)
   }
 
   // ── Plan builders wired to editor ───────────────────────────────────────────
@@ -120,27 +162,33 @@ export default function ManageTab() {
     setResults([])
     setPlan(buildDescriptionPlan(selectedGroup, target, description))
   }
-  const onDeleteAddon = (label: string) => {
+  const onDeleteAddon = async (label: string) => {
     if (!selectedGroup) return
     setResults([])
-    setPlan(buildDeleteAddonPlan(selectedGroup, label, etMap, juniorMaps, futureBooked))
+    const fb = await ensureFutureBooked()
+    setPlan(buildDeleteAddonPlan(selectedGroup, label, etMap, juniorMaps, fb))
   }
-  const onDeleteModifier = (key: string) => {
+  const onDeleteModifier = async (key: string) => {
     if (!selectedGroup) return
     setResults([])
-    setPlan(buildDeleteModifierPlan(selectedGroup, key, etMap, juniorMaps, futureBooked))
+    const fb = await ensureFutureBooked()
+    setPlan(buildDeleteModifierPlan(selectedGroup, key, etMap, juniorMaps, fb))
   }
-  const onDeleteService = () => {
+  const onDeleteService = async () => {
     if (!selectedGroup) return
     setResults([])
-    setPlan(buildDeleteServicePlan({ group: selectedGroup, eventTypes: etMap, juniorMaps, futureBooked }))
+    const fb = await ensureFutureBooked()
+    setPlan(buildDeleteServicePlan({ group: selectedGroup, eventTypes: etMap, juniorMaps, futureBooked: fb }))
   }
 
   // ── Apply ───────────────────────────────────────────────────────────────────
   const runOps = async (ops: PlannedManageOp[]) => {
     setProgress({ done: 0, total: ops.length })
     const res = await applyAllOps(ops, (done, total) => setProgress({ done, total }))
-    await loadAll() // refresh so editor + selector reflect new state
+    const grp = await loadAll() // refresh groups + Noona so editor reflects new state
+    // re-fetch the still-selected service's offerings/junior-maps from the fresh groups
+    const sel = grp.find((g) => g.documentId === selectedId)
+    if (sel) await loadServiceData(sel)
     return res
   }
 
@@ -197,8 +245,10 @@ export default function ManageTab() {
       {loadStatus === 'ready' && (
         <>
           <div className="text-xs text-gray-400 mb-4">
-            Загружено: {groups.length} addon-групп, {eventTypes.length} Noona-услуг,{' '}
-            {offerings.length} offer, {juniorMaps.length} junior-маппингов
+            Загружено: {groups.length} addon-групп, {eventTypes.length} Noona-услуг
+            {selectedGroup && !serviceDataLoading && (
+              <> · по услуге: {offerings.length} offer, {juniorMaps.length} junior-маппингов</>
+            )}
           </div>
 
           <ServiceSelector
@@ -208,7 +258,26 @@ export default function ManageTab() {
             disabled={busy}
           />
 
-          {selectedGroup && (
+          {selectedGroup && serviceDataLoading && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5 text-center text-sm text-gray-500 mt-4">
+              Загружаем данные услуги (offer + junior-копии)…
+            </div>
+          )}
+
+          {selectedGroup && !serviceDataLoading && serviceDataError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-5 mt-4">
+              <p className="text-sm text-red-700 font-semibold">Не удалось загрузить данные услуги</p>
+              <p className="text-xs text-red-600 mt-1">{serviceDataError}</p>
+              <button
+                onClick={() => loadServiceData(selectedGroup)}
+                className="mt-3 px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-semibold hover:bg-red-600"
+              >
+                Повторить
+              </button>
+            </div>
+          )}
+
+          {selectedGroup && !serviceDataLoading && !serviceDataError && (
             <ServiceEditor
               key={`${selectedGroup.documentId}:${dataVersion}`}
               group={selectedGroup}

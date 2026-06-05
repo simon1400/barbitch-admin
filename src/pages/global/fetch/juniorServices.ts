@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { NoonaHQ, NoonaHQBase } from '../../../lib/noona'
-import { calcJuniorPrice } from '../../../constants/junior'
+import { calcJuniorPrice, calcJuniorDuration } from '../../../constants/junior'
 
 const COMPANY_ID = import.meta.env.VITE_NOONA_COMPANY_ID as string
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:1350'
@@ -332,7 +332,7 @@ export const generateOne = async (
   try {
     const juniorId = await createJuniorEventType(
       plan.seniorTitle,
-      plan.duration,
+      calcJuniorDuration(plan.duration), // junior takes longer than senior (+markup, →5 min)
       plan.juniorPrice,
       isHiddenSource,
       targetCategoryId,
@@ -411,8 +411,10 @@ export const createJuniorCopies = async (
       continue
     }
     const juniorPrice = calcJuniorPrice(input.senior_price)
+    // Junior takes longer than senior — apply the time markup (+%, rounded to 5 min).
+    const juniorDuration = calcJuniorDuration(input.duration)
     try {
-      const juniorId = await createJuniorEventTypeRaw(input.title, input.duration, juniorPrice)
+      const juniorId = await createJuniorEventTypeRaw(input.title, juniorDuration, juniorPrice)
       await saveJuniorMap({
         senior_noona_id: input.senior_noona_id,
         junior_noona_id: juniorId,

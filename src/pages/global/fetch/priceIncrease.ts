@@ -182,18 +182,22 @@ export const fetchAllAddonGroups = async (): Promise<StrapiAddonGroup[]> => {
 }
 
 export const fetchAllOfferings = async (): Promise<StrapiOffering[]> => {
-  // paginate through everything (Strapi default page size = 25)
-  const all: StrapiOffering[] = []
-  let page = 1
-  while (true) {
-    const res = await StrapiAdmin.get(
-      `/api/offerings?fields[0]=title&fields[1]=price&pagination[page]=${page}&pagination[pageSize]=100`,
+  // Page 1 tells us the total page count; fetch the rest in parallel.
+  // pageSize 500 (Strapi maxLimit) → ~5 pages for 2.4k offerings instead of 24,
+  // and the remaining pages go out concurrently (was 24 sequential ~30s requests).
+  const pageSize = 500
+  const url = (page: number) =>
+    `/api/offerings?fields[0]=title&fields[1]=price&pagination[page]=${page}&pagination[pageSize]=${pageSize}`
+
+  const first = await StrapiAdmin.get(url(1))
+  const all: StrapiOffering[] = [...((first.data?.data ?? []) as StrapiOffering[])]
+  const pageCount: number = first.data?.meta?.pagination?.pageCount ?? 1
+
+  if (pageCount > 1) {
+    const rest = await Promise.all(
+      Array.from({ length: pageCount - 1 }, (_, i) => StrapiAdmin.get(url(i + 2))),
     )
-    const data = res.data?.data ?? []
-    const meta = res.data?.meta?.pagination
-    all.push(...(data as StrapiOffering[]))
-    if (!meta || page >= meta.pageCount || data.length === 0) break
-    page++
+    for (const r of rest) all.push(...((r.data?.data ?? []) as StrapiOffering[]))
   }
   return all
 }

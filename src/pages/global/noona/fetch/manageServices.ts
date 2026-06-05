@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { NoonaHQ, NoonaHQBase } from '../../../../lib/noona'
-import { calcJuniorPrice } from '../../../../constants/junior'
+import { calcJuniorPrice, calcJuniorDuration } from '../../../../constants/junior'
 import {
   fetchAllAddonGroups,
   fetchAllOfferings,
@@ -95,22 +95,65 @@ export interface JuniorMapRecord {
 }
 
 export const fetchJuniorMaps = async (): Promise<JuniorMapRecord[]> => {
-  const all: JuniorMapRecord[] = []
-  let page = 1
-  while (true) {
-    const res = await StrapiAdmin.get(
-      `/api/service-junior-maps?fields[0]=senior_noona_id&fields[1]=junior_noona_id` +
-        `&fields[2]=senior_price&fields[3]=junior_price` +
-        `&pagination[page]=${page}&pagination[pageSize]=200`,
+  // Page 1 first (for the page count), then the rest in parallel.
+  // pageSize 500 + concurrency → 2 round-trips for ~1k maps (was 5 sequential).
+  const pageSize = 500
+  const url = (page: number) =>
+    `/api/service-junior-maps?fields[0]=senior_noona_id&fields[1]=junior_noona_id` +
+    `&fields[2]=senior_price&fields[3]=junior_price` +
+    `&pagination[page]=${page}&pagination[pageSize]=${pageSize}`
+
+  const first = await StrapiAdmin.get(url(1))
+  const all: JuniorMapRecord[] = [...((first.data?.data ?? []) as JuniorMapRecord[])]
+  const pageCount: number = first.data?.meta?.pagination?.pageCount ?? 1
+
+  if (pageCount > 1) {
+    const rest = await Promise.all(
+      Array.from({ length: pageCount - 1 }, (_, i) => StrapiAdmin.get(url(i + 2))),
     )
-    const data = res.data?.data ?? []
-    const meta = res.data?.meta?.pagination
-    all.push(...(data as JuniorMapRecord[]))
-    if (!meta || page >= meta.pageCount || data.length === 0) break
-    page++
+    for (const r of rest) all.push(...((r.data?.data ?? []) as JuniorMapRecord[]))
   }
   return all
 }
+
+// Generic parallel-paginated Strapi GET: page 1 reveals pageCount, rest go out together.
+const fetchAllPages = async <T>(url: (page: number) => string): Promise<T[]> => {
+  const first = await StrapiAdmin.get(url(1))
+  const all: T[] = [...((first.data?.data ?? []) as T[])]
+  const pageCount: number = first.data?.meta?.pagination?.pageCount ?? 1
+  if (pageCount > 1) {
+    const rest = await Promise.all(
+      Array.from({ length: pageCount - 1 }, (_, i) => StrapiAdmin.get(url(i + 2))),
+    )
+    for (const r of rest) all.push(...((r.data?.data ?? []) as T[]))
+  }
+  return all
+}
+
+// ─── Targeted (per-service) Strapi fetches ──────────────────────────────────────
+// Every combo / addon / modifier title is built as `<base title> + …`, so a single
+// `$startsWith <base title>` filter returns exactly the selected service's rows
+// (its base + all combos) — and nothing from the other ~2.4k offerings / ~1k maps.
+// Junior OFFERINGS are prefixed «Юниор …» so they're correctly excluded here (manage
+// ops touch only senior offerings); junior MAPS store the senior title, so they match.
+// Replaces loading the whole offerings/junior-map tables on every open & save.
+
+export const fetchOfferingsForService = (baseTitle: string): Promise<StrapiOffering[]> =>
+  fetchAllPages<StrapiOffering>(
+    (page) =>
+      `/api/offerings?fields[0]=title&fields[1]=price` +
+      `&filters[title][$startsWith]=${encodeURIComponent(baseTitle)}` +
+      `&pagination[page]=${page}&pagination[pageSize]=500`,
+  )
+
+export const fetchJuniorMapsForService = (baseTitle: string): Promise<JuniorMapRecord[]> =>
+  fetchAllPages<JuniorMapRecord>(
+    (page) =>
+      `/api/service-junior-maps?fields[0]=senior_noona_id&fields[1]=junior_noona_id` +
+      `&fields[2]=senior_price&fields[3]=junior_price` +
+      `&filters[title][$startsWith]=${encodeURIComponent(baseTitle)}` +
+      `&pagination[page]=${page}&pagination[pageSize]=500`,
+  )
 
 // Set of SERVICE TITLES that have at least one FUTURE booking (from today on),
 // fetched once. Used to decide hard-delete vs hide: never delete a service whose
@@ -495,19 +538,22 @@ export const buildDurationEditPlan = ({
         op: { kind: 'noona-duration', id, duration: dur },
       })
     }
-    // The junior copy shares the SAME duration as its senior combo (junior = −20%
-    // price only). Keep it in sync so junior bookings get the right slot length.
+    // Junior takes LONGER than senior (junior = −20% price but +markup% time).
+    // Junior duration is derived from the senior combo duration via calcJuniorDuration
+    // (rounded to 5 min), NOT copied 1:1. Synced on every duration edit — also heals
+    // legacy junior copies that were created equal to senior.
     const jm = juniorBySenior.get(id)
     if (jm) {
       const jEt = eventTypes.get(jm.junior_noona_id)
-      if (jEt && jEt.duration !== dur) {
+      const juniorDur = calcJuniorDuration(dur)
+      if (jEt && jEt.duration !== juniorDur) {
         ops.push({
           key: `noona-duration:${jm.junior_noona_id}`,
           label: `Junior: ${jEt.title}`,
           before: jEt.duration,
-          after: dur,
+          after: juniorDur,
           unit: 'мин',
-          op: { kind: 'noona-duration', id: jm.junior_noona_id, duration: dur },
+          op: { kind: 'noona-duration', id: jm.junior_noona_id, duration: juniorDur },
         })
       }
     }
