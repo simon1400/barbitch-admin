@@ -262,12 +262,7 @@ const createComboNoonaService = async (
   title: string,
   minutes: number,
   price: number,
-  // ⚠️ Combos are intentionally NOT added to any Noona category. They stay visible
-  // (bookable by id from the site's /extras step) but ungrouped, so they don't show
-  // up in Noona's native customer booking listing — keeping it light (~tens of base
-  // services instead of thousands of combos). The base service keeps its category;
-  // combos are reached only by result_noona_id stored in the Strapi addon-group.
-  _categoryId?: string,
+  categoryId?: string,
 ): Promise<CreateServiceResult> => {
   try {
     const vatId = await getVatId()
@@ -283,6 +278,9 @@ const createComboNoonaService = async (
     const res = await NoonaHQBase.post(`/event_types`, body)
     const data = res.data
     const newId: string = data?.id ?? data?._id ?? '—'
+    if (categoryId && newId !== '—') {
+      await addServiceToGroup(categoryId, newId).catch(() => {})
+    }
     return { id: newId, title, price, minutes, status: 'ok' }
   } catch (err) {
     return { id: '—', title, price: 0, minutes, status: 'error', error: getErrorMessage(err) }

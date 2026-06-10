@@ -222,6 +222,51 @@ export const buildPlan = (input: BuildPlanInput): PlannedJunior[] => {
 
 // ─── Create one junior copy in Noona + Strapi map ────────────────────────────
 
+const addServiceToGroup = async (categoryId: string, serviceId: string): Promise<void> => {
+  const groupsRes = await NoonaHQ.get(
+    `/${COMPANY_ID}/event_type_groups?expand[]=ordered_event_types.event_type`,
+  )
+  const groups: { id?: string; ordered_event_types?: Array<{ event_type?: { id?: string } | string; id?: string }> }[] =
+    groupsRes.data ?? []
+  const target = groups.find((g) => g.id === categoryId)
+  const ordered = target?.ordered_event_types ?? []
+  const currentIds = ordered
+    .map((item) => {
+      if (typeof item === 'string') return item
+      const et = item.event_type
+      return (typeof et === 'object' ? et?.id : et) ?? item.id ?? ''
+    })
+    .filter(Boolean) as string[]
+  if (currentIds.includes(serviceId)) return
+  await NoonaHQBase.post(`/event_type_groups/${categoryId}`, {
+    event_types: [...currentIds, serviceId],
+  })
+}
+
+// Adds many event_types to a category in ONE POST (group POST replaces the whole
+// list, so batching avoids the per-item GET+POST race and is much faster than
+// calling addServiceToGroup N times).
+const addServicesToGroup = async (categoryId: string, serviceIds: string[]): Promise<void> => {
+  if (serviceIds.length === 0) return
+  const groupsRes = await NoonaHQ.get(
+    `/${COMPANY_ID}/event_type_groups?expand[]=ordered_event_types.event_type`,
+  )
+  const groups: { id?: string; ordered_event_types?: Array<{ event_type?: { id?: string } | string; id?: string }> }[] =
+    groupsRes.data ?? []
+  const target = groups.find((g) => g.id === categoryId)
+  const ordered = target?.ordered_event_types ?? []
+  const currentIds = ordered
+    .map((item) => {
+      if (typeof item === 'string') return item
+      const et = item.event_type
+      return (typeof et === 'object' ? et?.id : et) ?? item.id ?? ''
+    })
+    .filter(Boolean) as string[]
+  const current = new Set(currentIds)
+  const merged = [...currentIds, ...serviceIds.filter((id) => !current.has(id))]
+  await NoonaHQBase.post(`/event_type_groups/${categoryId}`, { event_types: merged })
+}
+
 // Creates a junior event_type in Noona WITHOUT assigning a category (caller does it).
 // ⚠️ Junior копии создаются visible (hidden=false) — это критично!
 // hidden=true блокирует слоты в marketplace API (/time_slots не отдаёт hidden).
@@ -257,13 +302,13 @@ const createJuniorEventType = async (
   duration: number,
   juniorPrice: number,
   _isHiddenSource: boolean,
-  // ⚠️ Junior copies are NOT added to a Noona category anymore. They stay visible
-  // (bookable from the site by junior_noona_id) but ungrouped, so they don't bloat
-  // Noona's native customer booking listing. "Who is junior" lives in Strapi
-  // (service-junior-map + personal.tier), category membership is not needed.
-  _targetCategoryId: string,
+  targetCategoryId: string,
 ): Promise<string> => {
-  return createJuniorEventTypeRaw(seniorTitle, duration, juniorPrice)
+  const newId = await createJuniorEventTypeRaw(seniorTitle, duration, juniorPrice)
+  await addServiceToGroup(targetCategoryId, newId).catch(() => {
+    /* category assign failure non-fatal */
+  })
+  return newId
 }
 
 const saveJuniorMap = async (map: {
@@ -347,10 +392,7 @@ export interface JuniorCopyResult {
 
 export const createJuniorCopies = async (
   inputs: JuniorCopyInput[],
-  // ⚠️ Kept for signature compatibility but no longer used — junior copies are
-  // intentionally left ungrouped (see createJuniorEventType). They stay visible and
-  // bookable by junior_noona_id but don't show in Noona's native booking listing.
-  _targetCategoryId: string,
+  targetCategoryId: string,
   onProgress?: (done: number, total: number) => void,
 ): Promise<JuniorCopyResult[]> => {
   // Skip seniors that already have a junior copy (idempotent re-runs)
@@ -358,6 +400,7 @@ export const createJuniorCopies = async (
   const mapped = new Set(existing.map((m) => m.senior_noona_id))
 
   const results: JuniorCopyResult[] = []
+  const createdIds: string[] = []
   let done = 0
 
   for (const input of inputs) {
@@ -380,6 +423,7 @@ export const createJuniorCopies = async (
         junior_price: juniorPrice,
       })
       mapped.add(input.senior_noona_id)
+      createdIds.push(juniorId)
       results.push({
         senior_noona_id: input.senior_noona_id,
         title: input.title,
@@ -397,6 +441,13 @@ export const createJuniorCopies = async (
     }
     done++
     onProgress?.(done, inputs.length)
+  }
+
+  // Add all newly created junior event_types to the chosen category in one batch
+  if (createdIds.length > 0) {
+    await addServicesToGroup(targetCategoryId, createdIds).catch(() => {
+      /* category assign failure non-fatal — maps are saved, копии созданы */
+    })
   }
 
   return results
