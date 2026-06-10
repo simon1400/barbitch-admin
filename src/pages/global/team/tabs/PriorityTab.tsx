@@ -45,8 +45,10 @@ export default function PriorityTab() {
       <div className="mb-6">
         <h2 className="text-xl md:text-2xl font-bold text-gray-800">Priorita masterů (Kdokoliv)</h2>
         <p className="text-sm text-gray-500 mt-1">
-          Nastavení priority masterů při výběru "Kdokoliv" v rezervaci.
-          Vyšší číslo = vyšší priorita. Při stejné prioritě se vybere náhodně.
+          Při výběru "Kdokoliv" systém automaticky vybere nejméně vytíženého mastera
+          (podle počtu rezervací v okolí daného dne). Priorita je ruční "bonus":
+          vyšší číslo = master dostává rezervace častěji i při mírně vyšší vytíženosti.
+          Nech všem 0 pro čistě rovnoměrné rozdělení.
         </p>
       </div>
 
@@ -106,8 +108,10 @@ export default function PriorityTab() {
       <div className="mt-8 p-4 bg-blue-50 rounded-lg text-sm text-blue-700">
         <p className="font-semibold mb-1">Jak to funguje:</p>
         <ul className="list-disc pl-5 space-y-1">
-          <li>Když klient vybere "Kdokoliv", systém vybere mastera s nejvyšší prioritou</li>
-          <li>Pokud mají stejnou prioritu, vybere se náhodně mezi nimi</li>
+          <li>Když klient vybere "Kdokoliv", systém spočítá vytíženost každého dostupného mastera (počet rezervací ±3 dny kolem vybraného dne)</li>
+          <li>Rezervaci dostane nejméně vytížený master → práce se rozkládá rovnoměrně</li>
+          <li>Priorita funguje jako bonus: každý bod sníží "efektivní vytíženost" mastera, takže ho systém volí častěji (ruční preference konkrétního mastera)</li>
+          <li>Při stejné efektivní vytíženosti se vybere náhodně</li>
           <li>Pokud je na daný čas dostupný pouze jeden master, vybere se automaticky</li>
         </ul>
       </div>
