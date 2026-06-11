@@ -195,6 +195,42 @@ export default function SleepingTab() {
         </span>
       </div>
 
+      {campaigns.length > 0 && (
+        <StatSection title="Результаты кампаний" id="campaign-results" defaultOpen>
+          <p className="text-xs text-gray-400 mb-4">
+            «Записались» = у получателя появилась активная бронь с датой ПОСЛЕ отправки письма
+            (на момент отправки будущих броней не было — значит запись пришла после кампании).
+            No-show не считается.
+          </p>
+          <TableWrapper>
+            <table className="w-full text-left table-auto min-w-max">
+              <thead>
+                <tr>
+                  <Cell title="Отправлено" asHeader />
+                  <Cell title="Шаблон / предмет" asHeader />
+                  <Cell title="Получателей" asHeader />
+                  <Cell title="Записались" asHeader />
+                </tr>
+              </thead>
+              <tbody>
+                {campaigns.map((c) => (
+                  <CampaignRow
+                    key={c.log.documentId}
+                    result={c}
+                    expanded={expandedCampaign === c.log.documentId}
+                    onToggle={() =>
+                      setExpandedCampaign(
+                        expandedCampaign === c.log.documentId ? null : c.log.documentId,
+                      )
+                    }
+                  />
+                ))}
+              </tbody>
+            </table>
+          </TableWrapper>
+        </StatSection>
+      )}
+
       <StatSection title="Спящие клиенты" id="sleeping-clients" defaultOpen>
         {loading ? (
           <div className="text-gray-500 py-8 text-center">Načítání…</div>
@@ -330,42 +366,6 @@ export default function SleepingTab() {
           </>
         )}
       </StatSection>
-
-      {campaigns.length > 0 && (
-        <StatSection title="Результаты кампаний" id="campaign-results">
-          <p className="text-xs text-gray-400 mb-4">
-            «Записались» = у получателя появилась активная бронь с датой ПОСЛЕ отправки письма
-            (на момент отправки будущих броней не было — значит запись пришла после кампании).
-            No-show не считается.
-          </p>
-          <TableWrapper>
-            <table className="w-full text-left table-auto min-w-max">
-              <thead>
-                <tr>
-                  <Cell title="Отправлено" asHeader />
-                  <Cell title="Шаблон / предмет" asHeader />
-                  <Cell title="Получателей" asHeader />
-                  <Cell title="Записались" asHeader />
-                </tr>
-              </thead>
-              <tbody>
-                {campaigns.map((c) => (
-                  <CampaignRow
-                    key={c.log.documentId}
-                    result={c}
-                    expanded={expandedCampaign === c.log.documentId}
-                    onToggle={() =>
-                      setExpandedCampaign(
-                        expandedCampaign === c.log.documentId ? null : c.log.documentId,
-                      )
-                    }
-                  />
-                ))}
-              </tbody>
-            </table>
-          </TableWrapper>
-        </StatSection>
-      )}
 
       {modalOpen && (
         <SendModal
