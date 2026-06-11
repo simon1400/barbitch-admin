@@ -19,9 +19,9 @@ export const NoonaEventsCard = ({ data }: { data: ShiftCheckResult['noona'] }) =
           <tbody>
             {sortByClientName(data.events, 'customer_name').map((event: any, i: number) => (
               <tr key={i} className="border-b border-gray-100">
-                <td className="py-2 pr-3">{event.customer_name || '—'}</td>
+                <td className="py-2 pr-3 whitespace-nowrap">{event.customer_name || '—'}</td>
                 <td className="py-2 pr-3">{event.event_types?.[0]?.title || '—'}</td>
-                <td className="py-2 pr-3">
+                <td className="py-2 pr-3 whitespace-nowrap">
                   {event.starts_at
                     ? new Date(event.starts_at).toLocaleTimeString('cs-CZ', {
                         hour: '2-digit',
@@ -29,7 +29,7 @@ export const NoonaEventsCard = ({ data }: { data: ShiftCheckResult['noona'] }) =
                       })
                     : '—'}
                 </td>
-                <td className="py-2">
+                <td className="py-2 whitespace-nowrap">
                   {event.event_types?.[0]?.price?.amount != null
                     ? `${event.event_types[0].price.amount} Kč`
                     : '—'}
