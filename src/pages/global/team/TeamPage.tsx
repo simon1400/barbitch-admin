@@ -14,6 +14,8 @@ const tabs: TeamTab[] = [
   { to: 'salaries', label: 'Зарплаты' },
   { to: 'priority', label: 'Priorita masterů' },
   { to: 'time-off', label: 'Больничные / отпуска' },
+  { to: 'load', label: 'Загрузка' },
+  { to: 'gaps', label: 'Окна' },
 ]
 
 export default function TeamPage() {

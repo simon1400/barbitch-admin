@@ -30,11 +30,20 @@ const AnalyticsProceduresTab = lazy(() => import('./pages/global/analytics/tabs/
 const AnalyticsChartsTab = lazy(() => import('./pages/global/analytics/tabs/ChartsTab'))
 const AnalyticsGlobalChartsTab = lazy(() => import('./pages/global/analytics/tabs/GlobalChartsTab'))
 const AnalyticsClientsTab = lazy(() => import('./pages/global/analytics/tabs/ClientsTab'))
+const AnalyticsSleepingTab = lazy(() => import('./pages/global/analytics/tabs/SleepingTab'))
+const AnalyticsRetentionTab = lazy(() => import('./pages/global/analytics/tabs/RetentionTab'))
+const AnalyticsForecastTab = lazy(() => import('./pages/global/analytics/tabs/ForecastTab'))
+const AnalyticsCancellationsTab = lazy(
+  () => import('./pages/global/analytics/tabs/CancellationsTab'),
+)
+const AnalyticsVouchersTab = lazy(() => import('./pages/global/analytics/tabs/VouchersTab'))
 // Unified team module — layout with URL sub-route tabs
 const TeamPage = lazy(() => import('./pages/global/team/TeamPage'))
 const TeamSalariesTab = lazy(() => import('./pages/global/team/tabs/SalariesTab'))
 const TeamPriorityTab = lazy(() => import('./pages/global/team/tabs/PriorityTab'))
 const TeamTimeOffTab = lazy(() => import('./pages/global/team/tabs/TimeOffTab'))
+const TeamLoadTab = lazy(() => import('./pages/global/team/tabs/LoadTab'))
+const TeamGapsTab = lazy(() => import('./pages/global/team/tabs/GapsTab'))
 
 // Получить домашнюю страницу в зависимости от роли
 const getHomePageByRole = (role: string | null): string => {
@@ -173,6 +182,11 @@ function App() {
             <Route path="charts" element={<AnalyticsChartsTab />} />
             <Route path="global" element={<AnalyticsGlobalChartsTab />} />
             <Route path="clients" element={<AnalyticsClientsTab />} />
+            <Route path="sleeping" element={<AnalyticsSleepingTab />} />
+            <Route path="retention" element={<AnalyticsRetentionTab />} />
+            <Route path="forecast" element={<AnalyticsForecastTab />} />
+            <Route path="cancellations" element={<AnalyticsCancellationsTab />} />
+            <Route path="vouchers" element={<AnalyticsVouchersTab />} />
           </Route>
           {/* Legacy URL redirects — old standalone analytics pages now live as tabs */}
           <Route
@@ -203,6 +217,8 @@ function App() {
             <Route path="salaries" element={<TeamSalariesTab />} />
             <Route path="priority" element={<TeamPriorityTab />} />
             <Route path="time-off" element={<TeamTimeOffTab />} />
+            <Route path="load" element={<TeamLoadTab />} />
+            <Route path="gaps" element={<TeamGapsTab />} />
           </Route>
           {/* Legacy URL redirects — old standalone pages now live as Team tabs */}
           <Route
