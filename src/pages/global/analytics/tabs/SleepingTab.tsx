@@ -5,12 +5,15 @@ import { TableWrapper } from '../../components/TableWrapper'
 import { getSleepingCandidates, buildCsv, type SleepingClient } from '../fetch/sleepingClients'
 import {
   CAMPAIGN_TEMPLATES,
-  fetchLastSentMap,
+  fetchCampaignLogs,
+  buildLastSentMap,
+  getCampaignResults,
   saveCampaignLog,
   sendBulkEmail,
   daysSinceIso,
   daysAwayLabel,
   type CampaignRecipient,
+  type CampaignResult,
   type SentInfo,
   type SendResult,
 } from '../fetch/emailCampaign'
@@ -37,6 +40,7 @@ const fmtMoney = (n: number) => n.toLocaleString('cs-CZ')
 export default function SleepingTab() {
   const [all, setAll] = useState<SleepingClient[]>([])
   const [lastSent, setLastSent] = useState<Map<string, SentInfo>>(new Map())
+  const [campaigns, setCampaigns] = useState<CampaignResult[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [minDays, setMinDays] = useState(90)
@@ -45,17 +49,19 @@ export default function SleepingTab() {
   const [copied, setCopied] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [modalOpen, setModalOpen] = useState(false)
+  const [expandedCampaign, setExpandedCampaign] = useState<string | null>(null)
 
   const load = useCallback(async (force = false) => {
     setLoading(true)
     setError(null)
     try {
-      const [clients, sentMap] = await Promise.all([
+      const [clients, logs] = await Promise.all([
         getSleepingCandidates(force),
-        fetchLastSentMap().catch(() => new Map<string, SentInfo>()),
+        fetchCampaignLogs().catch(() => []),
       ])
       setAll(clients)
-      setLastSent(sentMap)
+      setLastSent(buildLastSentMap(logs))
+      setCampaigns(await getCampaignResults(logs).catch(() => []))
     } catch {
       setError('Не удалось загрузить данные из Noona')
     } finally {
@@ -325,6 +331,42 @@ export default function SleepingTab() {
         )}
       </StatSection>
 
+      {campaigns.length > 0 && (
+        <StatSection title="Результаты кампаний" id="campaign-results">
+          <p className="text-xs text-gray-400 mb-4">
+            «Записались» = у получателя появилась активная бронь с датой ПОСЛЕ отправки письма
+            (на момент отправки будущих броней не было — значит запись пришла после кампании).
+            No-show не считается.
+          </p>
+          <TableWrapper>
+            <table className="w-full text-left table-auto min-w-max">
+              <thead>
+                <tr>
+                  <Cell title="Отправлено" asHeader />
+                  <Cell title="Шаблон / предмет" asHeader />
+                  <Cell title="Получателей" asHeader />
+                  <Cell title="Записались" asHeader />
+                </tr>
+              </thead>
+              <tbody>
+                {campaigns.map((c) => (
+                  <CampaignRow
+                    key={c.log.documentId}
+                    result={c}
+                    expanded={expandedCampaign === c.log.documentId}
+                    onToggle={() =>
+                      setExpandedCampaign(
+                        expandedCampaign === c.log.documentId ? null : c.log.documentId,
+                      )
+                    }
+                  />
+                ))}
+              </tbody>
+            </table>
+          </TableWrapper>
+        </StatSection>
+      )}
+
       {modalOpen && (
         <SendModal
           recipients={selectedRecipients}
@@ -336,6 +378,93 @@ export default function SleepingTab() {
             load() // перечитать лог — колонка «Писали» обновится
           }}
         />
+      )}
+    </>
+  )
+}
+
+function CampaignRow({
+  result,
+  expanded,
+  onToggle,
+}: {
+  result: CampaignResult
+  expanded: boolean
+  onToggle: () => void
+}) {
+  const { log, converted, pct } = result
+  const templateName =
+    CAMPAIGN_TEMPLATES.find((t) => t.key === log.template)?.name ?? log.template
+  return (
+    <>
+      <tr className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={onToggle}>
+        <td className="p-4 border-b border-blue-gray-50">
+          <span className="flex items-center gap-2 font-sans text-sm font-medium text-blue-gray-900">
+            <span className="text-primary">{expanded ? '−' : '+'}</span>
+            {fmtDateTime(log.createdAt)}
+            <span className="text-xs text-gray-400">({daysSinceIso(log.createdAt)} дн.)</span>
+          </span>
+        </td>
+        <td className="p-4 border-b border-blue-gray-50">
+          <span className="block font-sans text-sm font-medium text-blue-gray-900">
+            {templateName}
+          </span>
+          <span className="text-xs text-gray-400">{log.subject}</span>
+        </td>
+        <Cell title={String(log.recipients.length)} />
+        <td className="p-4 border-b border-blue-gray-50">
+          <span
+            className={`px-2 py-0.5 rounded text-xs font-semibold ${
+              converted.length > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
+            }`}
+          >
+            {converted.length} ({pct} %)
+          </span>
+        </td>
+      </tr>
+      {expanded && (
+        <tr>
+          <td colSpan={4} className="p-0 border-b border-blue-gray-50 bg-gray-50">
+            <div className="p-4">
+              {converted.length === 0 ? (
+                <div className="text-sm text-gray-500">Пока никто не записался.</div>
+              ) : (
+                <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
+                  <table className="w-full text-left table-auto min-w-max">
+                    <thead>
+                      <tr>
+                        <Cell title="Клиент" asHeader />
+                        <Cell title="Email" asHeader />
+                        <Cell title="Записалась на" asHeader />
+                        <Cell title="Статус" asHeader />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {converted.map((c) => (
+                        <tr key={c.customerId} className="hover:bg-gray-50 transition-colors">
+                          <Cell title={c.name} className="font-medium" />
+                          <Cell title={c.email || '—'} />
+                          <Cell title={fmtDate(c.bookingDate)} />
+                          <td className="p-4 border-b border-blue-gray-50">
+                            <span
+                              className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                c.attended
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-blue-100 text-blue-700'
+                              }`}
+                            >
+                              {c.attended ? 'уже была' : 'записана'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </td>
+        </tr>
       )}
     </>
   )

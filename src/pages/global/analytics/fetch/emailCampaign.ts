@@ -1,5 +1,6 @@
 import qs from 'qs'
 import { Axios } from '../../../../lib/api'
+import { getEventsHistory, todayStr } from './eventsHistory'
 
 // Отправка win-back кампаний из таба «Спящие» + лог рассылок.
 // Лог: Strapi `email-campaign-log`, ОДНА запись = ОДНА кампания
@@ -68,15 +69,24 @@ export interface SentInfo {
   template: string
 }
 
-// customerId → последняя отправка (по всем кампаниям)
-export const fetchLastSentMap = async (): Promise<Map<string, SentInfo>> => {
-  const map = new Map<string, SentInfo>()
+export interface CampaignLog {
+  documentId: string
+  createdAt: string // ISO — момент отправки
+  template: string
+  subject: string
+  count: number
+  recipients: CampaignRecipient[]
+}
+
+// Все кампании (новые сверху)
+export const fetchCampaignLogs = async (): Promise<CampaignLog[]> => {
+  const logs: CampaignLog[] = []
   let page = 1
   for (;;) {
     const query = qs.stringify(
       {
-        fields: ['template', 'recipients', 'createdAt'],
-        sort: ['createdAt:asc'],
+        fields: ['template', 'subject', 'count', 'recipients', 'createdAt'],
+        sort: ['createdAt:desc'],
         pagination: { page, pageSize: 100 },
       },
       { encodeValuesOnly: true },
@@ -85,17 +95,30 @@ export const fetchLastSentMap = async (): Promise<Map<string, SentInfo>> => {
     const res = await Axios.get<any>(`/api/email-campaign-logs?${query}`)
     const data: Array<Record<string, unknown>> = Array.isArray(res) ? res : []
     for (const log of data) {
-      const recipients = Array.isArray(log.recipients) ? log.recipients : []
-      const sentAt = String(log.createdAt ?? '')
-      const template = String(log.template ?? '')
-      for (const r of recipients as Array<{ customerId?: string }>) {
-        if (!r.customerId) continue
-        // sort=asc → последняя запись перезапишет более раннюю
-        map.set(r.customerId, { lastSentAt: sentAt, template })
-      }
+      logs.push({
+        documentId: String(log.documentId ?? ''),
+        createdAt: String(log.createdAt ?? ''),
+        template: String(log.template ?? ''),
+        subject: String(log.subject ?? ''),
+        count: Number(log.count) || 0,
+        recipients: (Array.isArray(log.recipients) ? log.recipients : []) as CampaignRecipient[],
+      })
     }
     if (data.length < 100) break
     page++
+  }
+  return logs
+}
+
+// customerId → последняя отправка (по всем кампаниям)
+export const buildLastSentMap = (logs: CampaignLog[]): Map<string, SentInfo> => {
+  const map = new Map<string, SentInfo>()
+  // logs отсортированы desc → берём первую встреченную (самую свежую)
+  for (const log of logs) {
+    for (const r of log.recipients) {
+      if (!r.customerId || map.has(r.customerId)) continue
+      map.set(r.customerId, { lastSentAt: log.createdAt, template: log.template })
+    }
   }
   return map
 }
@@ -147,3 +170,61 @@ export const sendBulkEmail = async (
 
 export const daysSinceIso = (iso: string): number =>
   Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
+
+// ─── Конверсия кампаний: кто из получателей реально записался ПОСЛЕ отправки ──
+// Спящие на момент отправки НЕ имели будущей брони → любая активная запись
+// с датой ПОЗЖЕ дня отправки гарантированно создана после письма.
+
+export interface CampaignConversion {
+  customerId: string
+  name: string
+  email: string
+  bookingDate: string // первая запись после отправки, 'YYYY-MM-DD'
+  attended: boolean // уже была (визит состоялся) или ещё только записана
+}
+
+export interface CampaignResult {
+  log: CampaignLog
+  converted: CampaignConversion[]
+  pct: number // % записавшихся от получателей
+}
+
+export const getCampaignResults = async (logs: CampaignLog[]): Promise<CampaignResult[]> => {
+  if (!logs.length) return []
+  const events = await getEventsHistory()
+  const today = todayStr()
+
+  // активные события по клиентам (включая будущие — они в кэше истории)
+  const byCustomer = new Map<string, Array<{ date: string; status: string }>>()
+  for (const e of events) {
+    if (!e.customer || e.status === 'cancelled') continue
+    if (!byCustomer.has(e.customer)) byCustomer.set(e.customer, [])
+    byCustomer.get(e.customer)!.push({ date: e.date, status: e.status })
+  }
+
+  return logs.map((log) => {
+    const sentDate = log.createdAt.slice(0, 10)
+    const converted: CampaignConversion[] = []
+    for (const r of log.recipients) {
+      if (!r.customerId) continue
+      const after = (byCustomer.get(r.customerId) || [])
+        .filter((e) => e.date > sentDate && e.status !== 'noshow')
+        .sort((a, b) => (a.date < b.date ? -1 : 1))
+      if (!after.length) continue
+      converted.push({
+        customerId: r.customerId,
+        name: r.name,
+        email: r.email,
+        bookingDate: after[0].date,
+        attended: after[0].date <= today,
+      })
+    }
+    return {
+      log,
+      converted,
+      pct: log.recipients.length
+        ? Math.round((converted.length / log.recipients.length) * 100)
+        : 0,
+    }
+  })
+}
