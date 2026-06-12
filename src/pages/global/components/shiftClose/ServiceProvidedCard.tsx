@@ -9,7 +9,12 @@ import {
 } from '../../fetch/shiftClose'
 import { CheckCard } from './CheckCard'
 import { CommentPopover, hasComment } from './CommentPopover'
-import { sortByClientName } from './helpers'
+import {
+  buildOfferMatches,
+  sortByClientName,
+  type OfferMatch,
+  type OfferMatchStatus,
+} from './helpers'
 
 const STRAPI_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:1337'
 
@@ -47,6 +52,35 @@ const formatDelta = (delta: number | null): string => {
   return `${sign}${Math.round(Math.abs(delta))} Kč`
 }
 
+const OFFER_MATCH_META: Record<OfferMatchStatus, { symbol: string; chipCls: string }> = {
+  match: { symbol: '✓', chipCls: 'bg-green-100 text-green-800' },
+  mismatch: { symbol: '✗', chipCls: 'bg-red-100 text-red-800' },
+  missing: { symbol: '?', chipCls: 'bg-gray-100 text-gray-600' },
+  'no-offer': { symbol: '—', chipCls: 'bg-amber-100 text-amber-800' },
+}
+
+const offerMatchTitle = (m: OfferMatch): string => {
+  switch (m.status) {
+    case 'match': return `Shoduje se s Noona: ${m.noonaTitle}`
+    case 'mismatch': return `Strapi: ${m.strapiTitle}\nNoona: ${m.noonaTitle}`
+    case 'missing': return `Strapi: ${m.strapiTitle}\nKlient nemá událost v Noona`
+    default: return 'Služba (offer) není připojena'
+  }
+}
+
+const OfferMatchChip = ({ match }: { match: OfferMatch | undefined }) => {
+  if (!match) return <span className="text-gray-400">—</span>
+  const meta = OFFER_MATCH_META[match.status]
+  return (
+    <span
+      title={offerMatchTitle(match)}
+      className={`inline-flex items-center justify-center min-w-[28px] h-6 px-1.5 rounded text-xs font-bold cursor-default ${meta.chipCls}`}
+    >
+      {meta.symbol}
+    </span>
+  )
+}
+
 const FlagChip = ({ flag, item }: { flag: VerifyFlag; item: any }) => {
   const meta = FLAG_META[flag]
   const delta = getFlagDelta(item, flag)
@@ -62,8 +96,16 @@ const FlagChip = ({ flag, item }: { flag: VerifyFlag; item: any }) => {
   )
 }
 
-export const ServiceProvidedCard = ({ data }: { data: ShiftCheckResult['serviceProvided'] }) => {
+export const ServiceProvidedCard = ({
+  data,
+  noonaEvents,
+}: {
+  data: ShiftCheckResult['serviceProvided']
+  noonaEvents: any[]
+}) => {
   const visibleCounters = VERIFY_FLAGS.filter((f) => data.flagCounts[f] > 0)
+  const offerMatches = buildOfferMatches(data.items, noonaEvents)
+  const mismatchCount = [...offerMatches.values()].filter((m) => m.status === 'mismatch').length
 
   return (
     <CheckCard
@@ -93,6 +135,12 @@ export const ServiceProvidedCard = ({ data }: { data: ShiftCheckResult['serviceP
             Neověřeno: {data.unverified}
           </span>
         )}
+        {mismatchCount > 0 && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+            <span className="w-2 h-2 rounded-full bg-red-500" />
+            Služba se liší od Noona: {mismatchCount}
+          </span>
+        )}
       </div>
       {data.items.length > 0 && (
         <div className="mt-3 overflow-x-auto">
@@ -101,6 +149,7 @@ export const ServiceProvidedCard = ({ data }: { data: ShiftCheckResult['serviceP
               <tr className="text-left text-gray-500 border-b">
                 <th className="pb-2 pr-3">Klient</th>
                 <th className="pb-2 pr-3">Mistr</th>
+                <th className="pb-2 pr-3">Služba</th>
                 <th className="pb-2 pr-3">Celkem</th>
                 <th className="pb-2 pr-3">Tip</th>
                 <th className="pb-2 pr-3">Hotově</th>
@@ -120,6 +169,9 @@ export const ServiceProvidedCard = ({ data }: { data: ShiftCheckResult['serviceP
                       </span>
                     </td>
                     <td className="py-2 pr-3">{item.personal?.name || '—'}</td>
+                    <td className="py-2 pr-3">
+                      <OfferMatchChip match={offerMatches.get(item)} />
+                    </td>
                     <td className="py-2 pr-3">
                       {Number((toNum(item.salonSalaries) + toNum(item.staffSalaries)).toFixed(2))} Kč
                     </td>
@@ -155,7 +207,7 @@ export const ServiceProvidedCard = ({ data }: { data: ShiftCheckResult['serviceP
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-gray-300 font-semibold text-gray-800">
-                <td className="pt-2 pr-3" colSpan={2}>Celkem</td>
+                <td className="pt-2 pr-3" colSpan={3}>Celkem</td>
                 <td className="pt-2 pr-3">
                   {Number(
                     data.items

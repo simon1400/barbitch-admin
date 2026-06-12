@@ -225,7 +225,7 @@ export default function ShiftClosePage() {
               <StatSection title="Kontrola záznamů" id="checks" defaultOpen>
                 <div className="grid gap-4">
                   <CashCard data={result.cash} />
-                  <ServiceProvidedCard data={result.serviceProvided} />
+                  <ServiceProvidedCard data={result.serviceProvided} noonaEvents={result.noona.events} />
                   <NoonaEventsCard data={result.noona} />
                   <WorkTimeCard data={result.workTime} />
                   <PayrollCard data={result.payroll} />
