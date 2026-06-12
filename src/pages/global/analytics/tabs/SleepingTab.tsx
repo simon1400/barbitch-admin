@@ -12,6 +12,8 @@ import {
   sendBulkEmail,
   daysSinceIso,
   daysAwayLabel,
+  formatFilterParts,
+  type CampaignFilters,
   type CampaignRecipient,
   type CampaignResult,
   type SentInfo,
@@ -207,7 +209,8 @@ export default function SleepingTab() {
               <thead>
                 <tr>
                   <Cell title="Отправлено" asHeader />
-                  <Cell title="Шаблон / предмет" asHeader />
+                  <Cell title="Шаблон" asHeader />
+                  <Cell title="Фильтр" asHeader />
                   <Cell title="Получателей" asHeader />
                   <Cell title="Записались" asHeader />
                 </tr>
@@ -370,6 +373,7 @@ export default function SleepingTab() {
       {modalOpen && (
         <SendModal
           recipients={selectedRecipients}
+          filters={{ minDays, maxDays, minVisits }}
           lastSent={lastSent}
           onClose={() => setModalOpen(false)}
           onSent={() => {
@@ -409,7 +413,17 @@ function CampaignRow({
           <span className="block font-sans text-sm font-medium text-blue-gray-900">
             {templateName}
           </span>
-          <span className="text-xs text-gray-400">{log.subject}</span>
+        </td>
+        <td className="p-4 border-b border-blue-gray-50">
+          {log.filters ? (
+            <span className="inline-flex flex-col gap-0.5 px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-600 leading-tight whitespace-nowrap">
+              {formatFilterParts(log.filters).map((part) => (
+                <span key={part}>{part}</span>
+              ))}
+            </span>
+          ) : (
+            <span className="text-xs text-gray-300">—</span>
+          )}
         </td>
         <Cell title={String(log.recipients.length)} />
         <td className="p-4 border-b border-blue-gray-50">
@@ -424,7 +438,7 @@ function CampaignRow({
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={4} className="p-0 border-b border-blue-gray-50 bg-gray-50">
+          <td colSpan={5} className="p-0 border-b border-blue-gray-50 bg-gray-50">
             <div className="p-4">
               {converted.length === 0 ? (
                 <div className="text-sm text-gray-500">Пока никто не записался.</div>
@@ -435,6 +449,9 @@ function CampaignRow({
                       <tr>
                         <Cell title="Клиент" asHeader />
                         <Cell title="Email" asHeader />
+                        <Cell title="Визитов" asHeader />
+                        <Cell title="Последний визит" asHeader />
+                        <Cell title="Принёс" asHeader />
                         <Cell title="Записалась на" asHeader />
                         <Cell title="Статус" asHeader />
                       </tr>
@@ -444,6 +461,18 @@ function CampaignRow({
                         <tr key={c.customerId} className="hover:bg-gray-50 transition-colors">
                           <Cell title={c.name} className="font-medium" />
                           <Cell title={c.email || '—'} />
+                          <Cell title={String(c.visits)} />
+                          <td className="p-4 border-b border-blue-gray-50">
+                            {c.lastVisit ? (
+                              <span className="block font-sans text-sm font-medium text-blue-gray-900">
+                                {fmtDate(c.lastVisit)}{' '}
+                                <span className="text-xs text-gray-400">({c.daysSince} дн.)</span>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-300">—</span>
+                            )}
+                          </td>
+                          <Cell title={`${fmtMoney(c.spent)} Kč`} className="text-primary" />
                           <Cell title={fmtDate(c.bookingDate)} />
                           <td className="p-4 border-b border-blue-gray-50">
                             <span
@@ -472,11 +501,13 @@ function CampaignRow({
 
 function SendModal({
   recipients,
+  filters,
   lastSent,
   onClose,
   onSent,
 }: {
   recipients: CampaignRecipient[]
+  filters: CampaignFilters
   lastSent: Map<string, SentInfo>
   onClose: () => void
   onSent: () => void
@@ -527,7 +558,7 @@ function SendModal({
       const res = await sendBulkEmail(templateKey, subject, toSend, extras)
       // лог пишем ПОСЛЕ успешной отправки — иначе «защита от дублей» заблокирует ретрай
       try {
-        await saveCampaignLog(templateKey, subject, toSend)
+        await saveCampaignLog(templateKey, subject, toSend, filters)
       } catch {
         setSendError('Письма отправлены, но лог не записался — колонка «Писали» не обновится')
       }

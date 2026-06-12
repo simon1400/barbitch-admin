@@ -1,6 +1,6 @@
 import qs from 'qs'
 import { Axios } from '../../../../lib/api'
-import { getEventsHistory, todayStr } from './eventsHistory'
+import { getEventsHistory, isAttended, todayStr } from './eventsHistory'
 
 // Отправка win-back кампаний из таба «Спящие» + лог рассылок.
 // Лог: Strapi `email-campaign-log`, ОДНА запись = ОДНА кампания
@@ -32,7 +32,7 @@ const plusDays = (days: number): string => {
 export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
   {
     key: 'win-back',
-    name: 'Win-back — «Chybíte nám» (спящие клиенты)',
+    name: 'Win-back — «Chybíte nám»',
     subject: 'Chybíte nám! Máme pro vás slevu 💕',
     extras: [
       { key: 'discount', label: 'Скидка (текст в письме)', defaultValue: '20 %' },
@@ -69,6 +69,19 @@ export interface SentInfo {
   template: string
 }
 
+// Фильтр таба «Спящие» на момент отправки — кому именно слали
+export interface CampaignFilters {
+  minDays: number // «не были более N дней»
+  maxDays: number // «но менее N дней», 0 = без лимита
+  minVisits: number
+}
+
+// Две строки для компактного чипа: «60–120 дн.» / «2+ визитов»
+export const formatFilterParts = (f: CampaignFilters): [string, string] => [
+  f.maxDays > 0 ? `${f.minDays}–${f.maxDays} дн.` : `${f.minDays}+ дн.`,
+  `${f.minVisits}+ визитов`,
+]
+
 export interface CampaignLog {
   documentId: string
   createdAt: string // ISO — момент отправки
@@ -76,23 +89,38 @@ export interface CampaignLog {
   subject: string
   count: number
   recipients: CampaignRecipient[]
+  filters: CampaignFilters | null // null у старых кампаний (поля ещё не было)
 }
 
 // Все кампании (новые сверху)
 export const fetchCampaignLogs = async (): Promise<CampaignLog[]> => {
   const logs: CampaignLog[] = []
+  // Если Strapi ещё без поля `filters` (старый деплой) — запрос с ним даёт 400
+  // «Invalid key filters». Не терять ВЕСЬ лог (защита от дублей!), а ретраить без него.
+  let withFilters = true
   let page = 1
   for (;;) {
+    const fields = ['template', 'subject', 'count', 'recipients', 'createdAt']
+    if (withFilters) fields.splice(4, 0, 'filters')
     const query = qs.stringify(
       {
-        fields: ['template', 'subject', 'count', 'recipients', 'createdAt'],
+        fields,
         sort: ['createdAt:desc'],
         pagination: { page, pageSize: 100 },
       },
       { encodeValuesOnly: true },
     )
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res = await Axios.get<any>(`/api/email-campaign-logs?${query}`)
+    let res: any
+    try {
+      res = await Axios.get(`/api/email-campaign-logs?${query}`)
+    } catch (e) {
+      if (withFilters) {
+        withFilters = false
+        continue
+      }
+      throw e
+    }
     const data: Array<Record<string, unknown>> = Array.isArray(res) ? res : []
     for (const log of data) {
       logs.push({
@@ -102,6 +130,10 @@ export const fetchCampaignLogs = async (): Promise<CampaignLog[]> => {
         subject: String(log.subject ?? ''),
         count: Number(log.count) || 0,
         recipients: (Array.isArray(log.recipients) ? log.recipients : []) as CampaignRecipient[],
+        filters:
+          log.filters && typeof log.filters === 'object'
+            ? (log.filters as CampaignFilters)
+            : null,
       })
     }
     if (data.length < 100) break
@@ -127,6 +159,7 @@ export const saveCampaignLog = async (
   template: string,
   subject: string,
   recipients: CampaignRecipient[],
+  filters: CampaignFilters,
 ): Promise<void> => {
   await Axios.post('/api/email-campaign-logs', {
     data: {
@@ -135,6 +168,7 @@ export const saveCampaignLog = async (
       source: 'sleeping',
       count: recipients.length,
       recipients,
+      filters,
     },
   })
 }
@@ -181,6 +215,12 @@ export interface CampaignConversion {
   email: string
   bookingDate: string // первая запись после отправки, 'YYYY-MM-DD'
   attended: boolean // уже была (визит состоялся) или ещё только записана
+  // та же статистика, что в основной таблице «Спящие» (считается из истории
+  // событий — в списке спящих этих клиентов уже нет, у них есть будущая бронь)
+  visits: number // состоявшихся визитов (до сегодня)
+  lastVisit: string // 'YYYY-MM-DD' последнего состоявшегося визита ('' если нет)
+  daysSince: number // дней с последнего визита
+  spent: number // Kč, сумма цен состоявшихся визитов
 }
 
 export interface CampaignResult {
@@ -194,12 +234,36 @@ export const getCampaignResults = async (logs: CampaignLog[]): Promise<CampaignR
   const events = await getEventsHistory()
   const today = todayStr()
 
-  // активные события по клиентам (включая будущие — они в кэше истории)
-  const byCustomer = new Map<string, Array<{ date: string; status: string }>>()
+  // По клиентам: активные брони (для поиска записи после отправки) + та же
+  // статистика визитов, что в основной таблице спящих (visits/lastVisit/spent)
+  interface CustStats {
+    activeDates: string[] // не cancelled и не noshow, включая будущие
+    visits: number
+    lastVisit: string
+    spent: number
+  }
+  const byCustomer = new Map<string, CustStats>()
   for (const e of events) {
     if (!e.customer || e.status === 'cancelled') continue
-    if (!byCustomer.has(e.customer)) byCustomer.set(e.customer, [])
-    byCustomer.get(e.customer)!.push({ date: e.date, status: e.status })
+    let s = byCustomer.get(e.customer)
+    if (!s) {
+      s = { activeDates: [], visits: 0, lastVisit: '', spent: 0 }
+      byCustomer.set(e.customer, s)
+    }
+    if (e.status !== 'noshow') s.activeDates.push(e.date)
+    if (e.date <= today && isAttended(e)) {
+      s.visits++
+      s.spent += e.price
+      if (e.date > s.lastVisit) s.lastVisit = e.date
+    }
+  }
+
+  const msDay = 24 * 60 * 60 * 1000
+  const now = Date.now()
+  const daysSinceDate = (date: string): number => {
+    if (!date) return 0
+    const [y, m, d] = date.split('-').map(Number)
+    return Math.floor((now - new Date(y, m - 1, d).getTime()) / msDay)
   }
 
   return logs.map((log) => {
@@ -207,16 +271,21 @@ export const getCampaignResults = async (logs: CampaignLog[]): Promise<CampaignR
     const converted: CampaignConversion[] = []
     for (const r of log.recipients) {
       if (!r.customerId) continue
-      const after = (byCustomer.get(r.customerId) || [])
-        .filter((e) => e.date > sentDate && e.status !== 'noshow')
-        .sort((a, b) => (a.date < b.date ? -1 : 1))
+      const stats = byCustomer.get(r.customerId)
+      const after = (stats?.activeDates ?? [])
+        .filter((d) => d > sentDate)
+        .sort((a, b) => (a < b ? -1 : 1))
       if (!after.length) continue
       converted.push({
         customerId: r.customerId,
         name: r.name,
         email: r.email,
-        bookingDate: after[0].date,
-        attended: after[0].date <= today,
+        bookingDate: after[0],
+        attended: after[0] <= today,
+        visits: stats?.visits ?? 0,
+        lastVisit: stats?.lastVisit ?? '',
+        daysSince: daysSinceDate(stats?.lastVisit ?? ''),
+        spent: Math.round(stats?.spent ?? 0),
       })
     }
     return {

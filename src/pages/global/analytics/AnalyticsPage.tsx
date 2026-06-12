@@ -13,7 +13,6 @@ const tabs: AnalyticsTab[] = [
   { to: 'overview', label: 'Недельный обзор' },
   { to: 'procedures', label: 'Статистика процедур' },
   { to: 'charts', label: 'Недельные графики' },
-  { to: 'global', label: 'Чарты глобальные' },
   { to: 'clients', label: 'Новые vs повторные' },
   { to: 'sleeping', label: 'Спящие клиенты' },
   { to: 'retention', label: 'Возвращаемость' },
