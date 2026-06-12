@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import Login from './pages/Login'
 import AdminLayout from './pages/dashboard/AdminLayout'
 import { AppProvider } from './context/AppContext'
-import { checkUserStatus, logout } from './services/auth'
+import { checkUserStatus, logout, getSessionRole } from './services/auth'
 
 const AdminPage = lazy(() => import('./pages/dashboard/AdminPage'))
 const GlobalPage = lazy(() => import('./pages/global/GlobalPage'))
@@ -61,7 +61,7 @@ const getHomePageByRole = (role: string | null): string => {
 
 // Компонент для защиты маршрутов
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const userRole = localStorage.getItem('userRole')
+  const userRole = getSessionRole()
   const isAuthenticated = userRole !== null
 
   if (!isAuthenticated) {
@@ -73,7 +73,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Компонент для защиты маршрутов мастера
 const MasterRoute = ({ children }: { children: React.ReactNode }) => {
-  const userRole = localStorage.getItem('userRole')
+  const userRole = getSessionRole()
   const isMaster = userRole === 'master'
 
   if (!isMaster) {
@@ -85,7 +85,7 @@ const MasterRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Компонент для защиты маршрутов администраторов
 const AdministratorRoute = ({ children }: { children: React.ReactNode }) => {
-  const userRole = localStorage.getItem('userRole')
+  const userRole = getSessionRole()
   const isAdministrator = userRole === 'administrator'
 
   if (!isAdministrator) {
@@ -97,7 +97,7 @@ const AdministratorRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Компонент для защиты маршрутов владельца
 const OwnerRoute = ({ children }: { children: React.ReactNode }) => {
-  const userRole = localStorage.getItem('userRole')
+  const userRole = getSessionRole()
   const isOwner = userRole === 'owner'
 
   if (!isOwner) {

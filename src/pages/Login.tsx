@@ -27,6 +27,7 @@ const Login = () => {
       localStorage.setItem('usernameLocalData', result.username)
       localStorage.setItem('userRole', result.role)
       localStorage.setItem('userId', result.id.toString())
+      localStorage.setItem('userJwt', result.jwt)
 
       // Перенаправляем в зависимости от роли
       if (result.role === 'owner') {

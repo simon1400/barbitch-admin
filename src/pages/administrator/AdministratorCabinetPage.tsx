@@ -141,8 +141,10 @@ const AdministratorCabinetPage = () => {
       }
 
       try {
+        const token = localStorage.getItem('userJwt')
         const response = await fetch(
           `${API_URL}/api/admin-users/administrator-data/${username}`,
+          token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
         )
 
         if (!response.ok) {
@@ -150,8 +152,6 @@ const AdministratorCabinetPage = () => {
         }
 
         const result = await response.json()
-        console.log('Administrator data:', result)
-        console.log('Extra profits:', result.extraProfits)
         setData(result)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Произошла ошибка')
