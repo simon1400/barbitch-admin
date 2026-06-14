@@ -17,49 +17,63 @@ export const blockStateItems = (
   salonSalariesCash: number,
   salonSalariesCard: number,
   taxesSum: number,
-) => [
-  {
-    title: 'Оборот',
-    value: `${globalFlow.toLocaleString()} Kč`,
-  },
-  {
-    title: 'Результат за месяц',
-    value: `${toLocalStringDigits(
-      cashMoney +
-      cardExtraIncome +
-      (cardMoney + qrMoney) / 1.21 -
-      sumMasters -
-      sumAdmins -
-      noDphCosts -
-      taxesSum
-    )}`,
-    addValue: `${toLocalStringDigits(cashMoney + cardMoney + qrMoney + cardExtraIncome - sumMasters - sumAdmins - dphCosts - taxesSum)} - s DPH`,
-  },
-  {
-    title: 'Разниця',
-    value: `${(cardMoney + cardExtraIncome + cashMoney + payrollSum + voucherRealized + qrMoney - globalFlow - extraMoney - voucherPayed).toLocaleString()} Kč`,
-  },
-  {
-    title: 'Затраты на салон',
-    value: `${noDphCosts.toLocaleString()}`,
-  },
-  {
-    title: 'Зарплаты мастерам',
-    value: `${sumMasters.toLocaleString()}`,
-  },
-  {
-    title: 'Зарплаты админам',
-    value: `${sumAdmins.toLocaleString()}`,
-  },
-  {
-    title: 'Налоги',
-    value: `${taxesSum.toLocaleString()}`,
-  },
-  {
-    title: 'Результат по услугам',
-    value: `${toLocalStringDigits(salonSalariesCash + cardExtraIncome + salonSalariesCard - sumAdmins - noDphCosts)}`
-  },
-]
+  // Совместители (мастер+администратор) — их полная зарплата. Инвариант splitTeam:
+  // sumMasters + sumAdmins + sumCombined === старый (sumMasters + sumAdmins), поэтому
+  // итог «Результат за месяц» численно не меняется. combinedAdminEarnings — только
+  // админ-часы совместителей (для «Результат по услугам», как и обычные админы).
+  sumCombined = 0,
+  combinedAdminEarnings = 0,
+) => {
+  const items = [
+    {
+      title: 'Оборот',
+      value: `${globalFlow.toLocaleString()} Kč`,
+    },
+    {
+      title: 'Результат за месяц',
+      value: `${toLocalStringDigits(
+        cashMoney +
+        cardExtraIncome +
+        (cardMoney + qrMoney) / 1.21 -
+        sumMasters -
+        sumAdmins -
+        sumCombined -
+        noDphCosts -
+        taxesSum
+      )}`,
+      addValue: `${toLocalStringDigits(cashMoney + cardMoney + qrMoney + cardExtraIncome - sumMasters - sumAdmins - sumCombined - dphCosts - taxesSum)} - s DPH`,
+    },
+    {
+      title: 'Разниця',
+      value: `${(cardMoney + cardExtraIncome + cashMoney + payrollSum + voucherRealized + qrMoney - globalFlow - extraMoney - voucherPayed).toLocaleString()} Kč`,
+    },
+    {
+      title: 'Затраты на салон',
+      value: `${noDphCosts.toLocaleString()}`,
+    },
+    {
+      title: 'Зарплаты мастерам',
+      value: `${sumMasters.toLocaleString()}`,
+    },
+    {
+      title: 'Зарплаты админам',
+      value: `${sumAdmins.toLocaleString()}`,
+    },
+    ...(sumCombined !== 0
+      ? [{ title: 'Зарплаты совместителям', value: `${sumCombined.toLocaleString()}` }]
+      : []),
+    {
+      title: 'Налоги',
+      value: `${taxesSum.toLocaleString()}`,
+    },
+    {
+      title: 'Результат по услугам',
+      value: `${toLocalStringDigits(salonSalariesCash + cardExtraIncome + salonSalariesCard - sumAdmins - combinedAdminEarnings - noDphCosts)}`,
+    },
+  ]
+
+  return items
+}
 
 export const blockReservationsItems = (
   clientsAll: number,

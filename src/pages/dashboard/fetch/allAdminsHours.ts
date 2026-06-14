@@ -115,16 +115,14 @@ function summarizeAdmins(
     resultMap.get(name)!.sum += hours
   })
 
-  // Mariia Medvedeva работает и мастером, и администратором. Все её личные
-  // корректировки (штрафы/премии/списывания/авансы/зарплаты) учитываются ТОЛЬКО
-  // в таблице мастеров, иначе они дублируются в обеих таблицах.
-  const excludeFromAdmins = ['Mariia Medvedeva']
-
-  summarizeGeneric(resultMap, penalty, 'penalty', excludeFromAdmins)
-  summarizeGeneric(resultMap, extra, 'extraProfit', excludeFromAdmins)
-  summarizeGeneric(resultMap, payrolls, 'payrolls', excludeFromAdmins)
-  summarizeGeneric(resultMap, advance, 'advance', excludeFromAdmins)
-  summarizeGeneric(resultMap, salaries, 'salaries', excludeFromAdmins)
+  // Корректировки считаются для КАЖДОГО администратора полностью. Совместителей
+  // (мастер+администратор) из таблицы администраторов убирает splitTeam (teamSplit.ts) —
+  // для них есть отдельная таблица. Поэтому здесь больше нет исключений по именам.
+  summarizeGeneric(resultMap, penalty, 'penalty')
+  summarizeGeneric(resultMap, extra, 'extraProfit')
+  summarizeGeneric(resultMap, payrolls, 'payrolls')
+  summarizeGeneric(resultMap, advance, 'advance')
+  summarizeGeneric(resultMap, salaries, 'salaries')
   summarizeGeneric(resultMap, taxes, 'taxes')
 
   const summary = Array.from(resultMap.values())

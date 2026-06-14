@@ -1,4 +1,4 @@
-import type { IFilteredData } from '../../dashboard/fetch/allWorks'
+import type { CombinedResult } from '../../dashboard/fetch/teamSplit'
 
 import { findCommonZeroKeys } from '../../../utils/findCommonZeroKeys'
 
@@ -6,24 +6,28 @@ import { Cell } from '../../dashboard/components/Cell'
 
 import { TableWrapper } from './TableWrapper'
 
-export const Masters = ({
+// Таблица «Совместители» — сотрудники, работающие И мастером, И администратором.
+// Всё считается в одной строке: часы как администратор + заработок с клиентов + чай +
+// штрафы/списывания/налоги. Логика результата/остатка/превышения — как в Masters/Administrators.
+export const Combined = ({
   data,
-  sumMasters,
+  sumCombined,
 }: {
-  data: IFilteredData['summary']
-  sumMasters: number
+  data: CombinedResult[]
+  sumCombined: number
 }) => {
   const emptyKeys = new Set(findCommonZeroKeys(data))
 
-  // Проверяем, есть ли авансы или зарплаты у кого-либо
   const hasAdvanceOrSalary = !emptyKeys.has('advance') || !emptyKeys.has('salaries')
 
-  // Рассчитываем общую сумму превышений
+  // Результат строки = заработок с клиентов + чай + админ-часы + доп - штрафы - списывания
+  const rowResult = (item: CombinedResult) =>
+    item.sum + item.sumTip + item.adminEarnings + item.extraProfit - item.penalty - item.payrolls
+
   const totalExcess = data.reduce((sum, item) => {
-    const result = item.sum + item.sumTip + item.extraProfit - item.penalty - item.payrolls
+    const result = rowResult(item)
     const remaining = result - item.advance - item.salaries
     const threshold = item.excessThreshold ?? 0
-    // Считаем от остатка если есть авансы/зарплаты, иначе от результата
     const baseForExcess = hasAdvanceOrSalary ? remaining : result
     const excess = baseForExcess > threshold ? baseForExcess - threshold : 0
     return sum + excess
@@ -31,7 +35,7 @@ export const Masters = ({
 
   return (
     <TableWrapper
-      totalSum={`${sumMasters.toLocaleString()} Kč`}
+      totalSum={`${sumCombined.toLocaleString()} Kč`}
       totalLabel={'Общая сумма'}
       additionalInfo={totalExcess > 0 ? `Общее превышение: ${totalExcess.toLocaleString()} Kč` : undefined}
     >
@@ -42,11 +46,12 @@ export const Masters = ({
             <Cell title={'Кл.'} asHeader />
             <Cell title={'Зарб.'} asHeader />
             {!emptyKeys.has('sumTip') && <Cell title={'Чай'} asHeader />}
+            <Cell title={'Часов'} asHeader />
+            <Cell title={'Админ'} asHeader />
             {!emptyKeys.has('penalty') && <Cell title={'Штр.'} asHeader />}
             {!emptyKeys.has('extraProfit') && <Cell title={'Доп.'} asHeader />}
             {!emptyKeys.has('payrolls') && <Cell title={'Спис.'} asHeader />}
             <Cell title={'Результат'} asHeader />
-
             {!emptyKeys.has('advance') && <Cell title={'Аванс'} asHeader />}
             {!emptyKeys.has('salaries') && <Cell title={'ЗП.'} asHeader />}
             {totalExcess > 0 && <Cell title={'Превышение'} asHeader />}
@@ -56,10 +61,9 @@ export const Masters = ({
         </thead>
         <tbody>
           {data.map((item) => {
-            const result = item.sum + item.sumTip + item.extraProfit - item.penalty - item.payrolls
+            const result = rowResult(item)
             const remaining = result - item.advance - item.salaries
             const threshold = item.excessThreshold ?? 0
-            // Считаем превышение от остатка если есть авансы/зарплаты, иначе от результата
             const baseForExcess = hasAdvanceOrSalary ? remaining : result
             const excess = baseForExcess > threshold ? baseForExcess - threshold : 0
             const splitName = item.name.split(' ')
@@ -76,6 +80,8 @@ export const Masters = ({
                 {!emptyKeys.has('sumTip') && (
                   <Cell title={item.sumTip ? `${item.sumTip.toLocaleString()}` : ''} />
                 )}
+                <Cell title={`${item.hours.toLocaleString()} hod`} />
+                <Cell title={`${item.adminEarnings.toLocaleString()}`} />
                 {!emptyKeys.has('penalty') && (
                   <Cell title={item.penalty ? `-${item.penalty.toLocaleString()}` : ''} />
                 )}
@@ -89,7 +95,6 @@ export const Masters = ({
                   className={'text-primary font-semibold'}
                   title={`${result.toLocaleString()}`}
                 />
-                
                 {!emptyKeys.has('advance') && (
                   <Cell title={item.advance ? `-${item.advance.toLocaleString()}` : ''} />
                 )}

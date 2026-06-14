@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { getMoney } from '../../dashboard/fetch/costs'
 import { getAdminsHours } from '../../dashboard/fetch/allAdminsHours'
 import { getAllWorks } from '../../dashboard/fetch/allWorks'
+import { splitTeam } from '../../dashboard/fetch/teamSplit'
 
 // Mirror of Strapi lifecycle (strapi/.../service-provided/lifecycles.ts).
 // Kept in sync — also used to recompute flags for legacy records (verify is string).
@@ -390,12 +391,19 @@ export const fetchMonthlyResult = async (
     getAllWorks(month, year, preview?.day),
   ])
 
+  // Совместители (мастер+администратор) вынесены в отдельную группу. Берём итоги через
+  // splitTeam, иначе корректировки совместителей задвоятся (после удаления исключений
+  // sumMasters и sumAdmins оба их содержат). Инвариант splitTeam:
+  // sumMasters + sumAdmins + sumCombined === старый (sumMasters + sumAdmins) →
+  // результат закрытия смены численно прежний.
+  const team = splitTeam(worksRes.summary, adminsRes.summary)
+  const totalLabor = team.sumMasters + team.sumAdmins + team.sumCombined
+
   const result =
     moneyRes.cashMoney +
     moneyRes.cardExtraIncome +
     (moneyRes.cardMoney + moneyRes.qrMoney) / 1.21 -
-    worksRes.sumMasters -
-    adminsRes.sumAdmins -
+    totalLabor -
     moneyRes.sumNoDphCosts -
     moneyRes.taxesSum
 
@@ -404,8 +412,7 @@ export const fetchMonthlyResult = async (
     moneyRes.cardMoney +
     moneyRes.qrMoney +
     moneyRes.cardExtraIncome -
-    worksRes.sumMasters -
-    adminsRes.sumAdmins -
+    totalLabor -
     moneyRes.sumCosts -
     moneyRes.taxesSum
 

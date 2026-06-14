@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { getCurrentWeekRange } from '../../../utils/getWeekRange'
 import { getAdminsHoursByDateRange } from '../fetch/allAdminsHours'
 import { getAllWorksByDateRange } from '../fetch/allWorks'
+import { splitTeam } from '../fetch/teamSplit'
 
 interface WeekDataParams {
   startDate?: Date
@@ -44,13 +45,17 @@ export const useGlobalWeekData = (params: WeekDataParams = {}) => {
       getAdminsHoursByDateRange(firstDay, lastDay),
     ])
 
+    // Совместителей убираем из «чистых» админов; их админ-часы добавляем как админ-расход
+    // (з/п админов/день должна учитывать и совместителей, но без двойного учёта корректировок).
+    const team = splitTeam(worksRes.summary, adminsRes.summary)
+
     setData({
         sumClientsDone: worksRes.sumClientsDone,
         globalFlow: worksRes.globalFlow,
         averageCheck: worksRes.averageCheck,
         averageMasterSalary: worksRes.averageMasterSalary,
         daysResult: worksRes.daysResult,
-        sumAdmins: adminsRes.sumAdmins,
+        sumAdmins: team.sumAdmins + team.combinedAdminEarnings,
         weekRange: { firstDay, lastDay },
     })
   }, [startDate, endDate])

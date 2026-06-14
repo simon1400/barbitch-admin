@@ -19,7 +19,7 @@ interface IDataAllWorks extends PersonalSumData {
   cash: boolean
 }
 
-interface Result {
+export interface Result {
   name: string
   sum: number
   sumTip: number
@@ -100,15 +100,15 @@ function summarizeWorks(
     res.countClient += 1
   })
 
-  // Исключаем Oleksandra Fishchuk из штрафов/премий/списываний в таблице мастеров,
-  // так как она основной администратор и эти данные должны быть только в таблице администраторов
-  const excludeFromMasters = ['Oleksandra Fishchuk']
-
-  summarizeGeneric(resultMap, penalties, 'penalty', excludeFromMasters)
-  summarizeGeneric(resultMap, extras, 'extraProfit', excludeFromMasters)
-  summarizeGeneric(resultMap, payrolls, 'payrolls', excludeFromMasters)
-  summarizeGeneric(resultMap, advance, 'advance', excludeFromMasters)
-  summarizeGeneric(resultMap, salaries, 'salaries', excludeFromMasters)
+  // Корректировки (штрафы/премии/списывания/авансы/зарплаты/налоги) считаются для
+  // КАЖДОГО мастера полностью. Совместителей (мастер+администратор) из таблицы мастеров
+  // убирает splitTeam (teamSplit.ts) — для них есть отдельная таблица. Поэтому здесь
+  // больше нет точечных исключений по именам.
+  summarizeGeneric(resultMap, penalties, 'penalty')
+  summarizeGeneric(resultMap, extras, 'extraProfit')
+  summarizeGeneric(resultMap, payrolls, 'payrolls')
+  summarizeGeneric(resultMap, advance, 'advance')
+  summarizeGeneric(resultMap, salaries, 'salaries')
   summarizeGeneric(resultMap, taxes, 'taxes')
 
   const summary = Array.from(resultMap.values())

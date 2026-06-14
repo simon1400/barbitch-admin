@@ -1,6 +1,7 @@
 import type { IFilteredAdminsData } from '../fetch/allAdminsHours'
 import type { IFilteredData } from '../fetch/allWorks'
 import type { GroupedSum, OutputMetrictsItem } from '../fetch/fetchHelpers'
+import type { CombinedResult } from '../fetch/teamSplit'
 
 import { useCallback, useEffect, useState } from 'react'
 
@@ -8,15 +9,19 @@ import { getAdminsHours } from '../fetch/allAdminsHours'
 import { getAllWorks } from '../fetch/allWorks'
 import { getMoney } from '../fetch/costs'
 import { getEvents } from '../fetch/getEvents'
+import { splitTeam } from '../fetch/teamSplit'
 
 export const useGlobalMonthData = (month: number, year: number) => {
   const [data, setData] = useState({
     works: [] as IFilteredData['summary'],
     admins: [] as IFilteredAdminsData['summary'],
+    combined: [] as CombinedResult[],
     sumClientsDone: 0,
     globalFlow: 0,
     sumMasters: 0,
     sumAdmins: 0,
+    sumCombined: 0,
+    combinedAdminEarnings: 0,
     daysResult: [] as GroupedSum[],
     costs: 0,
     noDphCosts: 0,
@@ -55,14 +60,22 @@ export const useGlobalMonthData = (month: number, year: number) => {
       getEvents(month, year),
     ])
 
+    // Совместители (мастер+администратор) выносятся в отдельную группу. Инвариант
+    // splitTeam: sumMasters + sumAdmins + sumCombined === старый (sumMasters + sumAdmins),
+    // поэтому «Результат за месяц» не меняется численно.
+    const team = splitTeam(worksRes.summary, adminsRes.summary)
+
     setData({
-      works: worksRes.summary,
+      works: team.masters,
       sumClientsDone: worksRes.sumClientsDone,
       globalFlow: worksRes.globalFlow,
-      sumMasters: worksRes.sumMasters,
+      sumMasters: team.sumMasters,
       daysResult: worksRes.daysResult,
-      admins: adminsRes.summary,
-      sumAdmins: adminsRes.sumAdmins,
+      admins: team.admins,
+      sumAdmins: team.sumAdmins,
+      combined: team.combined,
+      sumCombined: team.sumCombined,
+      combinedAdminEarnings: team.combinedAdminEarnings,
       costs: moneyRes.sumCosts,
       noDphCosts: moneyRes.sumNoDphCosts,
       cardMoney: moneyRes.cardMoney,

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Select } from '../../../dashboard/components/Select'
 import { useGlobalMonthData } from '../../../dashboard/hooks/useGlobalMonthData'
 import { Administrators } from '../../components/Administrators'
+import { Combined } from '../../components/Combined'
 import { Masters } from '../../components/Masters'
 import { StatSection } from '../../components/StatSection'
 
@@ -25,6 +26,13 @@ export default function SalariesTab() {
       <StatSection title={'Администраторы'} id={'admins'} defaultOpen>
         <Administrators data={data.admins} sumAdmins={data.sumAdmins} />
       </StatSection>
+
+      {/* Combined (master + administrator) Section */}
+      {data.combined.length > 0 && (
+        <StatSection title={'Совместители (мастер + админ)'} id={'combined'} defaultOpen>
+          <Combined data={data.combined} sumCombined={data.sumCombined} />
+        </StatSection>
+      )}
     </>
   )
 }
