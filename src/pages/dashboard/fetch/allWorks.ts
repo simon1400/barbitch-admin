@@ -2,7 +2,13 @@ import type { PersonalSumData } from './fetchHelpers'
 
 import { getMonthRange } from '../../../utils/getMonthRange'
 
-import { buildQuery, fetchData, groupAndSumByDateWithGaps, summarizeGeneric } from './fetchHelpers'
+import {
+  buildQuery,
+  fetchData,
+  fetchDayDrafts,
+  groupAndSumByDateWithGaps,
+  summarizeGeneric,
+} from './fetchHelpers'
 
 interface IDataAllWorks extends PersonalSumData {
   staffSalaries: string
@@ -118,7 +124,7 @@ function summarizeWorks(
   return { summary, globalFlow, sumMasters, sumClientsDone, averageCheck, averageMasterSalary, salonSalariesCash, salonSalariesCard }
 }
 
-export const getAllWorks = async (month: number, year: number) => {
+export const getAllWorks = async (month: number, year: number, previewDay?: string) => {
   const { firstDay, lastDay } = getMonthRange(year, month)
 
   const filters = { date: { $gte: firstDay.toISOString(), $lte: lastDay.toISOString() } }
@@ -139,7 +145,28 @@ export const getAllWorks = async (month: number, year: number) => {
     fetchData<PersonalSumData>('/api/taxes', genericQuery),
   ])
 
-  const filteredData = summarizeWorks(data, penalties, extras, payrolls, advance, salaries, taxes)
+  // Preview: merge the day's draft services-provided + payrolls (the two collections a
+  // close publishes that feed master earnings). Other adjustments aren't part of a close.
+  let serviceData = data
+  let payrollData = payrolls
+  if (previewDay) {
+    const [draftServices, draftPayrolls] = await Promise.all([
+      fetchDayDrafts<IDataAllWorks>(
+        '/api/services-provided',
+        ['staffSalaries', 'salonSalaries', 'tip', 'date', 'cash'],
+        'date',
+        previewDay,
+        { personal: { fields: ['name', 'excessThreshold'] } },
+      ),
+      fetchDayDrafts<PersonalSumData>('/api/payrolls', ['sum'], 'date', previewDay, {
+        personal: { fields: ['name'] },
+      }),
+    ])
+    serviceData = [...data, ...draftServices]
+    payrollData = [...payrolls, ...draftPayrolls]
+  }
+
+  const filteredData = summarizeWorks(serviceData, penalties, extras, payrollData, advance, salaries, taxes)
 
   return {
     summary: filteredData.summary.sort((a, b) => b.sum - a.sum),

@@ -21,6 +21,46 @@ const STRAPI_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost
 const strapiLink = (documentId: string) =>
   `${STRAPI_URL}/admin/content-manager/collection-types/api::service-provided.service-provided/${documentId}?status=draft`
 
+// Header icon for the "offer vs Noona service" comparison column.
+const CompareIcon = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="m16 3 4 4-4 4" />
+    <path d="M20 7H4" />
+    <path d="m8 21-4-4 4-4" />
+    <path d="M4 17h16" />
+  </svg>
+)
+
+// Header icon for the voucher column.
+const TicketIcon = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+    <path d="M13 5v2" />
+    <path d="M13 11v2" />
+    <path d="M13 17v2" />
+  </svg>
+)
+
 const ExternalLinkIcon = () => (
   <svg
     width="15"
@@ -81,6 +121,32 @@ const OfferMatchChip = ({ match }: { match: OfferMatch | undefined }) => {
   )
 }
 
+// Voucher connected to a service (oneToOne relation, comes via populate=*).
+// Icon-only chip — the voucher code (+ name / sum) shows in the tooltip on hover.
+const VoucherChip = ({ voucher }: { voucher: any }) => {
+  if (!voucher || (voucher.documentId == null && voucher.id == null)) {
+    return <span className="text-gray-400">—</span>
+  }
+  const title = [
+    voucher.name,
+    voucher.idVoucher ? `#${voucher.idVoucher}` : null,
+    voucher.sum != null ? `${voucher.sum} Kč` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  return (
+    <span
+      title={title}
+      className="inline-flex items-center justify-center w-7 h-6 rounded text-sm bg-pink-100 text-pink-800 cursor-default"
+    >
+      🎟
+    </span>
+  )
+}
+
+const hasVoucher = (item: any): boolean =>
+  item?.voucher != null && (item.voucher.documentId != null || item.voucher.id != null)
+
 const FlagChip = ({ flag, item }: { flag: VerifyFlag; item: any }) => {
   const meta = FLAG_META[flag]
   const delta = getFlagDelta(item, flag)
@@ -106,6 +172,7 @@ export const ServiceProvidedCard = ({
   const visibleCounters = VERIFY_FLAGS.filter((f) => data.flagCounts[f] > 0)
   const offerMatches = buildOfferMatches(data.items, noonaEvents)
   const mismatchCount = [...offerMatches.values()].filter((m) => m.status === 'mismatch').length
+  const voucherCount = data.items.filter((i: any) => hasVoucher(i)).length
 
   return (
     <CheckCard
@@ -141,6 +208,12 @@ export const ServiceProvidedCard = ({
             Služba se liší od Noona: {mismatchCount}
           </span>
         )}
+        {voucherCount > 0 && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-pink-100 text-pink-800">
+            <span className="w-2 h-2 rounded-full bg-pink-500" />
+            Voucher: {voucherCount}
+          </span>
+        )}
       </div>
       {data.items.length > 0 && (
         <div className="mt-3 overflow-x-auto">
@@ -149,11 +222,20 @@ export const ServiceProvidedCard = ({
               <tr className="text-left text-gray-500 border-b">
                 <th className="pb-2 pr-3">Klient</th>
                 <th className="pb-2 pr-3">Mistr</th>
-                <th className="pb-2 pr-3">Služba</th>
-                <th className="pb-2 pr-3">Celkem</th>
+                <th className="pb-2 pr-3" title="Služba (offer) vs Noona">
+                  <span className="inline-flex items-center text-gray-500">
+                    <CompareIcon />
+                  </span>
+                </th>
+                <th className="pb-2 pr-3">All</th>
                 <th className="pb-2 pr-3">Tip</th>
-                <th className="pb-2 pr-3">Hotově</th>
-                <th className="pb-2 pr-3">Verify</th>
+                <th className="pb-2 pr-3">Cash</th>
+                <th className="pb-2 pr-3" title="Voucher">
+                  <span className="inline-flex items-center text-gray-500">
+                    <TicketIcon />
+                  </span>
+                </th>
+                <th className="pb-2 pr-3">Ver</th>
                 <th className="pb-2"></th>
               </tr>
             </thead>
@@ -177,6 +259,9 @@ export const ServiceProvidedCard = ({
                     </td>
                     <td className="py-2 pr-3">{item.tip ? `${item.tip} Kč` : '—'}</td>
                     <td className="py-2 pr-3">{item.cash ? 'Ano' : 'Ne'}</td>
+                    <td className="py-2 pr-3">
+                      <VoucherChip voucher={item.voucher} />
+                    </td>
                     <td className="py-2 pr-3">
                       {flags.length === 0 ? (
                         <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
@@ -223,7 +308,7 @@ export const ServiceProvidedCard = ({
                   {data.items.reduce((sum: number, item: any) => sum + toNum(item.tip), 0) || '—'}
                   {data.items.some((i: any) => toNum(i.tip) > 0) ? ' Kč' : ''}
                 </td>
-                <td className="pt-2" colSpan={3}></td>
+                <td className="pt-2" colSpan={4}></td>
               </tr>
             </tfoot>
           </table>

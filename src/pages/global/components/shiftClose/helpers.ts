@@ -79,12 +79,14 @@ export const buildOfferMatches = (items: any[], events: any[]): Map<any, OfferMa
 export const getDiff = (result: ShiftCheckResult) => {
   if (result.comparison.match) return null
 
+  // Internal worker-to-worker services aren't in Noona — drop them so they don't show
+  // up as "only in Strapi" and don't offset a genuinely missing Noona client.
+  const strapiItems = result.serviceProvided.items.filter((i: any) => !i?.internal)
+
   const noonaNames = result.noona.events.map((e: any) =>
     normalize(e.customer_name || ''),
   )
-  const strapiNames = result.serviceProvided.items.map((i: any) =>
-    normalize(i.clientName || ''),
-  )
+  const strapiNames = strapiItems.map((i: any) => normalize(i.clientName || ''))
 
   const noonaCount = new Map<string, number>()
   noonaNames.forEach((n) => noonaCount.set(n, (noonaCount.get(n) || 0) + 1))
@@ -107,13 +109,13 @@ export const getDiff = (result: ShiftCheckResult) => {
   const usedStrapiIdx = new Set<number>()
   const strapiExtra = onlyInStrapi
     .map((normName) => {
-      const idx = result.serviceProvided.items.findIndex(
+      const idx = strapiItems.findIndex(
         (i: any, idx: number) =>
           !usedStrapiIdx.has(idx) && normalize(i.clientName || '') === normName,
       )
       if (idx >= 0) {
         usedStrapiIdx.add(idx)
-        return result.serviceProvided.items[idx]
+        return strapiItems[idx]
       }
       return null
     })

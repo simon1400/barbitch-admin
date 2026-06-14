@@ -47,6 +47,27 @@ export const fetchData = async <T>(endpoint: string, query: string): Promise<T[]
   return await Axios.get(`${endpoint}?${query}`)
 }
 
+// Fetch a single day's DRAFT records of a collection — used to preview a shift close
+// (drafts aren't counted by the published-only monthly fetches until they're published).
+// dateField 'start' → datetime range, otherwise an exact-day match on a `date` field.
+export const fetchDayDrafts = async <T>(
+  endpoint: string,
+  fields: string[],
+  dateField: 'date' | 'start',
+  dateStr: string,
+  populate?: Record<string, any>,
+): Promise<T[]> => {
+  const filters =
+    dateField === 'start'
+      ? { start: { $gte: `${dateStr}T00:00:00.000Z`, $lte: `${dateStr}T23:59:59.999Z` } }
+      : { date: { $eq: dateStr } }
+  const query = qs.stringify(
+    { filters, fields, populate, pagination: { page: 1, pageSize: 200 }, status: 'draft' },
+    { encodeValuesOnly: true },
+  )
+  return await Axios.get(`${endpoint}?${query}`)
+}
+
 export interface PersonalSumData {
   sum: string
   personal: {

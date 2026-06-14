@@ -5,11 +5,16 @@ import { StatSection } from './components/StatSection'
 import {
   checkShift,
   publishShift,
+  revertShift,
   fetchMonthlyResult,
+  previewShiftResult,
+  getMonthlyCardProfit,
   FLAG_META,
   VERIFY_FLAGS,
   type ShiftCheckResult,
   type PublishFailure,
+  type RevertResult,
+  type ShiftDelta,
 } from './fetch/shiftClose'
 import {
   ComparisonCard,
@@ -30,6 +35,7 @@ export default function ShiftClosePage() {
   const [error, setError] = useState<string | null>(null)
 
   const [cardSum, setCardSum] = useState('')
+  const [extraIncome, setExtraIncome] = useState('')
   const [publishing, setPublishing] = useState(false)
   const [published, setPublished] = useState(false)
   const [publishError, setPublishError] = useState<string | null>(null)
@@ -41,6 +47,14 @@ export default function ShiftClosePage() {
     diffAfter: number
   } | null>(null)
 
+  const [reverting, setReverting] = useState(false)
+  const [revertResult, setRevertResult] = useState<RevertResult | null>(null)
+  const [revertError, setRevertError] = useState<string | null>(null)
+
+  const [previewing, setPreviewing] = useState(false)
+  const [previewDelta, setPreviewDelta] = useState<ShiftDelta | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+
   const handleCheck = async () => {
     setLoading(true)
     setError(null)
@@ -49,14 +63,74 @@ export default function ShiftClosePage() {
     setPublishError(null)
     setPublishFailures([])
     setProfitDelta(null)
+    setRevertResult(null)
+    setRevertError(null)
+    setPreviewDelta(null)
+    setPreviewError(null)
     try {
       const data = await checkShift(selectedDate)
       setResult(data)
+      // Pre-fill the optional "Extra příjem" with the value already saved for the month,
+      // so it isn't overwritten with 0 — the owner edits it only if needed.
+      const cp = await getMonthlyCardProfit(data.date)
+      setExtraIncome(cp && cp.extraIncome ? String(cp.extraIncome) : '')
     } catch (e) {
       console.error(e)
       setError('Chyba při kontrole směny. Zkuste to znovu.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleRevert = async () => {
+    if (!result) return
+    const ok = window.confirm(
+      'Vrátit uzavření směny?\n\nVšechny publikované záznamy tohoto dne se vrátí do konceptu ' +
+        '(data zůstanou, nic se nesmaže). Poté je můžete upravit ve Strapi a směnu znovu uzavřít.',
+    )
+    if (!ok) return
+
+    setReverting(true)
+    setRevertError(null)
+    setRevertResult(null)
+    try {
+      const r = await revertShift(result.date)
+      setRevertResult(r)
+      // Records are drafts again — reset publish state and refresh the check.
+      setPublished(false)
+      setProfitDelta(null)
+      setPublishFailures([])
+      setPublishError(null)
+      const data = await checkShift(selectedDate)
+      setResult(data)
+      // Card-profit was zeroed by the revert — reflect that in the pre-filled field.
+      const cp = await getMonthlyCardProfit(data.date)
+      setExtraIncome(cp && cp.extraIncome ? String(cp.extraIncome) : '')
+    } catch (e) {
+      console.error(e)
+      setRevertError('Chyba při vrácení uzavření. Zkuste to znovu.')
+    } finally {
+      setReverting(false)
+    }
+  }
+
+  const handlePreview = async () => {
+    if (!result) return
+    setPreviewing(true)
+    setPreviewError(null)
+    setPreviewDelta(null)
+    try {
+      const d = await previewShiftResult(
+        result.date,
+        Number(cardSum) || 0,
+        Number(extraIncome) || 0,
+      )
+      setPreviewDelta(d)
+    } catch (e) {
+      console.error(e)
+      setPreviewError('Chyba při výpočtu náhledu. Zkuste to znovu.')
+    } finally {
+      setPreviewing(false)
     }
   }
 
@@ -72,13 +146,15 @@ export default function ShiftClosePage() {
     setPublishFailures([])
     setPublished(false)
     setProfitDelta(null)
+    setPreviewDelta(null)
+    setPreviewError(null)
     try {
       const date = new Date(result.date)
       const month = date.getMonth()
       const year = date.getFullYear()
 
       const before = await fetchMonthlyResult(month, year)
-      const { failures } = await publishShift(result.date, Number(cardSum))
+      const { failures } = await publishShift(result.date, Number(cardSum), Number(extraIncome) || 0)
       const after = await fetchMonthlyResult(month, year)
 
       setProfitDelta({
@@ -235,12 +311,22 @@ export default function ShiftClosePage() {
               <PublishSection
                 cardSum={cardSum}
                 setCardSum={setCardSum}
+                extraIncome={extraIncome}
+                setExtraIncome={setExtraIncome}
                 publishing={publishing}
                 published={published}
                 publishError={publishError}
                 publishFailures={publishFailures}
                 profitDelta={profitDelta}
                 onPublish={handlePublishShift}
+                reverting={reverting}
+                revertResult={revertResult}
+                revertError={revertError}
+                onRevert={handleRevert}
+                previewing={previewing}
+                previewDelta={previewDelta}
+                previewError={previewError}
+                onPreview={handlePreview}
               />
             </>
           )}

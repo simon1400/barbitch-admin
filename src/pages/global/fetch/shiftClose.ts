@@ -8,9 +8,9 @@ import { getAllWorks } from '../../dashboard/fetch/allWorks'
 
 // Mirror of Strapi lifecycle (strapi/.../service-provided/lifecycles.ts).
 // Kept in sync — also used to recompute flags for legacy records (verify is string).
-export type VerifyFlag = 'ok' | 'sleva' | 'ztrata' | 'salon_up' | 'mistr_up' | 'mistr_down'
+export type VerifyFlag = 'ok' | 'sleva' | 'ztrata' | 'salon_up' | 'mistr_up' | 'mistr_down' | 'internal'
 
-export const VERIFY_FLAGS: VerifyFlag[] = ['ok', 'sleva', 'salon_up', 'mistr_up', 'mistr_down', 'ztrata']
+export const VERIFY_FLAGS: VerifyFlag[] = ['ok', 'internal', 'sleva', 'salon_up', 'mistr_up', 'mistr_down', 'ztrata']
 
 export interface FlagMeta {
   emoji: string
@@ -64,6 +64,13 @@ export const FLAG_META: Record<VerifyFlag, FlagMeta> = {
     dotCls: 'bg-amber-500',
     severity: 1,
   },
+  internal: {
+    emoji: '🤝',
+    label: 'Interní služba',
+    chipCls: 'bg-indigo-100 text-indigo-800',
+    dotCls: 'bg-indigo-500',
+    severity: 0,
+  },
 }
 
 // Цены хранятся строками; junior-цены (−20%) бывают с запятой ("237,6").
@@ -111,11 +118,21 @@ const computeFlagsFromValues = (
   staffSalaries: number,
   salonSalaries: number,
   sale: unknown,
+  internal: boolean,
 ): VerifyFlag[] => {
   const { mustStaff, mustSalonNow, hasSale } = computeMustValues(offerPrice, ratePercent, sale)
   // Round to whole crowns before comparing — kills float noise (e.g. 1112*0.3 =
   // 333.59999999999997) that otherwise makes an exact 333.6 false-flag mistr_up/ztrata.
   const r = (n: number) => Math.round(n * 100) / 100
+
+  // Internal worker-to-worker service: salon profit 0 is normal → only check master %.
+  if (internal) {
+    const flags: VerifyFlag[] = ['internal']
+    if (r(staffSalaries) > r(mustStaff)) flags.push('mistr_up')
+    if (r(staffSalaries) < r(mustStaff)) flags.push('mistr_down')
+    return flags
+  }
+
   const flags: VerifyFlag[] = []
   if (r(staffSalaries) > r(mustStaff)) flags.push('mistr_up')
   if (r(staffSalaries) < r(mustStaff)) flags.push('mistr_down')
@@ -144,6 +161,7 @@ export const getItemFlags = (item: any): VerifyFlag[] => {
       toNum(item?.staffSalaries),
       toNum(item?.salonSalaries),
       item?.sale,
+      Boolean(item?.internal),
     )
   }
   return []
@@ -230,7 +248,7 @@ const fetchServiceProvided = async (dateStr: string) => {
     const items = Array.isArray(res) ? res : (res as any)?.data || []
     // Counters are per-flag (one item with multiple flags is counted in each)
     const flagCounts: Record<VerifyFlag, number> = {
-      ok: 0, sleva: 0, ztrata: 0, salon_up: 0, mistr_up: 0, mistr_down: 0,
+      ok: 0, sleva: 0, ztrata: 0, salon_up: 0, mistr_up: 0, mistr_down: 0, internal: 0,
     }
     let unverified = 0
     for (const i of items as any[]) {
@@ -247,7 +265,7 @@ const fetchServiceProvided = async (dateStr: string) => {
     return {
       found: false,
       count: 0,
-      flagCounts: { ok: 0, sleva: 0, ztrata: 0, salon_up: 0, mistr_up: 0, mistr_down: 0 },
+      flagCounts: { ok: 0, sleva: 0, ztrata: 0, salon_up: 0, mistr_up: 0, mistr_down: 0, internal: 0 },
       unverified: 0,
       items: [],
     }
@@ -336,12 +354,40 @@ const findMonthlyCardProfit = async (dateStr: string) => {
   return draftItems[0] || pubItems[0] || null
 }
 
-// Compute "Результат за месяц" from real data
-export const fetchMonthlyResult = async (month: number, year: number) => {
+// Read the current published monthly card-profit (sum + extraIncome) for pre-filling
+// the close form. Returns null if no card-profit exists yet for that month.
+export const getMonthlyCardProfit = async (
+  dateStr: string,
+): Promise<{ sum: number; extraIncome: number } | null> => {
+  const [year, month] = dateStr.split('-')
+  const monthStart = `${year}-${month}-01`
+  const lastDay = new Date(Number(year), Number(month), 0).getDate()
+  const monthEnd = `${year}-${month}-${String(lastDay).padStart(2, '0')}`
+  try {
+    const res = await Axios.get(
+      `/api/card-profits?filters[date][$gte]=${monthStart}&filters[date][$lte]=${monthEnd}&pagination[pageSize]=1`,
+    )
+    const items = Array.isArray(res) ? res : []
+    const cp: any = items[0]
+    if (!cp) return null
+    return { sum: Number(cp.sum) || 0, extraIncome: Number(cp.extraIncome) || 0 }
+  } catch (e) {
+    console.error('getMonthlyCardProfit error:', e)
+    return null
+  }
+}
+
+// Compute "Результат за месяц" from real data. When `preview` is given, the day's
+// drafts + entered card values are folded in (without saving) — used for the preview.
+export const fetchMonthlyResult = async (
+  month: number,
+  year: number,
+  preview?: { day: string; cardSum: number; extraIncome: number },
+) => {
   const [moneyRes, adminsRes, worksRes] = await Promise.all([
-    getMoney(month, year),
-    getAdminsHours(month, year),
-    getAllWorks(month, year),
+    getMoney(month, year, preview),
+    getAdminsHours(month, year, preview?.day),
+    getAllWorks(month, year, preview?.day),
   ])
 
   const result =
@@ -377,6 +423,36 @@ export const fetchMonthlyResult = async (month: number, year: number) => {
     moneyRes.voucherPayedSum
 
   return { result, resultDph, difference }
+}
+
+export interface ShiftDelta {
+  before: number
+  after: number
+  diffBefore: number
+  diffAfter: number
+}
+
+// Preview the shift result BEFORE closing — same number publishShift would yield, but
+// nothing is written to Strapi. Computes the monthly result as-is vs. with this day's
+// drafts + the entered card values folded in.
+export const previewShiftResult = async (
+  dateStr: string,
+  cardSum: number,
+  extraIncome: number,
+): Promise<ShiftDelta> => {
+  const date = new Date(dateStr)
+  const month = date.getMonth()
+  const year = date.getFullYear()
+  const [before, after] = await Promise.all([
+    fetchMonthlyResult(month, year),
+    fetchMonthlyResult(month, year, { day: dateStr, cardSum, extraIncome }),
+  ])
+  return {
+    before: before.result,
+    after: after.result,
+    diffBefore: before.difference,
+    diffAfter: after.difference,
+  }
 }
 
 export interface PublishFailure {
@@ -425,6 +501,10 @@ const buildLabel = (collectionKey: string, item: any): string => {
     }
     case 'card-profits':
       return `Card profit ${item?.date ?? ''}`.trim()
+    case 'vouchers': {
+      const idv = item?.idVoucher
+      return [item?.name, idv ? `#${idv}` : null].filter(Boolean).join(' ') || `Voucher ID ${item?.id ?? '?'}`
+    }
     default:
       return `ID ${item?.id ?? '?'}`
   }
@@ -436,6 +516,7 @@ const COLLECTION_LABEL: Record<string, string> = {
   'work-times': 'Work-time',
   'payrolls': 'Payroll',
   'card-profits': 'Card profit',
+  'vouchers': 'Voucher',
 }
 
 // Required-field map (mirrors strapi schema.json `required: true`).
@@ -517,6 +598,7 @@ const validateDraft = (collectionKey: string, item: any): string[] => {
 export const publishShift = async (
   dateStr: string,
   cardSum: number,
+  extraIncome: number,
 ): Promise<{ published: number; failures: PublishFailure[] }> => {
   const collections: { key: string; url: string }[] = [
     { key: 'cashs', url: `/api/cashs?filters[date][$eq]=${dateStr}&status=draft&populate=*&pagination[pageSize]=100` },
@@ -577,13 +659,34 @@ export const publishShift = async (
     })
   })
 
+  // Vouchers connected to this shift's services: stamp dateRealized = shift date
+  // and publish them alongside. Dedup by id — one voucher may cover several
+  // services. The voucher relation comes from `populate=*` on services-provided.
+  const spIdx = collections.findIndex((c) => c.key === 'services-provided')
+  const serviceDrafts = spIdx >= 0 ? allDrafts[spIdx] || [] : []
+  const voucherMap = new Map<string, any>()
+  for (const sp of serviceDrafts as any[]) {
+    const v = sp?.voucher
+    const vid = v?.documentId || v?.id
+    if (v && vid && !voucherMap.has(String(vid))) voucherMap.set(String(vid), v)
+  }
+  for (const v of voucherMap.values()) {
+    const id = v.documentId || v.id
+    tasks.push({
+      collectionKey: 'vouchers',
+      endpoint: `/api/vouchers/${id}?status=published`,
+      item: v,
+      body: { data: { dateRealized: dateStr } },
+    })
+  }
+
   // Card-profit (monthly) is handled separately because it may need POST first.
   const existing = await findMonthlyCardProfit(dateStr)
   let cardProfitItem = existing
   if (!cardProfitItem) {
     try {
       await Axios.post(`/api/card-profits`, {
-        data: { sum: String(cardSum), date: dateStr },
+        data: { sum: String(cardSum), extraIncome: String(extraIncome), date: dateStr },
       })
       cardProfitItem = await findMonthlyCardProfit(dateStr)
     } catch (e) {
@@ -600,14 +703,47 @@ export const publishShift = async (
 
   if (cardProfitItem) {
     const id = cardProfitItem.documentId || cardProfitItem.id
-    tasks.push({
-      collectionKey: 'card-profits',
-      endpoint: `/api/card-profits/${id}?status=published`,
-      item: cardProfitItem,
-      body: existing
-        ? { data: { sum: String(cardSum), date: dateStr } }
-        : { data: {} },
-    })
+    if (existing) {
+      // Card-profit is a single monthly CUMULATIVE record this close overwrites. Save the
+      // value it had BEFORE this close into prevSum/prevExtraIncome so a later revert can
+      // restore the correct baseline (zeroing it broke the next close's profit math).
+      // Re-closing with the same value keeps the original prev (don't clobber it).
+      const curSum = Number(existing.sum) || 0
+      const curExtra = Number(existing.extraIncome) || 0
+      const prevSum = curSum === cardSum ? Number(existing.prevSum) || curSum : curSum
+      const prevExtra =
+        curExtra === extraIncome ? Number(existing.prevExtraIncome) || curExtra : curExtra
+      const cpBody = {
+        data: {
+          sum: String(cardSum),
+          extraIncome: String(extraIncome),
+          date: dateStr,
+          prevSum: String(prevSum),
+          prevExtraIncome: String(prevExtra),
+        },
+      }
+      // Update both versions (draft shown in Content Manager, published read by reports).
+      tasks.push({
+        collectionKey: 'card-profits',
+        endpoint: `/api/card-profits/${id}`,
+        item: cardProfitItem,
+        body: cpBody,
+      })
+      tasks.push({
+        collectionKey: 'card-profits',
+        endpoint: `/api/card-profits/${id}?status=published`,
+        item: cardProfitItem,
+        body: cpBody,
+      })
+    } else {
+      // Freshly POSTed record (sum/extraIncome already set, prev defaults to 0) → publish.
+      tasks.push({
+        collectionKey: 'card-profits',
+        endpoint: `/api/card-profits/${id}?status=published`,
+        item: cardProfitItem,
+        body: { data: {} },
+      })
+    }
   }
 
   // Run all PUTs in parallel via allSettled — collect failures without throwing.
@@ -638,6 +774,83 @@ export const publishShift = async (
   return { published, failures }
 }
 
+export interface RevertResult {
+  unpublished: Record<string, number>
+  vouchersReverted: number
+  cardProfitReset: boolean
+  errors: string[]
+}
+
+// Revert a shift close: bring every published record of that day back to DRAFT
+// (data preserved — never deleted) so it can be edited and re-closed.
+// Unpublishing the day collections is done server-side (Strapi 5 Documents API — the
+// only safe unpublish; REST DELETE would wipe the records). Voucher dateRealized is
+// cleared here via the proven REST inverse of publish (keeps the voucher published).
+export const revertShift = async (dateStr: string): Promise<RevertResult> => {
+  const errors: string[] = []
+
+  // 1. Clear dateRealized on vouchers attached to this day's (still published) services.
+  let vouchersReverted = 0
+  try {
+    const res = await Axios.get(
+      `/api/services-provided?filters[date][$eq]=${dateStr}&populate=voucher&pagination[pageSize]=200`,
+    )
+    const items = Array.isArray(res) ? res : []
+    const voucherIds = new Set<string>()
+    for (const sp of items as any[]) {
+      const v = sp?.voucher
+      const id = v?.documentId || v?.id
+      if (v && id) voucherIds.add(String(id))
+    }
+    for (const id of voucherIds) {
+      try {
+        await Axios.put(`/api/vouchers/${id}?status=published`, { data: { dateRealized: null } })
+        vouchersReverted++
+      } catch (e) {
+        errors.push(`voucher ${id}: ${extractErrorMessage(e)}`)
+      }
+    }
+  } catch (e) {
+    errors.push(`vouchers: ${extractErrorMessage(e)}`)
+  }
+
+  // 2. Restore the monthly card-profit to the value it had BEFORE this shift's close
+  //    (saved in prevSum/prevExtraIncome by publishShift). Card-profit is cumulative
+  //    month-to-date, so zeroing it broke the next close's profit math (the whole month's
+  //    card income got counted as one shift). Restoring the previous baseline fixes that.
+  let cardProfitReset = false
+  try {
+    const cp = await findMonthlyCardProfit(dateStr)
+    if (cp) {
+      const id = cp.documentId || cp.id
+      const restore = {
+        data: {
+          sum: String(Number(cp.prevSum) || 0),
+          extraIncome: String(Number(cp.prevExtraIncome) || 0),
+        },
+      }
+      // Restore BOTH versions (draft shown in Content Manager, published read by reports).
+      await Axios.put(`/api/card-profits/${id}`, restore) // draft
+      await Axios.put(`/api/card-profits/${id}?status=published`, restore) // published
+      cardProfitReset = true
+    }
+  } catch (e) {
+    errors.push(`card-profit: ${extractErrorMessage(e)}`)
+  }
+
+  // 3. Server-side unpublish of the day's records (cashs / services / work-times / payrolls).
+  let unpublished: Record<string, number> = {}
+  try {
+    const resp = (await Axios.post(`/api/shift-revert`, { date: dateStr })) as any
+    unpublished = resp?.unpublished || {}
+    if (Array.isArray(resp?.errors)) errors.push(...resp.errors)
+  } catch (e) {
+    errors.push(`unpublish: ${extractErrorMessage(e)}`)
+  }
+
+  return { unpublished, vouchersReverted, cardProfitReset, errors }
+}
+
 // Main check function — runs all checks in parallel
 export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
   const dateStr = format(date, 'yyyy-MM-dd')
@@ -650,11 +863,14 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
     fetchNoonaEvents(dateStr),
   ])
 
+  // Internal worker-to-worker services never exist in Noona, so they must NOT count
+  // toward the Noona↔Strapi comparison — otherwise they mask a real missing client.
+  const strapiComparable = serviceProvided.items.filter((i: any) => !i?.internal).length
   const comparison = {
-    strapiCount: serviceProvided.count,
+    strapiCount: strapiComparable,
     noonaCount: noona.count,
-    match: serviceProvided.count === noona.count,
-    difference: Math.abs(serviceProvided.count - noona.count),
+    match: strapiComparable === noona.count,
+    difference: Math.abs(strapiComparable - noona.count),
   }
 
   return {
