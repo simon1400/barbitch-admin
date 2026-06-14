@@ -146,8 +146,8 @@ export const getAdminsHours = async (month: number, year: number, previewDay?: s
   }
 
   const queryWorkTimes = buildQuery(
-    { start: filters.date },
-    ['start', 'sum'],
+    { date: filters.date },
+    ['date', 'sum'],
     {
       personal: {
         fields: ['name', 'excessThreshold'],
@@ -175,7 +175,7 @@ export const getAdminsHours = async (month: number, year: number, previewDay?: s
   let payrollData = payrolls
   if (previewDay) {
     const [draftWt, draftPayrolls] = await Promise.all([
-      fetchDayDrafts<PersonalSumData>('/api/work-times', ['start', 'sum'], 'start', previewDay, {
+      fetchDayDrafts<PersonalSumData>('/api/work-times', ['date', 'sum'], 'date', previewDay, {
         personal: {
           fields: ['name', 'excessThreshold'],
           populate: { rates: { fields: ['rate', 'hourlyRate', 'from', 'to', 'typeWork'] } },
@@ -213,8 +213,8 @@ export const getAdminsHoursByDateRange = async (startDate: Date, endDate: Date) 
   }
 
   const queryWorkTimes = buildQuery(
-    { start: filters.date },
-    ['start', 'sum'],
+    { date: filters.date },
+    ['date', 'sum'],
     {
       personal: {
         fields: ['name', 'excessThreshold'],

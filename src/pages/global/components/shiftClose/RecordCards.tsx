@@ -60,16 +60,7 @@ export const WorkTimeCard = ({ data }: { data: ShiftCheckResult['workTime'] }) =
               {hasComment(item.comment) && <CommentPopover html={item.comment} />}
             </span>
             <span className="font-medium">
-              {new Date(item.start).toLocaleTimeString('cs-CZ', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}{' '}
-              –{' '}
-              {new Date(item.end).toLocaleTimeString('cs-CZ', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}{' '}
-              ({item.sum}h)
+              {item.startTime} – {item.endTime} ({item.sum}h)
             </span>
           </div>
         ))}

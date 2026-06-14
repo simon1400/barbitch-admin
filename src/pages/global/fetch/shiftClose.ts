@@ -273,13 +273,11 @@ const fetchServiceProvided = async (dateStr: string) => {
   }
 }
 
-// Fetch work-time records for a specific date (datetime field — filter by range)
+// Fetch work-time records for a specific date (date field — exact-day match)
 const fetchWorkTime = async (dateStr: string) => {
   try {
-    const startOfDay = `${dateStr}T00:00:00.000Z`
-    const endOfDay = `${dateStr}T23:59:59.999Z`
     const res = await Axios.get(
-      `/api/work-times?filters[start][$gte]=${startOfDay}&filters[start][$lte]=${endOfDay}&populate=*&pagination[pageSize]=100&status=draft`,
+      `/api/work-times?filters[date][$eq]=${dateStr}&populate=*&pagination[pageSize]=100&status=draft`,
     )
     const items = Array.isArray(res) ? res : (res as any)?.data || []
     return { found: items.length > 0, count: items.length, items }
@@ -498,8 +496,7 @@ const buildLabel = (collectionKey: string, item: any): string => {
     }
     case 'work-times': {
       const name = item?.personal?.name
-      const start = item?.start ? new Date(item.start).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }) : ''
-      return [name, start].filter(Boolean).join(' ') || `Work-time ID ${item?.id ?? '?'}`
+      return [name, item?.startTime].filter(Boolean).join(' ') || `Work-time ID ${item?.id ?? '?'}`
     }
     case 'payrolls': {
       const name = item?.personal?.name
@@ -537,8 +534,9 @@ const REQUIRED_FIELDS: Record<string, { name: string; type: FieldType }[]> = {
     { name: 'flow', type: 'array' },
   ],
   'work-times': [
-    { name: 'start', type: 'date' },
-    { name: 'end', type: 'date' },
+    { name: 'date', type: 'date' },
+    { name: 'startTime', type: 'string' },
+    { name: 'endTime', type: 'string' },
     { name: 'sum', type: 'number' },
     { name: 'comment', type: 'html' },
   ],
@@ -610,7 +608,7 @@ export const publishShift = async (
   const collections: { key: string; url: string }[] = [
     { key: 'cashs', url: `/api/cashs?filters[date][$eq]=${dateStr}&status=draft&populate=*&pagination[pageSize]=100` },
     { key: 'services-provided', url: `/api/services-provided?filters[date][$eq]=${dateStr}&status=draft&populate=*&pagination[pageSize]=100` },
-    { key: 'work-times', url: `/api/work-times?filters[start][$gte]=${dateStr}T00:00:00.000Z&filters[start][$lte]=${dateStr}T23:59:59.999Z&status=draft&populate=*&pagination[pageSize]=100` },
+    { key: 'work-times', url: `/api/work-times?filters[date][$eq]=${dateStr}&status=draft&populate=*&pagination[pageSize]=100` },
     { key: 'payrolls', url: `/api/payrolls?filters[date][$eq]=${dateStr}&status=draft&populate=*&pagination[pageSize]=100` },
   ]
 

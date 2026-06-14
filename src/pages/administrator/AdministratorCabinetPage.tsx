@@ -83,7 +83,9 @@ interface AdministratorData {
   }>
   workTimes: Array<{
     id: number
-    start: string
+    date: string
+    startTime: string
+    endTime: string
     sum: number
     comment: string
   }>
@@ -175,8 +177,8 @@ const AdministratorCabinetPage = () => {
     }
 
     return {
-      workTimes: filterByMonth(data.workTimes, 'start').sort(
-        (a, b) => new Date(b.start).getTime() - new Date(a.start).getTime(),
+      workTimes: filterByMonth(data.workTimes, 'date').sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       ),
       penalties: filterByMonth(data.penalties, 'date').sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
@@ -488,6 +490,7 @@ const AdministratorCabinetPage = () => {
               <thead>
                 <tr>
                   <Cell title={'Дата'} asHeader />
+                  <Cell title={'Время'} asHeader />
                   <Cell title={'Часов'} asHeader />
                   <Cell title={'Комментарий'} asHeader />
                 </tr>
@@ -495,7 +498,12 @@ const AdministratorCabinetPage = () => {
               <tbody>
                 {paginatedWorkTimes.map((wt) => (
                   <tr key={wt.id} className={'hover:bg-gray-50 transition-colors'}>
-                    <Cell title={new Date(wt.start).toLocaleDateString('ru-RU')} />
+                    <Cell title={new Date(wt.date).toLocaleDateString('ru-RU')} />
+                    <Cell
+                      title={
+                        wt.startTime && wt.endTime ? `${wt.startTime}–${wt.endTime}` : '-'
+                      }
+                    />
                     <Cell title={`${Number(wt.sum).toLocaleString()} hod`} />
                     <Cell
                       title={
