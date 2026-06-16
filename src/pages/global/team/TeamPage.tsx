@@ -16,6 +16,7 @@ const tabs: TeamTab[] = [
   { to: 'time-off', label: 'Больничные / отпуска' },
   { to: 'load', label: 'Загрузка' },
   { to: 'gaps', label: 'Окна' },
+  { to: 'cross-sell', label: 'Дозапись в окно' },
 ]
 
 export default function TeamPage() {

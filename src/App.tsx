@@ -43,6 +43,7 @@ const TeamPriorityTab = lazy(() => import('./pages/global/team/tabs/PriorityTab'
 const TeamTimeOffTab = lazy(() => import('./pages/global/team/tabs/TimeOffTab'))
 const TeamLoadTab = lazy(() => import('./pages/global/team/tabs/LoadTab'))
 const TeamGapsTab = lazy(() => import('./pages/global/team/tabs/GapsTab'))
+const TeamCrossSellTab = lazy(() => import('./pages/global/team/tabs/CrossSellTab'))
 
 // Получить домашнюю страницу в зависимости от роли
 const getHomePageByRole = (role: string | null): string => {
@@ -217,6 +218,7 @@ function App() {
             <Route path="time-off" element={<TeamTimeOffTab />} />
             <Route path="load" element={<TeamLoadTab />} />
             <Route path="gaps" element={<TeamGapsTab />} />
+            <Route path="cross-sell" element={<TeamCrossSellTab />} />
           </Route>
           {/* Legacy URL redirects — old standalone pages now live as Team tabs */}
           <Route
