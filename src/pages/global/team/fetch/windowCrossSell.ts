@@ -48,11 +48,16 @@ export const BUCKET_LABEL_CS: Record<Bucket, string> = {
 export const classifyTitle = (raw: string): Bucket | null => {
   const t = raw.toLowerCase()
   if (t.includes('řas') || t.includes('rias') || t.includes('lash')) return 'lashes'
+  // Брови: многие услуги БЕЗ слова «obočí» (Laminace, Úprava tvaru, Korekce…).
+  // «laminace»/«úprava tvaru» здесь безопасны — ресничные ловятся выше по «řas».
   if (
     t.includes('obočí') ||
     t.includes('oboci') ||
     t.includes('brow') ||
-    t.includes('barvení a péče')
+    t.includes('barvení a péče') ||
+    t.includes('laminace') ||
+    t.includes('úprava tvaru') ||
+    t.includes('uprava tvaru')
   )
     return 'brows'
   const nailKeys = [
@@ -376,16 +381,26 @@ interface Derived {
   bucketServices: Map<Bucket, ServiceMetaD[]>
   empBuckets: Map<string, Set<Bucket>>
   empById: Map<string, Employee>
+  // id услуги → категория (для надёжной классификации БРОНЕЙ: многие брови-услуги
+  // не содержат «obočí» в названии — «Laminace», «Úprava tvaru» — но лежат в брови-категории)
+  serviceBucket: Map<string, Bucket>
 }
 // Услуги по категориям + категории каждого мастера (из назначенных услуг) — чисто
 const buildDerived = (slow: SlowCache): Derived => {
   const bucketServices = new Map<Bucket, ServiceMetaD[]>()
+  const serviceBucket = new Map<string, Bucket>()
   for (const cat of slow.catServices) {
     const b = classifyTitle(cat.title)
     if (!b) continue
+    // junior-категория (Nehty - Junior): услуги НЕ предлагаем (junior −20%, юниоров
+    // исключаем), но в serviceBucket держим — чтобы junior-бронь считалась «маникюр».
+    const isJuniorCat = cat.title.toLowerCase().includes('junior')
     const list = bucketServices.get(b) ?? []
     for (const meta of cat.services) {
-      if (meta.hidden || meta.duration <= 0 || isExcludedOfferService(meta.title)) continue
+      // serviceBucket — ВСЕ услуги категории (даже скрытые/снятия/junior), для классификации броней
+      if (!serviceBucket.has(meta.id)) serviceBucket.set(meta.id, b)
+      // bucketServices — только то, что МОЖНО предложить (базовое, не скрытое, с длительностью)
+      if (isJuniorCat || meta.hidden || meta.duration <= 0 || isExcludedOfferService(meta.title)) continue
       if (!list.some((s) => s.id === meta.id)) list.push(meta)
     }
     bucketServices.set(b, list)
@@ -399,8 +414,21 @@ const buildDerived = (slow: SlowCache): Derived => {
     }
     if (set.size) empBuckets.set(emp.id, set)
   }
-  return { bucketServices, empBuckets, empById: new Map(slow.employees.map((e) => [e.id, e])) }
+  return {
+    bucketServices,
+    empBuckets,
+    empById: new Map(slow.employees.map((e) => [e.id, e])),
+    serviceBucket,
+  }
 }
+
+// Классификатор брони: сначала по id услуги (надёжно — брови-комбо в брови-категории),
+// фолбэк — по названию (для nail-комбо, которых нет в категориях после s74).
+const classifierFrom =
+  (serviceBucket: Map<string, Bucket>) =>
+  (e: RawBookingEvent): Bucket | null =>
+    serviceBucket.get(e.event_types?.[0]?.id ?? '') ??
+    classifyTitle(e.event_types?.[0]?.title ?? '')
 
 interface DayBooking {
   eventId: string
@@ -410,6 +438,7 @@ interface DayBooking {
 // Брони по ключу клиент|день (только активные, классифицируемые)
 const groupByClientDay = (
   events: RawBookingEvent[],
+  classify: (e: RawBookingEvent) => Bucket | null,
   allowDays?: Set<string>,
 ): Map<string, { date: string; customerId: string; bookings: DayBooking[] }> => {
   const map = new Map<string, { date: string; customerId: string; bookings: DayBooking[] }>()
@@ -418,7 +447,7 @@ const groupByClientDay = (
     if (allowDays && !allowDays.has(e.event_date)) continue
     if (e.status === 'cancelled') continue
     if (!e.starts_at || !e.ends_at) continue
-    const bucket = classifyTitle(e.event_types?.[0]?.title ?? '')
+    const bucket = classify(e)
     if (!bucket) continue
     const k = `${e.customer}|${e.event_date}`
     let grp = map.get(k)
@@ -442,7 +471,7 @@ export const getWindowCrossSellCandidates = async (
   // Медленно-меняющиеся данные (кэш) + дешёвые свежие (2-дневные окна + Strapi-лог)
   const slow = await ensureSlow(force)
   const { customers, juniorIds } = slow
-  const { bucketServices, empBuckets, empById } = buildDerived(slow)
+  const { bucketServices, empBuckets, empById, serviceBucket } = buildDerived(slow)
 
   const [bookings, gaps, logs] = await Promise.all([
     fetchDayBookings(d1, d2),
@@ -451,7 +480,7 @@ export const getWindowCrossSellCandidates = async (
   ])
   const sentSet = new Set(logs.map((l) => l.bookingEventId))
 
-  const byClientDay = groupByClientDay(bookings, days)
+  const byClientDay = groupByClientDay(bookings, classifierFrom(serviceBucket), days)
   const candidates: CrossSellCandidate[] = []
 
   for (const grp of byClientDay.values()) {
@@ -563,14 +592,14 @@ export const getWindowFillCandidates = async (
 ): Promise<CrossSellCandidate[]> => {
   const slow = await ensureSlow(false)
   if (slow.juniorIds.has(employeeId)) return [] // окно юниора — дозапись не предлагаем
-  const { bucketServices, empBuckets, empById } = buildDerived(slow)
+  const { bucketServices, empBuckets, empById, serviceBucket } = buildDerived(slow)
   const masterCats = empBuckets.get(employeeId)
   if (!masterCats || masterCats.size === 0) return []
   const emp = empById.get(employeeId)
 
   const [bookings, logs] = await Promise.all([fetchDayBookings(date, date), fetchOfferLogs()])
   const sentSet = new Set(logs.map((l) => l.bookingEventId))
-  const byClientDay = groupByClientDay(bookings, new Set([date]))
+  const byClientDay = groupByClientDay(bookings, classifierFrom(serviceBucket), new Set([date]))
 
   const gapStart = hhmmToMin(gapStartHHMM)
   const gapEnd = hhmmToMin(gapEndHHMM)
