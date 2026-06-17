@@ -106,6 +106,8 @@ export default function GapsTab() {
   )
 
   const fillSelected = fillCands.filter((c) => fillSel.has(c.key) && !c.alreadySent)
+  // Окно юниора → предлагаем junior-ногти (−20% уже в цене + скидка за дозапись)
+  const isJuniorFill = fillCands.some((c) => c.isJunior)
   const toggleFill = (key: string) =>
     setFillSel((prev) => {
       const next = new Set(prev)
@@ -326,7 +328,14 @@ export default function GapsTab() {
           <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full p-6 max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-start mb-3">
               <div>
-                <h3 className="text-2xl font-bold text-gray-900">Дозапись в окно</h3>
+                <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  {isJuniorFill ? 'Дозапись к юниору' : 'Дозапись в окно'}
+                  {isJuniorFill && (
+                    <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-100 text-purple-700">
+                      junior −20% в цене
+                    </span>
+                  )}
+                </h3>
                 <p className="text-sm text-gray-600">
                   {fill.name} · {fmtDay(fill.date)} · окно {fill.start}–{fill.end}
                 </p>
@@ -343,7 +352,7 @@ export default function GapsTab() {
 
             <div className="flex items-center gap-3 mb-4 flex-wrap">
               <label className="flex items-center gap-2 text-sm text-gray-700">
-                Скидка:
+                {isJuniorFill ? 'Скидка за дозапись:' : 'Скидка:'}
                 <input
                   type="text"
                   value={discount}
@@ -351,6 +360,11 @@ export default function GapsTab() {
                   className="w-24 px-3 py-1.5 rounded-lg border border-gray-300 text-sm"
                 />
               </label>
+              {isJuniorFill && (
+                <span className="text-xs text-purple-700">
+                  −20% уже в цене junior + {discount} за дозапись
+                </span>
+              )}
               <button
                 type="button"
                 disabled={fillSelected.length === 0 || fillSending}
@@ -416,8 +430,8 @@ export default function GapsTab() {
                         >
                           {(c.serviceOptions ?? []).map((o) => (
                             <option key={o.serviceId} value={o.serviceId}>
-                              {BUCKET_LABEL[o.offerBucket]} — {o.serviceTitle} ({o.serviceDurationMin}{' '}
-                              мин)
+                              {o.isJunior ? 'Junior' : BUCKET_LABEL[o.offerBucket]} — {o.serviceTitle}{' '}
+                              ({o.serviceDurationMin} мин)
                             </option>
                           ))}
                         </select>

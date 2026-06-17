@@ -306,6 +306,7 @@ export interface ServiceOption {
   serviceDurationMin: number
   offerBucket: Bucket
   bookingUrl: string
+  isJunior?: boolean // junior-услуга (Nehty - Junior, −20% уже в цене)
 }
 
 export interface CrossSellCandidate {
@@ -330,6 +331,9 @@ export interface CrossSellCandidate {
   // Все услуги, влезающие в окно (для ручного выбора в модале «дозапись в окно»).
   // По умолчанию выбран первый (самый длинный). В cross-sell табе не используется.
   serviceOptions?: ServiceOption[]
+  // true → предложение junior-услуг (заполнение окна юниора): другое письмо,
+  // −20% уже в цене junior + −discount за дозапись. Только в обратном направлении.
+  isJunior?: boolean
 }
 
 interface OfferOption {
@@ -384,23 +388,31 @@ interface Derived {
   // id услуги → категория (для надёжной классификации БРОНЕЙ: многие брови-услуги
   // не содержат «obočí» в названии — «Laminace», «Úprava tvaru» — но лежат в брови-категории)
   serviceBucket: Map<string, Bucket>
+  // junior-услуги (Nehty - Junior, −20% уже в цене). Предлагаются ТОЛЬКО при
+  // заполнении окон самих юниоров (обратное направление), в senior-пул не идут.
+  juniorServices: ServiceMetaD[]
 }
 // Услуги по категориям + категории каждого мастера (из назначенных услуг) — чисто
 const buildDerived = (slow: SlowCache): Derived => {
   const bucketServices = new Map<Bucket, ServiceMetaD[]>()
   const serviceBucket = new Map<string, Bucket>()
+  const juniorServices: ServiceMetaD[] = []
   for (const cat of slow.catServices) {
     const b = classifyTitle(cat.title)
     if (!b) continue
-    // junior-категория (Nehty - Junior): услуги НЕ предлагаем (junior −20%, юниоров
-    // исключаем), но в serviceBucket держим — чтобы junior-бронь считалась «маникюр».
+    // junior-категория (Nehty - Junior): в serviceBucket держим (чтобы junior-бронь
+    // считалась «маникюр»), в bucketServices НЕ кладём, а собираем в juniorServices.
     const isJuniorCat = cat.title.toLowerCase().includes('junior')
     const list = bucketServices.get(b) ?? []
     for (const meta of cat.services) {
       // serviceBucket — ВСЕ услуги категории (даже скрытые/снятия/junior), для классификации броней
       if (!serviceBucket.has(meta.id)) serviceBucket.set(meta.id, b)
-      // bucketServices — только то, что МОЖНО предложить (базовое, не скрытое, с длительностью)
-      if (isJuniorCat || meta.hidden || meta.duration <= 0 || isExcludedOfferService(meta.title)) continue
+      // только то, что МОЖНО предложить (базовое, не скрытое, с длительностью)
+      if (meta.hidden || meta.duration <= 0 || isExcludedOfferService(meta.title)) continue
+      if (isJuniorCat) {
+        if (!juniorServices.some((s) => s.id === meta.id)) juniorServices.push(meta)
+        continue
+      }
       if (!list.some((s) => s.id === meta.id)) list.push(meta)
     }
     bucketServices.set(b, list)
@@ -419,6 +431,7 @@ const buildDerived = (slow: SlowCache): Derived => {
     empBuckets,
     empById: new Map(slow.employees.map((e) => [e.id, e])),
     serviceBucket,
+    juniorServices,
   }
 }
 
@@ -591,11 +604,18 @@ export const getWindowFillCandidates = async (
   gapEndHHMM: string,
 ): Promise<CrossSellCandidate[]> => {
   const slow = await ensureSlow(false)
-  if (slow.juniorIds.has(employeeId)) return [] // окно юниора — дозапись не предлагаем
-  const { bucketServices, empBuckets, empById, serviceBucket } = buildDerived(slow)
-  const masterCats = empBuckets.get(employeeId)
-  if (!masterCats || masterCats.size === 0) return []
+  const isJunior = slow.juniorIds.has(employeeId)
+  const { bucketServices, empBuckets, empById, serviceBucket, juniorServices } = buildDerived(slow)
   const emp = empById.get(employeeId)
+
+  // senior — обязательны категории мастера; junior — предлагаем junior-ногти (manicure)
+  let masterCats: Set<Bucket> | null = null
+  if (isJunior) {
+    if (juniorServices.length === 0) return [] // нечего предложить
+  } else {
+    masterCats = empBuckets.get(employeeId) ?? null
+    if (!masterCats || masterCats.size === 0) return []
+  }
 
   const [bookings, logs] = await Promise.all([fetchDayBookings(date, date), fetchOfferLogs()])
   const sentSet = new Set(logs.map((l) => l.bookingEventId))
@@ -617,21 +637,41 @@ export const getWindowFillCandidates = async (
     if (slotStart > anchor.endMin + WINDOW_TOLERANCE_MIN) continue
     const avail = gapEnd - slotStart
     if (avail <= 0) continue
-    const cap = Math.min(avail, MAX_OFFER_SERVICE_MIN)
 
-    // ВСЕ услуги, влезающие в окно, среди категорий мастера (клиент ещё не записан в них)
+    // ВСЕ услуги, влезающие в окно
     const opts: ServiceOption[] = []
-    for (const C of masterCats) {
-      if (bookedBuckets.has(C)) continue
-      for (const s of bucketServices.get(C) ?? []) {
-        if (s.duration <= cap && enabledFor(emp, s.id)) {
-          opts.push({
-            serviceId: s.id,
-            serviceTitle: s.title,
-            serviceDurationMin: s.duration,
-            offerBucket: C,
-            bookingUrl: `${CLIENT_URL}/book/${s.id}/${employeeId}`,
-          })
+    if (isJunior) {
+      // junior-ногти — только тем, кто в этот день НЕ записан на маникюр.
+      // Лимит длительности = окно (без MAX_OFFER: junior-процедура длиннее senior).
+      if (!bookedBuckets.has('manicure')) {
+        for (const s of juniorServices) {
+          if (s.duration <= avail && enabledFor(emp, s.id)) {
+            opts.push({
+              serviceId: s.id,
+              serviceTitle: s.title,
+              serviceDurationMin: s.duration,
+              offerBucket: 'manicure',
+              bookingUrl: `${CLIENT_URL}/book/${s.id}/${employeeId}`,
+              isJunior: true,
+            })
+          }
+        }
+      }
+    } else {
+      // среди категорий мастера (клиент ещё не записан в них), короткие услуги ≤60 мин
+      const cap = Math.min(avail, MAX_OFFER_SERVICE_MIN)
+      for (const C of masterCats!) {
+        if (bookedBuckets.has(C)) continue
+        for (const s of bucketServices.get(C) ?? []) {
+          if (s.duration <= cap && enabledFor(emp, s.id)) {
+            opts.push({
+              serviceId: s.id,
+              serviceTitle: s.title,
+              serviceDurationMin: s.duration,
+              offerBucket: C,
+              bookingUrl: `${CLIENT_URL}/book/${s.id}/${employeeId}`,
+            })
+          }
         }
       }
     }
@@ -660,6 +700,7 @@ export const getWindowFillCandidates = async (
       bookingUrl: best.bookingUrl,
       alreadySent: sentSet.has(anchor.eventId),
       serviceOptions: opts,
+      isJunior,
     })
   }
   candidates.sort((a, b) =>
@@ -680,25 +721,31 @@ export interface SendResult {
 }
 
 const TEMPLATE = 'window-cross-sell'
+const TEMPLATE_JUNIOR = 'window-cross-sell-junior'
 const SUBJECT = 'Hned po vaší návštěvě máme volný termín — se slevou 💕'
+const SUBJECT_JUNIOR = 'Zkuste nehty u naší junior mistrové — výhodně 💅'
 
-export const sendCrossSellOffers = async (
+// Параметры атрибуции в ссылку: src=win (метка письма), disc (числом), d (дата →
+// клиент сразу попадает на нужный день). На клиенте src/disc сохраняются в
+// localStorage и попадают в комментарий брони Noona.
+const offerUrl = (c: CrossSellCandidate, discount: string): string => {
+  const discNum = discount.match(/\d+/)?.[0] ?? ''
+  return `${c.bookingUrl}?src=win&d=${c.date}${discNum ? `&disc=${discNum}` : ''}`
+}
+
+// Один батч писем (один шаблон). Возвращает счётчики Resend.
+const postBulk = async (
+  template: string,
+  subject: string,
   cands: CrossSellCandidate[],
   discount: string,
-): Promise<SendResult> => {
-  if (!cands.length) return { total: 0, successful: 0, failed: 0 }
-  // Параметры атрибуции в ссылку: src=win (метка письма), disc (числом), d (дата →
-  // клиент сразу попадает на нужный день). На клиенте src/disc сохраняются в
-  // localStorage и попадают в комментарий брони Noona.
-  const discNum = discount.match(/\d+/)?.[0] ?? ''
-  const offerUrl = (c: CrossSellCandidate) =>
-    `${c.bookingUrl}?src=win&d=${c.date}${discNum ? `&disc=${discNum}` : ''}`
+): Promise<{ total: number; successful: number; failed: number }> => {
   const res = await fetch(`${CLIENT_URL}/api/send-bulk-email`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      template: TEMPLATE,
-      subject: SUBJECT,
+      template,
+      subject,
       recipients: cands.map((c) => ({
         email: c.email,
         variables: {
@@ -709,13 +756,38 @@ export const sendCrossSellOffers = async (
           service: c.serviceTitle,
           master: c.masterName,
           discount,
-          bookingUrl: offerUrl(c),
+          bookingUrl: offerUrl(c, discount),
         },
       })),
     }),
   })
   const data = await res.json()
   if (!res.ok) throw new Error(data?.error || 'Send failed')
+  return { total: data.total ?? 0, successful: data.successful ?? 0, failed: data.failed ?? 0 }
+}
+
+export const sendCrossSellOffers = async (
+  cands: CrossSellCandidate[],
+  discount: string,
+): Promise<SendResult> => {
+  if (!cands.length) return { total: 0, successful: 0, failed: 0 }
+
+  // Junior получают ДРУГОЕ письмо (−20% уже в цене + −discount за дозапись).
+  const senior = cands.filter((c) => !c.isJunior)
+  const junior = cands.filter((c) => c.isJunior)
+  const parts = await Promise.all([
+    senior.length ? postBulk(TEMPLATE, SUBJECT, senior, discount) : Promise.resolve(null),
+    junior.length
+      ? postBulk(TEMPLATE_JUNIOR, SUBJECT_JUNIOR, junior, discount)
+      : Promise.resolve(null),
+  ])
+  const agg: SendResult = { total: 0, successful: 0, failed: 0 }
+  for (const p of parts) {
+    if (!p) continue
+    agg.total += p.total
+    agg.successful += p.successful
+    agg.failed += p.failed
+  }
 
   // Лог по каждому отправленному предложению (дедуп по bookingEventId)
   const sentAt = new Date().toISOString()
@@ -724,7 +796,7 @@ export const sendCrossSellOffers = async (
       Axios.post('/api/window-offer-logs', {
         data: {
           bookingEventId: c.bookingEventId,
-          offeredCategory: c.offerBucket,
+          offeredCategory: c.isJunior ? 'manicure-junior' : c.offerBucket,
           customerId: c.customerId,
           customerName: c.customerName,
           email: c.email,
@@ -741,7 +813,7 @@ export const sendCrossSellOffers = async (
     ),
   )
 
-  return { total: data.total ?? 0, successful: data.successful ?? 0, failed: data.failed ?? 0 }
+  return agg
 }
 
 // ─── Статистика: кто записался после отправленного предложения ─────────────────
