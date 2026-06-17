@@ -752,6 +752,7 @@ const postBulk = async (
         variables: {
           name: c.customerName,
           anchorLabel: BUCKET_LABEL_CS[c.anchorBucket],
+          offerLabel: BUCKET_LABEL_CS[c.offerBucket], // категория предложения (manikúra/obočí/řasy)
           date: fmtCsDate(c.date),
           time: c.windowStartHHMM,
           service: c.serviceTitle,
