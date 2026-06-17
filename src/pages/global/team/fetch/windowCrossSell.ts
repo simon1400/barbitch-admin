@@ -676,9 +676,10 @@ export const getWindowFillCandidates = async (
       }
     }
     if (!opts.length) continue
-    // дефолт — самая длинная влезающая услуга
-    opts.sort((a, b) => b.serviceDurationMin - a.serviceDurationMin)
-    const best = opts[0]
+    // Выпадашка — по возрастанию длительности (короче — выше, длиннее — ниже).
+    opts.sort((a, b) => a.serviceDurationMin - b.serviceDurationMin)
+    // Дефолт — самая длинная влезающая услуга (максимально заполнить окно).
+    const best = opts[opts.length - 1]
 
     candidates.push({
       key: anchor.eventId,
