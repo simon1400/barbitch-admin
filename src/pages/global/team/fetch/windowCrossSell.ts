@@ -836,7 +836,7 @@ export interface OfferResultsSummary {
 
 export const getOfferResults = async (): Promise<OfferResultsSummary> => {
   const [logs, events] = await Promise.all([fetchOfferLogs(), getEventsHistory()])
-  const byCustomer = new Map<string, Array<{ employee: string; date: string }>>()
+  const byCustomer = new Map<string, Array<{ employee: string; date: string; createdAt: string }>>()
   for (const e of events) {
     if (!e.customer || !isActive(e)) continue
     let arr = byCustomer.get(e.customer)
@@ -844,14 +844,27 @@ export const getOfferResults = async (): Promise<OfferResultsSummary> => {
       arr = []
       byCustomer.set(e.customer, arr)
     }
-    arr.push({ employee: e.employee, date: e.date })
+    arr.push({ employee: e.employee, date: e.date, createdAt: e.createdAt })
   }
 
   const rows: OfferResult[] = logs.map((log) => {
     const sentDay = (log.sentAt || '').slice(0, 10)
     const since = log.anchorDate || sentDay
+    // Кандидаты на дозапись УЖЕ записаны в этот день → бронь к мастеру могла
+    // существовать ДО письма (её исходная запись). Конверсия = НОВАЯ бронь к
+    // предложенному мастеру, СОЗДАННАЯ после отправки письма (created_at > sentAt).
+    // Без этого пред-существующая бронь давала ложный «записался» (напр. Zuzana
+    // Špendel: бронь к Karina на 19.06 создана 31.05, письмо 18.06). Если у брони
+    // нет created_at (легаси) — консервативно НЕ засчитываем, чтобы не врать в плюс.
+    const sentMs = log.sentAt ? new Date(log.sentAt).getTime() : 0
     const hit = (byCustomer.get(log.customerId) ?? [])
-      .filter((e) => e.employee === log.masterId && e.date >= since)
+      .filter(
+        (e) =>
+          e.employee === log.masterId &&
+          e.date >= since &&
+          Boolean(e.createdAt) &&
+          new Date(e.createdAt).getTime() > sentMs,
+      )
       .sort((a, b) => (a.date < b.date ? -1 : 1))[0]
     return { log, converted: Boolean(hit), bookingDate: hit?.date ?? null }
   })

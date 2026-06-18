@@ -16,6 +16,7 @@ interface RawEvent {
   event_date?: string
   starts_at?: string
   ends_at?: string
+  created_at?: string
   event_types?: Array<{ price?: { amount?: number } }>
 }
 
@@ -27,6 +28,7 @@ export interface HistEvent {
   date: string // 'YYYY-MM-DD'
   startsAt: string
   endsAt: string
+  createdAt: string // ISO timestamp брони (когда создана) — для атрибуции дозаписей
   price: number
   durationMin: number
 }
@@ -39,6 +41,7 @@ const SELECT_FIELDS = [
   'event_date',
   'starts_at',
   'ends_at',
+  'created_at',
   'event_types.price',
 ]
 
@@ -73,6 +76,7 @@ const toHist = (e: RawEvent): HistEvent | null => {
     date: e.event_date,
     startsAt: e.starts_at ?? '',
     endsAt: e.ends_at ?? '',
+    createdAt: e.created_at ?? '',
     price: e.event_types?.[0]?.price?.amount ?? 0,
     durationMin,
   }
