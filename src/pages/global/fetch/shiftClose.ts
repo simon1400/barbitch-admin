@@ -666,8 +666,13 @@ export const publishShift = async (
   })
 
   // Vouchers connected to this shift's services: stamp dateRealized = shift date
-  // and publish them alongside. Dedup by id — one voucher may cover several
-  // services. The voucher relation comes from `populate=*` on services-provided.
+  // and publish them. Dedup by id — one voucher may cover several services. The
+  // voucher relation comes from `populate=*` on services-provided.
+  // 🟥 Collected into a SEPARATE phase published BEFORE the services (see execution
+  // below): a voucher publish recreates the voucher's published row, so doing it
+  // concurrently with a service that links to that voucher races → the FK row
+  // vanishes mid-transaction → 500 on the service. Vouchers first → their published
+  // rows are stable by the time the services link to them.
   const spIdx = collections.findIndex((c) => c.key === 'services-provided')
   const serviceDrafts = spIdx >= 0 ? allDrafts[spIdx] || [] : []
   const voucherMap = new Map<string, any>()
@@ -676,9 +681,10 @@ export const publishShift = async (
     const vid = v?.documentId || v?.id
     if (v && vid && !voucherMap.has(String(vid))) voucherMap.set(String(vid), v)
   }
+  const voucherTasks: Task[] = []
   for (const v of voucherMap.values()) {
     const id = v.documentId || v.id
-    tasks.push({
+    voucherTasks.push({
       collectionKey: 'vouchers',
       endpoint: `/api/vouchers/${id}?status=published`,
       item: v,
@@ -752,30 +758,40 @@ export const publishShift = async (
     }
   }
 
-  // Run all PUTs in parallel via allSettled — collect failures without throwing.
-  // NOTE: Strapi 5 REST has no transaction support and no safe "unpublish" endpoint,
-  // so we do NOT attempt automatic rollback. If some succeed and some fail, user
-  // sees the failures and can fix the broken records — a re-run will skip the
-  // already-published ones (they won't be in the draft fetch).
-  const results = await Promise.allSettled(
-    tasks.map((t) => Axios.put(t.endpoint, t.body)),
-  )
-
+  // Run PUTs via allSettled — collect failures without throwing. NOTE: Strapi 5 REST
+  // has no transaction support and no safe "unpublish" endpoint, so we do NOT attempt
+  // automatic rollback. If some succeed and some fail, the user sees the failures and
+  // fixes them — a re-run skips already-published ones (not in the draft fetch).
+  //
+  // TWO PHASES (ordering matters): publish vouchers FIRST, await them, THEN everything
+  // else. A voucher publish recreates the voucher's published row; a service that links
+  // to that voucher publishing concurrently would hit the now-deleted FK row →
+  // "current transaction is aborted" → 500 on the service. Serializing the voucher
+  // phase ahead of the services removes the race (services link to a stable row).
   const failures: PublishFailure[] = []
   let published = 0
-  results.forEach((res, idx) => {
-    const t = tasks[idx]
-    if (res.status === 'fulfilled') {
-      published++
-    } else {
-      failures.push({
-        collection: COLLECTION_LABEL[t.collectionKey] || t.collectionKey,
-        label: buildLabel(t.collectionKey, t.item),
-        message: extractErrorMessage(res.reason),
-        documentId: t.item?.documentId,
-      })
-    }
-  })
+
+  const runPhase = async (phaseTasks: Task[]) => {
+    const results = await Promise.allSettled(
+      phaseTasks.map((t) => Axios.put(t.endpoint, t.body)),
+    )
+    results.forEach((res, idx) => {
+      const t = phaseTasks[idx]
+      if (res.status === 'fulfilled') {
+        published++
+      } else {
+        failures.push({
+          collection: COLLECTION_LABEL[t.collectionKey] || t.collectionKey,
+          label: buildLabel(t.collectionKey, t.item),
+          message: extractErrorMessage(res.reason),
+          documentId: t.item?.documentId,
+        })
+      }
+    })
+  }
+
+  await runPhase(voucherTasks)
+  await runPhase(tasks)
 
   return { published, failures }
 }
