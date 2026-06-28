@@ -76,16 +76,14 @@ export const buildOfferMatches = (items: any[], events: any[]): Map<any, OfferMa
   return result
 }
 
-export const getDiff = (result: ShiftCheckResult) => {
-  if (result.comparison.match) return null
-
-  // Internal worker-to-worker services aren't in Noona — drop them so they don't show
-  // up as "only in Strapi" and don't offset a genuinely missing Noona client.
-  const strapiItems = result.serviceProvided.items.filter((i: any) => !i?.internal)
-
-  const noonaNames = result.noona.events.map((e: any) =>
-    normalize(e.customer_name || ''),
-  )
+// Pure client-name multiset diff between Strapi service rows and Noona events.
+// Returns the records on each side that have no counterpart by name. Internal
+// services must be filtered out by the caller (they never exist in Noona).
+export const diffByName = (
+  strapiItems: any[],
+  noonaEvents: any[],
+): { strapiExtra: any[]; noonaExtra: any[] } => {
+  const noonaNames = noonaEvents.map((e: any) => normalize(e.customer_name || ''))
   const strapiNames = strapiItems.map((i: any) => normalize(i.clientName || ''))
 
   const noonaCount = new Map<string, number>()
@@ -124,18 +122,29 @@ export const getDiff = (result: ShiftCheckResult) => {
   const usedNoonaIdx = new Set<number>()
   const noonaExtra = onlyInNoona
     .map((normName) => {
-      const idx = result.noona.events.findIndex(
+      const idx = noonaEvents.findIndex(
         (e: any, idx: number) =>
-          !usedNoonaIdx.has(idx) &&
-          normalize(e.customer_name || '') === normName,
+          !usedNoonaIdx.has(idx) && normalize(e.customer_name || '') === normName,
       )
       if (idx >= 0) {
         usedNoonaIdx.add(idx)
-        return result.noona.events[idx]
+        return noonaEvents[idx]
       }
       return null
     })
     .filter(Boolean)
 
+  return { strapiExtra, noonaExtra }
+}
+
+// Per-shift discrepancy list shown in ComparisonCard. Computed by client-name
+// matching ALWAYS (not gated on count equality) — a wrong/typo'd client name keeps
+// the head-count equal (one extra of name A offsets one missing of name B) yet is a
+// real mismatch. Internal worker-to-worker services are dropped (never in Noona).
+// Returns null only when every record lines up by name.
+export const getDiff = (result: ShiftCheckResult) => {
+  const strapiItems = result.serviceProvided.items.filter((i: any) => !i?.internal)
+  const { strapiExtra, noonaExtra } = diffByName(strapiItems, result.noona.events)
+  if (strapiExtra.length === 0 && noonaExtra.length === 0) return null
   return { strapiExtra, noonaExtra }
 }

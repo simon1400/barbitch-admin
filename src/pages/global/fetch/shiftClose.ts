@@ -6,6 +6,7 @@ import { getMoney } from '../../dashboard/fetch/costs'
 import { getAdminsHours } from '../../dashboard/fetch/allAdminsHours'
 import { getAllWorks } from '../../dashboard/fetch/allWorks'
 import { splitTeam } from '../../dashboard/fetch/teamSplit'
+import { diffByName } from '../components/shiftClose/helpers'
 
 // Mirror of Strapi lifecycle (strapi/.../service-provided/lifecycles.ts).
 // Kept in sync — also used to recompute flags for legacy records (verify is string).
@@ -870,12 +871,17 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
 
   // Internal worker-to-worker services never exist in Noona, so they must NOT count
   // toward the Noona↔Strapi comparison — otherwise they mask a real missing client.
-  const strapiComparable = serviceProvided.items.filter((i: any) => !i?.internal).length
+  const strapiComparableItems = serviceProvided.items.filter((i: any) => !i?.internal)
+  const strapiComparable = strapiComparableItems.length
+  // Match by NAME, not just head-count: a wrong/typo'd client name keeps the count
+  // equal (extra of one name offsets a missing other) but is a genuine discrepancy.
+  const nameDiff = diffByName(strapiComparableItems, noona.events)
+  const mismatchCount = nameDiff.strapiExtra.length + nameDiff.noonaExtra.length
   const comparison = {
     strapiCount: strapiComparable,
     noonaCount: noona.count,
-    match: strapiComparable === noona.count,
-    difference: Math.abs(strapiComparable - noona.count),
+    match: strapiComparable === noona.count && mismatchCount === 0,
+    difference: mismatchCount,
   }
 
   return {
