@@ -132,7 +132,7 @@ const AdministratorCabinetPage = () => {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:1337'
 
   // Получаем глобальные данные для графиков
-  const globalData = useGlobalMonthData(selectedMonth, selectedYear)
+  const { data: globalData } = useGlobalMonthData(selectedMonth, selectedYear)
 
   useEffect(() => {
     const fetchData = async () => {

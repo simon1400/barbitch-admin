@@ -8,7 +8,7 @@ import { StatSection } from '../../components/StatSection'
 export default function ChartsTab() {
   const [month, setMonth] = useState<number>(new Date().getMonth())
   const [year, setYear] = useState<number>(new Date().getFullYear())
-  const data = useGlobalMonthData(month, year)
+  const { data } = useGlobalMonthData(month, year)
 
   return (
     <>

@@ -1,114 +1,44 @@
-import type { IFilteredAdminsData } from '../fetch/allAdminsHours'
-import type { IFilteredData } from '../fetch/allWorks'
-import type { GroupedSum, OutputMetrictsItem } from '../fetch/fetchHelpers'
-import type { CombinedResult } from '../fetch/teamSplit'
-
 import { useCallback, useEffect, useState } from 'react'
 
-import { getAdminsHours } from '../fetch/allAdminsHours'
-import { getAllWorks } from '../fetch/allWorks'
-import { getMoney } from '../fetch/costs'
-import { getEvents } from '../fetch/getEvents'
-import { splitTeam } from '../fetch/teamSplit'
+import {
+  EMPTY_GLOBAL_MONTH_DATA,
+  getGlobalMonthData,
+  type GlobalMonthData,
+} from '../fetch/monthDataCache'
 
-export const useGlobalMonthData = (month: number, year: number) => {
-  const [data, setData] = useState({
-    works: [] as IFilteredData['summary'],
-    admins: [] as IFilteredAdminsData['summary'],
-    combined: [] as CombinedResult[],
-    sumClientsDone: 0,
-    globalFlow: 0,
-    sumMasters: 0,
-    sumAdmins: 0,
-    sumCombined: 0,
-    combinedAdminEarnings: 0,
-    daysResult: [] as GroupedSum[],
-    costs: 0,
-    noDphCosts: 0,
-    cardMoney: 0,
-    cardExtraIncome: 0,
-    cashMoney: 0,
-    payrollSum: 0,
-    voucherRealized: 0,
-    voucherPayed: 0,
-    extraMoney: 0,
-    qrMoney: 0,
-    salonSalariesCash: 0,
-    salonSalariesCard: 0,
-    taxesSum: 0,
-    clients: {
-      all: 0,
-      canceled: 0,
-      noshow: 0,
-      payed: 0,
-      pastPayed: 0,
-      // free: 0,
-      fixed: 0,
-      // personal: 0,
-      countCreatedMonthReservation: 0,
-      countCreatedTodayReservation: 0,
-      monthReservationIndex: 0,
+export interface UseGlobalMonthData {
+  data: GlobalMonthData
+  loading: boolean
+  cachedAt: number // timestamp последнего реального пересчёта
+  refresh: () => void // принудительный пересчёт (минуя кэш)
+}
+
+export const useGlobalMonthData = (month: number, year: number): UseGlobalMonthData => {
+  const [data, setData] = useState<GlobalMonthData>(EMPTY_GLOBAL_MONTH_DATA)
+  const [loading, setLoading] = useState(false)
+  const [cachedAt, setCachedAt] = useState(0)
+
+  const load = useCallback(
+    async (force: boolean) => {
+      setLoading(true)
+      try {
+        const res = await getGlobalMonthData(month, year, force)
+        setData(res.data)
+        setCachedAt(res.cachedAt)
+      } finally {
+        setLoading(false)
+      }
     },
-    dataMetrics: [] as OutputMetrictsItem[],
-  })
-
-  const loadData = useCallback(async () => {
-    const [worksRes, adminsRes, moneyRes, eventsRes] = await Promise.all([
-      getAllWorks(month, year),
-      getAdminsHours(month, year),
-      getMoney(month, year),
-      getEvents(month, year),
-    ])
-
-    // Совместители (мастер+администратор) выносятся в отдельную группу. Инвариант
-    // splitTeam: sumMasters + sumAdmins + sumCombined === старый (sumMasters + sumAdmins),
-    // поэтому «Результат за месяц» не меняется численно.
-    const team = splitTeam(worksRes.summary, adminsRes.summary)
-
-    setData({
-      works: team.masters,
-      sumClientsDone: worksRes.sumClientsDone,
-      globalFlow: worksRes.globalFlow,
-      sumMasters: team.sumMasters,
-      daysResult: worksRes.daysResult,
-      admins: team.admins,
-      sumAdmins: team.sumAdmins,
-      combined: team.combined,
-      sumCombined: team.sumCombined,
-      combinedAdminEarnings: team.combinedAdminEarnings,
-      costs: moneyRes.sumCosts,
-      noDphCosts: moneyRes.sumNoDphCosts,
-      cardMoney: moneyRes.cardMoney,
-      cardExtraIncome: moneyRes.cardExtraIncome,
-      cashMoney: moneyRes.cashMoney,
-      payrollSum: moneyRes.payrollSum,
-      voucherRealized: moneyRes.voucherRealizedSum,
-      voucherPayed: moneyRes.voucherPayedSum,
-      extraMoney: moneyRes.extraMoneySum,
-      qrMoney: moneyRes.qrMoney,
-      salonSalariesCash: worksRes.salonSalariesCash,
-      salonSalariesCard: worksRes.salonSalariesCard,
-      taxesSum: moneyRes.taxesSum,
-      clients: {
-        all: eventsRes.all,
-        canceled: eventsRes.cancelled,
-        noshow: eventsRes.noshow,
-        payed: eventsRes.payed,
-        pastPayed: eventsRes.pastPayed,
-        // free: eventsRes.free,
-        fixed: eventsRes.fixed,
-        // personal: eventsRes.personal,
-        countCreatedMonthReservation: eventsRes.countCreatedMonthReservation,
-        countCreatedTodayReservation: eventsRes.countCreatedTodayReservation,
-        monthReservationIndex: eventsRes.monthReservationIndex as number,
-      },
-      dataMetrics: eventsRes.dataMetrics,
-    })
-  }, [month, year])
+    [month, year],
+  )
 
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    load(false)
+  }, [load])
 
-  return data
+  const refresh = useCallback(() => {
+    load(true)
+  }, [load])
+
+  return { data, loading, cachedAt, refresh }
 }

@@ -10,13 +10,14 @@ interface AnalyticsTab {
 
 // Под-вкладки модуля аналитики. Добавляй новые отчёты сюда + таб в App.tsx.
 const tabs: AnalyticsTab[] = [
-  { to: 'overview', label: 'Недельный обзор' },
+  { to: 'forecast', label: 'Прогноз' },
   { to: 'procedures', label: 'Статистика процедур' },
+  { to: 'global-stats', label: 'Глобальная статистика' },
+  { to: 'overview', label: 'Недельный обзор' },
   { to: 'charts', label: 'Недельные графики' },
   { to: 'clients', label: 'Новые vs повторные' },
   { to: 'sleeping', label: 'Спящие клиенты' },
   { to: 'retention', label: 'Возвращаемость' },
-  { to: 'forecast', label: 'Прогноз' },
   { to: 'cancellations', label: 'Отмены' },
   { to: 'vouchers', label: 'Ваучеры' },
 ]

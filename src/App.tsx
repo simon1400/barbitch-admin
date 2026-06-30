@@ -36,6 +36,9 @@ const AnalyticsCancellationsTab = lazy(
   () => import('./pages/global/analytics/tabs/CancellationsTab'),
 )
 const AnalyticsVouchersTab = lazy(() => import('./pages/global/analytics/tabs/VouchersTab'))
+const AnalyticsGlobalStatsTab = lazy(
+  () => import('./pages/global/analytics/tabs/GlobalStatsTab'),
+)
 // Unified team module — layout with URL sub-route tabs
 const TeamPage = lazy(() => import('./pages/global/team/TeamPage'))
 const TeamSalariesTab = lazy(() => import('./pages/global/team/tabs/SalariesTab'))
@@ -176,7 +179,7 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="/global/analytics/overview" replace />} />
+            <Route index element={<Navigate to="/global/analytics/forecast" replace />} />
             <Route path="overview" element={<AnalyticsOverviewTab />} />
             <Route path="procedures" element={<AnalyticsProceduresTab />} />
             <Route path="charts" element={<AnalyticsChartsTab />} />
@@ -184,6 +187,7 @@ function App() {
             <Route path="sleeping" element={<AnalyticsSleepingTab />} />
             <Route path="retention" element={<AnalyticsRetentionTab />} />
             <Route path="forecast" element={<AnalyticsForecastTab />} />
+            <Route path="global-stats" element={<AnalyticsGlobalStatsTab />} />
             <Route path="cancellations" element={<AnalyticsCancellationsTab />} />
             <Route path="vouchers" element={<AnalyticsVouchersTab />} />
           </Route>

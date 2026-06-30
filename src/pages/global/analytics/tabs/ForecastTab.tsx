@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Cell } from '../../../dashboard/components/Cell'
+import { RevenueBarChart } from '../components/RevenueBarChart'
 import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
 import { getForecast, type ForecastData } from '../fetch/forecast'
@@ -140,6 +141,9 @@ export default function ForecastTab() {
       </StatSection>
 
       <StatSection title="Выручка по броням за последние месяцы" id="forecast-history">
+        <div className="mb-6">
+          <RevenueBarChart data={data.history} />
+        </div>
         <TableWrapper>
           <table className="w-full text-left table-auto min-w-max">
             <thead>

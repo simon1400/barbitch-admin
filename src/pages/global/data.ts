@@ -1,5 +1,27 @@
 import { toLocalStringDigits } from "../../utils/toLocalString"
 
+// Единый источник формулы «Результат за месяц» (без DPH) — используется и в
+// blockStateItems (главная), и в помесячной разбивке «Глобальной статистики».
+export const computeMonthResult = (args: {
+  cashMoney: number
+  cardExtraIncome: number
+  cardMoney: number
+  qrMoney: number
+  sumMasters: number
+  sumAdmins: number
+  sumCombined: number
+  noDphCosts: number
+  taxesSum: number
+}): number =>
+  args.cashMoney +
+  args.cardExtraIncome +
+  (args.cardMoney + args.qrMoney) / 1.21 -
+  args.sumMasters -
+  args.sumAdmins -
+  args.sumCombined -
+  args.noDphCosts -
+  args.taxesSum
+
 export const blockStateItems = (
   noDphCosts: number,
   globalFlow: number,
@@ -32,14 +54,17 @@ export const blockStateItems = (
     {
       title: 'Результат за месяц',
       value: `${toLocalStringDigits(
-        cashMoney +
-        cardExtraIncome +
-        (cardMoney + qrMoney) / 1.21 -
-        sumMasters -
-        sumAdmins -
-        sumCombined -
-        noDphCosts -
-        taxesSum
+        computeMonthResult({
+          cashMoney,
+          cardExtraIncome,
+          cardMoney,
+          qrMoney,
+          sumMasters,
+          sumAdmins,
+          sumCombined,
+          noDphCosts,
+          taxesSum,
+        })
       )}`,
       addValue: `${toLocalStringDigits(cashMoney + cardMoney + qrMoney + cardExtraIncome - sumMasters - sumAdmins - sumCombined - dphCosts - taxesSum)} - s DPH`,
     },

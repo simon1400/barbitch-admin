@@ -6,6 +6,7 @@ import { getMoney } from '../../dashboard/fetch/costs'
 import { getAdminsHours } from '../../dashboard/fetch/allAdminsHours'
 import { getAllWorks } from '../../dashboard/fetch/allWorks'
 import { splitTeam } from '../../dashboard/fetch/teamSplit'
+import { invalidateGlobalMonthData } from '../../dashboard/fetch/monthDataCache'
 import { diffByName } from '../components/shiftClose/helpers'
 
 // Mirror of Strapi lifecycle (strapi/.../service-provided/lifecycles.ts).
@@ -793,6 +794,10 @@ export const publishShift = async (
   await runPhase(voucherTasks)
   await runPhase(tasks)
 
+  // Закрытие смены изменило месячные агрегаты → сбрасываем кэш «Финансового
+  // обзора»/зарплат/графиков, чтобы при следующем заходе пересчиталось свежее.
+  if (published > 0) invalidateGlobalMonthData()
+
   return { published, failures }
 }
 
@@ -869,6 +874,10 @@ export const revertShift = async (dateStr: string): Promise<RevertResult> => {
   } catch (e) {
     errors.push(`unpublish: ${extractErrorMessage(e)}`)
   }
+
+  // Реверт вернул записи в черновики / обнулил card-profit → месячные агрегаты
+  // изменились, сбрасываем кэш «Финансового обзора»/зарплат/графиков.
+  invalidateGlobalMonthData()
 
   return { unpublished, vouchersReverted, cardProfitReset, errors }
 }
