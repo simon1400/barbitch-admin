@@ -15,6 +15,7 @@ interface Props {
   onToggleService: (id: string) => void
   onToggleCategory: (serviceIds: string[], nextEnabled: boolean) => void
   disabled?: boolean
+  filter?: string
 }
 
 export const CategoryRow = ({
@@ -25,6 +26,7 @@ export const CategoryRow = ({
   onToggleService,
   onToggleCategory,
   disabled,
+  filter,
 }: Props) => {
   const [expanded, setExpanded] = useState(false)
 
@@ -32,12 +34,22 @@ export const CategoryRow = ({
   const knownIds = [...new Set(category.serviceIds)].filter((id) => enabledMap.has(id))
   if (knownIds.length === 0) return null
 
-  const state = categoryState(knownIds, enabledMap)
-  const enabledCount = knownIds.filter((id) => enabledMap.get(id)).length
-  const changedCount = knownIds.filter((id) => enabledMap.get(id) !== originalMap.get(id)).length
+  // When a title filter is active, narrow to matching combos, auto-expand and hide the
+  // rest so the master sees exactly what a bulk toggle will affect.
+  const filterTrim = (filter ?? '').trim().toLowerCase()
+  const visibleIds = filterTrim
+    ? knownIds.filter((id) => (serviceMeta.get(id)?.title ?? '').toLowerCase().includes(filterTrim))
+    : knownIds
+  if (visibleIds.length === 0) return null
 
-  // Whole-category toggle: if everything is on → turn off, else turn all on.
-  const handleCategoryToggle = () => onToggleCategory(knownIds, state !== 'on')
+  const state = categoryState(visibleIds, enabledMap)
+  const enabledCount = visibleIds.filter((id) => enabledMap.get(id)).length
+  const changedCount = visibleIds.filter((id) => enabledMap.get(id) !== originalMap.get(id)).length
+  const isExpanded = Boolean(filterTrim) || expanded
+
+  // Whole-category toggle operates on what is currently visible (the filtered subset when
+  // a filter is active, otherwise the whole category): everything on → turn off, else all on.
+  const handleCategoryToggle = () => onToggleCategory(visibleIds, state !== 'on')
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -45,12 +57,14 @@ export const CategoryRow = ({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
+          disabled={Boolean(filterTrim)}
           className="flex items-center gap-2 text-left min-w-0"
         >
-          <span className="text-gray-400 text-xs w-4 shrink-0">{expanded ? '▾' : '▸'}</span>
+          <span className="text-gray-400 text-xs w-4 shrink-0">{isExpanded ? '▾' : '▸'}</span>
           <span className="font-semibold text-gray-800 text-sm truncate">{category.title}</span>
           <span className="text-xs text-gray-400 shrink-0">
-            {enabledCount}/{knownIds.length}
+            {enabledCount}/{visibleIds.length}
+            {filterTrim && <span className="text-primary"> найдено</span>}
             {changedCount > 0 && <span className="text-amber-600 font-semibold"> · ±{changedCount}</span>}
           </span>
         </button>
@@ -58,13 +72,13 @@ export const CategoryRow = ({
           state={state}
           onClick={handleCategoryToggle}
           disabled={disabled}
-          title="Вся категория вкл/выкл"
+          title={filterTrim ? 'Найденные в категории вкл/выкл' : 'Вся категория вкл/выкл'}
         />
       </div>
 
-      {expanded && (
+      {isExpanded && (
         <div className="border-t border-gray-100 divide-y divide-gray-50">
-          {knownIds.map((id) => {
+          {visibleIds.map((id) => {
             const meta = serviceMeta.get(id)
             const enabled = enabledMap.get(id) ?? false
             const changed = enabled !== originalMap.get(id)

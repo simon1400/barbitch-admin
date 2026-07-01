@@ -28,6 +28,7 @@ export default function MastersTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [enabledMap, setEnabledMap] = useState<Map<string, boolean>>(new Map())
   const [originalMap, setOriginalMap] = useState<Map<string, boolean>>(new Map())
+  const [filter, setFilter] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [saveResult, setSaveResult] = useState<SaveResult | null>(null)
@@ -107,6 +108,18 @@ export default function MastersTab() {
   const enabledCount = useMemo(
     () => managedIds.filter((id) => enabledMap.get(id)).length,
     [managedIds, enabledMap],
+  )
+
+  // Substring match on service title → every combo that "contains" the term
+  // (e.g. «Gel lak manikúra» or «Design - level 1»), across all categories.
+  const matchedIds = useMemo(() => {
+    const q = filter.trim().toLowerCase()
+    if (!q) return []
+    return managedIds.filter((id) => (serviceMeta.get(id)?.title ?? '').toLowerCase().includes(q))
+  }, [filter, managedIds, serviceMeta])
+  const matchedEnabled = useMemo(
+    () => matchedIds.filter((id) => enabledMap.get(id)).length,
+    [matchedIds, enabledMap],
   )
 
   const resetChanges = () => {
@@ -247,6 +260,57 @@ export default function MastersTab() {
                 </div>
               )}
 
+              <div className="mb-4 bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    type="text"
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    disabled={saving}
+                    placeholder="Фильтр по названию — напр. Design - level 1 или Gel lak manikúra"
+                    className="flex-1 min-w-[220px] px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                  {filter.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setFilter('')}
+                      disabled={saving}
+                      className="px-3 py-2 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200 disabled:opacity-60"
+                    >
+                      Очистить
+                    </button>
+                  )}
+                </div>
+                {filter.trim() && (
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <span className="text-sm text-gray-600">
+                      Найдено <span className="font-semibold text-gray-800">{matchedIds.length}</span> услуг
+                      {matchedIds.length > 0 && (
+                        <span className="text-gray-400"> · открыто {matchedEnabled}</span>
+                      )}
+                    </span>
+                    <div className="flex items-center gap-2 ml-auto">
+                      <button
+                        type="button"
+                        onClick={() => toggleCategory(matchedIds, true)}
+                        disabled={saving || matchedIds.length === 0 || matchedEnabled === matchedIds.length}
+                        className="px-4 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        Открыть все ({matchedIds.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleCategory(matchedIds, false)}
+                        disabled={saving || matchedIds.length === 0 || matchedEnabled === 0}
+                        className="px-4 py-2 rounded-lg bg-gray-700 text-white text-xs font-semibold hover:bg-gray-800 disabled:opacity-50"
+                      >
+                        Скрыть все ({matchedIds.length})
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex flex-col gap-2">
                 {categories.map((c) => (
                   <CategoryRow
@@ -258,6 +322,7 @@ export default function MastersTab() {
                     onToggleService={toggleService}
                     onToggleCategory={toggleCategory}
                     disabled={saving}
+                    filter={filter}
                   />
                 ))}
               </div>
