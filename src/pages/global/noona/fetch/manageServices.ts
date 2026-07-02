@@ -538,10 +538,8 @@ export const buildDurationEditPlan = ({
         op: { kind: 'noona-duration', id, duration: dur },
       })
     }
-    // Junior takes LONGER than senior (junior = −20% price but +markup% time).
-    // Junior duration is derived from the senior combo duration via calcJuniorDuration
-    // (rounded to 5 min), NOT copied 1:1. Synced on every duration edit — also heals
-    // legacy junior copies that were created equal to senior.
+    // Junior duration = senior duration (calcJuniorDuration; наценка времени отменена, s95).
+    // Synced on every duration edit — also heals junior copies that drifted.
     const jm = juniorBySenior.get(id)
     if (jm) {
       const jEt = eventTypes.get(jm.junior_noona_id)

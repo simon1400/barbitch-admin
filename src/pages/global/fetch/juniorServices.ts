@@ -332,7 +332,7 @@ export const generateOne = async (
   try {
     const juniorId = await createJuniorEventType(
       plan.seniorTitle,
-      calcJuniorDuration(plan.duration), // junior takes longer than senior (+markup, →5 min)
+      calcJuniorDuration(plan.duration), // = senior duration (наценка времени отменена, s95)
       plan.juniorPrice,
       isHiddenSource,
       targetCategoryId,
