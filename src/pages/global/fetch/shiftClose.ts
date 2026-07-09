@@ -146,25 +146,52 @@ const computeFlagsFromValues = (
   return flags
 }
 
+// A required money field that was never filled (null / "" / whitespace). A genuine
+// zero ("0", e.g. internal service) is NOT blank.
+const isBlankMoney = (v: unknown): boolean => v == null || String(v).trim() === ''
+
 // Resolve flags for a service-provided item.
-// Priority: verifyFlags (new array) → recompute from offer/personal (legacy) → empty
+// Priority: recompute-when-incomplete → stored verifyFlags → recompute (legacy) → empty
 export const getItemFlags = (item: any): VerifyFlag[] => {
-  if (Array.isArray(item?.verifyFlags) && item.verifyFlags.length > 0) {
-    return item.verifyFlags.filter((f: unknown): f is VerifyFlag =>
-      typeof f === 'string' && (VERIFY_FLAGS as string[]).includes(f),
-    )
-  }
-  // Legacy fallback: recompute from raw data if relations were populated
   const offerPrice = Number(item?.offer?.price)
   const ratePercent = Number(item?.personal?.ratePercent)
-  if (Number.isFinite(offerPrice) && Number.isFinite(ratePercent) && offerPrice > 0) {
+  const canRecompute =
+    Number.isFinite(offerPrice) && Number.isFinite(ratePercent) && offerPrice > 0
+
+  // 🟥 Never show a green tick for a record whose master/salon price was left empty.
+  // A partial publish could have overwritten verifyFlags with ['ok'], so when a
+  // required money field is blank (and it's not an internal service) recompute live
+  // from the populated relations — an empty field parses to 0 and surfaces the real
+  // ztráta/mistr_down instead of trusting the stale stored flag.
+  const internal = Boolean(item?.internal)
+  const incomplete =
+    !internal &&
+    (isBlankMoney(item?.staffSalaries) || isBlankMoney(item?.salonSalaries))
+  if (incomplete && canRecompute) {
     return computeFlagsFromValues(
       offerPrice,
       ratePercent,
       toNum(item?.staffSalaries),
       toNum(item?.salonSalaries),
       item?.sale,
-      Boolean(item?.internal),
+      internal,
+    )
+  }
+
+  if (Array.isArray(item?.verifyFlags) && item.verifyFlags.length > 0) {
+    return item.verifyFlags.filter((f: unknown): f is VerifyFlag =>
+      typeof f === 'string' && (VERIFY_FLAGS as string[]).includes(f),
+    )
+  }
+  // Legacy fallback: recompute from raw data if relations were populated
+  if (canRecompute) {
+    return computeFlagsFromValues(
+      offerPrice,
+      ratePercent,
+      toNum(item?.staffSalaries),
+      toNum(item?.salonSalaries),
+      item?.sale,
+      internal,
     )
   }
   return []
