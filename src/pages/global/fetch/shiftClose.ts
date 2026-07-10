@@ -346,6 +346,7 @@ const fetchNoonaEvents = async (dateStr: string) => {
     )
     queryString.append('select', 'id')
     queryString.append('select', 'customer_name')
+    queryString.append('select', 'customer')
     queryString.append('select', 'status')
     queryString.append('select', 'starts_at')
     queryString.append('select', 'ends_at')
@@ -362,6 +363,24 @@ const fetchNoonaEvents = async (dateStr: string) => {
   } catch (e) {
     console.error('fetchNoonaEvents error:', e)
     return { found: false, count: 0, events: [] }
+  }
+}
+
+// Map of Noona customer id → current name. Noona can't filter customers by id and
+// its single-customer endpoint returns empty, so the whole list (~1700, one request)
+// is the only way — called lazily, only when a name-diff leftover remains.
+const fetchNoonaCustomerNames = async (): Promise<Map<string, string>> => {
+  try {
+    const res = await NoonaHQ.get(`/${COMPANY_ID}/customers?select=id&select=name`)
+    const list = res.data || []
+    const map = new Map<string, string>()
+    for (const c of list) {
+      if (c?.id && c?.name) map.set(c.id, c.name)
+    }
+    return map
+  } catch (e) {
+    console.error('fetchNoonaCustomerNames error:', e)
+    return new Map()
   }
 }
 
@@ -927,7 +946,28 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
   const strapiComparable = strapiComparableItems.length
   // Match by NAME, not just head-count: a wrong/typo'd client name keeps the count
   // equal (extra of one name offsets a missing other) but is a genuine discrepancy.
-  const nameDiff = diffByName(strapiComparableItems, noona.events)
+  let events = noona.events
+  let nameDiff = diffByName(strapiComparableItems, events)
+
+  // Noona events store customer_name as a snapshot taken at booking time. If the
+  // customer was later renamed, that stale snapshot won't match the current Strapi
+  // clientName → false "Pouze v Noona"/"Pouze v Strapi". Only when a leftover remains
+  // on BOTH sides do we pay for the full customer list (Noona can't filter by id) and
+  // refresh the events' names via event.customer, then re-match. Patched events flow
+  // into the result so the comparison, offer-match and event list all show current names.
+  if (nameDiff.strapiExtra.length > 0 && nameDiff.noonaExtra.length > 0) {
+    const nameById = await fetchNoonaCustomerNames()
+    if (nameById.size > 0) {
+      events = events.map((e: any) => {
+        const current = e.customer ? nameById.get(e.customer) : undefined
+        return current && current !== e.customer_name
+          ? { ...e, customer_name: current }
+          : e
+      })
+      nameDiff = diffByName(strapiComparableItems, events)
+    }
+  }
+
   const mismatchCount = nameDiff.strapiExtra.length + nameDiff.noonaExtra.length
   const comparison = {
     strapiCount: strapiComparable,
@@ -942,7 +982,7 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
     serviceProvided,
     workTime,
     payroll,
-    noona,
+    noona: { ...noona, events },
     comparison,
   }
 }
