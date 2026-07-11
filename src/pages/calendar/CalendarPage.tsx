@@ -1,11 +1,13 @@
-// Календарь администраторов — ЧЕРНОВОЙ каркас (фаза 2 own-booking, s99).
-// Read-only список дня по мастерам из локального зеркала Noona (booking).
-// Полноценный дневной грид (сетка 15 мин, drag-and-drop) — следующие сессии.
+// Календарь администраторов (фаза 2 own-booking, s99).
+// Дневной грид как в Noona: колонки мастеров, ось времени, нерабочее время,
+// карточки броней по позиции/длительности, линия now. Read-only из зеркала.
+// Write-действия (перенос/статусы) — фаза 3.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Container } from '../../components/Container'
-import type { CalendarBooking } from './fetch/calendarDay'
-import { fetchCalendarDay, groupByMaster, type MasterColumn } from './fetch/calendarDay'
+import type { CalendarBooking, CalendarDay } from './fetch/calendarDay'
+import { fetchCalendarDay } from './fetch/calendarDay'
+import { CalendarGrid } from './CalendarGrid'
 
 const todayStr = (): string => {
   const d = new Date()
@@ -19,9 +21,7 @@ const shiftDate = (dateStr: string, days: number): string => {
 }
 
 const fmtTime = (iso: string | null): string =>
-  iso
-    ? new Date(iso).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })
-    : '—'
+  iso ? new Date(iso).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }) : '—'
 
 const STATUS_META: Record<CalendarBooking['status'], { label: string; cls: string }> = {
   active: { label: 'aktivní', cls: 'bg-pink-100 text-pink-700' },
@@ -30,75 +30,94 @@ const STATUS_META: Record<CalendarBooking['status'], { label: string; cls: strin
   noshow: { label: 'nepřišla', cls: 'bg-red-100 text-red-700' },
 }
 
-const BookingRow = ({ b }: { b: CalendarBooking }) => {
+// Drawer с деталями брони
+const BookingDrawer = ({ b, onClose }: { b: CalendarBooking; onClose: () => void }) => {
   const meta = STATUS_META[b.status] ?? STATUS_META.active
-  const services = (b.services || []).map((s) => s.title).filter(Boolean)
   return (
-    <div className={`rounded-lg border border-gray-200 bg-white px-3 py-2 ${b.status === 'cancelled' ? 'opacity-60' : ''}`}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-gray-900">
-          {fmtTime(b.startsAt)}–{fmtTime(b.endsAt)}
-        </span>
-        <span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${meta.cls}`}>{meta.label}</span>
-      </div>
-      <div className="mt-0.5 text-sm text-gray-800">{b.clientNameRaw || '—'}</div>
-      <div className="mt-0.5 text-xs text-gray-500">
-        {services.length ? services.join(' · ') : 'bez služby'}
-        {b.totalPrice != null && <span className="ml-2 font-semibold text-primary">{b.totalPrice} Kč</span>}
-      </div>
-      {(b.comment || b.customerComment) && (
-        <div className="mt-1 text-xs italic text-gray-400">
-          {[b.comment, b.customerComment].filter(Boolean).join(' · ')}
+    <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/30" />
+      <div
+        className="relative h-full w-full max-w-sm overflow-y-auto bg-white p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-start justify-between">
+          <div>
+            <div className="text-lg font-bold text-gray-900">{b.clientNameRaw || '—'}</div>
+            <div className="text-sm text-gray-500">
+              {fmtTime(b.startsAt)}–{fmtTime(b.endsAt)}
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700">
+            ✕
+          </button>
         </div>
-      )}
-    </div>
-  )
-}
 
-const MasterSection = ({ col, showCancelled }: { col: MasterColumn; showCancelled: boolean }) => {
-  const visible = showCancelled ? col.bookings : col.bookings.filter((b) => b.status !== 'cancelled')
-  return (
-    <div className="rounded-xl bg-white p-4 shadow-sm">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-bold text-gray-900">
-          {col.name}
-          {!col.isActiveMaster && (
-            <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-500">
-              bývalý
-            </span>
-          )}
-        </h3>
-        <span className="text-xs text-gray-500">{visible.length} rez.</span>
-      </div>
-      {visible.length === 0 ? (
-        <p className="text-xs text-gray-400">Žádné rezervace</p>
-      ) : (
-        <div className="space-y-2">
-          {visible.map((b) => (
-            <BookingRow key={b.documentId} b={b} />
+        <span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${meta.cls}`}>
+          {meta.label}
+        </span>
+
+        <div className="mt-4 space-y-2">
+          {(b.services || []).map((s, i) => (
+            <div key={i} className="flex justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
+              <span className="text-gray-800">{s.title}</span>
+              <span className="text-gray-500">
+                {s.durationMin ? `${s.durationMin} min` : ''} {s.price != null ? `· ${s.price} Kč` : ''}
+              </span>
+            </div>
           ))}
         </div>
-      )}
+
+        <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-3">
+          <span className="text-sm text-gray-500">Celkem</span>
+          <span className="text-lg font-bold text-primary">
+            {b.totalPrice != null ? `${b.totalPrice} Kč` : '—'}
+          </span>
+        </div>
+
+        {(b.comment || b.customerComment) && (
+          <div className="mt-4 space-y-2">
+            {b.comment && (
+              <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                <b>Poznámka:</b> {b.comment}
+              </div>
+            )}
+            {b.customerComment && (
+              <div className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                <b>Klient:</b> {b.customerComment}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-4 text-xs text-gray-400">
+          {b.employeeNameRaw && <div>Mistr: {b.employeeNameRaw}</div>}
+          {b.bsChannel && <div>Kanál: {b.bsChannel}</div>}
+        </div>
+
+        <p className="mt-6 text-xs italic text-gray-400">
+          Read-only náhled ze zrcadla Noona. Úpravy zatím v Noona (write — фаза 3).
+        </p>
+      </div>
     </div>
   )
 }
 
 export default function CalendarPage() {
   const [date, setDate] = useState(todayStr())
-  const [columns, setColumns] = useState<MasterColumn[]>([])
+  const [day, setDay] = useState<CalendarDay | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showCancelled, setShowCancelled] = useState(false)
+  const [selected, setSelected] = useState<CalendarBooking | null>(null)
 
   const load = useCallback(async (dateStr: string) => {
     setLoading(true)
     setError(null)
     try {
-      const day = await fetchCalendarDay(dateStr)
-      setColumns(groupByMaster(day))
+      setDay(await fetchCalendarDay(dateStr))
     } catch (e) {
       setError((e as Error).message || 'Nepodařilo se načíst den')
-      setColumns([])
+      setDay(null)
     } finally {
       setLoading(false)
     }
@@ -109,12 +128,13 @@ export default function CalendarPage() {
   }, [date, load])
 
   const totals = useMemo(() => {
-    const all = columns.flatMap((c) => c.bookings)
+    if (!day) return { total: 0, cancelled: 0 }
+    const all = day.columns.flatMap((c) => c.bookings)
     return {
       total: all.filter((b) => b.status !== 'cancelled').length,
       cancelled: all.filter((b) => b.status === 'cancelled').length,
     }
-  }, [columns])
+  }, [day])
 
   return (
     <Container size="xl" className="py-6">
@@ -161,20 +181,17 @@ export default function CalendarPage() {
       </div>
 
       <p className="mb-4 text-xs text-gray-400">
-        Náhled ze zrcadla Noona (read-only, sync každých 10 min) — akce zatím provádějte v Noona.
+        Náhled ze zrcadla Noona (read-only, sync každých 10 min). Pracovní hodiny a nepracovní doba
+        živě z Noona. Akce zatím provádějte v Noona.
       </p>
 
       {loading && <p className="text-sm text-gray-500">Načítám…</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
-      {!loading && !error && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {columns
-            .filter((c) => c.isActiveMaster || c.bookings.length > 0)
-            .map((col) => (
-              <MasterSection key={col.key} col={col} showCancelled={showCancelled} />
-            ))}
-        </div>
+      {!loading && !error && day && (
+        <CalendarGrid day={day} dateStr={date} showCancelled={showCancelled} onSelect={setSelected} />
       )}
+
+      {selected && <BookingDrawer b={selected} onClose={() => setSelected(null)} />}
     </Container>
   )
 }
