@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Axios } from '../../../lib/api'
-import { NoonaHQ } from '../../../lib/noona'
+import { clientKey, fetchMirrorBookingsRange, fetchMirrorClients } from '../../../lib/mirror'
 import { format } from 'date-fns'
 import { getMoney } from '../../dashboard/fetch/costs'
 import { getAdminsHours } from '../../dashboard/fetch/allAdminsHours'
@@ -216,8 +216,6 @@ export const getFlagDelta = (item: any, flag: VerifyFlag): number | null => {
   }
 }
 
-const COMPANY_ID = import.meta.env.VITE_NOONA_COMPANY_ID as string
-
 export interface ShiftCheckResult {
   date: string
   cash: {
@@ -330,35 +328,30 @@ const fetchPayroll = async (dateStr: string) => {
   }
 }
 
-// Fetch Noona events for a specific date
+// Брони дня из НАШЕЙ БД (own-booking фаза 4: внутренняя сверка booking ↔
+// services-provided вместо Noona API). Форма событий сохранена 1:1
+// (customer_name / event_types[0].title / employee.name) — вся логика сверки
+// (diffByName, buildOfferMatches, NoonaEventsCard) работает без изменений.
+// customer_name берётся ТЕКУЩИЙ (client relation) — боль устаревших снимков
+// имён (s97) исчезает по построению.
 const fetchNoonaEvents = async (dateStr: string) => {
   try {
-    const startOfDay = new Date(`${dateStr}T00:00:00.000Z`)
-    const endOfDay = new Date(`${dateStr}T23:59:59.999Z`)
-
-    const queryString = new URLSearchParams()
-    queryString.append(
-      'filter',
-      JSON.stringify({
-        from: startOfDay.toISOString(),
-        to: endOfDay.toISOString(),
-      }),
-    )
-    queryString.append('select', 'id')
-    queryString.append('select', 'customer_name')
-    queryString.append('select', 'customer')
-    queryString.append('select', 'status')
-    queryString.append('select', 'starts_at')
-    queryString.append('select', 'ends_at')
-    queryString.append('select', 'event_types')
-    queryString.append('select', 'employee.name')
-
-    const res = await NoonaHQ.get(`/${COMPANY_ID}/events?${queryString.toString()}`)
-    const events = res.data || []
-    // Filter out cancelled and noshow
-    const activeEvents = events.filter(
-      (e: any) => e.status !== 'cancelled' && e.status !== 'noshow',
-    )
+    const bookings = await fetchMirrorBookingsRange(dateStr, dateStr)
+    const activeEvents = bookings
+      .filter((b) => b.status !== 'cancelled' && b.status !== 'noshow')
+      .map((b) => ({
+        id: b.documentId,
+        customer_name: b.client?.name || b.clientNameRaw || '',
+        customer: b.client ? clientKey(b.client) : '',
+        status: b.status,
+        starts_at: b.startsAt,
+        ends_at: b.endsAt,
+        event_types: (b.services || []).map((s) => ({
+          title: s.title || '',
+          price: { amount: s.price ?? null },
+        })),
+        employee: { name: b.employeeNameRaw || '' },
+      }))
     return { found: activeEvents.length > 0, count: activeEvents.length, events: activeEvents }
   } catch (e) {
     console.error('fetchNoonaEvents error:', e)
@@ -366,16 +359,15 @@ const fetchNoonaEvents = async (dateStr: string) => {
   }
 }
 
-// Map of Noona customer id → current name. Noona can't filter customers by id and
-// its single-customer endpoint returns empty, so the whole list (~1700, one request)
-// is the only way — called lazily, only when a name-diff leftover remains.
+// Карта id клиента → текущее имя (из НАШЕЙ коллекции client). Ленивый фолбэк
+// пере-матча имён (s97) — с текущими именами из relation почти не срабатывает,
+// но остаётся страховкой при опечатках в clientName записей Strapi.
 const fetchNoonaCustomerNames = async (): Promise<Map<string, string>> => {
   try {
-    const res = await NoonaHQ.get(`/${COMPANY_ID}/customers?select=id&select=name`)
-    const list = res.data || []
+    const clients = await fetchMirrorClients()
     const map = new Map<string, string>()
-    for (const c of list) {
-      if (c?.id && c?.name) map.set(c.id, c.name)
+    for (const c of clients) {
+      if (c.name) map.set(clientKey(c), c.name)
     }
     return map
   } catch (e) {

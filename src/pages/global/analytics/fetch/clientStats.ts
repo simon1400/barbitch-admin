@@ -1,11 +1,9 @@
-import { NoonaHQ } from '../../../../lib/noona'
+import { getEventsHistory } from './eventsHistory'
 
-// Статистика клиентов из Noona: новые vs повторные по месяцам + загрузка по дням недели.
-// Источник — события (брони) Noona. Клиент = уникальный customer id.
-// Отменённые брони (status === 'cancelled') исключаются из всех подсчётов.
-
-const COMPANY_ID = import.meta.env.VITE_NOONA_COMPANY_ID as string
-const HISTORY_START_YEAR = 2024 // салон открылся в ноябре 2024 — нужна вся история для «первого визита»
+// Статистика клиентов: новые vs повторные по месяцам + загрузка по дням недели.
+// own-booking фаза 4: источник — общий кэш истории броней из НАШЕЙ БД
+// (eventsHistory на зеркале), Noona API не участвует. Клиент = стабильный id
+// (noonaCustomerId / documentId). Отменённые исключаются из всех подсчётов.
 
 interface RawEvent {
   customer?: string
@@ -62,30 +60,10 @@ const monthLabel = (m: string) => {
   return `${MONTHS_RU[Number(mm) - 1]} ${y}`
 }
 
-const fetchYear = async (year: number): Promise<RawEvent[]> => {
-  const filter = JSON.stringify({
-    from: `${year}-01-01T00:00:00.000Z`,
-    to: `${year + 1}-01-01T00:00:00.000Z`,
-  })
-  const params = new URLSearchParams()
-  params.append('filter', filter)
-  for (const f of ['customer', 'status', 'event_date']) params.append('select', f)
-  const res = await NoonaHQ.get<RawEvent[]>(`/${COMPANY_ID}/events?${params.toString()}`)
-  return Array.isArray(res.data) ? res.data : []
-}
-
-let cache: { ts: number; events: RawEvent[] } | null = null
-const CACHE_TTL = 5 * 60 * 1000
-
+// Общий кэш истории (5 мин) уже в eventsHistory — мапим в локальную форму
 const fetchAllEvents = async (force: boolean): Promise<RawEvent[]> => {
-  if (!force && cache && Date.now() - cache.ts < CACHE_TTL) return cache.events
-  const currentYear = new Date().getFullYear()
-  const years: number[] = []
-  for (let y = HISTORY_START_YEAR; y <= currentYear; y++) years.push(y)
-  const chunks = await Promise.all(years.map((y) => fetchYear(y)))
-  const events = chunks.flat()
-  cache = { ts: Date.now(), events }
-  return events
+  const hist = await getEventsHistory(force)
+  return hist.map((e) => ({ customer: e.customer, status: e.status, event_date: e.date }))
 }
 
 export const getClientStats = async (force = false): Promise<ClientStats> => {

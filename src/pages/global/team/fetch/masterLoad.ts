@@ -1,32 +1,17 @@
-import { NoonaHQ } from '../../../../lib/noona'
-import { fetchEmployees } from '../../noona/fetch/masterServices'
+import {
+  fetchMirrorBookingsRange,
+  fetchMirrorEmployees,
+  fetchSalonHoursRange,
+  fetchTimeBlocksRange,
+} from '../../../../lib/mirror'
 
-// Загрузка мастеров по слотам Noona за месяц.
-// Модель (проверено на проде): per-employee графика в Noona НЕТ (work_hours пуст) —
-// выходные/нерабочее время мастеров ведутся как blocked_times («Nepracovni doba»).
-// Капацита дня мастера = часы салона (opening_hours) − его блокировки (blocked_times).
-// Занято = брони (events, кроме cancelled; noshow считается — слот был занят).
+// Загрузка мастеров по слотам за месяц. own-booking фаза 4: источники — НАША БД
+// (salon-hour / time-block / booking / personal), Noona API не участвует.
+// Модель та же: капацита дня мастера = часы салона − его блоки;
+// занято = брони (кроме cancelled; noshow считается — слот был занят).
 // Загрузка % = занято / капацита.
-
-const COMPANY_ID = import.meta.env.VITE_NOONA_COMPANY_ID as string
-
-interface RawEvent {
-  employee?: string
-  status?: string
-  event_date?: string // 'YYYY-MM-DD'
-  starts_at?: string
-  ends_at?: string
-}
-
-interface RawBlocked {
-  employee?: string
-  date?: string // 'YYYY-MM-DD'
-  duration?: number // минуты
-  starts_at?: string
-  ends_at?: string
-}
-
-type OpeningHoursResponse = Record<string, Array<{ starts_at?: string; ends_at?: string }>>
+// ⚠️ Зеркало расписания покрывает окно синка (~[−30..+90] дней от импорта s99) —
+// более старые месяцы покажут нулевую капациту (ограничение зеркала, не бага).
 
 export interface DayLoad {
   date: string // 'YYYY-MM-DD'
@@ -91,62 +76,41 @@ export const getMasterLoadRange = async (
   fromStr: string,
   toStr: string,
 ): Promise<MasterLoadResult> => {
-  // События тянем с запасом +1 день (фильтр Noona — UTC, event_date — локальная дата),
-  // потом отбрасываем по event_date вне диапазона.
-  const [ty, tm, td] = toStr.split('-').map(Number)
-  const dayAfter = new Date(ty, tm - 1, td + 1)
-  const eventsFilter = JSON.stringify({
-    from: `${fromStr}T00:00:00.000Z`,
-    to: `${dateToStr(dayAfter)}T23:59:59.999Z`,
-  })
-  const eventsParams = new URLSearchParams()
-  eventsParams.append('filter', eventsFilter)
-  for (const f of ['employee', 'status', 'event_date', 'starts_at', 'ends_at']) {
-    eventsParams.append('select', f)
-  }
-
-  const openingParams = new URLSearchParams()
-  openingParams.append('filter', JSON.stringify({ from: fromStr, to: toStr }))
-
-  const [employees, openingRes, blockedRes, eventsRes] = await Promise.all([
-    fetchEmployees(),
-    NoonaHQ.get<OpeningHoursResponse>(`/${COMPANY_ID}/opening_hours?${openingParams.toString()}`),
-    NoonaHQ.get<RawBlocked[]>(`/${COMPANY_ID}/blocked_times?from=${fromStr}&to=${toStr}`),
-    NoonaHQ.get<RawEvent[]>(`/${COMPANY_ID}/events?${eventsParams.toString()}`),
+  const [employees, hours, blocks, bookings] = await Promise.all([
+    fetchMirrorEmployees(),
+    fetchSalonHoursRange(fromStr, toStr),
+    fetchTimeBlocksRange(fromStr, toStr),
+    fetchMirrorBookingsRange(fromStr, toStr),
   ])
 
-  // Часы салона по дням
+  // Часы салона по дням (сумма окон; fallback close−open)
   const openMinByDate = new Map<string, number>()
-  const opening = openingRes.data || {}
-  for (const [date, windows] of Object.entries(opening)) {
-    const min = (windows || []).reduce((acc, w) => {
+  for (const h of hours) {
+    const winSum = (h.windows || []).reduce((acc, w) => {
       if (!w.starts_at || !w.ends_at) return acc
       return acc + Math.max(0, minutesFromHHMM(w.ends_at) - minutesFromHHMM(w.starts_at))
     }, 0)
-    openMinByDate.set(date, min)
+    const fallback = h.openMin != null && h.closeMin != null ? Math.max(0, h.closeMin - h.openMin) : 0
+    openMinByDate.set(String(h.date), winSum || fallback)
   }
 
   // Блокировки мастера по дням
   const blockedMin = new Map<string, number>() // `${employee}|${date}` → мин
-  for (const b of Array.isArray(blockedRes.data) ? blockedRes.data : []) {
-    if (!b.employee || !b.date) continue
-    let dur = b.duration ?? 0
-    if (!dur && b.starts_at && b.ends_at) {
-      dur = Math.max(0, (new Date(b.ends_at).getTime() - new Date(b.starts_at).getTime()) / 60000)
-    }
-    const key = `${b.employee}|${b.date}`
+  for (const b of blocks) {
+    if (!b.noonaEmployeeId || !b.date || !b.startsAt || !b.endsAt) continue
+    const dur = Math.max(0, (new Date(b.endsAt).getTime() - new Date(b.startsAt).getTime()) / 60000)
+    const key = `${b.noonaEmployeeId}|${b.date}`
     blockedMin.set(key, (blockedMin.get(key) || 0) + dur)
   }
 
   // Брони мастера по дням
   const bookedMin = new Map<string, number>()
   const bookedCount = new Map<string, number>()
-  for (const e of Array.isArray(eventsRes.data) ? eventsRes.data : []) {
-    if (!e.employee || !e.event_date || e.status === 'cancelled') continue
-    if (e.event_date < fromStr || e.event_date > toStr) continue
-    if (!e.starts_at || !e.ends_at) continue
-    const dur = Math.max(0, (new Date(e.ends_at).getTime() - new Date(e.starts_at).getTime()) / 60000)
-    const key = `${e.employee}|${e.event_date}`
+  for (const e of bookings) {
+    if (!e.noonaEmployeeId || !e.date || e.status === 'cancelled') continue
+    if (!e.startsAt || !e.endsAt) continue
+    const dur = Math.max(0, (new Date(e.endsAt).getTime() - new Date(e.startsAt).getTime()) / 60000)
+    const key = `${e.noonaEmployeeId}|${e.date}`
     bookedMin.set(key, (bookedMin.get(key) || 0) + dur)
     bookedCount.set(key, (bookedCount.get(key) || 0) + 1)
   }

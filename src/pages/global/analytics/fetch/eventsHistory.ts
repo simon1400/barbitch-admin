@@ -1,24 +1,16 @@
-import { NoonaHQ } from '../../../../lib/noona'
+import { clientKey, fetchMirrorBookingsAll, fetchMirrorEmployees } from '../../../../lib/mirror'
+import type { MirrorBooking } from '../../../../lib/mirror'
 
-// Общий кэш ВСЕЙ истории событий Noona с ценами — используется табами
-// «Спящие», «Возвращаемость», «Прогноз», «Отмены». Один fetch на 5 минут.
-// Текущий год тянется до 1 января следующего → БУДУЩИЕ брони тоже в кэше
-// (нужно прогнозу и фильтру «у клиента есть будущая запись»).
-
-const COMPANY_ID = import.meta.env.VITE_NOONA_COMPANY_ID as string
-const HISTORY_START_YEAR = 2024 // салон открылся в ноябре 2024
-
-interface RawEvent {
-  customer?: string
-  customer_name?: string
-  employee?: string
-  status?: string
-  event_date?: string
-  starts_at?: string
-  ends_at?: string
-  created_at?: string
-  event_types?: Array<{ price?: { amount?: number } }>
-}
+// Общий кэш ВСЕЙ истории броней — используется табами «Спящие», «Возвращаемость»,
+// «Прогноз», «Отмены», «Клиенты», результатами кампаний/дозаписей. Один fetch на 5 минут.
+//
+// own-booking фаза 4: источник — НАША БД (коллекция booking: зеркало Noona + записи
+// собственного движка), Noona API здесь больше не участвует. Интерфейс HistEvent
+// сохранён 1:1 — потребители не менялись. Бонусы против Noona-версии:
+//   - customerName = ТЕКУЩЕЕ имя клиента (relation), а не снимок на момент брони (боль s97);
+//   - customer = noonaCustomerId (совместимость с историей email-campaign-log) или
+//     documentId для клиентов, созданных уже нашим движком;
+//   - будущие брони в кэше автоматически (зеркало живёт по синку, без «до 1 января»).
 
 export interface HistEvent {
   customer: string
@@ -33,68 +25,49 @@ export interface HistEvent {
   durationMin: number
 }
 
-const SELECT_FIELDS = [
-  'customer',
-  'customer_name',
-  'employee',
-  'status',
-  'event_date',
-  'starts_at',
-  'ends_at',
-  'created_at',
-  'event_types.price',
-]
-
-const fetchYear = async (year: number): Promise<RawEvent[]> => {
-  const params = new URLSearchParams()
-  params.append(
-    'filter',
-    JSON.stringify({
-      from: `${year}-01-01T00:00:00.000Z`,
-      to: `${year + 1}-01-01T00:00:00.000Z`,
-    }),
-  )
-  for (const f of SELECT_FIELDS) params.append('select', f)
-  const res = await NoonaHQ.get<RawEvent[]>(`/${COMPANY_ID}/events?${params.toString()}`)
-  return Array.isArray(res.data) ? res.data : []
-}
-
-const toHist = (e: RawEvent): HistEvent | null => {
-  if (!e.event_date) return null
+const toHist = (b: MirrorBooking): HistEvent | null => {
+  if (!b.date) return null
   let durationMin = 0
-  if (e.starts_at && e.ends_at) {
-    durationMin = Math.max(
-      0,
-      (new Date(e.ends_at).getTime() - new Date(e.starts_at).getTime()) / 60000,
-    )
+  if (b.startsAt && b.endsAt) {
+    durationMin = Math.max(0, (new Date(b.endsAt).getTime() - new Date(b.startsAt).getTime()) / 60000)
   }
   return {
-    customer: e.customer ?? '',
-    customerName: e.customer_name ?? '',
-    employee: e.employee ?? '',
-    status: e.status ?? '',
-    date: e.event_date,
-    startsAt: e.starts_at ?? '',
-    endsAt: e.ends_at ?? '',
-    createdAt: e.created_at ?? '',
-    price: e.event_types?.[0]?.price?.amount ?? 0,
+    customer: b.client ? clientKey(b.client) : '',
+    customerName: b.client?.name || b.clientNameRaw || '',
+    employee: b.noonaEmployeeId ?? '',
+    status: b.status ?? '',
+    date: String(b.date),
+    startsAt: b.startsAt ?? '',
+    endsAt: b.endsAt ?? '',
+    createdAt: b.noonaCreatedAt || b.createdAt || '',
+    price: Number(b.totalPrice) || 0,
     durationMin,
   }
 }
 
-let cache: { ts: number; events: HistEvent[] } | null = null
+let cache: { ts: number; events: HistEvent[]; empNames: Map<string, string> } | null = null
 const CACHE_TTL = 5 * 60 * 1000
 
-export const getEventsHistory = async (force = false): Promise<HistEvent[]> => {
-  if (!force && cache && Date.now() - cache.ts < CACHE_TTL) return cache.events
-  const currentYear = new Date().getFullYear()
-  const years: number[] = []
-  for (let y = HISTORY_START_YEAR; y <= currentYear; y++) years.push(y)
-  const chunks = await Promise.all(years.map((y) => fetchYear(y)))
-  const events = chunks.flat().map(toHist).filter(Boolean) as HistEvent[]
-  cache = { ts: Date.now(), events }
-  return events
+const loadHistory = async (force: boolean) => {
+  if (!force && cache && Date.now() - cache.ts < CACHE_TTL) return cache
+  const [bookings, employees] = await Promise.all([
+    fetchMirrorBookingsAll(),
+    fetchMirrorEmployees().catch(() => []),
+  ])
+  const events = bookings.map(toHist).filter(Boolean) as HistEvent[]
+  // Имена мастеров: базово — снимки из броней (покрывают и бывших сотрудников),
+  // поверх — полные актуальные имена активных из personal
+  const empNames = new Map<string, string>()
+  for (const b of bookings) {
+    if (b.noonaEmployeeId && b.employeeNameRaw) empNames.set(b.noonaEmployeeId, b.employeeNameRaw.trim())
+  }
+  for (const e of employees) empNames.set(e.id, e.name)
+  cache = { ts: Date.now(), events, empNames }
+  return cache
 }
+
+export const getEventsHistory = async (force = false): Promise<HistEvent[]> =>
+  (await loadHistory(force)).events
 
 // «Состоявшийся визит» — не отменён и не no-show
 export const isAttended = (e: HistEvent) => e.status !== 'cancelled' && e.status !== 'noshow'
@@ -108,12 +81,6 @@ export const todayStr = (): string => {
   ).padStart(2, '0')}`
 }
 
-// Имена ВСЕХ сотрудников (включая удалённых) — для атрибуции исторических событий
-let empCache: Map<string, string> | null = null
-export const fetchEmployeeNames = async (): Promise<Map<string, string>> => {
-  if (empCache) return empCache
-  const res = await NoonaHQ.get(`/${COMPANY_ID}/employees?select=id&select=name`)
-  const items: Array<{ id?: string; name?: string }> = Array.isArray(res.data) ? res.data : []
-  empCache = new Map(items.filter((e) => e.id).map((e) => [e.id!, (e.name ?? e.id!).trim()]))
-  return empCache
-}
+// Имена ВСЕХ сотрудников (включая бывших) — для атрибуции исторических событий
+export const fetchEmployeeNames = async (): Promise<Map<string, string>> =>
+  (await loadHistory(false)).empNames

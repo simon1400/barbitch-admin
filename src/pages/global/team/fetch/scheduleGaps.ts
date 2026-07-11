@@ -1,11 +1,15 @@
-import { NoonaHQ } from '../../../../lib/noona'
-import { fetchEmployees } from '../../noona/fetch/masterServices'
+import {
+  fetchMirrorBookingsRange,
+  fetchMirrorEmployees,
+  fetchSalonHoursRange,
+  fetchTimeBlocksRange,
+} from '../../../../lib/mirror'
 
 // «Окна» (дыры) в расписании мастеров: свободные интервалы внутри рабочего
 // времени (часы салона − блокировки) между бронями. «Мёртвое окно» = 15–90 мин —
 // в него трудно продать услугу; большие свободные блоки (>90 мин) ещё продаваемы.
-
-const COMPANY_ID = import.meta.env.VITE_NOONA_COMPANY_ID as string
+// own-booking фаза 4: источники — НАША БД (salon-hour / time-block / booking /
+// personal), Noona API не участвует.
 
 export const DEAD_MIN = 15
 export const DEAD_MAX = 90
@@ -42,23 +46,6 @@ export interface MasterGapsRow {
   bookedMin: number
 }
 
-interface RawBlocked {
-  employee?: string
-  date?: string
-  starts_at?: string
-  ends_at?: string
-}
-
-interface RawEvent {
-  employee?: string
-  status?: string
-  event_date?: string
-  starts_at?: string
-  ends_at?: string
-}
-
-type OpeningHoursResponse = Record<string, Array<{ starts_at?: string; ends_at?: string }>>
-
 const hhmmToMin = (s: string): number => {
   const [h, m] = s.split(':').map(Number)
   return (h || 0) * 60 + (m || 0)
@@ -92,26 +79,22 @@ export const getScheduleGaps = async (
   fromStr: string,
   toStr: string,
 ): Promise<MasterGapsRow[]> => {
-  const openingParams = new URLSearchParams()
-  openingParams.append('filter', JSON.stringify({ from: fromStr, to: toStr }))
-
-  const eventsParams = new URLSearchParams()
-  eventsParams.append(
-    'filter',
-    JSON.stringify({ from: `${fromStr}T00:00:00.000Z`, to: `${toStr}T23:59:59.999Z` }),
-  )
-  for (const f of ['employee', 'status', 'event_date', 'starts_at', 'ends_at']) {
-    eventsParams.append('select', f)
-  }
-
-  const [employees, openingRes, blockedRes, eventsRes] = await Promise.all([
-    fetchEmployees(),
-    NoonaHQ.get<OpeningHoursResponse>(`/${COMPANY_ID}/opening_hours?${openingParams.toString()}`),
-    NoonaHQ.get<RawBlocked[]>(`/${COMPANY_ID}/blocked_times?from=${fromStr}&to=${toStr}`),
-    NoonaHQ.get<RawEvent[]>(`/${COMPANY_ID}/events?${eventsParams.toString()}`),
+  const [employees, hours, blocks, bookings] = await Promise.all([
+    fetchMirrorEmployees(),
+    fetchSalonHoursRange(fromStr, toStr),
+    fetchTimeBlocksRange(fromStr, toStr),
+    fetchMirrorBookingsRange(fromStr, toStr),
   ])
 
-  const opening = openingRes.data || {}
+  // Часы салона по дням: окна как в Noona (windows json), fallback open/close
+  const opening: Record<string, Array<{ starts_at?: string; ends_at?: string }>> = {}
+  const minToHM = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
+  for (const h of hours) {
+    if (h.windows?.length) opening[String(h.date)] = h.windows
+    else if (h.openMin != null && h.closeMin != null) {
+      opening[String(h.date)] = [{ starts_at: minToHM(h.openMin), ends_at: minToHM(h.closeMin) }]
+    }
+  }
 
   // Занятые интервалы per employee|date (блоки + брони)
   const busyMap = new Map<string, Interval[]>()
@@ -121,16 +104,15 @@ export const getScheduleGaps = async (
     busyMap.get(key)!.push(iv)
   }
 
-  for (const b of Array.isArray(blockedRes.data) ? blockedRes.data : []) {
-    if (!b.employee || !b.date || !b.starts_at || !b.ends_at) continue
-    push(`${b.employee}|${b.date}`, { start: isoToMin(b.starts_at), end: isoToMin(b.ends_at) })
+  for (const b of blocks) {
+    if (!b.noonaEmployeeId || !b.date || !b.startsAt || !b.endsAt) continue
+    push(`${b.noonaEmployeeId}|${b.date}`, { start: isoToMin(b.startsAt), end: isoToMin(b.endsAt) })
   }
-  for (const e of Array.isArray(eventsRes.data) ? eventsRes.data : []) {
-    if (!e.employee || !e.event_date || e.status === 'cancelled') continue
-    if (!e.starts_at || !e.ends_at) continue
-    if (e.event_date < fromStr || e.event_date > toStr) continue
-    const iv = { start: isoToMin(e.starts_at), end: isoToMin(e.ends_at) }
-    const key = `${e.employee}|${e.event_date}`
+  for (const e of bookings) {
+    if (!e.noonaEmployeeId || !e.date || e.status === 'cancelled') continue
+    if (!e.startsAt || !e.endsAt) continue
+    const iv = { start: isoToMin(e.startsAt), end: isoToMin(e.endsAt) }
+    const key = `${e.noonaEmployeeId}|${e.date}`
     push(key, iv)
     bookedMinMap.set(key, (bookedMinMap.get(key) || 0) + Math.max(0, iv.end - iv.start))
   }

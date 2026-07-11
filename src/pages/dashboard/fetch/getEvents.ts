@@ -1,59 +1,23 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { InputItemReservation } from './fetchHelpers'
 
 import { isBefore, isEqual, parseISO } from 'date-fns'
 import { getMonthRange } from '../../../utils/getMonthRange'
-import { NoonaHQ } from '../../../lib/noona'
-
-const COMPANY_ID = import.meta.env.VITE_NOONA_COMPANY_ID as string
+import { fetchMirrorBookingsRange, countBookingsCreatedBetween } from '../../../lib/mirror'
+import type { MirrorBooking } from '../../../lib/mirror'
 
 import { groupCountReservationByDate } from './fetchHelpers'
 
-interface EventItem {
-  status?: string
-  event_types: { color?: string }[]
-  customer_name: string
-  ends_at: string // ISO string даты
-  [key: string]: any
-}
+// Метрики резерваций месяца для дашборда/GlobalPage. own-booking фаза 4:
+// источник — НАША БД (коллекция booking), Noona API не участвует.
+// Маппинг против старой Noona-версии: цветовые категории event_types (#FF787D
+// «payed» / #822949 «fixed») в зеркале не существуют → «payed» = все брони
+// кроме cancelled/noshow (то, что реально приносит визиты), «fixed» = 0.
 
-export const splitEventsByStatus = (events: EventItem[]) => {
-  const cancelled: EventItem[] = []
-  const noshow: EventItem[] = []
-  const others: EventItem[] = []
-
-  for (const event of events) {
-    if (event.status === 'cancelled') {
-      cancelled.push(event)
-    } else if (event.status === 'noshow') {
-      noshow.push(event)
-    } else {
-      others.push(event)
-    }
-  }
-
-  return { cancelled, noshow, others }
-}
-
-export const groupByColor = (events: EventItem[]) => {
-  const groups: Record<string, EventItem[]> = {}
-
-  for (const event of events) {
-    const color = event.event_types?.[0]?.color || 'unknown'
-    if (!groups[color]) {
-      groups[color] = []
-    }
-    groups[color].push(event)
-  }
-
-  return groups
-}
+const dayStr = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 export const getEvents = async (month: number, year: number) => {
   const { firstDay, lastDay } = getMonthRange(year, month)
-  const queryString = new URLSearchParams()
-  const queryString2 = new URLSearchParams()
-  const queryString3 = new URLSearchParams()
 
   const today = new Date()
   let day = today.getDate()
@@ -66,203 +30,49 @@ export const getEvents = async (month: number, year: number) => {
   const endToday = new Date(today)
   endToday.setHours(23, 59, 59, 999)
 
-  const queryParams: Record<string, string | string[]> = {
-    select: ['id', 'event_types.color', 'customer_name', 'status', 'ends_at'],
-    filter: JSON.stringify({
-      from: firstDay.toISOString(),
-      to: lastDay.toISOString(),
-    }),
+  const [bookings, countCreatedMonthReservation, countCreatedTodayReservation] = await Promise.all([
+    fetchMirrorBookingsRange(dayStr(firstDay), dayStr(lastDay)),
+    countBookingsCreatedBetween(firstDay.toISOString(), lastDay.toISOString()),
+    countBookingsCreatedBetween(startToday.toISOString(), endToday.toISOString()),
+  ])
+
+  const cancelled: MirrorBooking[] = []
+  const noshow: MirrorBooking[] = []
+  const payed: MirrorBooking[] = []
+  for (const b of bookings) {
+    if (b.status === 'cancelled') cancelled.push(b)
+    else if (b.status === 'noshow') noshow.push(b)
+    else payed.push(b)
   }
-
-  const queryParams2: Record<string, string | string[]> = {
-    select: [''],
-    filter: JSON.stringify({
-      created_from: firstDay.toISOString(),
-      created_to: lastDay.toISOString(),
-    }),
-    include_count_header: 'true',
-  }
-  const queryParams3: Record<string, string | string[]> = {
-    select: [''],
-    filter: JSON.stringify({
-      created_from: startToday.toISOString(),
-      created_to: endToday.toISOString(),
-    }),
-    include_count_header: 'true',
-  }
-
-  Object.entries(queryParams).forEach(([key, value]) => {
-    if (Array.isArray(value)) {
-      value.forEach((val) => queryString.append(key, val))
-    } else {
-      queryString.append(key, String(value))
-    }
-  })
-
-  Object.entries(queryParams2).forEach(([key, value]) => {
-    if (Array.isArray(value)) {
-      value.forEach((val) => queryString2.append(key, val))
-    } else {
-      queryString2.append(key, String(value))
-    }
-  })
-  Object.entries(queryParams3).forEach(([key, value]) => {
-    if (Array.isArray(value)) {
-      value.forEach((val) => queryString3.append(key, val))
-    } else {
-      queryString3.append(key, String(value))
-    }
-  })
-
-  const data = await NoonaHQ.get(`/${COMPANY_ID}/events?${queryString.toString()}`)
-  const { cancelled, noshow, others } = splitEventsByStatus(data.data)
-  const groupedByColor = groupByColor(others)
 
   const now = new Date()
-
-  const filteredBeenPayed = groupedByColor['#FF787D']?.filter((item) => {
-    const date = parseISO(item.ends_at)
+  const pastPayed = payed.filter((b) => {
+    if (!b.endsAt) return false
+    const date = parseISO(b.endsAt)
     return isBefore(date, now) || isEqual(date, now)
-  }) || []
-
-  const dataMetrics = groupCountReservationByDate({
-    Payed: (groupedByColor['#FF787D'] || []) as InputItemReservation[],
-    Canceled: cancelled as InputItemReservation[],
-    Noshow: noshow as InputItemReservation[],
   })
 
-  const createdReservationData = await NoonaHQ.get(
-    `/${COMPANY_ID}/events?${queryString2.toString()}`,
-  )
-  const createdReservationTodayData = await NoonaHQ.get(
-    `/${COMPANY_ID}/events?${queryString3.toString()}`,
-  )
+  const toMetric = (list: MirrorBooking[]): InputItemReservation[] =>
+    list.filter((b) => b.endsAt).map((b) => ({ ends_at: b.endsAt as string }))
 
-  const countCreatedMonthReservation = createdReservationData.headers['x-total-count']
-  const countCreatedTodayReservation = createdReservationTodayData.headers['x-total-count']
+  const dataMetrics = groupCountReservationByDate({
+    Payed: toMetric(payed),
+    Canceled: toMetric(cancelled),
+    Noshow: toMetric(noshow),
+  })
+
   const monthReservationIndex = (countCreatedMonthReservation / day).toFixed(1)
 
-  const result = {
-    all: data.data.length,
-    cancelled: cancelled?.length || 0,
-    noshow: noshow?.length || 0,
-    payed: groupedByColor['#FF787D']?.length || 0,
-    pastPayed: filteredBeenPayed?.length || 0,
-    // free: groupedByColor['#3d4881']?.length || 0,
-    // personal: groupedByColor['#59c3b9']?.length || 0,
-    fixed: groupedByColor['#822949']?.length || 0,
+  return {
+    all: bookings.length,
+    cancelled: cancelled.length,
+    noshow: noshow.length,
+    payed: payed.length,
+    pastPayed: pastPayed.length,
+    fixed: 0, // цветовая категория Noona (#822949) — в собственной системе не существует
     dataMetrics: dataMetrics || [],
-    countCreatedMonthReservation: countCreatedMonthReservation || 0,
-    countCreatedTodayReservation: countCreatedTodayReservation || 0,
+    countCreatedMonthReservation,
+    countCreatedTodayReservation,
     monthReservationIndex: monthReservationIndex || 0,
   }
-  return result
 }
-
-// export const getEventsByDateRange = async (startDate: Date, endDate: Date) => {
-//   const queryString = new URLSearchParams()
-//   const queryString2 = new URLSearchParams()
-//   const queryString3 = new URLSearchParams()
-
-//   const today = new Date()
-//   const startToday = new Date(today)
-//   startToday.setHours(0, 0, 0, 0)
-//   const endToday = new Date(today)
-//   endToday.setHours(23, 59, 59, 999)
-
-//   // Вычисляем количество дней в диапазоне
-//   const timeDiff = endDate.getTime() - startDate.getTime()
-//   const dayCount = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1
-
-//   const queryParams: Record<string, string | string[]> = {
-//     select: ['id', 'event_types.color', 'customer_name', 'status', 'ends_at'],
-//     filter: JSON.stringify({
-//       from: startDate.toISOString(),
-//       to: endDate.toISOString(),
-//     }),
-//   }
-
-//   const queryParams2: Record<string, string | string[]> = {
-//     select: [''],
-//     filter: JSON.stringify({
-//       created_from: startDate.toISOString(),
-//       created_to: endDate.toISOString(),
-//     }),
-//     include_count_header: 'true',
-//   }
-//   const queryParams3: Record<string, string | string[]> = {
-//     select: [''],
-//     filter: JSON.stringify({
-//       created_from: startToday.toISOString(),
-//       created_to: endToday.toISOString(),
-//     }),
-//     include_count_header: 'true',
-//   }
-
-//   Object.entries(queryParams).forEach(([key, value]) => {
-//     if (Array.isArray(value)) {
-//       value.forEach((val) => queryString.append(key, val))
-//     } else {
-//       queryString.append(key, String(value))
-//     }
-//   })
-
-//   Object.entries(queryParams2).forEach(([key, value]) => {
-//     if (Array.isArray(value)) {
-//       value.forEach((val) => queryString2.append(key, val))
-//     } else {
-//       queryString2.append(key, String(value))
-//     }
-//   })
-//   Object.entries(queryParams3).forEach(([key, value]) => {
-//     if (Array.isArray(value)) {
-//       value.forEach((val) => queryString3.append(key, val))
-//     } else {
-//       queryString3.append(key, String(value))
-//     }
-//   })
-
-//   const data = await NoonaHQ.get(`/8qcJwRg6dbNh6Gqvm/events?${queryString.toString()}`)
-//   const { cancelled, noshow, others } = splitEventsByStatus(data.data)
-//   const groupedByColor = groupByColor(others)
-
-//   const now = new Date()
-
-//   const filteredBeenPayed = groupedByColor['#FF787D']?.filter((item) => {
-//     const date = parseISO(item.ends_at)
-//     return isBefore(date, now) || isEqual(date, now)
-//   }) || []
-
-//   const dataMetrics = groupCountReservationByDate({
-//     Payed: (groupedByColor['#FF787D'] || []) as InputItemReservation[],
-//     Canceled: cancelled as InputItemReservation[],
-//     Noshow: noshow as InputItemReservation[],
-//   })
-
-//   const createdReservationData = await NoonaHQ.get(
-//     `/8qcJwRg6dbNh6Gqvm/events?${queryString2.toString()}`,
-//   )
-//   const createdReservationTodayData = await NoonaHQ.get(
-//     `/8qcJwRg6dbNh6Gqvm/events?${queryString3.toString()}`,
-//   )
-
-//   const countCreatedMonthReservation = createdReservationData.headers['x-total-count']
-//   const countCreatedTodayReservation = createdReservationTodayData.headers['x-total-count']
-//   const periodReservationIndex = (countCreatedMonthReservation / dayCount).toFixed(1)
-
-//   const result = {
-//     all: data.data.length,
-//     cancelled: cancelled?.length || 0,
-//     noshow: noshow?.length || 0,
-//     payed: groupedByColor['#FF787D']?.length || 0,
-//     pastPayed: filteredBeenPayed?.length || 0,
-//     free: groupedByColor['#3d4881']?.length || 0,
-//     personal: groupedByColor['#59c3b9']?.length || 0,
-//     fixed: groupedByColor['#822949']?.length || 0,
-//     dataMetrics: dataMetrics || [],
-//     countCreatedMonthReservation: countCreatedMonthReservation || 0,
-//     countCreatedTodayReservation: countCreatedTodayReservation || 0,
-//     monthReservationIndex: periodReservationIndex || 0,
-//   }
-//   return result
-// }

@@ -1,4 +1,4 @@
-import { NoonaHQ } from '../../../../lib/noona'
+import { clientKey, fetchMirrorClients } from '../../../../lib/mirror'
 import {
   getEventsHistory,
   fetchEmployeeNames,
@@ -8,19 +8,8 @@ import {
 } from './eventsHistory'
 
 // «Спящие клиенты» — ходили, но давно не были и НЕ имеют будущей брони.
-// Контакты из Noona customers (отдаются все одним запросом, ~1700 шт.),
-// визиты/деньги/последний мастер считаем сами из истории событий
-// (поле last_event у customers не используем — его семантика не документирована).
-
-const COMPANY_ID = import.meta.env.VITE_NOONA_COMPANY_ID as string
-
-interface RawCustomer {
-  id?: string
-  name?: string
-  email?: string
-  phone_country_code?: string
-  phone_number?: string
-}
+// own-booking фаза 4: контакты из НАШЕЙ коллекции client (зеркало Noona customers +
+// клиенты движка), визиты/деньги/последний мастер считаем из истории броней.
 
 export interface SleepingClient {
   customerId: string
@@ -34,28 +23,19 @@ export interface SleepingClient {
   spent: number // Kč, сумма цен состоявшихся визитов
 }
 
-const fetchCustomers = async (): Promise<RawCustomer[]> => {
-  const params = new URLSearchParams()
-  for (const f of ['id', 'name', 'email', 'phone_country_code', 'phone_number']) {
-    params.append('select', f)
-  }
-  const res = await NoonaHQ.get<RawCustomer[]>(`/${COMPANY_ID}/customers?${params.toString()}`)
-  return Array.isArray(res.data) ? res.data : []
-}
-
-const formatPhone = (c: RawCustomer): string => {
-  if (!c.phone_number) return ''
-  const code = c.phone_country_code ? `+${c.phone_country_code}` : ''
-  return `${code}${c.phone_number}`
-}
-
 // Все клиенты с историей (фильтрация по порогам — в UI, мгновенно)
 export const getSleepingCandidates = async (force = false): Promise<SleepingClient[]> => {
-  const [events, customers, empNames] = await Promise.all([
+  const [events, mirrorClients, empNames] = await Promise.all([
     getEventsHistory(force),
-    fetchCustomers(),
+    fetchMirrorClients(),
     fetchEmployeeNames(),
   ])
+  const customers = mirrorClients.map((c) => ({
+    id: clientKey(c),
+    name: c.name,
+    email: c.email || '',
+    phone: c.phone || '',
+  }))
   const today = todayStr()
 
   interface Acc {
@@ -99,9 +79,9 @@ export const getSleepingCandidates = async (force = false): Promise<SleepingClie
     const daysSince = Math.floor((now - new Date(y, m - 1, d).getTime()) / msDay)
     result.push({
       customerId: c.id,
-      name: c.name ?? '—',
-      phone: formatPhone(c),
-      email: c.email ?? '',
+      name: c.name || '—',
+      phone: c.phone,
+      email: c.email,
       visits: acc.visits,
       lastVisit: acc.lastVisit,
       daysSince,

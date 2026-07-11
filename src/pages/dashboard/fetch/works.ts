@@ -1,10 +1,7 @@
 import { getMonthRange } from '../../../utils/getMonthRange'
-import { NoonaHQ } from '../../../lib/noona'
-
-const COMPANY_ID = import.meta.env.VITE_NOONA_COMPANY_ID as string
+import { fetchMirrorBookingsRange } from '../../../lib/mirror'
 
 import { buildQuery, fetchData, groupCountReservationByDate, type InputItemReservation } from './fetchHelpers'
-import { splitEventsByStatus, groupByColor } from './getEvents'
 
 export interface IDataWorks {
   name: string
@@ -83,41 +80,34 @@ export const getWorks = async (name: string, month: number, year: number) => {
 
   const result = salary + extraProfit + tipSum - payrolls - penalty
 
-  // Получаем данные для графика из Noona API если есть noonaEmployeeId
+  // График броней мастера — из НАШЕЙ БД (booking по noonaEmployeeId), фаза 4
   let chartData: ChartDataItem[] = []
   const noonaEmployeeId = data[0]?.noonaEmployeeId
 
   if (noonaEmployeeId) {
     try {
-      const queryString = new URLSearchParams()
-      const queryParams: Record<string, string | string[]> = {
-        select: ['id', 'event_types.color', 'customer_name', 'status', 'ends_at'],
-        filter: JSON.stringify({
-          from: firstDay.toISOString(),
-          to: lastDay.toISOString(),
-          employee_id: noonaEmployeeId,
-        }),
-      }
-
-      Object.entries(queryParams).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-          value.forEach((val) => queryString.append(key, val))
-        } else {
-          queryString.append(key, String(value))
-        }
-      })
-
-      const eventsResponse = await NoonaHQ.get(`/${COMPANY_ID}/events?${queryString.toString()}`)
-      const { cancelled, noshow, others } = splitEventsByStatus(eventsResponse.data)
-      const groupedByColor = groupByColor(others)
+      const dayStr = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const bookings = await fetchMirrorBookingsRange(
+        dayStr(firstDay),
+        dayStr(lastDay),
+        `&filters[noonaEmployeeId][$eq]=${noonaEmployeeId}`,
+      )
+      const toMetric = (status: 'other' | 'cancelled' | 'noshow'): InputItemReservation[] =>
+        bookings
+          .filter((b) =>
+            status === 'other' ? b.status !== 'cancelled' && b.status !== 'noshow' : b.status === status,
+          )
+          .filter((b) => b.endsAt)
+          .map((b) => ({ ends_at: b.endsAt as string }))
 
       chartData = groupCountReservationByDate({
-        Payed: (groupedByColor['#FF787D'] || []) as InputItemReservation[],
-        Canceled: cancelled as InputItemReservation[],
-        Noshow: noshow as InputItemReservation[],
+        Payed: toMetric('other'),
+        Canceled: toMetric('cancelled'),
+        Noshow: toMetric('noshow'),
       }) as unknown as ChartDataItem[]
     } catch (error) {
-      console.error('Error fetching Noona events for master:', error)
+      console.error('Error fetching bookings for master chart:', error)
     }
   }
 
