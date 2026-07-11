@@ -1,15 +1,12 @@
-// Фаза 2 (s99): дневной календарь-грид как в Noona.
-// Брони — из ЗЕРКАЛА (booking, Strapi, read-only, PII → явный Bearer).
-// Рабочие часы салона + блокировки мастеров (нерабочее время) + список активных
-// мастеров — живьём из Noona (read-only GET, как модуль «Загрузка» masterLoad.ts):
-// per-employee графики в Noona нет, нерабочее время = blocked_times.
+// Календарь резервационной системы (own-booking). Источник данных — ТОЛЬКО наша
+// локальная БД (Strapi): booking / salon-hour / time-block / personal. Noona здесь
+// НЕ участвует (на локале строим систему такой, какой она будет после отключения
+// Noona). Все GET с явным Bearer (booking содержит PII → Public-права не включаем).
 
 import { Axios } from '../../../lib/api'
-import { NoonaHQ } from '../../../lib/noona'
 
 const strapiToken = import.meta.env.VITE_STRAPI_TOKEN as string | undefined
 const authHeaders = strapiToken ? { Authorization: `Bearer ${strapiToken}` } : undefined
-const COMPANY_ID = import.meta.env.VITE_NOONA_COMPANY_ID as string
 
 export interface CalendarService {
   title: string
@@ -34,22 +31,13 @@ export interface CalendarBooking {
   bsChannel: string | null
 }
 
-interface RawBlocked {
-  employee?: string
-  date?: string
-  duration?: number
-  starts_at?: string
-  ends_at?: string
-}
-type OpeningHoursResponse = Record<string, Array<{ starts_at?: string; ends_at?: string }>>
-
 export interface BlockedRange {
   startMin: number
   endMin: number
 }
 
 export interface MasterColumn {
-  id: string // Noona employee id (день) или дата (неделя)
+  id: string // id мастера (personal.noonaEmployeeId — стабильный ключ в нашей БД) или дата (неделя)
   name: string
   bookings: CalendarBooking[]
   blocks: BlockedRange[]
@@ -81,28 +69,14 @@ const isoToMin = (iso: string | null | undefined): number | null => {
   const m = Number(parts.find((p) => p.type === 'minute')?.value ?? NaN)
   return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : null
 }
-const hhmmToMin = (s: string): number => {
-  const [h, m] = s.split(':').map(Number)
-  return (h || 0) * 60 + (m || 0)
-}
 
 const DEFAULT_OPEN = 9 * 60
 const DEFAULT_CLOSE = 20 * 60
 
-interface NoonaEmp {
-  id?: string
-  name?: string
-  display_name?: string
-  available_for_bookings?: boolean
+interface RawPersonal {
+  name: string
+  noonaEmployeeId: string | null
 }
-
-// blocked_times: `to` у эндпоинта ИСКЛЮЧАЮЩИЙ (from=to=день → пусто) → берём day+1
-const nextDay = (dateStr: string): string => {
-  const [y, m, d] = dateStr.split('-').map(Number)
-  const dt = new Date(y, m - 1, d + 1)
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
-}
-
 interface MirrorSalonHour {
   date: string
   openMin: number | null
@@ -115,8 +89,22 @@ interface MirrorTimeBlock {
   endsAt: string | null
 }
 
-// Расписание дня из ЗЕРКАЛА (salon-hour + time-blocks). Если для даты нет
-// salon-hour (не синкана) — fallback на живой Noona. Возвращает окно + блоки.
+// Активные мастера из НАШЕЙ базы (personal). Ключ колонки = noonaEmployeeId
+// (стабильный id сотрудника в наших данных; позже мигрируем на personal.documentId).
+export async function fetchEmployees(): Promise<CalendarEmployee[]> {
+  const res = (await Axios.get(
+    `/api/personals?filters[isActive][$eq]=true&fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=position&pagination[pageSize]=100`,
+    { headers: authHeaders },
+  )) as RawPersonal[]
+  // Запрос уже фильтрует isActive=true; здесь только отсекаем без noona-id и ❌
+  return (res || [])
+    .filter((p) => p.noonaEmployeeId && !p.name.startsWith('❌'))
+    .map((p) => ({ id: p.noonaEmployeeId as string, name: p.name.trim() }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'cs'))
+}
+
+// Расписание дня из нашей БД: часы салона (salon-hour) + блоки мастеров (time-block).
+// Нет salon-hour на дату → дефолтное окно, без блоков (движок будет владеть часами).
 async function fetchSchedule(
   dateStr: string,
 ): Promise<{ openMin: number; closeMin: number; blocksByEmp: Map<string, BlockedRange[]> }> {
@@ -130,12 +118,9 @@ async function fetchSchedule(
   ])
   const hour = (hourRes || [])[0]
 
-  // Дата НЕ синкана (нет salon-hour) → берём расписание живьём из Noona
-  if (!hour) return fetchScheduleLive(dateStr)
-
   let openMin = DEFAULT_OPEN
   let closeMin = DEFAULT_CLOSE
-  if (hour.openMin != null && hour.closeMin != null) {
+  if (hour?.openMin != null && hour?.closeMin != null) {
     openMin = hour.openMin
     closeMin = hour.closeMin
   }
@@ -151,57 +136,17 @@ async function fetchSchedule(
   return { openMin, closeMin, blocksByEmp }
 }
 
-// Fallback: рабочие часы + блоки живьём из Noona (read-only)
-async function fetchScheduleLive(
-  dateStr: string,
-): Promise<{ openMin: number; closeMin: number; blocksByEmp: Map<string, BlockedRange[]> }> {
-  const openingParams = new URLSearchParams()
-  openingParams.append('filter', JSON.stringify({ from: dateStr, to: dateStr }))
-  const [openingRes, blockedRes] = await Promise.all([
-    NoonaHQ.get<OpeningHoursResponse>(`/${COMPANY_ID}/opening_hours?${openingParams.toString()}`),
-    NoonaHQ.get<RawBlocked[]>(`/${COMPANY_ID}/blocked_times?from=${dateStr}&to=${nextDay(dateStr)}`),
-  ])
-  let openMin = DEFAULT_OPEN
-  let closeMin = DEFAULT_CLOSE
-  const windows = (openingRes.data || {})[dateStr] || []
-  const starts = windows.map((w) => (w.starts_at ? hhmmToMin(w.starts_at) : null)).filter((v): v is number => v != null)
-  const ends = windows.map((w) => (w.ends_at ? hhmmToMin(w.ends_at) : null)).filter((v): v is number => v != null)
-  if (starts.length && ends.length) {
-    openMin = Math.min(...starts)
-    closeMin = Math.max(...ends)
-  }
-  const blocksByEmp = new Map<string, BlockedRange[]>()
-  for (const b of Array.isArray(blockedRes.data) ? blockedRes.data : []) {
-    if (!b.employee || (b.date && b.date !== dateStr)) continue
-    const s = isoToMin(b.starts_at)
-    let e = isoToMin(b.ends_at)
-    if (s == null && b.duration && b.starts_at == null) continue
-    if (s != null && e == null && b.duration) e = s + b.duration
-    if (s == null || e == null || e <= s) continue
-    const arr = blocksByEmp.get(b.employee) || []
-    arr.push({ startMin: s, endMin: e })
-    blocksByEmp.set(b.employee, arr)
-  }
-  return { openMin, closeMin, blocksByEmp }
-}
-
 export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
-  const [bookingsRes, employeesRes, schedule] = await Promise.all([
+  const [bookingsRes, employees, schedule] = await Promise.all([
     Axios.get(
       `/api/bookings?filters[date][$eq]=${dateStr}&sort=startsAt:asc&pagination[pageSize]=200`,
       { headers: authHeaders },
     ) as Promise<CalendarBooking[]>,
-    NoonaHQ.get<NoonaEmp[]>(`/${COMPANY_ID}/employees`),
+    fetchEmployees(),
     fetchSchedule(dateStr),
   ])
 
   const bookings = bookingsRes || []
-
-  // Активные мастера (видимые в календаре) — порядок как отдаёт Noona
-  const employees = (Array.isArray(employeesRes.data) ? employeesRes.data : [])
-    .filter((e) => e.id && e.available_for_bookings === true)
-    .map((e) => ({ id: e.id as string, name: (e.name ?? e.display_name ?? e.id) as string }))
-
   let { openMin, closeMin } = schedule
   const { blocksByEmp } = schedule
 
@@ -227,7 +172,7 @@ export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
     showNow: isToday,
   }))
 
-  // Брони бывших сотрудников (нет в списке активных) — отдельной колонкой, если есть
+  // Брони бывших сотрудников (нет в списке активных) — отдельной колонкой
   if (orphan.length) {
     const byName = new Map<string, CalendarBooking[]>()
     for (const b of orphan) {
@@ -237,11 +182,11 @@ export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
       byName.set(key, arr)
     }
     for (const [name, list] of byName) {
-      columns.push({ id: `orphan:${name}`, name, bookings: list, blocks: [] })
+      columns.push({ id: `orphan:${name}`, name, bookings: list, blocks: [], showNow: isToday })
     }
   }
 
-  // Расширить окно, если есть брони/блоки за его пределами
+  // Расширить окно под брони/блоки за его пределами
   for (const col of columns) {
     for (const b of col.bookings) {
       const s = isoToMin(b.startsAt)
@@ -254,14 +199,13 @@ export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
       closeMin = Math.max(closeMin, bl.endMin)
     }
   }
-  // Округлить до часа
   openMin = Math.floor(openMin / 60) * 60
   closeMin = Math.ceil(closeMin / 60) * 60
 
   return { openMin, closeMin, columns }
 }
 
-// Лейн-паковка пересекающихся броней внутри колонки (side-by-side, как Noona)
+// Лейн-паковка пересекающихся броней внутри колонки (side-by-side)
 export interface PositionedBooking {
   booking: CalendarBooking
   startMin: number
@@ -276,7 +220,6 @@ export function packColumn(bookings: CalendarBooking[]): PositionedBooking[] {
     .filter((x): x is { b: CalendarBooking; s: number; e: number } => x.s != null && x.e != null && x.e > x.s)
     .sort((a, b) => a.s - b.s || a.e - b.e)
 
-  // Группируем в кластеры пересечения, внутри — жадно по лейнам
   const result: PositionedBooking[] = []
   let cluster: typeof items = []
   let clusterEnd = -1
@@ -325,13 +268,10 @@ export function nowMinPrague(): number | null {
 const WEEKDAYS_CS = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So']
 
 export async function fetchWeekEmployees(): Promise<CalendarEmployee[]> {
-  const res = await NoonaHQ.get<NoonaEmp[]>(`/${COMPANY_ID}/employees`)
-  return (Array.isArray(res.data) ? res.data : [])
-    .filter((e) => e.id && e.available_for_bookings === true)
-    .map((e) => ({ id: e.id as string, name: (e.name ?? e.display_name ?? e.id) as string }))
+  return fetchEmployees()
 }
 
-// monday = 'YYYY-MM-DD' (Пн), employeeId = Noona id
+// monday = 'YYYY-MM-DD' (Пн)
 export async function fetchCalendarWeek(
   monday: string,
   employee: CalendarEmployee,
@@ -375,7 +315,6 @@ export async function fetchCalendarWeek(
     blocksByDate.set(bl.date, arr)
   }
 
-  // Окно недели = min open / max close по synced-дням (fallback default)
   let openMin = DEFAULT_OPEN
   let closeMin = DEFAULT_CLOSE
   const hours = hoursRes || []
@@ -399,7 +338,6 @@ export async function fetchCalendarWeek(
     }
   })
 
-  // Расширить окно под брони/блоки
   for (const col of columns) {
     for (const b of col.bookings) {
       const s = isoToMin(b.startsAt)

@@ -1,7 +1,6 @@
-// Календарь администраторов (фаза 2 own-booking, s99).
-// Дневной грид как в Noona: колонки мастеров, ось времени, нерабочее время,
-// карточки броней по позиции/длительности, линия now. Read-only из зеркала.
-// Write-действия (перенос/статусы) — фаза 3.
+// Календарь администраторов (own-booking). Данные — ТОЛЬКО из нашей локальной БД
+// (booking/salon-hour/time-block/personal), Noona не участвует. Дневной + недельный
+// вид. Read-only; запись (перенос/статусы/новая бронь) — собственный движок далее.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Container } from '../../components/Container'
@@ -105,7 +104,7 @@ const BookingDrawer = ({ b, onClose }: { b: CalendarBooking; onClose: () => void
         </div>
 
         <p className="mt-6 text-xs italic text-gray-400">
-          Read-only náhled ze zrcadla Noona. Úpravy zatím v Noona (write — фаза 3).
+          Read-only náhled. Úpravy (přesun, stavy) — připravujeme ve vlastním systému.
         </p>
       </div>
     </div>
@@ -249,8 +248,8 @@ export default function CalendarPage() {
       </div>
 
       <p className="mb-4 text-xs text-gray-400">
-        Náhled ze zrcadla Noona (read-only, sync každých 10 min) — rezervace, pracovní hodiny i
-        nepracovní doba. Akce zatím provádějte v Noona.
+        Rezervační systém — rezervace, pracovní hodiny i nepracovní doba z vlastní databáze.
+        Úpravy (přesun, stavy, nová rezervace) — připravujeme.
       </p>
 
       {loading && <p className="text-sm text-gray-500">Načítám…</p>}
