@@ -34,11 +34,16 @@ export interface CalendarBooking {
 export interface BlockedRange {
   startMin: number
   endMin: number
+  documentId?: string
+  title?: string
+  own?: boolean // блок нашего движка (noonaKey 'own|…') — можно удалить из календаря
 }
 
 export interface MasterColumn {
   id: string // id мастера (personal.noonaEmployeeId — стабильный ключ в нашей БД) или дата (неделя)
   name: string
+  employeeDocId?: string // personal.documentId — для write-операций движка
+  date?: string // дата колонки (день = дата вида, неделя = своя на колонку)
   bookings: CalendarBooking[]
   blocks: BlockedRange[]
   showNow?: boolean // рисовать линию текущего времени в этой колонке
@@ -46,7 +51,9 @@ export interface MasterColumn {
 
 export interface CalendarEmployee {
   id: string
+  docId: string
   name: string
+  tier: 'senior' | 'junior'
 }
 
 export interface CalendarDay {
@@ -74,8 +81,10 @@ const DEFAULT_OPEN = 9 * 60
 const DEFAULT_CLOSE = 20 * 60
 
 interface RawPersonal {
+  documentId: string
   name: string
   noonaEmployeeId: string | null
+  tier: 'senior' | 'junior' | null
 }
 interface MirrorSalonHour {
   date: string
@@ -83,23 +92,31 @@ interface MirrorSalonHour {
   closeMin: number | null
 }
 interface MirrorTimeBlock {
+  documentId: string
   noonaEmployeeId: string
+  noonaKey: string | null
+  title: string | null
   date: string
   startsAt: string | null
   endsAt: string | null
 }
 
 // Активные мастера из НАШЕЙ базы (personal). Ключ колонки = noonaEmployeeId
-// (стабильный id сотрудника в наших данных; позже мигрируем на personal.documentId).
+// (стабильный id сотрудника в наших данных); docId — для write-операций движка.
 export async function fetchEmployees(): Promise<CalendarEmployee[]> {
   const res = (await Axios.get(
-    `/api/personals?filters[isActive][$eq]=true&fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=position&pagination[pageSize]=100`,
+    `/api/personals?filters[isActive][$eq]=true&fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=position&fields[3]=tier&pagination[pageSize]=100`,
     { headers: authHeaders },
   )) as RawPersonal[]
   // Запрос уже фильтрует isActive=true; здесь только отсекаем без noona-id и ❌
   return (res || [])
     .filter((p) => p.noonaEmployeeId && !p.name.startsWith('❌'))
-    .map((p) => ({ id: p.noonaEmployeeId as string, name: p.name.trim() }))
+    .map((p) => ({
+      id: p.noonaEmployeeId as string,
+      docId: p.documentId,
+      name: p.name.trim(),
+      tier: p.tier === 'junior' ? ('junior' as const) : ('senior' as const),
+    }))
     .sort((a, b) => a.name.localeCompare(b.name, 'cs'))
 }
 
@@ -130,11 +147,19 @@ async function fetchSchedule(
     const e = isoToMin(b.endsAt)
     if (!b.noonaEmployeeId || s == null || e == null || e <= s) continue
     const arr = blocksByEmp.get(b.noonaEmployeeId) || []
-    arr.push({ startMin: s, endMin: e })
+    arr.push(toBlockedRange(b, s, e))
     blocksByEmp.set(b.noonaEmployeeId, arr)
   }
   return { openMin, closeMin, blocksByEmp }
 }
+
+const toBlockedRange = (b: MirrorTimeBlock, startMin: number, endMin: number): BlockedRange => ({
+  startMin,
+  endMin,
+  documentId: b.documentId,
+  title: b.title || undefined,
+  own: String(b.noonaKey || '').startsWith('own|'),
+})
 
 export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
   const [bookingsRes, employees, schedule] = await Promise.all([
@@ -167,12 +192,14 @@ export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
   const columns: MasterColumn[] = employees.map((e) => ({
     id: e.id,
     name: e.name,
+    employeeDocId: e.docId,
+    date: dateStr,
     bookings: bookingsByEmp.get(e.id) || [],
     blocks: blocksByEmp.get(e.id) || [],
     showNow: isToday,
   }))
 
-  // Брони бывших сотрудников (нет в списке активных) — отдельной колонкой
+  // Брони бывших сотрудников (нет в списке активных) — отдельной колонкой (read-only)
   if (orphan.length) {
     const byName = new Map<string, CalendarBooking[]>()
     for (const b of orphan) {
@@ -182,7 +209,7 @@ export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
       byName.set(key, arr)
     }
     for (const [name, list] of byName) {
-      columns.push({ id: `orphan:${name}`, name, bookings: list, blocks: [], showNow: isToday })
+      columns.push({ id: `orphan:${name}`, name, date: dateStr, bookings: list, blocks: [], showNow: isToday })
     }
   }
 
@@ -311,7 +338,7 @@ export async function fetchCalendarWeek(
     const e = isoToMin(bl.endsAt)
     if (s == null || e == null || e <= s) continue
     const arr = blocksByDate.get(bl.date) || []
-    arr.push({ startMin: s, endMin: e })
+    arr.push(toBlockedRange(bl, s, e))
     blocksByDate.set(bl.date, arr)
   }
 
@@ -332,6 +359,8 @@ export async function fetchCalendarWeek(
     return {
       id: date,
       name: `${wd} ${d}.${m}.`,
+      employeeDocId: employee.docId,
+      date,
       bookings: bookingsByDate.get(date) || [],
       blocks: blocksByDate.get(date) || [],
       showNow: date === today,
