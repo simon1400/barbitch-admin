@@ -5,6 +5,8 @@ import { useMemo } from 'react'
 import type { CalendarBooking, CalendarDay } from './fetch/calendarDay'
 import { packColumn, nowMinPrague } from './fetch/calendarDay'
 
+const COL_W = 150 // ширина колонки
+
 const PX_PER_MIN = 1.4 // высота минуты; 60 мин = 84px
 const HEADER_H = 44 // высота шапки колонок
 const AXIS_W = 56 // ширина оси времени
@@ -28,16 +30,15 @@ const cardStyle = (status: CalendarBooking['status']): { bg: string; border: str
 
 interface Props {
   day: CalendarDay
-  dateStr: string
   showCancelled: boolean
   onSelect: (b: CalendarBooking) => void
 }
 
-export const CalendarGrid = ({ day, dateStr, showCancelled, onSelect }: Props) => {
+export const CalendarGrid = ({ day, showCancelled, onSelect }: Props) => {
   const { openMin, closeMin, columns } = day
   const totalMin = Math.max(60, closeMin - openMin)
   const gridH = totalMin * PX_PER_MIN
-  const nowMin = nowMinPrague(dateStr)
+  const nowMin = nowMinPrague()
 
   // Часовые метки
   const hourLines = useMemo(() => {
@@ -50,7 +51,7 @@ export const CalendarGrid = ({ day, dateStr, showCancelled, onSelect }: Props) =
 
   return (
     <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
-      <div className="flex" style={{ minWidth: AXIS_W + columns.length * 150 }}>
+      <div className="flex" style={{ minWidth: AXIS_W + columns.length * COL_W }}>
         {/* Ось времени */}
         <div className="shrink-0 border-r border-gray-200" style={{ width: AXIS_W }}>
           <div style={{ height: HEADER_H }} className="border-b border-gray-200" />
@@ -73,7 +74,7 @@ export const CalendarGrid = ({ day, dateStr, showCancelled, onSelect }: Props) =
             showCancelled ? col.bookings : col.bookings.filter((b) => b.status !== 'cancelled'),
           )
           return (
-            <div key={col.id} className="shrink-0 border-r border-gray-200" style={{ width: 150 }}>
+            <div key={col.id} className="shrink-0 border-r border-gray-200" style={{ width: COL_W }}>
               {/* Шапка */}
               <div
                 style={{ height: HEADER_H }}
@@ -106,8 +107,8 @@ export const CalendarGrid = ({ day, dateStr, showCancelled, onSelect }: Props) =
                   />
                 ))}
 
-                {/* Линия текущего времени */}
-                {nowMin != null && nowMin >= openMin && nowMin <= closeMin && (
+                {/* Линия текущего времени — только в колонке «сегодня» */}
+                {col.showNow && nowMin != null && nowMin >= openMin && nowMin <= closeMin && (
                   <div
                     className="absolute left-0 right-0 z-20 border-t-2 border-blue-500"
                     style={{ top: yOf(nowMin) }}

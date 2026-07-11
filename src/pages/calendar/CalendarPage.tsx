@@ -5,9 +5,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Container } from '../../components/Container'
-import type { CalendarBooking, CalendarDay } from './fetch/calendarDay'
-import { fetchCalendarDay } from './fetch/calendarDay'
+import type { CalendarBooking, CalendarDay, CalendarEmployee } from './fetch/calendarDay'
+import { fetchCalendarDay, fetchCalendarWeek, fetchWeekEmployees } from './fetch/calendarDay'
 import { CalendarGrid } from './CalendarGrid'
+
+type Mode = 'day' | 'week'
 
 const todayStr = (): string => {
   const d = new Date()
@@ -17,6 +19,14 @@ const todayStr = (): string => {
 const shiftDate = (dateStr: string, days: number): string => {
   const d = new Date(`${dateStr}T12:00:00`)
   d.setDate(d.getDate() + days)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// Понедельник недели, в которой лежит dateStr
+const mondayOf = (dateStr: string): string => {
+  const d = new Date(`${dateStr}T12:00:00`)
+  const dow = (d.getDay() + 6) % 7 // Пн=0
+  d.setDate(d.getDate() - dow)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
@@ -104,28 +114,53 @@ const BookingDrawer = ({ b, onClose }: { b: CalendarBooking; onClose: () => void
 
 export default function CalendarPage() {
   const [date, setDate] = useState(todayStr())
+  const [mode, setMode] = useState<Mode>('day')
   const [day, setDay] = useState<CalendarDay | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showCancelled, setShowCancelled] = useState(false)
   const [selected, setSelected] = useState<CalendarBooking | null>(null)
+  const [employees, setEmployees] = useState<CalendarEmployee[]>([])
+  const [weekEmpId, setWeekEmpId] = useState<string>('')
 
-  const load = useCallback(async (dateStr: string) => {
-    setLoading(true)
-    setError(null)
-    try {
-      setDay(await fetchCalendarDay(dateStr))
-    } catch (e) {
-      setError((e as Error).message || 'Nepodařilo se načíst den')
-      setDay(null)
-    } finally {
-      setLoading(false)
-    }
+  // Список мастеров для недельного селектора (один раз)
+  useEffect(() => {
+    fetchWeekEmployees()
+      .then((emps) => {
+        setEmployees(emps)
+        setWeekEmpId((cur) => cur || emps[0]?.id || '')
+      })
+      .catch(() => setEmployees([]))
   }, [])
 
+  const load = useCallback(
+    async (dateStr: string, m: Mode, empId: string, emps: CalendarEmployee[]) => {
+      setLoading(true)
+      setError(null)
+      try {
+        if (m === 'week') {
+          const emp = emps.find((e) => e.id === empId)
+          if (!emp) {
+            setDay({ openMin: 9 * 60, closeMin: 20 * 60, columns: [] })
+          } else {
+            setDay(await fetchCalendarWeek(mondayOf(dateStr), emp))
+          }
+        } else {
+          setDay(await fetchCalendarDay(dateStr))
+        }
+      } catch (e) {
+        setError((e as Error).message || 'Nepodařilo se načíst')
+        setDay(null)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [],
+  )
+
   useEffect(() => {
-    load(date)
-  }, [date, load])
+    load(date, mode, weekEmpId, employees)
+  }, [date, mode, weekEmpId, employees, load])
 
   const totals = useMemo(() => {
     if (!day) return { total: 0, cancelled: 0 }
@@ -139,10 +174,27 @@ export default function CalendarPage() {
   return (
     <Container size="xl" className="py-6">
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <h2 className="mr-4 text-2xl font-bold text-gray-900">Kalendář</h2>
+        <h2 className="mr-2 text-2xl font-bold text-gray-900">Kalendář</h2>
+
+        {/* Переключатель День/Неделя */}
+        <div className="mr-2 flex overflow-hidden rounded-md border border-gray-300">
+          {(['day', 'week'] as Mode[]).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={`px-3 py-1.5 text-sm font-semibold ${
+                mode === m ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {m === 'day' ? 'Den' : 'Týden'}
+            </button>
+          ))}
+        </div>
+
         <button
           type="button"
-          onClick={() => setDate(shiftDate(date, -1))}
+          onClick={() => setDate(shiftDate(date, mode === 'week' ? -7 : -1))}
           className="rounded-md bg-white px-3 py-1.5 text-sm font-semibold shadow-sm hover:bg-gray-50"
         >
           ◀
@@ -155,7 +207,7 @@ export default function CalendarPage() {
         />
         <button
           type="button"
-          onClick={() => setDate(shiftDate(date, 1))}
+          onClick={() => setDate(shiftDate(date, mode === 'week' ? 7 : 1))}
           className="rounded-md bg-white px-3 py-1.5 text-sm font-semibold shadow-sm hover:bg-gray-50"
         >
           ▶
@@ -167,6 +219,22 @@ export default function CalendarPage() {
         >
           Dnes
         </button>
+
+        {/* Селектор мастера — только в недельном режиме */}
+        {mode === 'week' && (
+          <select
+            value={weekEmpId}
+            onChange={(e) => setWeekEmpId(e.target.value)}
+            className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+          >
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>
+                {emp.name}
+              </option>
+            ))}
+          </select>
+        )}
+
         <label className="ml-2 flex items-center gap-1.5 text-sm text-gray-600">
           <input
             type="checkbox"
@@ -181,14 +249,14 @@ export default function CalendarPage() {
       </div>
 
       <p className="mb-4 text-xs text-gray-400">
-        Náhled ze zrcadla Noona (read-only, sync každých 10 min). Pracovní hodiny a nepracovní doba
-        živě z Noona. Akce zatím provádějte v Noona.
+        Náhled ze zrcadla Noona (read-only, sync každých 10 min) — rezervace, pracovní hodiny i
+        nepracovní doba. Akce zatím provádějte v Noona.
       </p>
 
       {loading && <p className="text-sm text-gray-500">Načítám…</p>}
       {error && <p className="text-sm text-red-600">{error}</p>}
       {!loading && !error && day && (
-        <CalendarGrid day={day} dateStr={date} showCancelled={showCancelled} onSelect={setSelected} />
+        <CalendarGrid day={day} showCancelled={showCancelled} onSelect={setSelected} />
       )}
 
       {selected && <BookingDrawer b={selected} onClose={() => setSelected(null)} />}

@@ -49,10 +49,16 @@ export interface BlockedRange {
 }
 
 export interface MasterColumn {
-  id: string // Noona employee id
+  id: string // Noona employee id (день) или дата (неделя)
   name: string
   bookings: CalendarBooking[]
   blocks: BlockedRange[]
+  showNow?: boolean // рисовать линию текущего времени в этой колонке
+}
+
+export interface CalendarEmployee {
+  id: string
+  name: string
 }
 
 export interface CalendarDay {
@@ -97,31 +103,64 @@ const nextDay = (dateStr: string): string => {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
 }
 
-export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
+interface MirrorSalonHour {
+  date: string
+  openMin: number | null
+  closeMin: number | null
+}
+interface MirrorTimeBlock {
+  noonaEmployeeId: string
+  date: string
+  startsAt: string | null
+  endsAt: string | null
+}
+
+// Расписание дня из ЗЕРКАЛА (salon-hour + time-blocks). Если для даты нет
+// salon-hour (не синкана) — fallback на живой Noona. Возвращает окно + блоки.
+async function fetchSchedule(
+  dateStr: string,
+): Promise<{ openMin: number; closeMin: number; blocksByEmp: Map<string, BlockedRange[]> }> {
+  const [hourRes, blockRes] = await Promise.all([
+    Axios.get(`/api/salon-hours?filters[date][$eq]=${dateStr}`, { headers: authHeaders }) as Promise<
+      MirrorSalonHour[]
+    >,
+    Axios.get(`/api/time-blocks?filters[date][$eq]=${dateStr}&pagination[pageSize]=300`, {
+      headers: authHeaders,
+    }) as Promise<MirrorTimeBlock[]>,
+  ])
+  const hour = (hourRes || [])[0]
+
+  // Дата НЕ синкана (нет salon-hour) → берём расписание живьём из Noona
+  if (!hour) return fetchScheduleLive(dateStr)
+
+  let openMin = DEFAULT_OPEN
+  let closeMin = DEFAULT_CLOSE
+  if (hour.openMin != null && hour.closeMin != null) {
+    openMin = hour.openMin
+    closeMin = hour.closeMin
+  }
+  const blocksByEmp = new Map<string, BlockedRange[]>()
+  for (const b of blockRes || []) {
+    const s = isoToMin(b.startsAt)
+    const e = isoToMin(b.endsAt)
+    if (!b.noonaEmployeeId || s == null || e == null || e <= s) continue
+    const arr = blocksByEmp.get(b.noonaEmployeeId) || []
+    arr.push({ startMin: s, endMin: e })
+    blocksByEmp.set(b.noonaEmployeeId, arr)
+  }
+  return { openMin, closeMin, blocksByEmp }
+}
+
+// Fallback: рабочие часы + блоки живьём из Noona (read-only)
+async function fetchScheduleLive(
+  dateStr: string,
+): Promise<{ openMin: number; closeMin: number; blocksByEmp: Map<string, BlockedRange[]> }> {
   const openingParams = new URLSearchParams()
   openingParams.append('filter', JSON.stringify({ from: dateStr, to: dateStr }))
-  const blockedTo = nextDay(dateStr)
-
-  const [bookingsRes, employeesRes, openingRes, blockedRes] = await Promise.all([
-    Axios.get(
-      `/api/bookings?filters[date][$eq]=${dateStr}&sort=startsAt:asc&pagination[pageSize]=200`,
-      { headers: authHeaders },
-    ) as Promise<CalendarBooking[]>,
-    NoonaHQ.get<NoonaEmp[]>(`/${COMPANY_ID}/employees`),
-    NoonaHQ.get<OpeningHoursResponse>(
-      `/${COMPANY_ID}/opening_hours?${openingParams.toString()}`,
-    ),
-    NoonaHQ.get<RawBlocked[]>(`/${COMPANY_ID}/blocked_times?from=${dateStr}&to=${blockedTo}`),
+  const [openingRes, blockedRes] = await Promise.all([
+    NoonaHQ.get<OpeningHoursResponse>(`/${COMPANY_ID}/opening_hours?${openingParams.toString()}`),
+    NoonaHQ.get<RawBlocked[]>(`/${COMPANY_ID}/blocked_times?from=${dateStr}&to=${nextDay(dateStr)}`),
   ])
-
-  const bookings = bookingsRes || []
-
-  // Активные мастера (видимые в календаре) — порядок как отдаёт Noona
-  const employees = (Array.isArray(employeesRes.data) ? employeesRes.data : [])
-    .filter((e) => e.id && e.available_for_bookings === true)
-    .map((e) => ({ id: e.id as string, name: (e.name ?? e.display_name ?? e.id) as string }))
-
-  // Окно салона за день
   let openMin = DEFAULT_OPEN
   let closeMin = DEFAULT_CLOSE
   const windows = (openingRes.data || {})[dateStr] || []
@@ -131,8 +170,6 @@ export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
     openMin = Math.min(...starts)
     closeMin = Math.max(...ends)
   }
-
-  // Блокировки по мастеру
   const blocksByEmp = new Map<string, BlockedRange[]>()
   for (const b of Array.isArray(blockedRes.data) ? blockedRes.data : []) {
     if (!b.employee || (b.date && b.date !== dateStr)) continue
@@ -145,6 +182,28 @@ export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
     arr.push({ startMin: s, endMin: e })
     blocksByEmp.set(b.employee, arr)
   }
+  return { openMin, closeMin, blocksByEmp }
+}
+
+export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
+  const [bookingsRes, employeesRes, schedule] = await Promise.all([
+    Axios.get(
+      `/api/bookings?filters[date][$eq]=${dateStr}&sort=startsAt:asc&pagination[pageSize]=200`,
+      { headers: authHeaders },
+    ) as Promise<CalendarBooking[]>,
+    NoonaHQ.get<NoonaEmp[]>(`/${COMPANY_ID}/employees`),
+    fetchSchedule(dateStr),
+  ])
+
+  const bookings = bookingsRes || []
+
+  // Активные мастера (видимые в календаре) — порядок как отдаёт Noona
+  const employees = (Array.isArray(employeesRes.data) ? employeesRes.data : [])
+    .filter((e) => e.id && e.available_for_bookings === true)
+    .map((e) => ({ id: e.id as string, name: (e.name ?? e.display_name ?? e.id) as string }))
+
+  let { openMin, closeMin } = schedule
+  const { blocksByEmp } = schedule
 
   // Брони по мастеру (по noonaEmployeeId зеркала)
   const bookingsByEmp = new Map<string, CalendarBooking[]>()
@@ -159,11 +218,13 @@ export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
     }
   }
 
+  const isToday = todayStrPrague() === dateStr
   const columns: MasterColumn[] = employees.map((e) => ({
     id: e.id,
     name: e.name,
     bookings: bookingsByEmp.get(e.id) || [],
     blocks: blocksByEmp.get(e.id) || [],
+    showNow: isToday,
   }))
 
   // Брони бывших сотрудников (нет в списке активных) — отдельной колонкой, если есть
@@ -250,9 +311,109 @@ export function packColumn(bookings: CalendarBooking[]): PositionedBooking[] {
   return result
 }
 
-// Текущее время в минутах (Прага) — для линии now; null если другой день
-export function nowMinPrague(dateStr: string): number | null {
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Prague' }).format(new Date())
-  if (today !== dateStr) return null
+// 'YYYY-MM-DD' сегодня в Праге
+export function todayStrPrague(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Prague' }).format(new Date())
+}
+
+// Текущее время в минутах от полуночи (Прага) — позиция линии now
+export function nowMinPrague(): number | null {
   return isoToMin(new Date().toISOString())
+}
+
+// ── Недельный вид: неделя ОДНОГО мастера, колонки = дни ──
+const WEEKDAYS_CS = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So']
+
+export async function fetchWeekEmployees(): Promise<CalendarEmployee[]> {
+  const res = await NoonaHQ.get<NoonaEmp[]>(`/${COMPANY_ID}/employees`)
+  return (Array.isArray(res.data) ? res.data : [])
+    .filter((e) => e.id && e.available_for_bookings === true)
+    .map((e) => ({ id: e.id as string, name: (e.name ?? e.display_name ?? e.id) as string }))
+}
+
+// monday = 'YYYY-MM-DD' (Пн), employeeId = Noona id
+export async function fetchCalendarWeek(
+  monday: string,
+  employee: CalendarEmployee,
+): Promise<CalendarDay> {
+  const days: string[] = []
+  for (let i = 0; i < 7; i++) {
+    const [y, m, d] = monday.split('-').map(Number)
+    const dt = new Date(y, m - 1, d + i)
+    days.push(`${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`)
+  }
+  const sunday = days[6]
+
+  const [bookingsRes, hoursRes, blocksRes] = await Promise.all([
+    Axios.get(
+      `/api/bookings?filters[date][$gte]=${monday}&filters[date][$lte]=${sunday}&filters[noonaEmployeeId][$eq]=${employee.id}&sort=startsAt:asc&pagination[pageSize]=300`,
+      { headers: authHeaders },
+    ) as Promise<CalendarBooking[]>,
+    Axios.get(`/api/salon-hours?filters[date][$gte]=${monday}&filters[date][$lte]=${sunday}&pagination[pageSize]=10`, {
+      headers: authHeaders,
+    }) as Promise<MirrorSalonHour[]>,
+    Axios.get(
+      `/api/time-blocks?filters[date][$gte]=${monday}&filters[date][$lte]=${sunday}&filters[noonaEmployeeId][$eq]=${employee.id}&pagination[pageSize]=100`,
+      { headers: authHeaders },
+    ) as Promise<MirrorTimeBlock[]>,
+  ])
+
+  const bookings = bookingsRes || []
+  const bookingsByDate = new Map<string, CalendarBooking[]>()
+  for (const b of bookings) {
+    const arr = bookingsByDate.get(b.date) || []
+    arr.push(b)
+    bookingsByDate.set(b.date, arr)
+  }
+  const blocksByDate = new Map<string, BlockedRange[]>()
+  for (const bl of blocksRes || []) {
+    const s = isoToMin(bl.startsAt)
+    const e = isoToMin(bl.endsAt)
+    if (s == null || e == null || e <= s) continue
+    const arr = blocksByDate.get(bl.date) || []
+    arr.push({ startMin: s, endMin: e })
+    blocksByDate.set(bl.date, arr)
+  }
+
+  // Окно недели = min open / max close по synced-дням (fallback default)
+  let openMin = DEFAULT_OPEN
+  let closeMin = DEFAULT_CLOSE
+  const hours = hoursRes || []
+  const opens = hours.map((h) => h.openMin).filter((v): v is number => v != null)
+  const closes = hours.map((h) => h.closeMin).filter((v): v is number => v != null)
+  if (opens.length && closes.length) {
+    openMin = Math.min(...opens)
+    closeMin = Math.max(...closes)
+  }
+
+  const today = todayStrPrague()
+  const columns: MasterColumn[] = days.map((date) => {
+    const [y, m, d] = date.split('-').map(Number)
+    const wd = WEEKDAYS_CS[new Date(y, m - 1, d).getDay()]
+    return {
+      id: date,
+      name: `${wd} ${d}.${m}.`,
+      bookings: bookingsByDate.get(date) || [],
+      blocks: blocksByDate.get(date) || [],
+      showNow: date === today,
+    }
+  })
+
+  // Расширить окно под брони/блоки
+  for (const col of columns) {
+    for (const b of col.bookings) {
+      const s = isoToMin(b.startsAt)
+      const e = isoToMin(b.endsAt)
+      if (s != null) openMin = Math.min(openMin, s)
+      if (e != null) closeMin = Math.max(closeMin, e)
+    }
+    for (const bl of col.blocks) {
+      openMin = Math.min(openMin, bl.startMin)
+      closeMin = Math.max(closeMin, bl.endMin)
+    }
+  }
+  openMin = Math.floor(openMin / 60) * 60
+  closeMin = Math.ceil(closeMin / 60) * 60
+
+  return { openMin, closeMin, columns }
 }
