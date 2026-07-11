@@ -7,6 +7,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { path: '/global', label: 'Главная' },
+  { path: '/calendar', label: 'Календарь' },
   { path: '/global/analytics', label: 'Аналитика' },
   { path: '/global/team', label: 'Команда' },
   { path: '/global/expenses', label: 'Затраты' },

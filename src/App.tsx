@@ -47,6 +47,8 @@ const TeamTimeOffTab = lazy(() => import('./pages/global/team/tabs/TimeOffTab'))
 const TeamLoadTab = lazy(() => import('./pages/global/team/tabs/LoadTab'))
 const TeamGapsTab = lazy(() => import('./pages/global/team/tabs/GapsTab'))
 const TeamCrossSellTab = lazy(() => import('./pages/global/team/tabs/CrossSellTab'))
+// Own-booking (фаза 2, каркас): календарь по зеркалу Noona
+const CalendarPage = lazy(() => import('./pages/calendar/CalendarPage'))
 
 // Получить домашнюю страницу в зависимости от роли
 const getHomePageByRole = (role: string | null): string => {
@@ -92,6 +94,18 @@ const AdministratorRoute = ({ children }: { children: React.ReactNode }) => {
   const isAdministrator = userRole === 'administrator'
 
   if (!isAdministrator) {
+    return <Navigate to={getHomePageByRole(userRole)} replace />
+  }
+
+  return <>{children}</>
+}
+
+// Календарь: owner + administrator (роадмап own-booking §4)
+const CalendarRoute = ({ children }: { children: React.ReactNode }) => {
+  const userRole = getSessionRole()
+  const allowed = userRole === 'owner' || userRole === 'administrator'
+
+  if (!allowed) {
     return <Navigate to={getHomePageByRole(userRole)} replace />
   }
 
@@ -160,6 +174,18 @@ function App() {
                     <GlobalPage />
                   </AdminLayout>
                 </OwnerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/calendar"
+            element={
+              <ProtectedRoute>
+                <CalendarRoute>
+                  <AdminLayout>
+                    <CalendarPage />
+                  </AdminLayout>
+                </CalendarRoute>
               </ProtectedRoute>
             }
           />
