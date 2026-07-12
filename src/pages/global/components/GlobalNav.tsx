@@ -13,6 +13,7 @@ const navItems: NavItem[] = [
   { path: '/global/expenses', label: 'Затраты' },
   { path: '/voucher-confirmation', label: 'Potvrzení voucheru' },
   { path: '/email-campaign', label: 'Email kampaň' },
+  { path: '/global/catalog', label: 'Каталог услуг' },
   { path: '/global/noona', label: 'Noona' },
   { path: '/global/shift-close', label: 'Uzavření směny' },
   { path: '/global/blog-ai', label: 'Blog AI' },

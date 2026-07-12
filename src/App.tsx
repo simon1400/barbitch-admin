@@ -49,6 +49,8 @@ const TeamGapsTab = lazy(() => import('./pages/global/team/tabs/GapsTab'))
 const TeamCrossSellTab = lazy(() => import('./pages/global/team/tabs/CrossSellTab'))
 // Own-booking (фаза 2, каркас): календарь по зеркалу Noona
 const CalendarPage = lazy(() => import('./pages/calendar/CalendarPage'))
+// Own-booking (шаг 6.2): редактор собственного каталога услуг
+const CatalogPage = lazy(() => import('./pages/global/catalog/CatalogPage'))
 
 // Получить домашнюю страницу в зависимости от роли
 const getHomePageByRole = (role: string | null): string => {
@@ -186,6 +188,18 @@ function App() {
                     <CalendarPage />
                   </AdminLayout>
                 </CalendarRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/global/catalog"
+            element={
+              <ProtectedRoute>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <CatalogPage />
+                  </AdminLayout>
+                </OwnerRoute>
               </ProtectedRoute>
             }
           />
