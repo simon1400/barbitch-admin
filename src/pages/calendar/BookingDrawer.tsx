@@ -23,15 +23,13 @@ const HistoryRow = ({ r, onOpen }: { r: ClientHistoryItem; onOpen: (r: ClientHis
       className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-left transition hover:border-gray-400"
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[13px] font-semibold text-gray-800">
-          {d} · {fmtTime(r.startsAt)}
-        </span>
+        <span className="text-[13px] font-semibold text-gray-800">{d}</span>
         <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold ${meta.cls}`}>{meta.label}</span>
       </div>
       <div className="mt-0.5 flex items-center justify-between gap-2">
-        <span className="min-w-0 truncate text-[12px] text-gray-500">{svc || 'bez služby'}</span>
+        <span className="min-w-0 truncate text-[13px] font-semibold text-gray-900">{svc || 'bez služby'}</span>
         {r.employeeNameRaw && (
-          <span className="shrink-0 text-[12px] text-gray-400">{r.employeeNameRaw.split(' ')[0]}</span>
+          <span className="shrink-0 text-[13px] font-semibold text-gray-900">{r.employeeNameRaw.split(' ')[0]}</span>
         )}
       </div>
     </button>
@@ -112,6 +110,8 @@ export const BookingDrawer = ({
   onManageLabels,
   onOpenHistory,
   onChangeService,
+  onReschedule,
+  onDelete,
   busy,
 }: {
   b: CalendarBooking
@@ -122,6 +122,8 @@ export const BookingDrawer = ({
   onManageLabels: () => void
   onOpenHistory: (r: ClientHistoryItem) => void
   onChangeService: () => void
+  onReschedule: () => void
+  onDelete: () => void
   busy: boolean
 }) => {
   const meta = STATUS_META[b.status] ?? STATUS_META.active
@@ -129,76 +131,104 @@ export const BookingDrawer = ({
   // инлайн-подтверждение отмены с чекбоксом «уведомить клиента» (роадмап §4.2)
   const [cancelling, setCancelling] = useState(false)
   const [notifyCancel, setNotifyCancel] = useState(hasEmail)
+  // инлайн-подтверждение ПОЛНОГО удаления брони (корзина — жёсткий delete, не отмена)
+  const [deleting, setDeleting] = useState(false)
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
       <div className="absolute inset-0 bg-black/30" />
       <div
-        className="relative h-full w-full max-w-sm overflow-y-auto bg-white p-5 shadow-xl"
+        className="relative flex h-full w-full max-w-sm flex-col bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Скроллящийся контент; кнопки статусов — фиксированный футер ниже */}
+        <div className="flex-1 overflow-y-auto p-5">
         <div className="mb-3 flex items-start justify-between">
-          <div>
-            <div className="text-md font-bold text-gray-900">{b.clientNameRaw || '—'}</div>
-            <div className="text-sm text-gray-500">
-              {fmtTime(b.startsAt)}–{fmtTime(b.endsAt)}
-            </div>
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="truncate text-md font-bold text-gray-900">{b.clientNameRaw || '—'}</div>
+            <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold ${meta.cls}`}>
+              {meta.label}
+            </span>
           </div>
           <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 text-sm1">
             ✕
           </button>
         </div>
 
-        <span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${meta.cls}`}>
-          {meta.label}
-        </span>
+        
 
-        {/* Кнопки статусов */}
-        <div className="mt-3 flex flex-wrap gap-2">
-          {b.status === 'active' ? (
-            <>
+        {/* Карточка «Termín»: дата · время · мастер + кнопка переноса (дата/время/мастер) */}
+        <div className="mt-4 rounded-xl border border-gray-200 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Termín</span>
+            {b.status === 'active' && (
               <button
                 type="button"
-                disabled={busy}
-                onClick={() => onStatus('checkedOut')}
-                className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-40"
+                onClick={onReschedule}
+                className="rounded-md border border-pink-300 bg-white px-2.5 py-1 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50"
               >
-                ✓ Proběhla
+                Změnit termín
               </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => onStatus('noshow')}
-                className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40"
-              >
-                Nepřišla
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => setCancelling(true)}
-                className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40"
-              >
-                Zrušit
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => onStatus('active')}
-              className="rounded-md border border-pink-300 px-3 py-1.5 text-sm font-semibold text-pink-700 hover:bg-pink-50 disabled:opacity-40"
-            >
-              ↩ Obnovit (aktivní)
-            </button>
-          )}
+            )}
+          </div>
+          <div className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-800 flex flex-col">
+            <span>{b.date.split('-').reverse().join('. ')} | {fmtTime(b.startsAt)}–{fmtTime(b.endsAt)}</span>
+            {b.employeeNameRaw && <span className="text-gray-500">{b.employeeNameRaw}</span>}
+          </div>
         </div>
 
-        {/* Кастомный лейбл (только активные; прошедшие/отменённые получают авто-лейбл) */}
+        {/* Карточка «Služby» — услуги + итоговая цена (Celkem относится к услугам) */}
+        <div className="mt-3 rounded-xl border border-gray-200 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Služby</span>
+            {b.status === 'active' && (
+              <button
+                type="button"
+                onClick={onChangeService}
+                className="rounded-md border border-pink-300 bg-white px-2.5 py-1 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50"
+              >
+                Změnit službu
+              </button>
+            )}
+          </div>
+          <div className="space-y-2">
+            {(b.services || []).map((s, i) => (
+              <div key={i} className="flex justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                <span className="text-gray-800">{s.title}</span>
+                <span className="text-gray-500">
+                   {s.durationMin ? `${s.durationMin} min` : ''} {/*{s.price != null ? `· ${s.price} Kč` : ''} */}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex items-center justify-between border-t border-gray-200 pt-2">
+            <span className="text-sm font-semibold text-gray-700">Celkem</span>
+            <span className="text-sm1 font-bold text-primary">
+              {b.totalPrice != null ? `${b.totalPrice} Kč` : '—'}
+            </span>
+          </div>
+        </div>
+
+        {(b.comment || b.customerComment) && (
+          <div className="mt-3 space-y-2">
+            {b.comment && (
+              <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                <b>Poznámka:</b> {b.comment}
+              </div>
+            )}
+            {b.customerComment && (
+              <div className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                <b>Klient:</b> {b.customerComment}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Карточка «Štítek» (только активные; прошедшие/отменённые получают авто-лейбл) */}
         {b.status === 'active' && (
-          <div className="mt-4">
-            <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-xs font-semibold text-gray-500">Štítek</span>
-              <button type="button" onClick={onManageLabels} className="text-xs font-semibold text-primary hover:underline">
+          <div className="mt-3 rounded-xl border border-gray-200 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Štítek</span>
+              <button type="button" onClick={onManageLabels} className="rounded-md border border-pink-300 bg-white px-2.5 py-1 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50">
                 Spravovat štítky
               </button>
             </div>
@@ -229,102 +259,145 @@ export const BookingDrawer = ({
           </div>
         )}
 
-        {/* Инлайн-подтверждение отмены + чекбокс «уведомить клиента» */}
-        {cancelling && b.status === 'active' && (
-          <div className="mt-3 space-y-2 rounded-lg border border-red-200 bg-red-50 p-3">
-            <div className="text-sm font-semibold text-red-800">
-              Zrušit rezervaci {b.clientNameRaw}?
-            </div>
-            <label
-              className={`flex items-center gap-2 text-sm ${hasEmail ? 'text-gray-700' : 'text-gray-400'}`}
-            >
-              <input
-                type="checkbox"
-                disabled={!hasEmail}
-                checked={notifyCancel && hasEmail}
-                onChange={(e) => setNotifyCancel(e.target.checked)}
-              />
-              Poslat klientovi e-mail o zrušení
-              {!hasEmail && <span className="text-xs">(klient nemá e-mail)</span>}
-            </label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => onStatus('cancelled', notifyCancel && hasEmail)}
-                className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40"
-              >
-                Potvrdit zrušení
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => setCancelling(false)}
-                className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40"
-              >
-                Zpět
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="mt-4">
-          <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-500">Služby</span>
-            {b.status === 'active' && (
-              <button
-                type="button"
-                onClick={onChangeService}
-                className="text-xs font-semibold text-primary hover:underline"
-              >
-                Změnit službu
-              </button>
-            )}
-          </div>
-          <div className="space-y-2">
-            {(b.services || []).map((s, i) => (
-              <div key={i} className="flex justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
-                <span className="text-gray-800">{s.title}</span>
-                <span className="text-gray-500">
-                   {s.durationMin ? `${s.durationMin} min` : ''} {/*{s.price != null ? `· ${s.price} Kč` : ''} */}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-3">
-          <span className="text-sm text-gray-500">Celkem</span>
-          <span className="text-sm1 font-bold text-primary">
-            {b.totalPrice != null ? `${b.totalPrice} Kč` : '—'}
-          </span>
-        </div>
-
-        {(b.comment || b.customerComment) && (
-          <div className="mt-4 space-y-2">
-            {b.comment && (
-              <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-                <b>Poznámka:</b> {b.comment}
-              </div>
-            )}
-            {b.customerComment && (
-              <div className="rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">
-                <b>Klient:</b> {b.customerComment}
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="mt-4 text-xs text-gray-400">
-          {b.employeeNameRaw && <div>Mistr: {b.employeeNameRaw}</div>}
-          {b.bsChannel && <div>Kanál: {b.bsChannel}</div>}
-        </div>
+        {b.bsChannel && <div className="mt-3 text-xs text-gray-400">Kanál: {b.bsChannel}</div>}
 
         <ClientHistory b={b} onOpen={onOpenHistory} />
+        </div>
 
-        <p className="mt-6 text-xs italic text-gray-400">
-          Přesun rezervace: přetáhněte kartu v kalendáři na nový čas / k jinému mistrovi.
-        </p>
+        {/* Фиксированный футер: кнопки статусов (+ инлайн-подтверждение отмены) */}
+        <div className="border-t border-gray-200 bg-white p-4">
+          {deleting && (
+            <div className="mb-3 space-y-2 rounded-lg border border-red-300 bg-red-50 p-3">
+              <div className="text-sm font-semibold text-red-800">
+                Smazat rezervaci {b.clientNameRaw} úplně?
+              </div>
+              <p className="text-xs text-red-700">
+                Rezervace zmizí z kalendáře i historie klienta. Toto nelze vrátit zpět — pro běžné
+                zrušení použijte „Zrušit“.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={onDelete}
+                  className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40"
+                >
+                  Smazat navždy
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setDeleting(false)}
+                  className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+                >
+                  Zpět
+                </button>
+              </div>
+            </div>
+          )}
+          {cancelling && b.status === 'active' && (
+            <div className="mb-3 space-y-2 rounded-lg border border-red-200 bg-red-50 p-3">
+              <div className="text-sm font-semibold text-red-800">
+                Zrušit rezervaci {b.clientNameRaw}?
+              </div>
+              <label
+                className={`flex items-center gap-2 text-sm ${hasEmail ? 'text-gray-700' : 'text-gray-400'}`}
+              >
+                <input
+                  type="checkbox"
+                  disabled={!hasEmail}
+                  checked={notifyCancel && hasEmail}
+                  onChange={(e) => setNotifyCancel(e.target.checked)}
+                />
+                Poslat klientovi e-mail o zrušení
+                {!hasEmail && <span className="text-xs">(klient nemá e-mail)</span>}
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onStatus('cancelled', notifyCancel && hasEmail)}
+                  className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40"
+                >
+                  Potvrdit zrušení
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setCancelling(false)}
+                  className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+                >
+                  Zpět
+                </button>
+              </div>
+            </div>
+          )}
+          <div className={'mb-2'}>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onStatus('checkedOut')}
+              className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 text-nowrap w-full"
+            >
+              ✓ Proběhla
+            </button>
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
+            {b.status === 'active' ? (
+              <>
+              
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onStatus('noshow')}
+                  className="flex-1 rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40"
+                >
+                  Nepřišla
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setCancelling(true)
+                    setDeleting(false)
+                  }}
+                  className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+                >
+                  Zrušit
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onStatus('active')}
+                className="flex-1 rounded-md border border-pink-300 px-3 py-2 text-sm font-semibold text-pink-700 hover:bg-pink-50 disabled:opacity-40"
+              >
+                ↩ Obnovit (aktivní)
+              </button>
+            )}
+            {/* Корзина: полное удаление брони (с инлайн-подтверждением выше) */}
+            <button
+              type="button"
+              disabled={busy}
+              title="Smazat rezervaci úplně"
+              onClick={() => {
+                setDeleting(true)
+                setCancelling(false)
+              }}
+              className="shrink-0 rounded-md border border-red-300 bg-white px-2.5 py-2 text-red-600 transition hover:bg-red-50 disabled:opacity-40"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 6h18" />
+                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6" />
+                <path d="M14 11v6" />
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

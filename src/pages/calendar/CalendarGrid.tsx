@@ -18,11 +18,15 @@ const EXTRA_MIN = 120 // запас шкалы: ±2 часа до открыти
 const RIGHT_GUTTER_PCT = 20 // полоса справа от ВСЕХ карточек для клика/дозаписи на занятое время
 
 // Цвет карточки: бренд красно-розовый для всех статусов (как в Noona), junior —
-// фиолетовый. Статус различается ЛЕЙБЛОМ (закладка в углу), отменённые — полупрозрачные.
+// фиолетовый. Статус различается ЛЕЙБЛОМ (закладка в углу), отменённые — полупрозрачные,
+// noshow — полупрозрачные ЖЁЛТЫЕ (в тон их авто-лейбла «Nedostavil/a se» #f59e0b).
 const cardStyle = (
   booking: CalendarBooking,
   tier?: 'senior' | 'junior',
 ): { bg: string; border: string; text: string; opacity: number } => {
+  if (booking.status === 'noshow') {
+    return { bg: '#f59e0b', border: '#d97706', text: '#ffffff', opacity: 0.45 }
+  }
   const base =
     tier === 'junior'
       ? { bg: '#a78bfa', border: '#8b5cf6', text: '#ffffff' } // junior — фиолетовый

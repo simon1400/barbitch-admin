@@ -16,7 +16,7 @@ import type {
   MasterColumn,
 } from './fetch/calendarDay'
 import { fetchCalendarDay, fetchCalendarWeek, fetchWeekEmployees } from './fetch/calendarDay'
-import { enginePatchBooking } from './fetch/engineApi'
+import { engineDeleteBooking, enginePatchBooking } from './fetch/engineApi'
 import { fetchBookingLabels, type BookingLabel } from './fetch/bookingLabels'
 import { CalendarGrid } from './CalendarGrid'
 import { BookingDrawer } from './BookingDrawer'
@@ -30,6 +30,7 @@ import {
   MoveBookingModal,
   NewBookingModal,
   NewBlockModal,
+  RescheduleModal,
   type MovePending,
   type NewBookingInitial,
 } from './modals'
@@ -63,6 +64,8 @@ export default function CalendarPage() {
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // смена услуги открытой брони (модал «Změnit službu»)
   const [changeService, setChangeService] = useState<CalendarBooking | null>(null)
+  // перенос открытой брони из drawer (модал «Změnit termín»: дата/время/мастер)
+  const [reschedule, setReschedule] = useState<CalendarBooking | null>(null)
 
   useEffect(() => {
     fetchBookingLabels().then(setLabels).catch(() => {})
@@ -134,6 +137,21 @@ export default function CalendarPage() {
     setMutating(true)
     try {
       await enginePatchBooking(selected.documentId, { status, ...(notify ? { notify: true } : {}) })
+      setSelected(null)
+      await reload()
+    } catch (e) {
+      window.alert((e as Error).message)
+    } finally {
+      setMutating(false)
+    }
+  }
+
+  // полное удаление брони (корзина в drawer, подтверждение уже пройдено в drawer)
+  const deleteBooking = async () => {
+    if (!selected) return
+    setMutating(true)
+    try {
+      await engineDeleteBooking(selected.documentId)
       setSelected(null)
       await reload()
     } catch (e) {
@@ -377,7 +395,31 @@ export default function CalendarPage() {
           onManageLabels={() => setManageLabels(true)}
           onOpenHistory={openHistoryBooking}
           onChangeService={() => selected && setChangeService(selected)}
+          onReschedule={() => selected && setReschedule(selected)}
+          onDelete={deleteBooking}
           busy={mutating}
+        />
+      )}
+      {reschedule && (
+        <RescheduleModal
+          booking={reschedule}
+          employees={employees}
+          onClose={() => setReschedule(null)}
+          onMoved={(newDate) => {
+            // как переход из истории: закрыть drawer, показать день брони, мигнуть 3 с
+            const docId = reschedule.documentId
+            setReschedule(null)
+            setSelected(null)
+            setHighlightId(docId)
+            if (highlightTimer.current) clearTimeout(highlightTimer.current)
+            highlightTimer.current = setTimeout(() => setHighlightId(null), 3000)
+            if (mode !== 'day' || newDate !== date) {
+              setMode('day')
+              setDate(newDate)
+            } else {
+              reload()
+            }
+          }}
         />
       )}
       {changeService && (

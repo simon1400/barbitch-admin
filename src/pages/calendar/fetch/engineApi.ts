@@ -28,6 +28,7 @@ const CODE_MESSAGES: Record<string, string> = {
   slot_taken: 'Termín je již obsazený (mistr má v tuto dobu rezervaci nebo blok).',
   blacklisted: 'Klient je na blacklistu.',
   mirror_block: 'Blok pochází z Noona — spravuje ho synchronizace, smazat lze jen vlastní bloky.',
+  mirror_booking: 'Rezervace pochází z Noona — spravuje ji synchronizace, smazat ji lze jen v Noona.',
   unauthorized: 'Přihlášení vypršelo — přihlaste se znovu.',
   employee_service_mismatch: 'Mistr tuto službu nedělá.',
 }
@@ -102,6 +103,10 @@ export interface EnginePatchResult {
 
 export const enginePatchBooking = (bookingDocId: string, patch: EnginePatchInput) =>
   engineFetch<EnginePatchResult>('PATCH', `/engine/admin/bookings/${bookingDocId}`, patch)
+
+// Полное удаление брони (корзина в drawer) — ЖЁСТКИЙ delete, не отмена
+export const engineDeleteBooking = (bookingDocId: string) =>
+  engineFetch<{ deleted: number }>('DELETE', `/engine/admin/bookings/${bookingDocId}`)
 
 // ── блоки времени ──
 
