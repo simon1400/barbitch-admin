@@ -81,6 +81,8 @@ export interface EnginePatchInput {
   status?: 'active' | 'checkedOut' | 'cancelled' | 'noshow'
   comment?: string
   totalPrice?: number
+  // смена услуги: новый снапшот services + пересчёт цены/длительности на сервере
+  serviceItems?: EngineServiceItem[]
   // чекбокс «уведомить клиента» — письмо об отмене (сервер учитывает только при status=cancelled)
   notify?: boolean
   // чекбокс «уведомить клиента» при переносе — письмо с новыми деталями (только при date/time/employee)
@@ -89,8 +91,17 @@ export interface EnginePatchInput {
   label?: { name: string; color: string } | null
 }
 
+// Ответ = обновлённый документ брони (движок возвращает findOne после патча)
+export interface EnginePatchResult {
+  status: string
+  services?: { title: string; price: number | null; durationMin: number | null }[] | null
+  totalPrice?: number | null
+  startsAt?: string | null
+  endsAt?: string | null
+}
+
 export const enginePatchBooking = (bookingDocId: string, patch: EnginePatchInput) =>
-  engineFetch<{ status: string }>('PATCH', `/engine/admin/bookings/${bookingDocId}`, patch)
+  engineFetch<EnginePatchResult>('PATCH', `/engine/admin/bookings/${bookingDocId}`, patch)
 
 // ── блоки времени ──
 

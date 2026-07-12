@@ -14,6 +14,7 @@ const HEADER_H = 44 // высота шапки колонок
 const AXIS_W = 56 // ширина оси времени
 const SNAP_MIN = 30 // сетка клика/переноса — шаг резервации везде полчаса
 const EXTRA_MIN = 120 // запас шкалы: ±2 часа до открытия и после закрытия (как в Noona)
+const RIGHT_GUTTER_PCT = 20 // полоса справа от ВСЕХ карточек для клика/дозаписи на занятое время
 
 const fmtHM = (min: number): string =>
   `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
@@ -60,13 +61,15 @@ const LabelMark = ({ color, name }: { color: string; name: string }) => (
 interface Props {
   day: CalendarDay
   onSelect: (b: CalendarBooking) => void
+  // documentId брони, которую подсветить (мигание при переходе из истории клиента)
+  highlightId?: string | null
   // write-операции (не переданы → грид read-only)
   onEmptyCell?: (col: MasterColumn, startMin: number) => void
   onMoveBooking?: (b: CalendarBooking, target: MasterColumn, startMin: number) => void
   onSelectBlock?: (block: BlockedRange, col: MasterColumn) => void
 }
 
-export const CalendarGrid = ({ day, onSelect, onEmptyCell, onMoveBooking, onSelectBlock }: Props) => {
+export const CalendarGrid = ({ day, onSelect, highlightId, onEmptyCell, onMoveBooking, onSelectBlock }: Props) => {
   const { openMin, closeMin, columns } = day
   // Отображаемое окно шкалы = рабочий день ± EXTRA_MIN (в пределах суток);
   // зоны вне [openMin, closeMin] затеняются в каждой колонке
@@ -237,7 +240,7 @@ export const CalendarGrid = ({ day, onSelect, onEmptyCell, onMoveBooking, onSele
                       if (onSelectBlock && bl.documentId) onSelectBlock(bl, col)
                     }}
                   >
-                    <span className="pointer-events-none absolute left-1.5 top-0.5 truncate text-[10px] font-medium text-gray-800">
+                    <span className="pointer-events-none max-w-full p-2 absolute left-1.5 top-0.5 truncate text-sm font-bold text-gray-800">
                       {bl.title || (bl.own ? 'blok' : 'Nepracovní doba')}
                     </span>
                   </div>
@@ -257,10 +260,13 @@ export const CalendarGrid = ({ day, onSelect, onEmptyCell, onMoveBooking, onSele
                 {positioned.map((p) => {
                   const st = cardStyle(p.booking, col.tier)
                   const label = bookingLabel(p.booking)
-                  const laneW = 100 / p.lanes
+                  // лейны делят не всю ширину, а без правой полосы (RIGHT_GUTTER_PCT):
+                  // карточки не сжимаются, но справа всегда есть место кликнуть
+                  const laneW = (100 - RIGHT_GUTTER_PCT) / p.lanes
                   const services = (p.booking.services || []).map((s) => s.title).filter(Boolean)
                   const dur = p.endMin - p.startMin
                   const draggable = Boolean(onMoveBooking) && p.booking.status === 'active'
+                  const highlighted = highlightId === p.booking.documentId
                   return (
                     <button
                       key={p.booking.documentId}
@@ -281,7 +287,7 @@ export const CalendarGrid = ({ day, onSelect, onEmptyCell, onMoveBooking, onSele
                       }}
                       className={`absolute overflow-hidden rounded-md border px-1.5 py-1 text-left transition hover:brightness-95 ${
                         draggable ? 'cursor-grab active:cursor-grabbing' : ''
-                      }`}
+                      } ${highlighted ? 'animate-pulse ring-4 ring-[#e71e6e] ring-offset-1' : ''}`}
                       style={{
                         top: yOf(p.startMin) + 1,
                         height: Math.max(16, dur * PX_PER_MIN - 2),
@@ -291,7 +297,7 @@ export const CalendarGrid = ({ day, onSelect, onEmptyCell, onMoveBooking, onSele
                         borderColor: st.border,
                         color: st.text,
                         opacity: st.opacity,
-                        zIndex: 10,
+                        zIndex: highlighted ? 25 : 10,
                       }}
                       title={`${fmtHM(p.startMin)}–${fmtHM(p.endMin)} · ${p.booking.clientNameRaw} · ${services.join(' + ')}${label ? ` · ${label.name}` : ''}`}
                     >

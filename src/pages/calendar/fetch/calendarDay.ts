@@ -29,8 +29,8 @@ export interface CalendarBooking {
   comment: string | null
   customerComment: string | null
   bsChannel: string | null
-  // e-mail клиента (populate client) — дефолт чекбокса «уведомить клиента» при отмене
-  client?: { email?: string | null } | null
+  // клиент (populate) — documentId для истории, email для дефолта чекбокса уведомления
+  client?: { documentId?: string; email?: string | null; name?: string | null } | null
   // кастомный лейбл (снапшот из справочника booking-label)
   label?: { name: string; color: string } | null
 }
@@ -141,6 +141,35 @@ export async function saveEmployeesOrder(items: { docId: string; order: number }
     await Axios.put(`/api/personals/${it.docId}`, { data: { calendarOrder: it.order } })
     await Axios.put(`/api/personals/${it.docId}?status=published`, { data: { calendarOrder: it.order } })
   }
+}
+
+// История клиента: все его брони (прошлые + будущие) для секции в drawer.
+// Матч по client.documentId (стабильно), фолбэк по имени если связи нет (импорт).
+export interface ClientHistoryItem {
+  documentId: string
+  date: string
+  startsAt: string | null
+  status: CalendarBooking['status']
+  employeeNameRaw: string
+  services: CalendarService[] | null
+  totalPrice: number | null
+}
+
+export async function fetchClientHistory(opts: {
+  clientDocId?: string | null
+  clientName?: string | null
+}): Promise<ClientHistoryItem[]> {
+  const base = opts.clientDocId
+    ? `filters[client][documentId][$eq]=${opts.clientDocId}`
+    : opts.clientName
+      ? `filters[clientNameRaw][$eq]=${encodeURIComponent(opts.clientName)}`
+      : null
+  if (!base) return []
+  const res = (await Axios.get(
+    `/api/bookings?${base}&sort=startsAt:desc&fields[0]=date&fields[1]=startsAt&fields[2]=status&fields[3]=employeeNameRaw&fields[4]=services&fields[5]=totalPrice&pagination[pageSize]=200`,
+    { headers: authHeaders },
+  )) as ClientHistoryItem[]
+  return res || []
 }
 
 // Расписание дня из нашей БД: часы салона (salon-hour) + блоки мастеров (time-block).

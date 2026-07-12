@@ -12,14 +12,22 @@ import type {
   CalendarBooking,
   CalendarDay,
   CalendarEmployee,
+  ClientHistoryItem,
   MasterColumn,
 } from './fetch/calendarDay'
-import { fetchCalendarDay, fetchCalendarWeek, fetchWeekEmployees } from './fetch/calendarDay'
+import {
+  fetchCalendarDay,
+  fetchCalendarWeek,
+  fetchClientHistory,
+  fetchWeekEmployees,
+  todayStrPrague,
+} from './fetch/calendarDay'
 import { enginePatchBooking } from './fetch/engineApi'
 import { fetchBookingLabels, type BookingLabel } from './fetch/bookingLabels'
 import { CalendarGrid } from './CalendarGrid'
 import {
   CellActionModal,
+  ChangeServiceModal,
   ColumnOrderModal,
   EditBlockModal,
   ManageLabelsModal,
@@ -64,6 +72,100 @@ const STATUS_META: Record<CalendarBooking['status'], { label: string; cls: strin
   noshow: { label: 'nepřišla', cls: 'bg-red-100 text-red-700' },
 }
 
+// Строка истории клиента (прошлая/будущая бронь) — клик открывает её день в календаре
+const HistoryRow = ({ r, onOpen }: { r: ClientHistoryItem; onOpen: (r: ClientHistoryItem) => void }) => {
+  const meta = STATUS_META[r.status] ?? STATUS_META.active
+  const svc = (r.services || [])
+    .map((s) => s.title)
+    .filter(Boolean)
+    .join(' + ')
+  const d = `${r.date.split('-').reverse().slice(0, 2).join('. ')}.`
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(r)}
+      className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-left transition hover:border-gray-400"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[13px] font-semibold text-gray-800">
+          {d} · {fmtTime(r.startsAt)}
+        </span>
+        <span className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold ${meta.cls}`}>{meta.label}</span>
+      </div>
+      <div className="mt-0.5 flex items-center justify-between gap-2">
+        <span className="min-w-0 truncate text-[12px] text-gray-500">{svc || 'bez služby'}</span>
+        {r.employeeNameRaw && (
+          <span className="shrink-0 text-[12px] text-gray-400">{r.employeeNameRaw.split(' ')[0]}</span>
+        )}
+      </div>
+    </button>
+  )
+}
+
+// Секция «Historie klienta» в drawer — грузит все брони клиента, делит на будущие/прошлые
+const ClientHistory = ({ b, onOpen }: { b: CalendarBooking; onOpen: (r: ClientHistoryItem) => void }) => {
+  const [history, setHistory] = useState<ClientHistoryItem[] | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setHistory(null)
+    setLoading(true)
+    fetchClientHistory({ clientDocId: b.client?.documentId, clientName: b.clientNameRaw })
+      .then((rows) => {
+        if (!cancelled) setHistory(rows.filter((r) => r.documentId !== b.documentId))
+      })
+      .catch(() => {
+        if (!cancelled) setHistory([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [b.documentId, b.client?.documentId, b.clientNameRaw])
+
+  const today = todayStrPrague()
+  const rows = history || []
+  const future = rows
+    .filter((r) => r.date >= today)
+    .sort((a, z) => (a.startsAt || '').localeCompare(z.startsAt || ''))
+  const past = rows.filter((r) => r.date < today) // уже отсортированы desc
+
+  return (
+    <div className="mt-5 border-t border-gray-200 pt-3">
+      <div className="mb-2.5 text-sm font-bold text-gray-900">Historie klienta</div>
+      {loading && <p className="text-[12px] text-gray-400">Načítám…</p>}
+      {!loading && rows.length === 0 && <p className="text-[12px] text-gray-400">Žádné další rezervace.</p>}
+      {future.length > 0 && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-2">
+          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+            Budoucí rezervace ({future.length})
+          </div>
+          <div className="space-y-1.5">
+            {future.map((r) => (
+              <HistoryRow key={r.documentId} r={r} onOpen={onOpen} />
+            ))}
+          </div>
+        </div>
+      )}
+      {past.length > 0 && (
+        <div className={`rounded-lg border border-gray-200 bg-gray-50 p-2 ${future.length > 0 ? 'mt-2.5' : ''}`}>
+          <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">
+            Proběhlé rezervace ({past.length})
+          </div>
+          <div className="space-y-1.5">
+            {past.map((r) => (
+              <HistoryRow key={r.documentId} r={r} onOpen={onOpen} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Drawer с деталями брони + кнопки статусов (пишут в движок)
 const BookingDrawer = ({
   b,
@@ -72,6 +174,8 @@ const BookingDrawer = ({
   onStatus,
   onLabel,
   onManageLabels,
+  onOpenHistory,
+  onChangeService,
   busy,
 }: {
   b: CalendarBooking
@@ -80,6 +184,8 @@ const BookingDrawer = ({
   onStatus: (status: CalendarBooking['status'], notify?: boolean) => void
   onLabel: (label: { name: string; color: string } | null) => void
   onManageLabels: () => void
+  onOpenHistory: (r: ClientHistoryItem) => void
+  onChangeService: () => void
   busy: boolean
 }) => {
   const meta = STATUS_META[b.status] ?? STATUS_META.active
@@ -226,15 +332,29 @@ const BookingDrawer = ({
           </div>
         )}
 
-        <div className="mt-4 space-y-2">
-          {(b.services || []).map((s, i) => (
-            <div key={i} className="flex justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
-              <span className="text-gray-800">{s.title}</span>
-              <span className="text-gray-500">
-                 {s.durationMin ? `${s.durationMin} min` : ''} {/*{s.price != null ? `· ${s.price} Kč` : ''} */}
-              </span>
-            </div>
-          ))}
+        <div className="mt-4">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-500">Služby</span>
+            {b.status === 'active' && (
+              <button
+                type="button"
+                onClick={onChangeService}
+                className="text-xs font-semibold text-primary hover:underline"
+              >
+                Změnit službu
+              </button>
+            )}
+          </div>
+          <div className="space-y-2">
+            {(b.services || []).map((s, i) => (
+              <div key={i} className="flex justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                <span className="text-gray-800">{s.title}</span>
+                <span className="text-gray-500">
+                   {s.durationMin ? `${s.durationMin} min` : ''} {/*{s.price != null ? `· ${s.price} Kč` : ''} */}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-3">
@@ -263,6 +383,8 @@ const BookingDrawer = ({
           {b.employeeNameRaw && <div>Mistr: {b.employeeNameRaw}</div>}
           {b.bsChannel && <div>Kanál: {b.bsChannel}</div>}
         </div>
+
+        <ClientHistory b={b} onOpen={onOpenHistory} />
 
         <p className="mt-6 text-xs italic text-gray-400">
           Přesun rezervace: přetáhněte kartu v kalendáři na nový čas / k jinému mistrovi.
@@ -296,6 +418,11 @@ export default function CalendarPage() {
   const [manageLabels, setManageLabels] = useState(false)
   // модал порядка колонок мастеров (personal.calendarOrder)
   const [orderModal, setOrderModal] = useState(false)
+  // подсветка брони после перехода из истории клиента (мигает 3 сек)
+  const [highlightId, setHighlightId] = useState<string | null>(null)
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // смена услуги открытой брони (модал «Změnit službu»)
+  const [changeService, setChangeService] = useState<CalendarBooking | null>(null)
 
   useEffect(() => {
     fetchBookingLabels().then(setLabels).catch(() => {})
@@ -440,6 +567,20 @@ export default function CalendarPage() {
     })
   }
 
+  // Клик по строке истории клиента → закрыть drawer, перейти на день брони, мигнуть 3 с
+  const openHistoryBooking = (r: ClientHistoryItem) => {
+    setSelected(null)
+    setMode('day')
+    setDate(r.date)
+    setHighlightId(r.documentId)
+    if (highlightTimer.current) clearTimeout(highlightTimer.current)
+    highlightTimer.current = setTimeout(() => setHighlightId(null), 3000)
+  }
+
+  useEffect(() => () => {
+    if (highlightTimer.current) clearTimeout(highlightTimer.current)
+  }, [])
+
   const totals = useMemo(() => {
     if (!day) return { total: 0, cancelled: 0 }
     const all = day.columns.flatMap((c) => c.bookings)
@@ -562,17 +703,29 @@ export default function CalendarPage() {
         vytvoříte novou, stavy měníte v detailu rezervace.
       </p> */}
 
-      {loading && <p className="text-sm text-gray-500">Načítám…</p>}
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {!loading && !error && day && (
-        <CalendarGrid
-          day={day}
-          onSelect={setSelected}
-          onEmptyCell={(col, startMin) => setCellChoice({ col, startMin })}
-          onMoveBooking={moveBooking}
-          onSelectBlock={selectBlock}
-        />
-      )}
+      {/* Грид остаётся на месте при переключении дня — сверху появляется лоадер,
+          ничего не прыгает (старые данные видны, пока грузятся новые) */}
+      <div className="relative min-h-[200px]">
+        {day && (
+          <CalendarGrid
+            day={day}
+            onSelect={setSelected}
+            highlightId={highlightId}
+            onEmptyCell={(col, startMin) => setCellChoice({ col, startMin })}
+            onMoveBooking={moveBooking}
+            onSelectBlock={selectBlock}
+          />
+        )}
+        {loading && (
+          <div className="absolute inset-0 z-30 flex items-start justify-center rounded-xl bg-white/60 pt-20">
+            <div className="flex items-center gap-2 rounded-full bg-white px-4 py-2 shadow-md">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-primary" />
+              <span className="text-sm font-medium text-gray-600">Načítám…</span>
+            </div>
+          </div>
+        )}
+        {error && !day && <p className="text-sm text-red-600">{error}</p>}
+      </div>
 
       {selected && (
         <BookingDrawer
@@ -582,7 +735,31 @@ export default function CalendarPage() {
           onStatus={patchStatus}
           onLabel={patchLabel}
           onManageLabels={() => setManageLabels(true)}
+          onOpenHistory={openHistoryBooking}
+          onChangeService={() => selected && setChangeService(selected)}
           busy={mutating}
+        />
+      )}
+      {changeService && (
+        <ChangeServiceModal
+          booking={changeService}
+          employees={employees}
+          onClose={() => setChangeService(null)}
+          onChanged={(upd) => {
+            setChangeService(null)
+            // drawer остаётся открытым — обновляем услуги/цену/конец из ответа движка
+            setSelected((prev) =>
+              prev && prev.documentId === changeService.documentId
+                ? {
+                    ...prev,
+                    services: upd.services ?? prev.services,
+                    totalPrice: upd.totalPrice ?? prev.totalPrice,
+                    endsAt: upd.endsAt ?? prev.endsAt,
+                  }
+                : prev,
+            )
+            reload()
+          }}
         />
       )}
       {manageLabels && (

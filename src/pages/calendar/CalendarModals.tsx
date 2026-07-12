@@ -5,13 +5,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { BlockedRange, CalendarBooking, CalendarEmployee } from './fetch/calendarDay'
 import { saveEmployeesOrder } from './fetch/calendarDay'
-import type { CatalogService, ClientHit } from './fetch/engineApi'
+import type { CatalogService, ClientHit, EnginePatchResult } from './fetch/engineApi'
 import {
+  JUNIOR_DISCOUNT_PERCENT,
   calcCombo,
   engineCreateBlock,
   engineCreateBooking,
   engineDeleteBlock,
   enginePatchBlock,
+  enginePatchBooking,
   fetchBlockSeriesCount,
   fetchCatalog,
   searchClients,
@@ -290,6 +292,139 @@ export const CellActionModal = ({
   )
 }
 
+// ── Пикер услуги (kategorie → služba → varianta → doplňky) — общий для
+// «Nová rezervace» и «Změnit službu» ──
+
+interface ServiceSelection {
+  service: CatalogService | null
+  variantLabel: string
+  modKeys: string[]
+}
+const EMPTY_SERVICE_SELECTION: ServiceSelection = { service: null, variantLabel: '', modKeys: [] }
+
+const ServicePicker = ({
+  catalog,
+  sel,
+  onChange,
+}: {
+  catalog: CatalogService[]
+  sel: ServiceSelection
+  onChange: (v: ServiceSelection) => void
+}) => {
+  const categories = useMemo(() => [...new Set(catalog.map((s) => s.category))], [catalog])
+  const [category, setCategory] = useState('')
+  useEffect(() => {
+    if (!category && categories.length) setCategory(sel.service?.category || categories[0])
+  }, [categories, category, sel.service])
+  const services = useMemo(() => catalog.filter((s) => s.category === category), [catalog, category])
+  useEffect(() => {
+    // смена категории → первая её услуга; сброс варианта/допов
+    if (services.length && !services.some((s) => s.documentId === sel.service?.documentId)) {
+      onChange({ service: services[0], variantLabel: '', modKeys: [] })
+    }
+  }, [services, sel.service, onChange])
+
+  const svc = sel.service
+  const toggleMod = (key: string) => {
+    if (!svc) return
+    const mod = svc.modifiers.find((m) => m.key === key)
+    const cur = sel.modKeys
+    let next: string[]
+    if (cur.includes(key)) {
+      next = cur.filter((k) => k !== key)
+    } else {
+      // взаимоисключающая группа: снимаем других из той же группы
+      const sameGroup = mod?.group
+        ? svc.modifiers.filter((m) => m.group === mod.group && m.key !== key).map((m) => m.key)
+        : []
+      next = [...cur.filter((k) => !sameGroup.includes(k)), key]
+    }
+    onChange({ ...sel, modKeys: next })
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <span className={labelCls}>Kategorie</span>
+          <select className={inputCls} value={category} onChange={(e) => setCategory(e.target.value)}>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <span className={labelCls}>Služba</span>
+          <select
+            className={inputCls}
+            value={svc?.documentId || ''}
+            onChange={(e) =>
+              onChange({
+                service: services.find((s) => s.documentId === e.target.value) || null,
+                variantLabel: '',
+                modKeys: [],
+              })
+            }
+          >
+            {services.map((s) => (
+              <option key={s.documentId} value={s.documentId}>
+                {s.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {svc && svc.variants.length > 0 && (
+        <div>
+          <span className={labelCls}>Varianta</span>
+          <div className="space-y-1">
+            <OptionRow
+              radio
+              active={!sel.variantLabel}
+              name="Základní varianta"
+              priceDiff={0}
+              onClick={() => onChange({ ...sel, variantLabel: '' })}
+            />
+            {svc.variants.map((v) => (
+              <OptionRow
+                key={v.label}
+                radio
+                active={sel.variantLabel === v.label}
+                name={v.label}
+                hint={v.durationDiff ? `+${v.durationDiff} min` : undefined}
+                priceDiff={v.priceDiff}
+                onClick={() => onChange({ ...sel, variantLabel: v.label })}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {svc && svc.modifiers.length > 0 && (
+        <div>
+          <span className={labelCls}>Doplňky</span>
+          <div className="space-y-1">
+            {svc.modifiers.map((m) => (
+              <OptionRow
+                key={m.key}
+                radio={false}
+                active={sel.modKeys.includes(m.key)}
+                name={m.label}
+                hint={m.group ? `skupina: ${m.group}` : undefined}
+                priceDiff={m.priceDiff}
+                onClick={() => toggleMod(m.key)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 // ── «+ Rezervace» ──
 
 export interface NewBookingInitial {
@@ -322,9 +457,7 @@ export const NewBookingModal = ({ employees, initial, onClose, onCreated }: NewB
 
   // услуга
   const [catalog, setCatalog] = useState<CatalogService[]>([])
-  const [serviceDocId, setServiceDocId] = useState('')
-  const [variantLabel, setVariantLabel] = useState('')
-  const [modKeys, setModKeys] = useState<string[]>([])
+  const [sel, setSel] = useState<ServiceSelection>(EMPTY_SERVICE_SELECTION)
 
   const [priceOverride, setPriceOverride] = useState('')
   const [comment, setComment] = useState('')
@@ -364,38 +497,10 @@ export const NewBookingModal = ({ employees, initial, onClose, onCreated }: NewB
     return () => clearTimeout(t)
   }, [query])
 
-  const categories = useMemo(() => [...new Set(catalog.map((s) => s.category))], [catalog])
-  const [category, setCategory] = useState('')
-  useEffect(() => {
-    if (!category && categories.length) setCategory(categories[0])
-  }, [categories, category])
-  const services = useMemo(() => catalog.filter((s) => s.category === category), [catalog, category])
-  useEffect(() => {
-    // смена категории → первая её услуга; сброс варианта/допов
-    if (services.length && !services.some((s) => s.documentId === serviceDocId)) {
-      setServiceDocId(services[0].documentId)
-      setVariantLabel('')
-      setModKeys([])
-    }
-  }, [services, serviceDocId])
-
-  const svc = catalog.find((s) => s.documentId === serviceDocId)
+  const svc = sel.service
   const employee = employees.find((e) => e.docId === employeeDocId)
 
-  const toggleMod = (key: string) => {
-    if (!svc) return
-    const mod = svc.modifiers.find((m) => m.key === key)
-    setModKeys((cur) => {
-      if (cur.includes(key)) return cur.filter((k) => k !== key)
-      // взаимоисключающая группа: снимаем других из той же группы
-      const sameGroup = mod?.group
-        ? svc.modifiers.filter((m) => m.group === mod.group && m.key !== key).map((m) => m.key)
-        : []
-      return [...cur.filter((k) => !sameGroup.includes(k)), key]
-    })
-  }
-
-  const pricing = svc ? calcCombo(svc, variantLabel || null, modKeys, employee?.tier || 'senior') : null
+  const pricing = svc ? calcCombo(svc, sel.variantLabel || null, sel.modKeys, employee?.tier || 'senior') : null
   const endTime = useMemo(() => {
     if (!pricing || !/^\d{2}:\d{2}$/.test(time)) return null
     const start = Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5))
@@ -415,7 +520,7 @@ export const NewBookingModal = ({ employees, initial, onClose, onCreated }: NewB
         employee: employeeDocId,
         date,
         time,
-        services: [{ service: svc.documentId, variant: variantLabel || null, modifiers: modKeys }],
+        services: [{ service: svc.documentId, variant: sel.variantLabel || null, modifiers: sel.modKeys }],
         ...(newClient
           ? { client: { name: ncName.trim(), phone: ncPhone.trim(), email: ncEmail.trim() || undefined } }
           : { clientDocId: client!.documentId }),
@@ -504,81 +609,7 @@ export const NewBookingModal = ({ employees, initial, onClose, onCreated }: NewB
 
         {/* ── Услуга ── */}
         <Section title="Služba">
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <span className={labelCls}>Kategorie</span>
-              <select className={inputCls} value={category} onChange={(e) => setCategory(e.target.value)}>
-                {categories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <span className={labelCls}>Služba</span>
-              <select
-                className={inputCls}
-                value={serviceDocId}
-                onChange={(e) => {
-                  setServiceDocId(e.target.value)
-                  setVariantLabel('')
-                  setModKeys([])
-                }}
-              >
-                {services.map((s) => (
-                  <option key={s.documentId} value={s.documentId}>
-                    {s.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {svc && svc.variants.length > 0 && (
-            <div>
-              <span className={labelCls}>Varianta</span>
-              <div className="space-y-1">
-                <OptionRow
-                  radio
-                  active={!variantLabel}
-                  name="Základní varianta"
-                  priceDiff={0}
-                  onClick={() => setVariantLabel('')}
-                />
-                {svc.variants.map((v) => (
-                  <OptionRow
-                    key={v.label}
-                    radio
-                    active={variantLabel === v.label}
-                    name={v.label}
-                    hint={v.durationDiff ? `+${v.durationDiff} min` : undefined}
-                    priceDiff={v.priceDiff}
-                    onClick={() => setVariantLabel(v.label)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {svc && svc.modifiers.length > 0 && (
-            <div>
-              <span className={labelCls}>Doplňky</span>
-              <div className="space-y-1">
-                {svc.modifiers.map((m) => (
-                  <OptionRow
-                    key={m.key}
-                    radio={false}
-                    active={modKeys.includes(m.key)}
-                    name={m.label}
-                    hint={m.group ? `skupina: ${m.group}` : undefined}
-                    priceDiff={m.priceDiff}
-                    onClick={() => toggleMod(m.key)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+          <ServicePicker catalog={catalog} sel={sel} onChange={setSel} />
         </Section>
 
         {/* ── Мастер + дата/время + итог ── */}
@@ -684,6 +715,124 @@ export const NewBookingModal = ({ employees, initial, onClose, onCreated }: NewB
             className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
           >
             {submitting ? 'Vytvářím…' : 'Vytvořit rezervaci'}
+          </button>
+        </div>
+      </div>
+    </ModalShell>
+  )
+}
+
+// ── «Změnit službu» — смена услуги существующей брони (PATCH serviceItems:
+// сервер пишет новый снапшот services, пересчитывает цену/длительность и
+// перепроверяет пересечения — при конфликте вернёт slot_taken) ──
+
+export const ChangeServiceModal = ({
+  booking,
+  employees,
+  onClose,
+  onChanged,
+}: {
+  booking: CalendarBooking
+  employees: CalendarEmployee[]
+  onClose: () => void
+  onChanged: (updated: EnginePatchResult) => void
+}) => {
+  const [catalog, setCatalog] = useState<CatalogService[]>([])
+  const [sel, setSel] = useState<ServiceSelection>(EMPTY_SERVICE_SELECTION)
+  const [priceOverride, setPriceOverride] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchCatalog()
+      .then(setCatalog)
+      .catch(() => setError('Nepodařilo se načíst katalog služeb'))
+  }, [])
+
+  // tier мастера брони — junior-цена считается как в «Nová rezervace»
+  const tier = employees.find((e) => e.id === booking.noonaEmployeeId)?.tier || 'senior'
+  const svc = sel.service
+  const pricing = svc ? calcCombo(svc, sel.variantLabel || null, sel.modKeys, tier) : null
+  const currentTitle = (booking.services || [])
+    .map((s) => s.title)
+    .filter(Boolean)
+    .join(' + ')
+
+  const submit = async () => {
+    if (!svc) return
+    setSubmitting(true)
+    setError(null)
+    try {
+      const res = await enginePatchBooking(booking.documentId, {
+        serviceItems: [{ service: svc.documentId, variant: sel.variantLabel || null, modifiers: sel.modKeys }],
+        ...(priceOverride.trim() ? { totalPrice: Number(priceOverride) } : {}),
+      })
+      onChanged(res)
+    } catch (e) {
+      setError((e as Error).message)
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <ModalShell title="Změnit službu" onClose={onClose}>
+      <div className="space-y-3">
+        <div className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
+          Nyní: <b>{currentTitle || '—'}</b>
+          {booking.totalPrice != null && <span className="text-gray-400"> · {booking.totalPrice} Kč</span>}
+        </div>
+
+        <Section title="Nová služba">
+          <ServicePicker catalog={catalog} sel={sel} onChange={setSel} />
+        </Section>
+
+        {pricing && (
+          <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+            <span className="text-sm text-gray-600">
+              {pricing.durationMin} min
+              {tier === 'junior' && (
+                <span className="ml-1.5 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
+                  junior −{JUNIOR_DISCOUNT_PERCENT} %
+                </span>
+              )}
+            </span>
+            <span className="flex items-baseline gap-2">
+              {tier === 'junior' && pricing.seniorPrice !== pricing.price && (
+                <span className="text-xs text-gray-400 line-through">{pricing.seniorPrice} Kč</span>
+              )}
+              <span className="text-base font-bold text-primary">{pricing.price} Kč</span>
+            </span>
+          </div>
+        )}
+
+        <div>
+          <span className={labelCls}>Cena ručně (Kč)</span>
+          <input
+            className={inputCls}
+            placeholder={pricing ? String(pricing.price) : ''}
+            value={priceOverride}
+            onChange={(e) => setPriceOverride(e.target.value)}
+          />
+          <p className="mt-0.5 text-[11px] text-gray-400">Prázdné → cena se přepočítá automaticky.</p>
+        </div>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+          >
+            Zrušit
+          </button>
+          <button
+            type="button"
+            disabled={!svc || submitting}
+            onClick={submit}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+          >
+            {submitting ? 'Ukládám…' : 'Změnit službu'}
           </button>
         </div>
       </div>
