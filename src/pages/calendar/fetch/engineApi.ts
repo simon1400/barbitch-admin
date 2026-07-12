@@ -67,6 +67,8 @@ export interface EngineCreateBookingInput {
   client?: { name: string; phone: string; email?: string }
   priceOverride?: number | null
   comment?: string
+  // чекбокс «отправить potvrzení» — письмо клиенту (только e-mail, без Telegram салону)
+  notify?: boolean
 }
 
 export const engineCreateBooking = (input: EngineCreateBookingInput) =>
@@ -79,6 +81,12 @@ export interface EnginePatchInput {
   status?: 'active' | 'checkedOut' | 'cancelled' | 'noshow'
   comment?: string
   totalPrice?: number
+  // чекбокс «уведомить клиента» — письмо об отмене (сервер учитывает только при status=cancelled)
+  notify?: boolean
+  // чекбокс «уведомить клиента» при переносе — письмо с новыми деталями (только при date/time/employee)
+  notifyClient?: boolean
+  // кастомный лейбл (снапшот из справочника booking-label); null → снять
+  label?: { name: string; color: string } | null
 }
 
 export const enginePatchBooking = (bookingDocId: string, patch: EnginePatchInput) =>
@@ -86,16 +94,50 @@ export const enginePatchBooking = (bookingDocId: string, patch: EnginePatchInput
 
 // ── блоки времени ──
 
+// Повтор блока: daily = каждый день до `until`; weekly = выбранные дни недели каждую
+// неделю до `until` (weekday 0=Ne..6=So, как getUTCDay). Без recurrence — один блок.
+export interface BlockRecurrence {
+  freq: 'daily' | 'weekly'
+  until: string // YYYY-MM-DD включительно
+  weekdays?: number[]
+}
+
 export const engineCreateBlock = (input: {
   employee: string
   date: string
   startMin: number
   endMin: number
   title?: string
-}) => engineFetch<{ documentId: string }>('POST', '/engine/admin/blocks', input)
+  recurrence?: BlockRecurrence
+}) => engineFetch<{ documentId: string; count: number }>('POST', '/engine/admin/blocks', input)
 
-export const engineDeleteBlock = (blockDocId: string) =>
-  engineFetch<{ deleted: boolean }>('DELETE', `/engine/admin/blocks/${blockDocId}`)
+// series=true → удалить все повторения серии (общий ключ группы)
+export const engineDeleteBlock = (blockDocId: string, series = false) =>
+  engineFetch<{ deleted: number }>('DELETE', `/engine/admin/blocks/${blockDocId}${series ? '?series=1' : ''}`)
+
+// Правка одного конкретного блока: время в рамках его дня и/или название
+export const enginePatchBlock = (blockDocId: string, patch: { startMin?: number; endMin?: number; title?: string }) =>
+  engineFetch<{ documentId: string }>('PATCH', `/engine/admin/blocks/${blockDocId}`, patch)
+
+// Сколько блоков в серии (own-серия делит noonaKey, зеркальная rrule — noonaBlockedId)
+export async function fetchBlockSeriesCount(block: {
+  own?: boolean
+  noonaKey?: string | null
+  noonaBlockedId?: string | null
+}): Promise<number> {
+  const filter = block.own
+    ? block.noonaKey && `filters[noonaKey][$eq]=${encodeURIComponent(block.noonaKey)}`
+    : block.noonaBlockedId && `filters[noonaBlockedId][$eq]=${encodeURIComponent(block.noonaBlockedId)}`
+  if (!filter) return 1
+  try {
+    const res = (await Axios.get(`/api/time-blocks?${filter}&fields[0]=date&pagination[pageSize]=500`, {
+      headers: strapiHeaders,
+    })) as unknown[]
+    return Math.max(1, (res || []).length)
+  } catch {
+    return 1
+  }
+}
 
 // ── каталог salon-service (чтение через Bearer strapi-token, кэш 5 мин) ──
 

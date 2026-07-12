@@ -29,6 +29,10 @@ export interface CalendarBooking {
   comment: string | null
   customerComment: string | null
   bsChannel: string | null
+  // e-mail клиента (populate client) — дефолт чекбокса «уведомить клиента» при отмене
+  client?: { email?: string | null } | null
+  // кастомный лейбл (снапшот из справочника booking-label)
+  label?: { name: string; color: string } | null
 }
 
 export interface BlockedRange {
@@ -36,7 +40,10 @@ export interface BlockedRange {
   endMin: number
   documentId?: string
   title?: string
-  own?: boolean // блок нашего движка (noonaKey 'own|…') — можно удалить из календаря
+  own?: boolean // блок нашего движка (noonaKey 'own|…') — управляем из календаря
+  // ключи серии: own-серия делит noonaKey; зеркальная rrule-серия делит noonaBlockedId
+  noonaKey?: string | null
+  noonaBlockedId?: string | null
 }
 
 export interface MasterColumn {
@@ -44,6 +51,7 @@ export interface MasterColumn {
   name: string
   employeeDocId?: string // personal.documentId — для write-операций движка
   date?: string // дата колонки (день = дата вида, неделя = своя на колонку)
+  tier?: 'senior' | 'junior' // junior → фиолетовые карточки броней
   bookings: CalendarBooking[]
   blocks: BlockedRange[]
   showNow?: boolean // рисовать линию текущего времени в этой колонке
@@ -54,6 +62,7 @@ export interface CalendarEmployee {
   docId: string
   name: string
   tier: 'senior' | 'junior'
+  calendarOrder: number
 }
 
 export interface CalendarDay {
@@ -85,6 +94,7 @@ interface RawPersonal {
   name: string
   noonaEmployeeId: string | null
   tier: 'senior' | 'junior' | null
+  calendarOrder: number | null
 }
 interface MirrorSalonHour {
   date: string
@@ -95,6 +105,7 @@ interface MirrorTimeBlock {
   documentId: string
   noonaEmployeeId: string
   noonaKey: string | null
+  noonaBlockedId?: string | null
   title: string | null
   date: string
   startsAt: string | null
@@ -103,9 +114,10 @@ interface MirrorTimeBlock {
 
 // Активные мастера из НАШЕЙ базы (personal). Ключ колонки = noonaEmployeeId
 // (стабильный id сотрудника в наших данных); docId — для write-операций движка.
+// Порядок колонок = personal.calendarOrder (меньше — левее), fallback алфавит.
 export async function fetchEmployees(): Promise<CalendarEmployee[]> {
   const res = (await Axios.get(
-    `/api/personals?filters[isActive][$eq]=true&fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=position&fields[3]=tier&pagination[pageSize]=100`,
+    `/api/personals?filters[isActive][$eq]=true&fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=position&fields[3]=tier&fields[4]=calendarOrder&pagination[pageSize]=100`,
     { headers: authHeaders },
   )) as RawPersonal[]
   // Запрос уже фильтрует isActive=true; здесь только отсекаем без noona-id и ❌
@@ -116,8 +128,19 @@ export async function fetchEmployees(): Promise<CalendarEmployee[]> {
       docId: p.documentId,
       name: p.name.trim(),
       tier: p.tier === 'junior' ? ('junior' as const) : ('senior' as const),
+      calendarOrder: p.calendarOrder ?? 0,
     }))
-    .sort((a, b) => a.name.localeCompare(b.name, 'cs'))
+    .sort((a, b) => a.calendarOrder - b.calendarOrder || a.name.localeCompare(b.name, 'cs'))
+}
+
+// Сохранение порядка колонок: personal.calendarOrder пишется в ОБЕ версии
+// (draft + published — календарь читает published; паттерн каталога s101).
+// Мутации идут через admin-Axios (интерсептор подставляет VITE_STRAPI_TOKEN на PUT).
+export async function saveEmployeesOrder(items: { docId: string; order: number }[]): Promise<void> {
+  for (const it of items) {
+    await Axios.put(`/api/personals/${it.docId}`, { data: { calendarOrder: it.order } })
+    await Axios.put(`/api/personals/${it.docId}?status=published`, { data: { calendarOrder: it.order } })
+  }
 }
 
 // Расписание дня из нашей БД: часы салона (salon-hour) + блоки мастеров (time-block).
@@ -159,12 +182,14 @@ const toBlockedRange = (b: MirrorTimeBlock, startMin: number, endMin: number): B
   documentId: b.documentId,
   title: b.title || undefined,
   own: String(b.noonaKey || '').startsWith('own|'),
+  noonaKey: b.noonaKey,
+  noonaBlockedId: b.noonaBlockedId ?? null,
 })
 
 export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
   const [bookingsRes, employees, schedule] = await Promise.all([
     Axios.get(
-      `/api/bookings?filters[date][$eq]=${dateStr}&sort=startsAt:asc&pagination[pageSize]=200`,
+      `/api/bookings?filters[date][$eq]=${dateStr}&sort=startsAt:asc&populate[client][fields][0]=email&pagination[pageSize]=200`,
       { headers: authHeaders },
     ) as Promise<CalendarBooking[]>,
     fetchEmployees(),
@@ -194,6 +219,7 @@ export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
     name: e.name,
     employeeDocId: e.docId,
     date: dateStr,
+    tier: e.tier,
     bookings: bookingsByEmp.get(e.id) || [],
     blocks: blocksByEmp.get(e.id) || [],
     showNow: isToday,
@@ -313,7 +339,7 @@ export async function fetchCalendarWeek(
 
   const [bookingsRes, hoursRes, blocksRes] = await Promise.all([
     Axios.get(
-      `/api/bookings?filters[date][$gte]=${monday}&filters[date][$lte]=${sunday}&filters[noonaEmployeeId][$eq]=${employee.id}&sort=startsAt:asc&pagination[pageSize]=300`,
+      `/api/bookings?filters[date][$gte]=${monday}&filters[date][$lte]=${sunday}&filters[noonaEmployeeId][$eq]=${employee.id}&sort=startsAt:asc&populate[client][fields][0]=email&pagination[pageSize]=300`,
       { headers: authHeaders },
     ) as Promise<CalendarBooking[]>,
     Axios.get(`/api/salon-hours?filters[date][$gte]=${monday}&filters[date][$lte]=${sunday}&pagination[pageSize]=10`, {
@@ -361,6 +387,7 @@ export async function fetchCalendarWeek(
       name: `${wd} ${d}.${m}.`,
       employeeDocId: employee.docId,
       date,
+      tier: employee.tier,
       bookings: bookingsByDate.get(date) || [],
       blocks: blocksByDate.get(date) || [],
       showNow: date === today,

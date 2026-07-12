@@ -184,7 +184,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <CalendarRoute>
-                  <AdminLayout>
+                  <AdminLayout bare>
                     <CalendarPage />
                   </AdminLayout>
                 </CalendarRoute>

@@ -10,8 +10,11 @@ import './styles.scss'
 
 export default function AdminLayout({
   children,
+  bare = false,
 }: Readonly<{
   children: React.ReactNode
+  // bare: без розового хедера и Container — страница сама управляет своей шириной (календарь)
+  bare?: boolean
 }>) {
   const { adminName, setAdminName } = useAppContext()
   const { setUserRole } = useAppContext()
@@ -35,6 +38,14 @@ export default function AdminLayout({
   useOnMountUnsafe(() => {
     getAuthUser()
   })
+
+  if (bare) {
+    return (
+      <div id={'layout-admin-page'}>
+        <main className={'w-full'}>{children}</main>
+      </div>
+    )
+  }
 
   return (
     <div id={'layout-admin-page'}>
