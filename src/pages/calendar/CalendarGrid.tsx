@@ -6,6 +6,7 @@
 import { useMemo, useRef, useState } from 'react'
 import type { BlockedRange, CalendarBooking, CalendarDay, MasterColumn } from './fetch/calendarDay'
 import { packColumn, nowMinPrague } from './fetch/calendarDay'
+import { fmtHM } from './utils'
 
 const COL_W = 150 // ширина колонки
 
@@ -15,9 +16,6 @@ const AXIS_W = 56 // ширина оси времени
 const SNAP_MIN = 30 // сетка клика/переноса — шаг резервации везде полчаса
 const EXTRA_MIN = 120 // запас шкалы: ±2 часа до открытия и после закрытия (как в Noona)
 const RIGHT_GUTTER_PCT = 20 // полоса справа от ВСЕХ карточек для клика/дозаписи на занятое время
-
-const fmtHM = (min: number): string =>
-  `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
 
 // Цвет карточки: бренд красно-розовый для всех статусов (как в Noona), junior —
 // фиолетовый. Статус различается ЛЕЙБЛОМ (закладка в углу), отменённые — полупрозрачные.
