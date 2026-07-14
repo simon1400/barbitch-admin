@@ -14,13 +14,13 @@ export const monthLabels = [
   'Prosinec',
 ]
 
+// «Výsledek za měsíc» показывается отдельным градиентным блоком в OptimizedWorks, не плиткой
 export const blockStatsItems = (
   salary: number,
   length: number,
   extraProfit: number,
   payrolls: number,
   penalty: number,
-  result: number,
   tipSum: number,
 ) => [
   {
@@ -46,9 +46,5 @@ export const blockStatsItems = (
   {
     title: 'Počet klientů',
     value: length,
-  },
-  {
-    title: 'Výsledek za měsíc',
-    value: `${result.toLocaleString()} Kč`,
   },
 ]

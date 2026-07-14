@@ -19,6 +19,13 @@ interface IDataSumOnly {
   sum: string
 }
 
+export interface IExtraProfitItem {
+  id: number
+  sum: string
+  date: string
+  title: string
+}
+
 interface ChartDataItem {
   date: string
   countPayed: number
@@ -55,17 +62,23 @@ export const getWorks = async (name: string, month: number, year: number) => {
   }
 
   const penaltyQuery = buildQuery(penaltyFilters, ['sum'])
+  // Премии — с датой и названием, чтобы показать таблицу расшифровки (как у администраторов)
+  const extraQuery = buildQuery(penaltyFilters, ['sum', 'date', 'title'])
 
   const [data, penalties, extra, payroll] = await Promise.all([
     fetchData<IDataWorks>('/api/personals', offersQuery),
     fetchData<IDataSumOnly>('/api/penalties', penaltyQuery),
-    fetchData<IDataSumOnly>('/api/add-moneys', penaltyQuery),
+    fetchData<IExtraProfitItem>('/api/add-moneys', extraQuery),
     fetchData<IDataSumOnly>('/api/payrolls', penaltyQuery),
   ])
 
   const penalty = penalties.reduce((acc, item) => acc + +item.sum, 0)
   const extraProfit = extra.reduce((acc, item) => acc + +item.sum, 0)
   const payrolls = payroll.reduce((acc, item) => acc + +item.sum, 0)
+
+  const extraProfits = [...extra].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+  )
 
   const offers = data[0]?.offersDone || []
 
@@ -115,6 +128,7 @@ export const getWorks = async (name: string, month: number, year: number) => {
     works: data[0],
     salary,
     extraProfit,
+    extraProfits,
     payrolls,
     penalty,
     result,

@@ -1,4 +1,4 @@
-import type { IDataWorks } from '../fetch/works'
+import type { IDataWorks, IExtraProfitItem } from '../fetch/works'
 
 import { Container } from '../../../components/Container'
 import { useAppContext } from '../../../context/AppContext'
@@ -12,6 +12,7 @@ import { BlocksContent } from './BlocksContent'
 import { Cell } from './Cell'
 import { Select } from './Select'
 import { GlobalLineChart } from '../../global/charts/components/GlobalLineChart'
+import { TableWrapper } from '../../global/components/TableWrapper'
 
 const OptimizedWorks = () => {
   const [month, setMonth] = useState<number>(new Date().getMonth())
@@ -19,6 +20,7 @@ const OptimizedWorks = () => {
   const [data, setData] = useState<IDataWorks>()
   const [salary, setSalary] = useState<number>(0)
   const [extraProfit, setExtraProfit] = useState<number>(0)
+  const [extraProfits, setExtraProfits] = useState<IExtraProfitItem[]>([])
   const [payrolls, setPayrolls] = useState<number>(0)
   const [penalty, setPenalty] = useState<number>(0)
   const [result, setResult] = useState<number>(0)
@@ -70,7 +72,7 @@ const OptimizedWorks = () => {
   const loadData = useCallback(async () => {
     setIsLoading(true)
     try {
-      const { works, salary, extraProfit, payrolls, penalty, result, tipSum, chartData: noonaChartData } = await getWorks(
+      const { works, salary, extraProfit, extraProfits, payrolls, penalty, result, tipSum, chartData: noonaChartData } = await getWorks(
         adminName,
         month,
         year,
@@ -78,6 +80,7 @@ const OptimizedWorks = () => {
       setData(works)
       setSalary(salary)
       setExtraProfit(extraProfit)
+      setExtraProfits(extraProfits)
       setPayrolls(payrolls)
       setPenalty(penalty)
       setResult(result)
@@ -120,10 +123,17 @@ const OptimizedWorks = () => {
             extraProfit,
             payrolls,
             penalty,
-            result,
             tipSum,
           )}
         />
+
+        {/* Výsledek za měsíc — градиентный блок, как в кабинете администратора */}
+        <div className={'-mt-4 mb-10 bg-gradient-to-r from-primary to-pink-500 p-6 rounded-lg shadow-md'}>
+          <div className={'text-sm text-white opacity-80'}>{'Výsledek za měsíc'}</div>
+          <div className={'text-3xl font-bold text-white mt-2'}>
+            {result.toLocaleString()} {'Kč'}
+          </div>
+        </div>
 
         {/* Chart Section - показываем только если есть услуги */}
         {data?.offersDone && data.offersDone.length > 0 && (
@@ -224,6 +234,39 @@ const OptimizedWorks = () => {
             </div>
           )}
         </div>
+
+        {/* Přídavný výdělek — расшифровка каждой премии (как у администраторов) */}
+        {extraProfits.length > 0 && (
+          <div className={'mb-6'}>
+            <h2 className={'text-md font-semibold text-gray-700 mb-5'}>{'Přídavný výdělek'}</h2>
+            <TableWrapper
+              totalSum={`${extraProfit.toLocaleString()} Kč`}
+              totalLabel={'Celkem přídavný výdělek'}
+            >
+              <table className={'w-full text-left table-auto min-w-max'}>
+                <thead>
+                  <tr className={'bg-gray-50'}>
+                    <Cell title={'Datum'} asHeader />
+                    <Cell title={'Částka'} asHeader />
+                    <Cell title={'Komentář'} asHeader />
+                  </tr>
+                </thead>
+                <tbody>
+                  {extraProfits.map((bonus) => (
+                    <tr key={bonus.id} className={'hover:bg-gray-50 transition-colors'}>
+                      <Cell title={formatDate(bonus.date)} />
+                      <Cell
+                        title={`+${Number(bonus.sum).toLocaleString()} Kč`}
+                        className={'text-green-600 font-semibold'}
+                      />
+                      <Cell title={bonus.title || '-'} />
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableWrapper>
+          </div>
+        )}
       </Container>
     </section>
   )
