@@ -9,6 +9,8 @@ import { calcCombo, engineCreateBooking, fetchCatalog, searchClients } from '../
 import {
   EMPTY_SERVICE_SELECTION,
   TIME_OPTIONS,
+  btnPrimaryCls,
+  btnSecondaryCls,
   fmtHM,
   inputCls,
   labelCls,
@@ -24,14 +26,22 @@ export interface NewBookingInitial {
   time?: string
 }
 
+// Контекст «влезает ли служба в свободное время»: занятые интервалы каждой колонки
+// (ключ `employeeDocId|date`) + конец окна салона. Модал сам считает свободные минуты.
+export interface SlotFitContext {
+  closeMin: number
+  busyByKey: Record<string, { startMin: number; endMin: number }[]>
+}
+
 interface NewBookingProps {
   employees: CalendarEmployee[]
   initial: NewBookingInitial
+  slotFit?: SlotFitContext | null
   onClose: () => void
   onCreated: () => void
 }
 
-export const NewBookingModal = ({ employees, initial, onClose, onCreated }: NewBookingProps) => {
+export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreated }: NewBookingProps) => {
   const [employeeDocId, setEmployeeDocId] = useState(initial.employeeDocId || employees[0]?.docId || '')
   const [date, setDate] = useState(initial.date)
   const [time, setTime] = useState(initial.time || '10:00')
@@ -97,6 +107,25 @@ export const NewBookingModal = ({ employees, initial, onClose, onCreated }: NewB
     return fmtHM(toMin(time) + pricing.durationMin)
   }, [pricing, time])
 
+  // Свободные минуты от выбранного времени до ближайшей active-брони / блока / конца
+  // окна салона (по данным колонки этого мастера на эту дату). Если служба не влезает —
+  // предупреждаем в модале, но НЕ блокируем создание.
+  const freeMin = useMemo(() => {
+    if (!slotFit || !/^\d{2}:\d{2}$/.test(time)) return null
+    const busy = slotFit.busyByKey[`${employeeDocId}|${date}`]
+    if (!busy) return null // дата/мастер вне загруженного дня — подсказку не показываем
+    const startMin = toMin(time)
+    let limit = slotFit.closeMin
+    for (const iv of busy) {
+      if (iv.endMin <= startMin) continue
+      // интервал накрывает старт → слот уже занят (0 свободных); иначе ограничивает сверху
+      limit = Math.min(limit, iv.startMin <= startMin ? startMin : iv.startMin)
+    }
+    return Math.max(0, limit - startMin)
+  }, [slotFit, employeeDocId, date, time])
+
+  const overflow = pricing && freeMin != null && pricing.durationMin > freeMin ? freeMin : null
+
   const canSubmit =
     Boolean(employeeDocId && date && /^\d{2}:\d{2}$/.test(time) && svc) &&
     (newClient ? Boolean(ncName.trim() && ncPhone.trim()) : Boolean(client))
@@ -127,7 +156,28 @@ export const NewBookingModal = ({ employees, initial, onClose, onCreated }: NewB
   }
 
   return (
-    <ModalShell title="Nová rezervace" onClose={onClose}>
+    <ModalShell
+      title="Nová rezervace"
+      onClose={onClose}
+      footer={
+        <>
+          {error && <p className="mb-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className={btnSecondaryCls}>
+              Zrušit
+            </button>
+            <button
+              type="button"
+              disabled={!canSubmit || submitting}
+              onClick={submit}
+              className={`${btnPrimaryCls} flex-1 sm:flex-none`}
+            >
+              {submitting ? 'Vytvářím…' : 'Vytvořit rezervaci'}
+            </button>
+          </div>
+        </>
+      }
+    >
       <div className="space-y-3">
         {/* ── Клиент ── */}
         <Section title="Klient">
@@ -204,8 +254,8 @@ export const NewBookingModal = ({ employees, initial, onClose, onCreated }: NewB
 
         {/* ── Мастер + дата/время + итог ── */}
         <Section title="Termín">
-          <div className="grid grid-cols-3 gap-2">
-            <div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="col-span-2 sm:col-span-1">
               <span className={labelCls}>Mistr</span>
               <select className={inputCls} value={employeeDocId} onChange={(e) => setEmployeeDocId(e.target.value)}>
                 {employees.map((e) => (
@@ -253,6 +303,17 @@ export const NewBookingModal = ({ employees, initial, onClose, onCreated }: NewB
               </div>
             </div>
           )}
+
+          {overflow != null && pricing && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <span className="text-sm leading-none">⚠</span>
+              <span>
+                Služba trvá <b>{pricing.durationMin} min</b>, ale do dalšího termínu je volných jen{' '}
+                <b>{overflow === 0 ? '0 min (obsazeno)' : `${overflow} min`}</b>. Rezervaci lze přesto vytvořit —
+                bude zasahovat do dalšího termínu.
+              </span>
+            </div>
+          )}
         </Section>
 
         {/* ── Оплата и заметка ── */}
@@ -292,21 +353,6 @@ export const NewBookingModal = ({ employees, initial, onClose, onCreated }: NewB
           )}
         </Section>
 
-        {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100">
-            Zrušit
-          </button>
-          <button
-            type="button"
-            disabled={!canSubmit || submitting}
-            onClick={submit}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
-          >
-            {submitting ? 'Vytvářím…' : 'Vytvořit rezervaci'}
-          </button>
-        </div>
       </div>
     </ModalShell>
   )

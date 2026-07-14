@@ -31,7 +31,12 @@ export const CellActionModal = ({
               {time} · {ddmm} · {masterName}
             </p>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 text-sm1">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Zavřít"
+            className="-m-2 p-2 text-sm1 text-gray-400 hover:text-gray-700"
+          >
             ✕
           </button>
         </div>
@@ -39,14 +44,14 @@ export const CellActionModal = ({
           <button
             type="button"
             onClick={onReservation}
-            className="w-full rounded-md bg-primary px-3 py-2.5 text-sm font-semibold text-white hover:brightness-110"
+            className="min-h-11 w-full rounded-md bg-primary px-3 py-2.5 text-sm font-semibold text-white hover:brightness-110"
           >
             + Nová rezervace
           </button>
           <button
             type="button"
             onClick={onBlock}
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            className="min-h-11 w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
             + Nový blok
           </button>

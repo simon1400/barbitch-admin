@@ -1,21 +1,28 @@
 // Дневной грид календаря: ось времени слева, колонки мастеров, затемнённое
 // нерабочее время, карточки броней по позиции/длительности, линия now.
-// Write-операции: drag-and-drop активных броней (снап 15 мин), клик по пустой
-// клетке → новая бронь, ✕ на own-блоках движка (зеркальные Noona-блоки read-only).
+// Скроллится внутри собственной области: ось времени липнет слева, шапки мастеров —
+// сверху (мобильный паттерн «замороженная строка+колонка»), свайп примагничивается
+// к колонкам. Write-операции: drag-and-drop активных броней ТОЛЬКО мышью (на тач
+// HTML5 DnD не работает — перенос через «Změnit termín» в drawer), клик по пустой
+// клетке → новая бронь, клик по блоку → управление блоком.
 
 import { useMemo, useRef, useState } from 'react'
 import type { BlockedRange, CalendarBooking, CalendarDay, MasterColumn } from './fetch/calendarDay'
 import { packColumn, nowMinPrague } from './fetch/calendarDay'
+import { useCoarsePointer, useIsNarrow } from './useMediaQuery'
 import { fmtHM } from './utils'
+import { LogoIcon } from '../../icons/Logo'
 
-const COL_W = 150 // ширина колонки
+const COL_W = 150 // ширина колонки (десктоп)
+const COL_W_NARROW = 128 // ширина колонки на телефоне (видно ~2.5 мастера + ось)
 
 const PX_PER_MIN = 1.0 // высота минуты; 60 мин = 60px (компактный масштаб как в Noona)
+const PX_PER_MIN_NARROW = 1.4 // на телефоне крупнее — легче попасть пальцем в короткую бронь
 const HEADER_H = 44 // высота шапки колонок
 const AXIS_W = 56 // ширина оси времени
 const SNAP_MIN = 30 // сетка клика/переноса — шаг резервации везде полчаса
 const EXTRA_MIN = 120 // запас шкалы: ±2 часа до открытия и после закрытия (как в Noona)
-const RIGHT_GUTTER_PCT = 20 // полоса справа от ВСЕХ карточек для клика/дозаписи на занятое время
+const RIGHT_GUTTER_PCT = 10 // полоса справа от ВСЕХ карточек для клика/дозаписи на занятое время
 
 // Цвет карточки: бренд красно-розовый для всех статусов (как в Noona), junior —
 // фиолетовый. Статус различается ЛЕЙБЛОМ (закладка в углу), отменённые — полупрозрачные,
@@ -65,20 +72,29 @@ interface Props {
   onSelect: (b: CalendarBooking) => void
   // documentId брони, которую подсветить (мигание при переходе из истории клиента)
   highlightId?: string | null
+  // множитель вертикального масштаба (кнопки зума на мобиле, как в Noona)
+  zoomFactor?: number
+  // клик по имени мастера в шапке → недельный вид этого мастера (только дневной режим)
+  onSelectMaster?: (col: MasterColumn) => void
   // write-операции (не переданы → грид read-only)
   onEmptyCell?: (col: MasterColumn, startMin: number) => void
   onMoveBooking?: (b: CalendarBooking, target: MasterColumn, startMin: number) => void
   onSelectBlock?: (block: BlockedRange, col: MasterColumn) => void
 }
 
-export const CalendarGrid = ({ day, onSelect, highlightId, onEmptyCell, onMoveBooking, onSelectBlock }: Props) => {
+export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectMaster, onEmptyCell, onMoveBooking, onSelectBlock }: Props) => {
   const { openMin, closeMin, columns } = day
+  // Адаптивный масштаб: телефон — уже колонки, крупнее минуты; тач — без HTML5 DnD
+  const isNarrow = useIsNarrow()
+  const coarse = useCoarsePointer()
+  const pxPerMin = (isNarrow ? PX_PER_MIN_NARROW : PX_PER_MIN) * (zoomFactor || 1)
+  const colW = isNarrow ? COL_W_NARROW : COL_W
   // Отображаемое окно шкалы = рабочий день ± EXTRA_MIN (в пределах суток);
   // зоны вне [openMin, closeMin] затеняются в каждой колонке
   const dispOpen = Math.max(0, openMin - EXTRA_MIN)
   const dispClose = Math.min(24 * 60, closeMin + EXTRA_MIN)
   const totalMin = Math.max(60, dispClose - dispOpen)
-  const gridH = totalMin * PX_PER_MIN
+  const gridH = totalMin * pxPerMin
   const nowMin = nowMinPrague()
   // Перетаскиваемая бронь (ref, не state — рендер не нужен)
   const dragged = useRef<CalendarBooking | null>(null)
@@ -102,13 +118,13 @@ export const CalendarGrid = ({ day, onSelect, highlightId, onEmptyCell, onMoveBo
     return lines
   }, [dispOpen, dispClose])
 
-  const yOf = (min: number) => (min - dispOpen) * PX_PER_MIN
+  const yOf = (min: number) => (min - dispOpen) * pxPerMin
 
   // Минута (снап 30) из вертикальной позиции события внутри тела колонки.
   // Клик: floor — курсор в клетке 10:00–10:30 целится в 10:00.
   const minuteOf = (e: React.MouseEvent | React.DragEvent, body: HTMLElement): number => {
     const rect = body.getBoundingClientRect()
-    const raw = (e.clientY - rect.top) / PX_PER_MIN + dispOpen
+    const raw = (e.clientY - rect.top) / pxPerMin + dispOpen
     return Math.max(0, Math.floor(raw / SNAP_MIN) * SNAP_MIN)
   }
 
@@ -116,16 +132,31 @@ export const CalendarGrid = ({ day, onSelect, highlightId, onEmptyCell, onMoveBo
   // вычитается), снап round — верхний край липнет к ближайшей получасовой линии
   const minuteOfDrag = (e: React.DragEvent, body: HTMLElement): number => {
     const rect = body.getBoundingClientRect()
-    const raw = (e.clientY - dragOffsetY.current - rect.top) / PX_PER_MIN + dispOpen
+    const raw = (e.clientY - dragOffsetY.current - rect.top) / pxPerMin + dispOpen
     return Math.max(0, Math.round(raw / SNAP_MIN) * SNAP_MIN)
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
-      <div className="flex" style={{ minWidth: AXIS_W + columns.length * COL_W }}>
-        {/* Ось времени */}
-        <div className="shrink-0 border-r border-gray-200" style={{ width: AXIS_W }}>
-          <div style={{ height: HEADER_H }} className="border-b border-gray-200" />
+    // Скролл-контейнер (обе оси): sticky ось/шапки липнут к нему; snap-x —
+    // горизонтальный свайп примагничивается к границам колонок
+    <div className="h-full snap-x snap-proximity overflow-auto overscroll-contain rounded-xl bg-white shadow-sm">
+      {/* pb на мобиле: нижняя пилюля даты не перекрывает последние слоты */}
+      <div className="relative flex pb-16 sm:pb-0" style={{ minWidth: AXIS_W + columns.length * colW }}>
+        {/* Вотермарка-лого по центру временно́й области грида (под шапкой): скроллится
+            вместе с контентом, клики проходят сквозь; z-0 — ниже карточек (z-10),
+            hover-подсветки (z-5) и sticky-оси/шапок (z-40/30) */}
+        <div
+          className="pointer-events-none absolute inset-x-0 z-0 flex select-none items-center justify-center"
+          style={{ top: HEADER_H, height: gridH }}
+          aria-hidden
+        >
+          <LogoIcon className="w-1/2 max-w-2xl fill-gray-900 opacity-[0.05]" />
+        </div>
+        {/* Ось времени — липнет слева при горизонтальном скролле; z выше шапок
+            колонок, чтобы они уходили ПОД ось (не поверх) */}
+        <div className="sticky left-0 z-40 shrink-0 border-r border-gray-200 bg-white" style={{ width: AXIS_W }}>
+          {/* Угол (шапка оси) — липнет ещё и кверху */}
+          <div style={{ height: HEADER_H }} className="sticky top-0 z-10 border-b border-gray-200 bg-white" />
           <div className="relative" style={{ height: gridH }}>
             {hourLines.map((m) => (
               <div
@@ -145,18 +176,57 @@ export const CalendarGrid = ({ day, onSelect, highlightId, onEmptyCell, onMoveBo
           const positioned = packColumn(col.bookings)
           const writable = Boolean(col.employeeDocId)
           return (
-            // flex-1 + minWidth: колонки растягиваются на всю ширину окна, на узком экране — горизонтальный скролл
-            <div key={col.id} className="min-w-0 flex-1 border-r border-gray-200" style={{ minWidth: COL_W }}>
-              {/* Шапка */}
-              <div
-                style={{ height: HEADER_H }}
-                className="flex items-center justify-center gap-1 border-b border-gray-200 px-2 text-center"
-              >
-                <span className="truncate text-sm font-semibold text-gray-800">{col.name.split(' ')[0]}</span>
-                {col.id.startsWith('orphan:') && (
-                  <span className="rounded bg-gray-100 px-1 text-[10px] text-gray-500">bývalý</span>
-                )}
-              </div>
+            // flex-1 + minWidth: колонки растягиваются на всю ширину окна, на узком
+            // экране — горизонтальный скролл; snap-start + scroll-ml (= AXIS_W) —
+            // свайп примагничивает колонку к правому краю липкой оси
+            <div
+              key={col.id}
+              className="min-w-0 flex-1 snap-start scroll-ml-14 border-r border-gray-200"
+              style={{ minWidth: colW }}
+            >
+              {/* Шапка — липнет кверху при вертикальном скролле; у колонок-мастеров
+                  кружок-аватар с инициалом (как в Noona; недельные колонки = дни, без него).
+                  Клик по имени активного мастера → недельный вид этого мастера. */}
+              {(() => {
+                // кликабельно только для реальных активных мастеров (не бывшие, не дни)
+                const clickable = Boolean(onSelectMaster) && !col.id.startsWith('orphan:') && !/^\d{4}-/.test(col.id)
+                const HeaderTag = clickable ? 'button' : 'div'
+                return (
+                  <HeaderTag
+                    type={clickable ? 'button' : undefined}
+                    onClick={clickable ? () => onSelectMaster!(col) : undefined}
+                    title={clickable ? `Týdenní přehled — ${col.name}` : undefined}
+                    style={{ height: HEADER_H }}
+                    className={`sticky top-0 z-30 flex w-full items-center justify-center gap-1.5 border-b border-gray-200 bg-white px-2 text-center ${
+                      clickable ? 'cursor-pointer transition hover:bg-pink-50' : ''
+                    }`}
+                  >
+                    {!/^\d{4}-/.test(col.id) && (
+                      <span
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                        style={{
+                          background: col.id.startsWith('orphan:')
+                            ? '#9ca3af'
+                            : col.tier === 'junior'
+                              ? '#a78bfa'
+                              : '#f87184',
+                        }}
+                        aria-hidden
+                      >
+                        {(col.name.trim()[0] || '?').toUpperCase()}
+                      </span>
+                    )}
+                    <span
+                      className={`truncate text-sm font-semibold text-gray-800 ${clickable ? 'underline decoration-gray-300 decoration-dotted underline-offset-4' : ''}`}
+                    >
+                      {col.name.split(' ')[0]}
+                    </span>
+                    {col.id.startsWith('orphan:') && (
+                      <span className="rounded bg-gray-100 px-1 text-[10px] text-gray-500">bývalý</span>
+                    )}
+                  </HeaderTag>
+                )
+              })()}
 
               {/* Тело колонки: клик по пустому месту = новая бронь, drop = перенос */}
               <div
@@ -196,7 +266,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, onEmptyCell, onMoveBo
                 {hover?.colId === col.id && (
                   <div
                     className="pointer-events-none absolute left-0 right-0 z-[5] flex items-center justify-center bg-[#e71e6e40]"
-                    style={{ top: yOf(hover.min), height: SNAP_MIN * PX_PER_MIN }}
+                    style={{ top: yOf(hover.min), height: SNAP_MIN * pxPerMin }}
                   >
                     <span className="absolute left-1 top-0.5 rounded bg-primary px-1 text-[10px] font-bold text-white">
                       {fmtHM(hover.min)}
@@ -217,13 +287,13 @@ export const CalendarGrid = ({ day, onSelect, highlightId, onEmptyCell, onMoveBo
                 {dispOpen < openMin && (
                   <div
                     className="pointer-events-none absolute left-0 right-0 bg-gray-400/15"
-                    style={{ top: 0, height: (openMin - dispOpen) * PX_PER_MIN }}
+                    style={{ top: 0, height: (openMin - dispOpen) * pxPerMin }}
                   />
                 )}
                 {dispClose > closeMin && (
                   <div
                     className="pointer-events-none absolute left-0 right-0 bg-gray-400/15"
-                    style={{ top: yOf(closeMin), height: (dispClose - closeMin) * PX_PER_MIN }}
+                    style={{ top: yOf(closeMin), height: (dispClose - closeMin) * pxPerMin }}
                   />
                 )}
 
@@ -235,7 +305,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, onEmptyCell, onMoveBo
                     className={`absolute left-0.5 right-0.5 rounded-md bg-gray-500/45 ${
                       onSelectBlock && bl.documentId ? 'cursor-pointer hover:bg-gray-500/55' : 'pointer-events-none'
                     }`}
-                    style={{ top: yOf(bl.startMin), height: (bl.endMin - bl.startMin) * PX_PER_MIN }}
+                    style={{ top: yOf(bl.startMin), height: (bl.endMin - bl.startMin) * pxPerMin }}
                     title={`${bl.title || 'Nepracovní doba'} (${fmtHM(bl.startMin)}–${fmtHM(bl.endMin)})`}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -267,7 +337,9 @@ export const CalendarGrid = ({ day, onSelect, highlightId, onEmptyCell, onMoveBo
                   const laneW = (100 - RIGHT_GUTTER_PCT) / p.lanes
                   const services = (p.booking.services || []).map((s) => s.title).filter(Boolean)
                   const dur = p.endMin - p.startMin
-                  const draggable = Boolean(onMoveBooking) && p.booking.status === 'active'
+                  // на тач-устройстве HTML5 DnD не работает — перенос через «Změnit termín»
+                  // в drawer; draggable оставляем только мыши (иначе long-press глючит)
+                  const draggable = Boolean(onMoveBooking) && p.booking.status === 'active' && !coarse
                   const highlighted = highlightId === p.booking.documentId
                   return (
                     <button
@@ -292,7 +364,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, onEmptyCell, onMoveBo
                       } ${highlighted ? 'animate-pulse ring-4 ring-[#e71e6e] ring-offset-1' : ''}`}
                       style={{
                         top: yOf(p.startMin) + 1,
-                        height: Math.max(16, dur * PX_PER_MIN - 2),
+                        height: Math.max(isNarrow ? 22 : 16, dur * pxPerMin - 2),
                         left: `calc(${p.lane * laneW}% + 2px)`,
                         width: `calc(${laneW}% - 4px)`,
                         background: st.bg,
@@ -308,16 +380,16 @@ export const CalendarGrid = ({ day, onSelect, highlightId, onEmptyCell, onMoveBo
                           <LabelMark color={label.color} name={label.name} />
                         </span>
                       )}
-                      <div className={`text-[11px] font-semibold leading-tight ${label ? 'pr-4' : ''}`}>
+                      <div className={`text-[13px] font-semibold leading-tight ${label ? 'pr-4' : ''}`}>
                         {fmtHM(p.startMin)} · {p.booking.clientNameRaw || '—'}
                       </div>
                       {dur >= 40 && (
-                        <div className="mt-0.5 truncate text-[10px] leading-tight opacity-90">
+                        <div className="mt-0.5 truncate text-[12px] leading-tight opacity-90">
                           {services.join(' + ') || 'bez služby'}
                         </div>
                       )}
                       {dur >= 70 && p.booking.totalPrice != null && (
-                        <div className="mt-0.5 text-[10px] font-semibold">{p.booking.totalPrice} Kč</div>
+                        <div className="mt-0.5 text-[12px] font-semibold">{p.booking.totalPrice} Kč</div>
                       )}
                     </button>
                   )

@@ -6,7 +6,7 @@ import { useState } from 'react'
 import type { CalendarBooking, CalendarEmployee } from '../fetch/calendarDay'
 import { enginePatchBooking } from '../fetch/engineApi'
 import { fmtTime } from '../utils'
-import { TIME_OPTIONS, inputCls, labelCls } from './helpers'
+import { TIME_OPTIONS, btnPrimaryCls, btnSecondaryCls, inputCls, labelCls } from './helpers'
 import { ModalShell, Section } from './ui'
 
 export const RescheduleModal = ({
@@ -53,7 +53,28 @@ export const RescheduleModal = ({
   }
 
   return (
-    <ModalShell title="Změnit termín" onClose={onClose}>
+    <ModalShell
+      title="Změnit termín"
+      onClose={onClose}
+      footer={
+        <>
+          {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className={btnSecondaryCls}>
+              Zrušit
+            </button>
+            <button
+              type="button"
+              disabled={!changed || !date || submitting}
+              onClick={submit}
+              className={`${btnPrimaryCls} flex-1 sm:flex-none`}
+            >
+              {submitting ? 'Přesouvám…' : 'Přesunout'}
+            </button>
+          </div>
+        </>
+      }
+    >
       <div className="space-y-3">
         <div className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
           <b>{booking.clientNameRaw || 'Klient'}</b> · nyní {ddmm(booking.date)} · {curTime}
@@ -61,8 +82,8 @@ export const RescheduleModal = ({
         </div>
 
         <Section title="Nový termín">
-          <div className="grid grid-cols-3 gap-2">
-            <div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="col-span-2 sm:col-span-1">
               <span className={labelCls}>Mistr</span>
               <select className={inputCls} value={empDocId} onChange={(e) => setEmpDocId(e.target.value)}>
                 {!curEmp && (
@@ -111,25 +132,6 @@ export const RescheduleModal = ({
           )}
         </Section>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
-
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50"
-          >
-            Zrušit
-          </button>
-          <button
-            type="button"
-            disabled={!changed || !date || submitting}
-            onClick={submit}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
-          >
-            {submitting ? 'Přesouvám…' : 'Přesunout'}
-          </button>
-        </div>
       </div>
     </ModalShell>
   )

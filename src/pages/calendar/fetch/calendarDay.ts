@@ -215,6 +215,21 @@ const toBlockedRange = (b: MirrorTimeBlock, startMin: number, endMin: number): B
   noonaBlockedId: b.noonaBlockedId ?? null,
 })
 
+// Занятые интервалы колонки (для подсказки «служба se nevejde» в модале новой брони).
+// Только active-брони + блоки блокируют слот — движок конфликтует ровно по ним
+// (cancelled/checkedOut/noshow НЕ блокируют, дозапись поверх них допустима).
+export function busyIntervals(col: MasterColumn): { startMin: number; endMin: number }[] {
+  const out: { startMin: number; endMin: number }[] = []
+  for (const b of col.bookings) {
+    if (b.status !== 'active') continue
+    const s = isoToMin(b.startsAt)
+    const e = isoToMin(b.endsAt)
+    if (s != null && e != null && e > s) out.push({ startMin: s, endMin: e })
+  }
+  for (const bl of col.blocks) out.push({ startMin: bl.startMin, endMin: bl.endMin })
+  return out
+}
+
 export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
   const [bookingsRes, employees, schedule] = await Promise.all([
     Axios.get(

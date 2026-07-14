@@ -15,11 +15,12 @@ import type {
   ClientHistoryItem,
   MasterColumn,
 } from './fetch/calendarDay'
-import { fetchCalendarDay, fetchCalendarWeek, fetchWeekEmployees } from './fetch/calendarDay'
+import { busyIntervals, fetchCalendarDay, fetchCalendarWeek, fetchWeekEmployees } from './fetch/calendarDay'
 import { engineDeleteBooking, enginePatchBooking } from './fetch/engineApi'
 import { fetchBookingLabels, type BookingLabel } from './fetch/bookingLabels'
 import { CalendarGrid } from './CalendarGrid'
 import { BookingDrawer } from './BookingDrawer'
+import { useCoarsePointer } from './useMediaQuery'
 import { fmtHM, fmtTime, mondayOf, shiftDate, todayStr, type Mode } from './utils'
 import {
   CellActionModal,
@@ -35,8 +36,17 @@ import {
   type NewBookingInitial,
 } from './modals'
 
+// Чешские дни недели для нижней пилюли даты (мобила, Noona-паттерн)
+const WEEKDAYS_CS = ['Neděle', 'Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota']
+const dateLabelCs = (d: string): string => {
+  const [y, m, dd] = d.split('-')
+  return `${WEEKDAYS_CS[new Date(`${d}T00:00:00`).getDay()]} ${+dd}. ${+m}. ${y}`
+}
+
 export default function CalendarPage() {
   const navigate = useNavigate()
+  // тач-устройство (телефон/планшет) — там показываем кнопки зума грида
+  const coarse = useCoarsePointer()
   const [date, setDate] = useState(todayStr())
   const [mode, setMode] = useState<Mode>('day')
   const [day, setDay] = useState<CalendarDay | null>(null)
@@ -59,6 +69,19 @@ export default function CalendarPage() {
   const [manageLabels, setManageLabels] = useState(false)
   // модал порядка колонок мастеров (personal.calendarOrder)
   const [orderModal, setOrderModal] = useState(false)
+  // мобильное меню «⋯» тулбара (второстепенные действия: + Blok, ⇅ Pořadí)
+  const [moreOpen, setMoreOpen] = useState(false)
+  // вертикальный зум грида (кнопки +/− на мобиле, как в Noona); живёт между сессиями
+  const [zoom, setZoom] = useState(() => {
+    const v = Number(localStorage.getItem('bb_cal_zoom'))
+    return v >= 0.7 && v <= 2.2 ? v : 1
+  })
+  const changeZoom = (dir: 1 | -1) =>
+    setZoom((z) => {
+      const next = Math.min(2.2, Math.max(0.7, +(z + dir * 0.3).toFixed(1)))
+      localStorage.setItem('bb_cal_zoom', String(next))
+      return next
+    })
   // подсветка брони после перехода из истории клиента (мигает 3 сек)
   const [highlightId, setHighlightId] = useState<string | null>(null)
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -239,6 +262,19 @@ export default function CalendarPage() {
     if (highlightTimer.current) clearTimeout(highlightTimer.current)
   }, [])
 
+  // Контекст «влезает ли служба в свободное время» для модала новой брони:
+  // занятые интервалы каждой колонки (ключ employeeDocId|date) + конец окна салона.
+  // Модал сам считает свободные минуты от выбранного времени и предупреждает (не блокируя).
+  const slotFit = useMemo(() => {
+    if (!day) return null
+    const busyByKey: Record<string, { startMin: number; endMin: number }[]> = {}
+    for (const col of day.columns) {
+      if (!col.employeeDocId || !col.date) continue
+      busyByKey[`${col.employeeDocId}|${col.date}`] = busyIntervals(col)
+    }
+    return { closeMin: day.closeMin, busyByKey }
+  }, [day])
+
   const totals = useMemo(() => {
     if (!day) return { total: 0, cancelled: 0 }
     const all = day.columns.flatMap((c) => c.bookings)
@@ -253,129 +289,177 @@ export default function CalendarPage() {
     navigate(getSessionRole() === 'administrator' ? '/administrator-cabinet' : '/global')
   }
 
+  // Кнопка тулбара: на тач-экране ≥44px высоты, на десктопе компактная (как раньше)
+  const tbBtn =
+    'inline-flex min-h-11 items-center justify-center rounded-md px-3 text-sm font-semibold sm:min-h-[34px]'
+
   return (
-    <div className="w-full px-2 py-4 md:px-4">
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        {/* Возврат на главную (страница без общего хедера) */}
-        <button
-          type="button"
-          onClick={goHome}
-          className="mr-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
-        >
-          ← Domů
-        </button>
-
-        {/* Переключатель День/Неделя */}
-        <div className="mr-2 flex overflow-hidden rounded-md border border-gray-300">
-          {(['day', 'week'] as Mode[]).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              className={`px-3 py-1.5 text-sm font-semibold ${
-                mode === m ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              {m === 'day' ? 'Den' : 'Týden'}
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setDate(shiftDate(date, mode === 'week' ? -7 : -1))}
-          className="rounded-md bg-white px-3 py-1.5 text-sm font-semibold shadow-sm hover:bg-gray-50"
-        >
-          ◀
-        </button>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => e.target.value && setDate(e.target.value)}
-          className="rounded-md border border-gray-300 px-2 py-1 text-sm"
-        />
-        <button
-          type="button"
-          onClick={() => setDate(shiftDate(date, mode === 'week' ? 7 : 1))}
-          className="rounded-md bg-white px-3 py-1.5 text-sm font-semibold shadow-sm hover:bg-gray-50"
-        >
-          ▶
-        </button>
-        <button
-          type="button"
-          onClick={() => setDate(todayStr())}
-          className="rounded-md bg-white px-3 py-1.5 text-sm font-semibold shadow-sm hover:bg-gray-50"
-        >
-          Dnes
-        </button>
-
-        {/* Селектор мастера — только в недельном режиме */}
-        {mode === 'week' && (
-          <select
-            value={weekEmpId}
-            onChange={(e) => setWeekEmpId(e.target.value)}
-            className="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+    // Страница = вся высота окна (dvh — iOS-safe): тулбар фикс, грид скроллится внутри
+    <div className="flex h-[100dvh] w-full flex-col px-2 pt-3 md:px-4">
+      {/* Тулбар: минимальный (Noona-паттерн) — на мобиле навигация по датам живёт
+          в нижней пилюле, тут только режим/«Dnes»/действия; на sm+ полный ряд */}
+      <div className="mb-2 flex shrink-0 flex-wrap items-center gap-1.5 sm:mb-3 sm:gap-2">
+          {/* Возврат на главную (страница без общего хедера) */}
+          <button
+            type="button"
+            onClick={goHome}
+            aria-label="Domů"
+            className={`${tbBtn} border border-gray-300 bg-white text-gray-700 shadow-sm hover:bg-gray-50 sm:mr-2`}
           >
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>
-                {emp.name}
-              </option>
-            ))}
-          </select>
-        )}
+            ←<span className="ml-1 hidden sm:inline">Domů</span>
+          </button>
+          {/* ◀ дата ▶ — только десктоп; на мобиле — нижняя пилюля (как в Noona) */}
+          <button
+            type="button"
+            onClick={() => setDate(shiftDate(date, mode === 'week' ? -7 : -1))}
+            className={`${tbBtn} hidden bg-white shadow-sm hover:bg-gray-50 sm:inline-flex`}
+          >
+            ◀
+          </button>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => e.target.value && setDate(e.target.value)}
+            className="hidden min-w-0 rounded-md border border-gray-300 px-2 py-1 text-sm sm:block sm:min-h-[34px]"
+          />
+          <button
+            type="button"
+            onClick={() => setDate(shiftDate(date, mode === 'week' ? 7 : 1))}
+            className={`${tbBtn} hidden bg-white shadow-sm hover:bg-gray-50 sm:inline-flex`}
+          >
+            ▶
+          </button>
+          <button
+            type="button"
+            onClick={() => setDate(todayStr())}
+            className={`${tbBtn} bg-white shadow-sm hover:bg-gray-50`}
+          >
+            Dnes
+          </button>
 
-        <div>
-          <span className="text-sm text-gray-600">
+          {/* Режим задаётся кликом: в дневном виде — клик по имени мастера в шапке
+              открывает его неделю; в недельном — селектор мастера + «Všichni mistři»
+              (возврат в дневной вид всех мастеров). Отдельного тогла Den/Týden нет. */}
+          {mode === 'week' && (
+            <select
+              value={weekEmpId}
+              onChange={(e) => {
+                if (e.target.value === '__all__') setMode('day')
+                else setWeekEmpId(e.target.value)
+              }}
+              className="min-h-11 min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm font-semibold sm:min-h-[34px] sm:flex-none"
+            >
+              <option value="__all__">← Všichni mistři (denní)</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Счётчик — только sm+ (мобильный верх минимальный, как в Noona) */}
+          <span className="hidden whitespace-nowrap text-sm text-gray-600 sm:inline">
             <b>{totals.total}</b> rezervací
           </span>
-        </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => openNewBooking()}
-            className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-white hover:brightness-110"
-          >
-            + Rezervace
-          </button>
-          <button
-            type="button"
-            onClick={() => setBlockModal({ date })}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-          >
-            + Blok
-          </button>
-          <button
-            type="button"
-            onClick={() => setOrderModal(true)}
-            title="Pořadí sloupců mistrů"
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-          >
-            ⇅ Pořadí
-          </button>
-        </div>
+          <div className="ml-auto flex items-center gap-2">
+            {/* Десктоп: + Rezervace в тулбаре; мобила — FAB внизу справа (см. ниже) */}
+            <button
+              type="button"
+              onClick={() => openNewBooking()}
+              className={`${tbBtn} hidden bg-primary text-white hover:brightness-110 sm:inline-flex`}
+            >
+              + Rezervace
+            </button>
+            {/* Десктоп: второстепенные действия в ряд */}
+            <button
+              type="button"
+              onClick={() => setBlockModal({ date })}
+              className={`${tbBtn} hidden border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 sm:inline-flex`}
+            >
+              + Blok
+            </button>
+            <button
+              type="button"
+              onClick={() => setOrderModal(true)}
+              title="Pořadí sloupců mistrů"
+              className={`${tbBtn} hidden border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 sm:inline-flex`}
+            >
+              ⇅ Pořadí
+            </button>
+            {/* Мобила: то же в меню «⋯» */}
+            <div className="relative sm:hidden">
+              <button
+                type="button"
+                onClick={() => setMoreOpen((v) => !v)}
+                aria-label="Další akce"
+                className={`${tbBtn} border border-gray-300 bg-white text-gray-700`}
+              >
+                ⋯
+              </button>
+              {moreOpen && (
+                <>
+                  {/* невидимая подложка — клик мимо закрывает меню */}
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    aria-hidden
+                    onClick={() => setMoreOpen(false)}
+                    className="fixed inset-0 z-40 cursor-default"
+                  />
+                  <div className="absolute right-0 z-50 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMoreOpen(false)
+                        setBlockModal({ date })
+                      }}
+                      className="flex min-h-11 w-full items-center px-4 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      + Blok
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMoreOpen(false)
+                        setOrderModal(true)
+                      }}
+                      className="flex min-h-11 w-full items-center px-4 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      ⇅ Pořadí sloupců
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
       </div>
 
-      {/* <p className="mb-4 text-xs text-gray-400">
-        Vlastní rezervační systém. Přetažením karty přesunete rezervaci, kliknutím do volného místa
-        vytvoříte novou, stavy měníte v detailu rezervace.
-      </p> */}
-
-      {/* Грид остаётся на месте при переключении дня — сверху появляется лоадер,
-          ничего не прыгает (старые данные видны, пока грузятся новые) */}
-      <div className="relative min-h-[200px]">
+      {/* Грид скроллится внутри собственной области (sticky ось/шапки живут там);
+          при переключении дня остаётся на месте — поверх появляется лоадер */}
+      <div className="relative min-h-0 flex-1 pb-2">
         {day && (
           <CalendarGrid
             day={day}
             onSelect={setSelected}
             highlightId={highlightId}
+            zoomFactor={zoom}
             onEmptyCell={(col, startMin) => setCellChoice({ col, startMin })}
             onMoveBooking={moveBooking}
             onSelectBlock={selectBlock}
+            onSelectMaster={
+              mode === 'day'
+                ? (col) => {
+                    setWeekEmpId(col.id)
+                    setMode('week')
+                  }
+                : undefined
+            }
           />
         )}
         {loading && (
-          <div className="absolute inset-0 z-30 flex items-start justify-center rounded-xl bg-white/60 pt-20">
+          <div className="absolute inset-0 z-40 flex items-start justify-center rounded-xl bg-white/60 pt-20">
             <div className="flex items-center gap-2 rounded-full bg-white px-4 py-2 shadow-md">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-primary" />
               <span className="text-sm font-medium text-gray-600">Načítám…</span>
@@ -383,6 +467,77 @@ export default function CalendarPage() {
           </div>
         )}
         {error && !day && <p className="text-sm text-red-600">{error}</p>}
+
+        {/* ── Мобильные оверлеи (Noona-паттерн), на sm+ скрыты ── */}
+
+        {/* Зум грида +/− (слева внизу) — на любом тач-устройстве (телефон/планшет) */}
+        {coarse && (
+          <div className="absolute bottom-[4.5rem] left-3 z-40 flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg sm:bottom-4">
+            <button
+              type="button"
+              onClick={() => changeZoom(1)}
+              disabled={zoom >= 2.2}
+              aria-label="Přiblížit"
+              className="flex h-11 w-11 items-center justify-center text-[20px] leading-none text-gray-700 active:bg-gray-100 disabled:opacity-30"
+            >
+              +
+            </button>
+            <div className="border-t border-gray-200" />
+            <button
+              type="button"
+              onClick={() => changeZoom(-1)}
+              disabled={zoom <= 0.7}
+              aria-label="Oddálit"
+              className="flex h-11 w-11 items-center justify-center text-[20px] leading-none text-gray-700 active:bg-gray-100 disabled:opacity-30"
+            >
+              −
+            </button>
+          </div>
+        )}
+
+        {/* FAB «+ Rezervace» (справа над пилюлей даты; на sm+ кнопка в тулбаре) */}
+        <button
+          type="button"
+          onClick={() => openNewBooking()}
+          aria-label="Nová rezervace"
+          className="absolute bottom-[4.5rem] right-3 z-40 flex h-12 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-bold text-white shadow-lg active:brightness-90 sm:hidden"
+        >
+          {/* ⚠️ НЕ text-xl — в admin-конфиге это 71px (гоча s42) */}
+          <span className="text-[20px] leading-none">+</span> Rezervace
+        </button>
+
+        {/* Пилюля даты внизу по центру: ‹ Pondělí 13. 7. 2026 › — тап по дате
+            открывает нативный пикер (невидимый input поверх лейбла) */}
+        <div className="absolute bottom-3 left-1/2 z-40 flex -translate-x-1/2 items-center overflow-hidden rounded-full border border-gray-200 bg-white shadow-lg sm:hidden">
+          <button
+            type="button"
+            onClick={() => setDate(shiftDate(date, mode === 'week' ? -7 : -1))}
+            aria-label="Předchozí"
+            className="flex h-11 w-11 items-center justify-center text-gray-700 active:bg-gray-100"
+          >
+            ‹
+          </button>
+          <div className="relative">
+            <span className="block min-w-[10rem] px-1 text-center text-sm font-semibold text-gray-800">
+              {dateLabelCs(date)}
+            </span>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => e.target.value && setDate(e.target.value)}
+              aria-label="Datum"
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setDate(shiftDate(date, mode === 'week' ? 7 : 1))}
+            aria-label="Další"
+            className="flex h-11 w-11 items-center justify-center text-gray-700 active:bg-gray-100"
+          >
+            ›
+          </button>
+        </div>
       </div>
 
       {selected && (
@@ -491,6 +646,7 @@ export default function CalendarPage() {
         <NewBookingModal
           employees={employees}
           initial={bookingModal}
+          slotFit={slotFit}
           onClose={() => setBookingModal(null)}
           onCreated={() => {
             setBookingModal(null)

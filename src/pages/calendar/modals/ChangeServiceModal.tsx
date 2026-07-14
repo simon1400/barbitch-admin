@@ -6,7 +6,14 @@ import { useEffect, useState } from 'react'
 import type { CalendarBooking, CalendarEmployee } from '../fetch/calendarDay'
 import type { CatalogService, EnginePatchResult } from '../fetch/engineApi'
 import { JUNIOR_DISCOUNT_PERCENT, calcCombo, enginePatchBooking, fetchCatalog } from '../fetch/engineApi'
-import { EMPTY_SERVICE_SELECTION, inputCls, labelCls, type ServiceSelection } from './helpers'
+import {
+  EMPTY_SERVICE_SELECTION,
+  btnPrimaryCls,
+  btnSecondaryCls,
+  inputCls,
+  labelCls,
+  type ServiceSelection,
+} from './helpers'
 import { ServicePicker } from './ServicePicker'
 import { ModalShell, Section } from './ui'
 
@@ -59,7 +66,28 @@ export const ChangeServiceModal = ({
   }
 
   return (
-    <ModalShell title="Změnit službu" onClose={onClose}>
+    <ModalShell
+      title="Změnit službu"
+      onClose={onClose}
+      footer={
+        <>
+          {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className={btnSecondaryCls}>
+              Zrušit
+            </button>
+            <button
+              type="button"
+              disabled={!svc || submitting}
+              onClick={submit}
+              className={`${btnPrimaryCls} flex-1 sm:flex-none`}
+            >
+              {submitting ? 'Ukládám…' : 'Změnit službu'}
+            </button>
+          </div>
+        </>
+      }
+    >
       <div className="space-y-3">
         <div className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
           Nyní: <b>{currentTitle || '—'}</b>
@@ -100,25 +128,6 @@ export const ChangeServiceModal = ({
           <p className="mt-0.5 text-[11px] text-gray-400">Prázdné → cena se přepočítá automaticky.</p>
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
-
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50"
-          >
-            Zrušit
-          </button>
-          <button
-            type="button"
-            disabled={!svc || submitting}
-            onClick={submit}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
-          >
-            {submitting ? 'Ukládám…' : 'Změnit službu'}
-          </button>
-        </div>
       </div>
     </ModalShell>
   )

@@ -4,7 +4,18 @@
 import { useMemo, useState } from 'react'
 import type { CalendarEmployee } from '../fetch/calendarDay'
 import { engineCreateBlock } from '../fetch/engineApi'
-import { WEEKDAYS, addDays, blokPlural, fmtHM, inputCls, labelCls, toMin, weekdayOf } from './helpers'
+import {
+  WEEKDAYS,
+  addDays,
+  blokPlural,
+  btnPrimaryCls,
+  btnSecondaryCls,
+  fmtHM,
+  inputCls,
+  labelCls,
+  toMin,
+  weekdayOf,
+} from './helpers'
 import { ModalShell, Section } from './ui'
 
 interface NewBlockProps {
@@ -86,7 +97,28 @@ export const NewBlockModal = ({ employees, initial, onClose, onCreated }: NewBlo
   }
 
   return (
-    <ModalShell title="Nový blok" onClose={onClose}>
+    <ModalShell
+      title="Nový blok"
+      onClose={onClose}
+      footer={
+        <>
+          {error && <p className="mb-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose} className={btnSecondaryCls}>
+              Zrušit
+            </button>
+            <button
+              type="button"
+              disabled={!valid || submitting}
+              onClick={submit}
+              className={`${btnPrimaryCls} flex-1 sm:flex-none`}
+            >
+              {submitting ? 'Vytvářím…' : 'Vytvořit blok'}
+            </button>
+          </div>
+        </>
+      }
+    >
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-2">
           <div>
@@ -136,7 +168,7 @@ export const NewBlockModal = ({ employees, initial, onClose, onCreated }: NewBlo
                     key={w.v}
                     type="button"
                     onClick={() => toggleWeekday(w.v)}
-                    className={`h-8 w-9 rounded-md border text-xs font-semibold transition ${
+                    className={`h-11 w-11 rounded-md border text-xs font-semibold transition sm:h-8 sm:w-9 ${
                       weekdays.includes(w.v)
                         ? 'border-primary bg-primary text-white'
                         : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
@@ -162,21 +194,6 @@ export const NewBlockModal = ({ employees, initial, onClose, onCreated }: NewBlo
           )}
         </Section>
 
-        {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100">
-            Zrušit
-          </button>
-          <button
-            type="button"
-            disabled={!valid || submitting}
-            onClick={submit}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
-          >
-            {submitting ? 'Vytvářím…' : 'Vytvořit blok'}
-          </button>
-        </div>
       </div>
     </ModalShell>
   )

@@ -137,7 +137,7 @@ export const BookingDrawer = ({
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
       <div className="absolute inset-0 bg-black/30" />
       <div
-        className="relative flex h-full w-full max-w-sm flex-col bg-white shadow-xl"
+        className="relative flex h-full w-full max-w-xl flex-col bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Скроллящийся контент; кнопки статусов — фиксированный футер ниже */}
@@ -149,7 +149,12 @@ export const BookingDrawer = ({
               {meta.label}
             </span>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 text-sm1">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Zavřít"
+            className="-m-2 p-2 text-sm1 text-gray-400 hover:text-gray-700"
+          >
             ✕
           </button>
         </div>
@@ -164,7 +169,7 @@ export const BookingDrawer = ({
               <button
                 type="button"
                 onClick={onReschedule}
-                className="rounded-md border border-pink-300 bg-white px-2.5 py-1 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50"
+                className="rounded-md border border-pink-300 bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50 sm:px-2.5 sm:py-1"
               >
                 Změnit termín
               </button>
@@ -184,7 +189,7 @@ export const BookingDrawer = ({
               <button
                 type="button"
                 onClick={onChangeService}
-                className="rounded-md border border-pink-300 bg-white px-2.5 py-1 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50"
+                className="rounded-md border border-pink-300 bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50 sm:px-2.5 sm:py-1"
               >
                 Změnit službu
               </button>
@@ -192,9 +197,9 @@ export const BookingDrawer = ({
           </div>
           <div className="space-y-2">
             {(b.services || []).map((s, i) => (
-              <div key={i} className="flex justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
+              <div key={i} className="flex justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm">
                 <span className="text-gray-800">{s.title}</span>
-                <span className="text-gray-500">
+                <span className="text-gray-500 text-nowrap">
                    {s.durationMin ? `${s.durationMin} min` : ''} {/*{s.price != null ? `· ${s.price} Kč` : ''} */}
                 </span>
               </div>
@@ -228,7 +233,7 @@ export const BookingDrawer = ({
           <div className="mt-3 rounded-xl border border-gray-200 p-3">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Štítek</span>
-              <button type="button" onClick={onManageLabels} className="rounded-md border border-pink-300 bg-white px-2.5 py-1 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50">
+              <button type="button" onClick={onManageLabels} className="rounded-md border border-pink-300 bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50 sm:px-2.5 sm:py-1">
                 Spravovat štítky
               </button>
             </div>
@@ -242,7 +247,7 @@ export const BookingDrawer = ({
                       type="button"
                       disabled={busy}
                       onClick={() => onLabel(isSet ? null : { name: l.name, color: l.color })}
-                      className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition disabled:opacity-40 ${
+                      className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition disabled:opacity-40 sm:px-2.5 sm:py-1 ${
                         isSet ? 'border-gray-700 bg-gray-100 text-gray-900' : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
                       }`}
                     >
@@ -264,8 +269,9 @@ export const BookingDrawer = ({
         <ClientHistory b={b} onOpen={onOpenHistory} />
         </div>
 
-        {/* Фиксированный футер: кнопки статусов (+ инлайн-подтверждение отмены) */}
-        <div className="border-t border-gray-200 bg-white p-4">
+        {/* Фиксированный футер: кнопки статусов (+ инлайн-подтверждение отмены).
+            pb с safe-area — кнопки не прячутся за жестовую полосу iPhone */}
+        <div className="border-t border-gray-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {deleting && (
             <div className="mb-3 space-y-2 rounded-lg border border-red-300 bg-red-50 p-3">
               <div className="text-sm font-semibold text-red-800">
@@ -337,7 +343,7 @@ export const BookingDrawer = ({
               type="button"
               disabled={busy}
               onClick={() => onStatus('checkedOut')}
-              className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 text-nowrap w-full"
+              className="w-full text-nowrap rounded-md bg-blue-600 px-3 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 sm:py-2"
             >
               ✓ Proběhla
             </button>
@@ -351,7 +357,7 @@ export const BookingDrawer = ({
                   type="button"
                   disabled={busy}
                   onClick={() => onStatus('noshow')}
-                  className="flex-1 rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40"
+                  className="flex-1 rounded-md bg-red-600 px-3 py-3 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40 sm:py-2"
                 >
                   Nepřišla
                 </button>
@@ -362,7 +368,7 @@ export const BookingDrawer = ({
                     setCancelling(true)
                     setDeleting(false)
                   }}
-                  className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+                  className="flex-1 rounded-md border border-gray-300 px-3 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40 sm:py-2"
                 >
                   Zrušit
                 </button>
@@ -372,7 +378,7 @@ export const BookingDrawer = ({
                 type="button"
                 disabled={busy}
                 onClick={() => onStatus('active')}
-                className="flex-1 rounded-md border border-pink-300 px-3 py-2 text-sm font-semibold text-pink-700 hover:bg-pink-50 disabled:opacity-40"
+                className="flex-1 rounded-md border border-pink-300 px-3 py-3 text-sm font-semibold text-pink-700 hover:bg-pink-50 disabled:opacity-40 sm:py-2"
               >
                 ↩ Obnovit (aktivní)
               </button>
@@ -386,7 +392,7 @@ export const BookingDrawer = ({
                 setDeleting(true)
                 setCancelling(false)
               }}
-              className="shrink-0 rounded-md border border-red-300 bg-white px-2.5 py-2 text-red-600 transition hover:bg-red-50 disabled:opacity-40"
+              className="shrink-0 rounded-md border border-red-300 bg-white px-3.5 py-3 text-red-600 transition hover:bg-red-50 disabled:opacity-40 sm:px-2.5 sm:py-2"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M3 6h18" />
