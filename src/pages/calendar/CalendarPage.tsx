@@ -20,6 +20,7 @@ import { engineDeleteBooking, enginePatchBooking } from './fetch/engineApi'
 import { fetchBookingLabels, type BookingLabel } from './fetch/bookingLabels'
 import { CalendarGrid } from './CalendarGrid'
 import { BookingDrawer } from './BookingDrawer'
+import { InstallAppButton } from './InstallAppButton'
 import { useCoarsePointer } from './useMediaQuery'
 import { fmtHM, fmtTime, mondayOf, shiftDate, todayStr, type Mode } from './utils'
 import {
@@ -370,6 +371,11 @@ export default function CalendarPage() {
           >
             Dnes
           </button>
+          {/* Установка календаря как PWA-приложения на телефон (видна только вне
+              установленного приложения и только когда установка доступна) */}
+          <InstallAppButton
+            className={`${tbBtn} border border-gray-300 bg-white text-gray-700 shadow-sm hover:bg-gray-50`}
+          />
 
           {/* Режим задаётся кликом: в дневном виде — клик по имени мастера в шапке
               открывает его неделю; в недельном — селектор мастера + «Všichni mistři»

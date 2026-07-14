@@ -1,0 +1,17 @@
+{
+  "name": "Barbitch Kalendář",
+  "short_name": "Kalendář",
+  "description": "Kalendář rezervací salonu Barbitch",
+  "id": "/calendar",
+  "start_url": "/calendar",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#e71e6e",
+  "lang": "cs",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
