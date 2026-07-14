@@ -43,12 +43,23 @@ const dateLabelCs = (d: string): string => {
   return `${WEEKDAYS_CS[new Date(`${d}T00:00:00`).getDay()]} ${+dd}. ${+m}. ${y}`
 }
 
+// «14. 7. – 20. 7. 2026» — подпись недели Пн–Вс (для мастера вместо конкретной даты)
+const weekLabelCs = (d: string): string => {
+  const mon = mondayOf(d)
+  const [y, m, dd] = mon.split('-').map(Number)
+  const end = new Date(y, m - 1, dd + 6)
+  return `${dd}. ${m}. – ${end.getDate()}. ${end.getMonth() + 1}. ${end.getFullYear()}`
+}
+
 export default function CalendarPage() {
   const navigate = useNavigate()
+  // Роль: master видит ТОЛЬКО свой недельный календарь, read-only (без броней/блоков/статусов)
+  const role = getSessionRole()
+  const isMaster = role === 'master'
   // тач-устройство (телефон/планшет) — там показываем кнопки зума грида
   const coarse = useCoarsePointer()
   const [date, setDate] = useState(todayStr())
-  const [mode, setMode] = useState<Mode>('day')
+  const [mode, setMode] = useState<Mode>(isMaster ? 'week' : 'day')
   const [day, setDay] = useState<CalendarDay | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -94,15 +105,28 @@ export default function CalendarPage() {
     fetchBookingLabels().then(setLabels).catch(() => {})
   }, [])
 
-  // Список мастеров для недельного селектора (один раз)
+  // master без привязанного personal (имя не совпало) — показываем подсказку вместо грида
+  const [masterMissing, setMasterMissing] = useState(false)
+
+  // Список мастеров для недельного селектора (один раз).
+  // Для роли master — оставляем ТОЛЬКО его самого (матч personal.name по username,
+  // тот же принцип, что getWorks в кабинете мастера).
   useEffect(() => {
     fetchWeekEmployees()
       .then((emps) => {
-        setEmployees(emps)
-        setWeekEmpId((cur) => cur || emps[0]?.id || '')
+        if (isMaster) {
+          const uname = (localStorage.getItem('usernameLocalData') || '').trim().toLowerCase()
+          const own = emps.find((e) => e.name.trim().toLowerCase() === uname)
+          setEmployees(own ? [own] : [])
+          setWeekEmpId(own?.id || '')
+          setMasterMissing(!own)
+        } else {
+          setEmployees(emps)
+          setWeekEmpId((cur) => cur || emps[0]?.id || '')
+        }
       })
       .catch(() => setEmployees([]))
-  }, [])
+  }, [isMaster])
 
   const load = useCallback(
     async (dateStr: string, m: Mode, empId: string, emps: CalendarEmployee[], silent = false) => {
@@ -249,9 +273,10 @@ export default function CalendarPage() {
   }
 
   // Клик по строке истории клиента → закрыть drawer, перейти на день брони, мигнуть 3 с
+  // (master остаётся в своём недельном виде — просто листаем на неделю той брони)
   const openHistoryBooking = (r: ClientHistoryItem) => {
     setSelected(null)
-    setMode('day')
+    if (!isMaster) setMode('day')
     setDate(r.date)
     setHighlightId(r.documentId)
     if (highlightTimer.current) clearTimeout(highlightTimer.current)
@@ -284,9 +309,11 @@ export default function CalendarPage() {
     }
   }, [day])
 
-  // Домашняя страница по роли (календарь доступен только owner/administrator)
+  // Домашняя страница по роли
   const goHome = () => {
-    navigate(getSessionRole() === 'administrator' ? '/administrator-cabinet' : '/global')
+    if (role === 'administrator') navigate('/administrator-cabinet')
+    else if (role === 'master') navigate('/')
+    else navigate('/global')
   }
 
   // Кнопка тулбара: на тач-экране ≥44px высоты, на десктопе компактная (как раньше)
@@ -316,12 +343,19 @@ export default function CalendarPage() {
           >
             ◀
           </button>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => e.target.value && setDate(e.target.value)}
-            className="hidden min-w-0 rounded-md border border-gray-300 px-2 py-1 text-sm sm:block sm:min-h-[34px]"
-          />
+          {/* master листает неделями — вместо пикера конкретной даты подпись недели */}
+          {isMaster ? (
+            <span className="hidden whitespace-nowrap text-sm font-semibold text-gray-800 sm:block">
+              {weekLabelCs(date)}
+            </span>
+          ) : (
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => e.target.value && setDate(e.target.value)}
+              className="hidden min-w-0 rounded-md border border-gray-300 px-2 py-1 text-sm sm:block sm:min-h-[34px]"
+            />
+          )}
           <button
             type="button"
             onClick={() => setDate(shiftDate(date, mode === 'week' ? 7 : 1))}
@@ -340,7 +374,7 @@ export default function CalendarPage() {
           {/* Режим задаётся кликом: в дневном виде — клик по имени мастера в шапке
               открывает его неделю; в недельном — селектор мастера + «Všichni mistři»
               (возврат в дневной вид всех мастеров). Отдельного тогла Den/Týden нет. */}
-          {mode === 'week' && (
+          {mode === 'week' && !isMaster && (
             <select
               value={weekEmpId}
               onChange={(e) => {
@@ -357,12 +391,18 @@ export default function CalendarPage() {
               ))}
             </select>
           )}
+          {/* master: вместо селектора — его имя (переключать мастера нельзя) */}
+          {isMaster && employees[0] && (
+            <span className="truncate text-sm font-semibold text-gray-800">{employees[0].name}</span>
+          )}
 
           {/* Счётчик — только sm+ (мобильный верх минимальный, как в Noona) */}
           <span className="hidden whitespace-nowrap text-sm text-gray-600 sm:inline">
             <b>{totals.total}</b> rezervací
           </span>
 
+          {/* Write-действия — только owner/administrator; master = read-only */}
+          {!isMaster && (
           <div className="ml-auto flex items-center gap-2">
             {/* Десктоп: + Rezervace в тулбаре; мобила — FAB внизу справа (см. ниже) */}
             <button
@@ -434,6 +474,7 @@ export default function CalendarPage() {
               )}
             </div>
           </div>
+          )}
       </div>
 
       {/* Грид скроллится внутри собственной области (sticky ось/шапки живут там);
@@ -445,11 +486,11 @@ export default function CalendarPage() {
             onSelect={setSelected}
             highlightId={highlightId}
             zoomFactor={zoom}
-            onEmptyCell={(col, startMin) => setCellChoice({ col, startMin })}
-            onMoveBooking={moveBooking}
-            onSelectBlock={selectBlock}
+            onEmptyCell={isMaster ? undefined : (col, startMin) => setCellChoice({ col, startMin })}
+            onMoveBooking={isMaster ? undefined : moveBooking}
+            onSelectBlock={isMaster ? undefined : selectBlock}
             onSelectMaster={
-              mode === 'day'
+              mode === 'day' && !isMaster
                 ? (col) => {
                     setWeekEmpId(col.id)
                     setMode('week')
@@ -457,6 +498,13 @@ export default function CalendarPage() {
                 : undefined
             }
           />
+        )}
+        {/* master, чей personal не найден по username — календарь показать нечего */}
+        {isMaster && masterMissing && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+            Váš kalendář se nepodařilo propojit (jméno uživatele neodpovídá žádnému mistrovi).
+            Kontaktujte prosím administrátora.
+          </div>
         )}
         {loading && (
           <div className="absolute inset-0 z-40 flex items-start justify-center rounded-xl bg-white/60 pt-20">
@@ -496,15 +544,17 @@ export default function CalendarPage() {
         )}
 
         {/* FAB «+ Rezervace» (справа над пилюлей даты; на sm+ кнопка в тулбаре) */}
-        <button
-          type="button"
-          onClick={() => openNewBooking()}
-          aria-label="Nová rezervace"
-          className="absolute bottom-[4.5rem] right-3 z-40 flex h-12 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-bold text-white shadow-lg active:brightness-90 sm:hidden"
-        >
-          {/* ⚠️ НЕ text-xl — в admin-конфиге это 71px (гоча s42) */}
-          <span className="text-[20px] leading-none">+</span> Rezervace
-        </button>
+        {!isMaster && (
+          <button
+            type="button"
+            onClick={() => openNewBooking()}
+            aria-label="Nová rezervace"
+            className="absolute bottom-[4.5rem] right-3 z-40 flex h-12 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-bold text-white shadow-lg active:brightness-90 sm:hidden"
+          >
+            {/* ⚠️ НЕ text-xl — в admin-конфиге это 71px (гоча s42) */}
+            <span className="text-[20px] leading-none">+</span> Rezervace
+          </button>
+        )}
 
         {/* Пилюля даты внизу по центру: ‹ Pondělí 13. 7. 2026 › — тап по дате
             открывает нативный пикер (невидимый input поверх лейбла) */}
@@ -519,15 +569,18 @@ export default function CalendarPage() {
           </button>
           <div className="relative">
             <span className="block min-w-[10rem] px-1 text-center text-sm font-semibold text-gray-800">
-              {dateLabelCs(date)}
+              {isMaster ? weekLabelCs(date) : dateLabelCs(date)}
             </span>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => e.target.value && setDate(e.target.value)}
-              aria-label="Datum"
-              className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-            />
+            {/* master листает целыми неделями — нативный пикер конкретной даты не нужен */}
+            {!isMaster && (
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => e.target.value && setDate(e.target.value)}
+                aria-label="Datum"
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              />
+            )}
           </div>
           <button
             type="button"
@@ -553,6 +606,7 @@ export default function CalendarPage() {
           onReschedule={() => selected && setReschedule(selected)}
           onDelete={deleteBooking}
           busy={mutating}
+          readOnly={isMaster}
         />
       )}
       {reschedule && (

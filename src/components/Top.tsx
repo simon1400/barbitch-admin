@@ -3,6 +3,7 @@ import { LogoutButton } from './LogoutButton'
 import LogoWrap from './LogoWrap'
 import { useLocation } from 'react-router-dom'
 import { GlobalNav } from '../pages/global/components/GlobalNav'
+import Button from './Button'
 
 export const Top = ({
   title,
@@ -27,6 +28,10 @@ export const Top = ({
           <div className="flex justify-between items-center py-6">
             <LogoWrap />
             <div className="flex items-center gap-4">
+              {/* Календарь: administrator — полный, master — свой read-only (owner ходит через GlobalNav) */}
+              {admin && (userRole === 'administrator' || userRole === 'master') && (
+                <Button text={'Kalendář'} id={'calendar-button'} to={'/calendar'} small />
+              )}
               {admin && <LogoutButton />}
             </div>
           </div>

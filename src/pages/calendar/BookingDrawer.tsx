@@ -100,7 +100,42 @@ const ClientHistory = ({ b, onOpen }: { b: CalendarBooking; onOpen: (r: ClientHi
   )
 }
 
-// Drawer с деталями брони + кнопки статусов (пишут в движок)
+// Человеческие названия каналов Noona (bsChannel зеркальных броней)
+const CHANNEL_LABELS: Record<string, string> = {
+  bookingLink: 'web (rezervační odkaz)',
+  calendar: 'Noona kalendář (ručně)',
+  app: 'aplikace Noona',
+  web: 'web noona.app',
+  reserveWithGoogle: 'Google',
+}
+
+// «Кем/через что» создана бронь: движковые по origin (site/admin+имя админа),
+// зеркальные Noona — по bsChannel (fallback сырой origin)
+const bookingSourceLabel = (b: CalendarBooking): string | null => {
+  if (b.origin === 'admin') return b.createdByName ? `kalendář — ${b.createdByName}` : 'kalendář (admin)'
+  if (b.origin === 'site') return 'web barbitch.cz'
+  const ch = b.bsChannel || b.origin
+  return ch ? (CHANNEL_LABELS[ch] ?? ch) : null
+}
+
+// Момент создания брони: зеркальные несут noonaCreatedAt, движковые — createdAt
+const bookingCreatedLabel = (b: CalendarBooking): string | null => {
+  const iso = b.noonaCreatedAt || b.createdAt
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleString('cs-CZ', {
+    day: 'numeric',
+    month: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+// Drawer с деталями брони + кнопки статусов (пишут в движок).
+// readOnly (роль master): чисто информационный вид — без кнопок статусов/переноса/
+// смены услуги/лейблов/удаления; детали и история клиента остаются.
 export const BookingDrawer = ({
   b,
   labels,
@@ -113,6 +148,7 @@ export const BookingDrawer = ({
   onReschedule,
   onDelete,
   busy,
+  readOnly = false,
 }: {
   b: CalendarBooking
   labels: BookingLabel[]
@@ -125,6 +161,7 @@ export const BookingDrawer = ({
   onReschedule: () => void
   onDelete: () => void
   busy: boolean
+  readOnly?: boolean
 }) => {
   const meta = STATUS_META[b.status] ?? STATUS_META.active
   const hasEmail = Boolean((b.client?.email ?? '').trim())
@@ -165,7 +202,7 @@ export const BookingDrawer = ({
         <div className="mt-4 rounded-xl border border-gray-200 p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Termín</span>
-            {b.status === 'active' && (
+            {b.status === 'active' && !readOnly && (
               <button
                 type="button"
                 onClick={onReschedule}
@@ -185,7 +222,7 @@ export const BookingDrawer = ({
         <div className="mt-3 rounded-xl border border-gray-200 p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Služby</span>
-            {b.status === 'active' && (
+            {b.status === 'active' && !readOnly && (
               <button
                 type="button"
                 onClick={onChangeService}
@@ -228,8 +265,19 @@ export const BookingDrawer = ({
           </div>
         )}
 
+        {/* Read-only (master): štítek показываем статично, без управления */}
+        {readOnly && b.label && (
+          <div className="mt-3 rounded-xl border border-gray-200 p-3">
+            <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-500">Štítek</div>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: b.label.color }} />
+              {b.label.name}
+            </span>
+          </div>
+        )}
+
         {/* Карточка «Štítek» (только активные; прошедшие/отменённые получают авто-лейбл) */}
-        {b.status === 'active' && (
+        {b.status === 'active' && !readOnly && (
           <div className="mt-3 rounded-xl border border-gray-200 p-3">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Štítek</span>
@@ -264,13 +312,21 @@ export const BookingDrawer = ({
           </div>
         )}
 
-        {b.bsChannel && <div className="mt-3 text-xs text-gray-400">Kanál: {b.bsChannel}</div>}
+        {/* Когда/кем/через что создана резервация (движок: site/admin+имя; зеркало: канал Noona) */}
+        {(bookingCreatedLabel(b) || bookingSourceLabel(b)) && (
+          <div className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
+            <span className="font-semibold text-gray-600">Vytvořeno:</span>{' '}
+            {[bookingCreatedLabel(b), bookingSourceLabel(b)].filter(Boolean).join(' · ')}
+          </div>
+        )}
 
         <ClientHistory b={b} onOpen={onOpenHistory} />
         </div>
 
         {/* Фиксированный футер: кнопки статусов (+ инлайн-подтверждение отмены).
-            pb с safe-area — кнопки не прячутся за жестовую полосу iPhone */}
+            pb с safe-area — кнопки не прячутся за жестовую полосу iPhone.
+            readOnly (master) — футера нет вообще, drawer чисто информационный */}
+        {!readOnly && (
         <div className="border-t border-gray-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {deleting && (
             <div className="mb-3 space-y-2 rounded-lg border border-red-300 bg-red-50 p-3">
@@ -404,6 +460,7 @@ export const BookingDrawer = ({
             </button>
           </div>
         </div>
+        )}
       </div>
     </div>
   )

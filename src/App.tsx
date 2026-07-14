@@ -102,10 +102,11 @@ const AdministratorRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>
 }
 
-// Календарь: owner + administrator (роадмап own-booking §4)
+// Календарь: owner + administrator (полный доступ) + master (read-only, только свои брони —
+// страница сама ограничивает по роли)
 const CalendarRoute = ({ children }: { children: React.ReactNode }) => {
   const userRole = getSessionRole()
-  const allowed = userRole === 'owner' || userRole === 'administrator'
+  const allowed = userRole === 'owner' || userRole === 'administrator' || userRole === 'master'
 
   if (!allowed) {
     return <Navigate to={getHomePageByRole(userRole)} replace />

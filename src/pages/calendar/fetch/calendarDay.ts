@@ -29,6 +29,13 @@ export interface CalendarBooking {
   comment: string | null
   customerComment: string | null
   bsChannel: string | null
+  // происхождение брони: 'site' | 'admin' (движок) или сырой origin Noona (зеркало)
+  origin: string | null
+  // имя админа, создавшего бронь из календаря (adminCreateBooking)
+  createdByName: string | null
+  // момент создания: noonaCreatedAt у зеркальных, createdAt (Strapi) у движковых
+  createdAt: string | null
+  noonaCreatedAt: string | null
   // клиент (populate) — documentId для истории, email для дефолта чекбокса уведомления
   client?: { documentId?: string; email?: string | null; name?: string | null } | null
   // кастомный лейбл (снапшот из справочника booking-label)
