@@ -24,7 +24,7 @@ import {
   fetchWeekEmployees,
 } from './fetch/calendarDay'
 import { AdminShiftBar } from './AdminShiftBar'
-import { engineDeleteBooking, enginePatchBooking } from './fetch/engineApi'
+import { engineDeleteBooking, enginePatchBooking, updateClientBlacklist } from './fetch/engineApi'
 import { fetchBookingLabels, type BookingLabel } from './fetch/bookingLabels'
 import { CalendarGrid } from './CalendarGrid'
 import { BookingDrawer } from './BookingDrawer'
@@ -204,13 +204,53 @@ export default function CalendarPage() {
 
   // ── write-операции ──
 
-  const patchStatus = async (status: CalendarBooking['status'], notify?: boolean) => {
+  // note (Zrušit/Nepřišla) — дописывается к существующей позна́мке брони новой строкой
+  const patchStatus = async (status: CalendarBooking['status'], notify?: boolean, note?: string) => {
+    if (!selected) return
+    const trimmed = (note || '').trim()
+    setMutating(true)
+    try {
+      await enginePatchBooking(selected.documentId, {
+        status,
+        ...(notify ? { notify: true } : {}),
+        ...(trimmed
+          ? { comment: selected.comment ? `${selected.comment}\n${trimmed}` : trimmed }
+          : {}),
+      })
+      setSelected(null)
+      await reload()
+    } catch (e) {
+      window.alert((e as Error).message)
+    } finally {
+      setMutating(false)
+    }
+  }
+
+  // свободная интерн-позна́мка из карточки «Poznámka» (drawer остаётся открытым)
+  const saveComment = async (comment: string) => {
     if (!selected) return
     setMutating(true)
     try {
-      await enginePatchBooking(selected.documentId, { status, ...(notify ? { notify: true } : {}) })
-      setSelected(null)
-      await reload()
+      await enginePatchBooking(selected.documentId, { comment })
+      setSelected({ ...selected, comment: comment || null })
+      await reload(true)
+    } catch (e) {
+      window.alert((e as Error).message)
+    } finally {
+      setMutating(false)
+    }
+  }
+
+  // блэклист клиента (карточка Kontakt): пишется в client напрямую (не в бронь);
+  // блокирует ТОЛЬКО записи с сайта — движковый чек 403 blacklisted
+  const toggleBlacklist = async (next: boolean) => {
+    const clientDocId = selected?.client?.documentId
+    if (!selected || !clientDocId) return
+    setMutating(true)
+    try {
+      await updateClientBlacklist(clientDocId, next)
+      setSelected({ ...selected, client: { ...selected.client, blacklisted: next } })
+      await reload(true)
     } catch (e) {
       window.alert((e as Error).message)
     } finally {
@@ -653,6 +693,8 @@ export default function CalendarPage() {
           labels={labels}
           onClose={() => setSelected(null)}
           onStatus={patchStatus}
+          onSaveComment={saveComment}
+          onToggleBlacklist={toggleBlacklist}
           onArrived={patchArrived}
           onLabel={patchLabel}
           onManageLabels={() => setManageLabels(true)}

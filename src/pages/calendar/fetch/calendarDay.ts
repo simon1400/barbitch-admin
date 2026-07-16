@@ -39,12 +39,14 @@ export interface CalendarBooking {
   createdAt: string | null
   noonaCreatedAt: string | null
   // клиент (populate) — documentId для истории, email для дефолта чекбокса
-  // уведомления, phone+email показываются в drawer (контакт для администратора)
+  // уведомления, phone+email показываются в drawer (контакт для администратора),
+  // blacklisted — статус/toggle блэклиста в карточке Kontakt
   client?: {
     documentId?: string
     email?: string | null
     phone?: string | null
     name?: string | null
+    blacklisted?: boolean | null
   } | null
   // кастомный лейбл (снапшот из справочника booking-label)
   label?: { name: string; color: string } | null
@@ -259,7 +261,7 @@ export function busyIntervals(col: MasterColumn): { startMin: number; endMin: nu
 export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
   const [bookingsRes, employees, schedule] = await Promise.all([
     Axios.get(
-      `/api/bookings?filters[date][$eq]=${dateStr}&sort=startsAt:asc&populate[client][fields][0]=email&populate[client][fields][1]=phone&pagination[pageSize]=200`,
+      `/api/bookings?filters[date][$eq]=${dateStr}&sort=startsAt:asc&populate[client][fields][0]=email&populate[client][fields][1]=phone&populate[client][fields][2]=blacklisted&pagination[pageSize]=200`,
       { headers: authHeaders },
     ) as Promise<CalendarBooking[]>,
     fetchEmployees(),
@@ -409,7 +411,7 @@ export async function fetchCalendarWeek(
 
   const [bookingsRes, hoursRes, blocksRes] = await Promise.all([
     Axios.get(
-      `/api/bookings?filters[date][$gte]=${monday}&filters[date][$lte]=${sunday}&filters[noonaEmployeeId][$eq]=${employee.id}&sort=startsAt:asc&populate[client][fields][0]=email&populate[client][fields][1]=phone&pagination[pageSize]=300`,
+      `/api/bookings?filters[date][$gte]=${monday}&filters[date][$lte]=${sunday}&filters[noonaEmployeeId][$eq]=${employee.id}&sort=startsAt:asc&populate[client][fields][0]=email&populate[client][fields][1]=phone&populate[client][fields][2]=blacklisted&pagination[pageSize]=300`,
       { headers: authHeaders },
     ) as Promise<CalendarBooking[]>,
     Axios.get(`/api/salon-hours?filters[date][$gte]=${monday}&filters[date][$lte]=${sunday}&pagination[pageSize]=10`, {

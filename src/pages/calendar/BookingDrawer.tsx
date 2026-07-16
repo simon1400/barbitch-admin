@@ -155,6 +155,8 @@ export const BookingDrawer = ({
   labels,
   onClose,
   onStatus,
+  onSaveComment,
+  onToggleBlacklist,
   onArrived,
   onLabel,
   onManageLabels,
@@ -170,7 +172,12 @@ export const BookingDrawer = ({
   b: CalendarBooking
   labels: BookingLabel[]
   onClose: () => void
-  onStatus: (status: CalendarBooking['status'], notify?: boolean) => void
+  // note — необязательная позна́мка при отмене/noshow, дописывается к comment брони
+  onStatus: (status: CalendarBooking['status'], notify?: boolean, note?: string) => void
+  // сохранение интерн-позна́мки (карточка «Poznámka» — свободная заметка админа)
+  onSaveComment: (comment: string) => void
+  // блэклист клиента (карточка Kontakt) — блокирует ему запись через сайт
+  onToggleBlacklist: (next: boolean) => void
   onArrived: () => void
   onLabel: (label: { name: string; color: string } | null) => void
   onManageLabels: () => void
@@ -195,8 +202,24 @@ export const BookingDrawer = ({
   // инлайн-подтверждение отмены с чекбоксом «уведомить клиента» (роадмап §4.2)
   const [cancelling, setCancelling] = useState(false)
   const [notifyCancel, setNotifyCancel] = useState(hasEmail)
+  const [cancelNote, setCancelNote] = useState('')
+  // инлайн-подтверждение «Nepřišla» (с необязательной позна́мкой, как у отмены)
+  const [noshowing, setNoshowing] = useState(false)
+  const [noshowNote, setNoshowNote] = useState('')
   // инлайн-подтверждение ПОЛНОГО удаления брони (корзина — жёсткий delete, не отмена)
   const [deleting, setDeleting] = useState(false)
+  // черновик интерн-позна́мки (карточка «Poznámka»); ре-синк при смене брони —
+  // drawer не размонтируется между брониями (нет key), state сам не сбросится
+  const [commentDraft, setCommentDraft] = useState(b.comment || '')
+  useEffect(() => {
+    setCommentDraft(b.comment || '')
+    setCancelling(false)
+    setNoshowing(false)
+    setDeleting(false)
+    setCancelNote('')
+    setNoshowNote('')
+  }, [b.documentId]) // eslint-disable-line react-hooks/exhaustive-deps
+  const commentChanged = commentDraft.trim() !== (b.comment || '').trim()
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
       <div className="absolute inset-0 bg-black/30" />
@@ -256,6 +279,40 @@ export const BookingDrawer = ({
               <span className="text-gray-400">✉️ e-mail není uveden</span>
             )}
           </div>
+          {/* Блэклист: статус + toggle. Блокирует клиенту ТОЛЬКО запись через сайт
+              (движок 403 blacklisted); из календаря админ бронировать может как раньше.
+              Только для броней со связанным клиентом (у старых импортных связи нет). */}
+          {b.client?.documentId && (
+            <div className="mt-2 flex items-center justify-between gap-2">
+              {b.client.blacklisted ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
+                  ⛔ Na blacklistu
+                </span>
+              ) : (
+                <span className="text-xs text-gray-400">Klient není na blacklistu</span>
+              )}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  const next = !b.client?.blacklisted
+                  const ok = window.confirm(
+                    next
+                      ? `Přidat klienta ${b.clientNameRaw} na blacklist? Nebude se moci rezervovat přes web.`
+                      : `Odebrat klienta ${b.clientNameRaw} z blacklistu?`,
+                  )
+                  if (ok) onToggleBlacklist(next)
+                }}
+                className={`rounded-md border px-3 py-2 text-xs font-semibold shadow-sm transition disabled:opacity-40 sm:px-2.5 sm:py-1 ${
+                  b.client.blacklisted
+                    ? 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
+                    : 'border-red-300 bg-white text-red-600 hover:bg-red-50'
+                }`}
+              >
+                {b.client.blacklisted ? 'Odebrat z blacklistu' : '⛔ Na blacklist'}
+              </button>
+            </div>
+          )}
         </div>
         )}
 
@@ -316,10 +373,38 @@ export const BookingDrawer = ({
           </div>
         </div>
 
-        {(b.comment || b.customerComment) && (
+        {/* Интерн-позна́мка: админам — редактируемая карточка (свободная заметка,
+            дописываются и заметки отмены/noshow); мастерам (readOnly) — статично */}
+        {!readOnly && (
+          <div className="mt-3 rounded-xl border border-gray-200 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                Poznámka
+              </span>
+              {commentChanged && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onSaveComment(commentDraft.trim())}
+                  className="rounded-md border border-pink-300 bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50 disabled:opacity-40 sm:px-2.5 sm:py-1"
+                >
+                  Uložit poznámku
+                </button>
+              )}
+            </div>
+            <textarea
+              value={commentDraft}
+              onChange={(e) => setCommentDraft(e.target.value)}
+              rows={2}
+              placeholder="Interní poznámka k rezervaci… (klient ji nevidí)"
+              className="w-full resize-y rounded-lg border border-gray-200 bg-amber-50/60 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-pink-300 focus:outline-none"
+            />
+          </div>
+        )}
+        {(readOnly && b.comment) || b.customerComment ? (
           <div className="mt-3 space-y-2">
-            {b.comment && (
-              <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {readOnly && b.comment && (
+              <div className="whitespace-pre-line rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
                 <b>Poznámka:</b> {b.comment}
               </div>
             )}
@@ -329,7 +414,7 @@ export const BookingDrawer = ({
               </div>
             )}
           </div>
-        )}
+        ) : null}
 
         {/* Read-only (master): štítek показываем статично, без управления */}
         {readOnly && b.label && (
@@ -440,11 +525,18 @@ export const BookingDrawer = ({
                 Poslat klientovi e-mail o zrušení
                 {!hasEmail && <span className="text-xs">(klient nemá e-mail)</span>}
               </label>
+              <textarea
+                value={cancelNote}
+                onChange={(e) => setCancelNote(e.target.value)}
+                rows={2}
+                placeholder="Poznámka ke zrušení (nepovinné) — uloží se k rezervaci"
+                className="w-full resize-y rounded-md border border-red-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-red-400 focus:outline-none"
+              />
               <div className="flex gap-2">
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => onStatus('cancelled', notifyCancel && hasEmail)}
+                  onClick={() => onStatus('cancelled', notifyCancel && hasEmail, cancelNote)}
                   className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40"
                 >
                   Potvrdit zrušení
@@ -453,6 +545,38 @@ export const BookingDrawer = ({
                   type="button"
                   disabled={busy}
                   onClick={() => setCancelling(false)}
+                  className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+                >
+                  Zpět
+                </button>
+              </div>
+            </div>
+          )}
+          {noshowing && b.status === 'active' && (
+            <div className="mb-3 space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3">
+              <div className="text-sm font-semibold text-amber-800">
+                Označit rezervaci {b.clientNameRaw} jako „Nepřišla“?
+              </div>
+              <textarea
+                value={noshowNote}
+                onChange={(e) => setNoshowNote(e.target.value)}
+                rows={2}
+                placeholder="Poznámka (nepovinné) — uloží se k rezervaci"
+                className="w-full resize-y rounded-md border border-amber-200 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-amber-400 focus:outline-none"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onStatus('noshow', undefined, noshowNote)}
+                  className="rounded-md bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-40"
+                >
+                  Potvrdit
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setNoshowing(false)}
                   className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40"
                 >
                   Zpět
@@ -492,7 +616,11 @@ export const BookingDrawer = ({
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => onStatus('noshow')}
+                  onClick={() => {
+                    setNoshowing(true)
+                    setCancelling(false)
+                    setDeleting(false)
+                  }}
                   className="flex-1 rounded-md bg-red-600 px-3 py-3 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40 sm:py-2"
                 >
                   Nepřišla
@@ -502,6 +630,7 @@ export const BookingDrawer = ({
                   disabled={busy}
                   onClick={() => {
                     setCancelling(true)
+                    setNoshowing(false)
                     setDeleting(false)
                   }}
                   className="flex-1 rounded-md border border-gray-300 px-3 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40 sm:py-2"
@@ -527,6 +656,7 @@ export const BookingDrawer = ({
               onClick={() => {
                 setDeleting(true)
                 setCancelling(false)
+                setNoshowing(false)
               }}
               className="shrink-0 rounded-md border border-red-300 bg-white px-3.5 py-3 text-red-600 transition hover:bg-red-50 disabled:opacity-40 sm:px-2.5 sm:py-2"
             >

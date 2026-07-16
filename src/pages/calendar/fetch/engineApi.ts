@@ -226,6 +226,13 @@ export interface ClientHit {
   blacklisted: boolean
 }
 
+// Блэклист клиента (toggle в drawer брони). Коллекция client без draft/publish →
+// один PUT; интерсептор admin-Axios сам подставляет VITE_STRAPI_TOKEN на PUT.
+// Блокирует ТОЛЬКО записи с сайта (движок 403 blacklisted) — админ бронировать может.
+export async function updateClientBlacklist(clientDocId: string, blacklisted: boolean): Promise<void> {
+  await Axios.put(`/api/clients/${clientDocId}`, { data: { blacklisted } })
+}
+
 export async function searchClients(q: string): Promise<ClientHit[]> {
   const query = q.trim()
   if (query.length < 2) return []
