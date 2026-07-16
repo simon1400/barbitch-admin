@@ -335,7 +335,8 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                   // лейны делят не всю ширину, а без правой полосы (RIGHT_GUTTER_PCT):
                   // карточки не сжимаются, но справа всегда есть место кликнуть
                   const laneW = (100 - RIGHT_GUTTER_PCT) / p.lanes
-                  const services = (p.booking.services || []).map((s) => s.title).filter(Boolean)
+                  const services = (p.booking.services || []).filter((s) => s.title)
+                  const serviceTitles = services.map((s) => s.title)
                   const dur = p.endMin - p.startMin
                   // на тач-устройстве HTML5 DnD не работает — перенос через «Změnit termín»
                   // в drawer; draggable оставляем только мыши (иначе long-press глючит)
@@ -373,7 +374,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                         opacity: st.opacity,
                         zIndex: highlighted ? 25 : 10,
                       }}
-                      title={`${fmtHM(p.startMin)}–${fmtHM(p.endMin)} · ${p.booking.clientNameRaw} · ${services.join(' + ')}${label ? ` · ${label.name}` : ''}`}
+                      title={`${fmtHM(p.startMin)}–${fmtHM(p.endMin)} · ${p.booking.clientNameRaw} · ${serviceTitles.join(' | ')}${label ? ` · ${label.name}` : ''}`}
                     >
                       {label && (
                         <span className="absolute right-1 top-0.5">
@@ -383,11 +384,27 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                       <div className={`text-[13px] font-semibold leading-tight ${label ? 'pr-4' : ''}`}>
                         {fmtHM(p.startMin)} · {p.booking.clientNameRaw || '—'}
                       </div>
-                      {dur >= 40 && (
-                        <div className="mt-0.5 truncate text-[12px] leading-tight opacity-90">
-                          {services.join(' + ') || 'bez služby'}
-                        </div>
-                      )}
+                      {dur >= 40 &&
+                        (services.length > 1 ? (
+                          // Мульти-услуга: каждая на своей строке через пунктирный
+                          // разделитель (как в Noona) + её длительность
+                          <div className="mt-0.5 text-[12px] leading-tight opacity-90">
+                            {services.map((s, i) => (
+                              <div
+                                key={`${s.title}-${i}`}
+                                className={`truncate ${i > 0 ? 'mt-0.5 border-t border-dotted pt-0.5' : ''}`}
+                                style={i > 0 ? { borderColor: 'rgba(255,255,255,0.55)' } : undefined}
+                              >
+                                {s.title}
+                                {s.durationMin ? ` (${s.durationMin}m)` : ''}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="mt-0.5 truncate text-[12px] leading-tight opacity-90">
+                            {serviceTitles[0] || 'bez služby'}
+                          </div>
+                        ))}
                       {dur >= 70 && p.booking.totalPrice != null && (
                         <div className="mt-0.5 text-[12px] font-semibold">{p.booking.totalPrice} Kč</div>
                       )}
