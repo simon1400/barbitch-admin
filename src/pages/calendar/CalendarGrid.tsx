@@ -392,8 +392,8 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                             {services.map((s, i) => (
                               <div
                                 key={`${s.title}-${i}`}
-                                className={`truncate ${i > 0 ? 'mt-0.5 border-t border-dotted pt-0.5' : ''}`}
-                                style={i > 0 ? { borderColor: 'rgba(255,255,255,0.55)' } : undefined}
+                                className={`truncate ${i > 0 ? 'mt-1 pt-1' : ''}`}
+                                style={i > 0 ? { borderTop: '1px dashed rgba(255,255,255,0.95)' } : undefined}
                               >
                                 {s.title}
                                 {s.durationMin ? ` (${s.durationMin}m)` : ''}
