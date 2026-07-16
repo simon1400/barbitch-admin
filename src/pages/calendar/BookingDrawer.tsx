@@ -198,8 +198,39 @@ export const BookingDrawer = ({
 
         
 
-        {/* Карточка «Termín»: дата · время · мастер + кнопка переноса (дата/время/мастер) */}
+        {/* Карточка «Kontakt» — телефон/e-mail клиента (админ должен уметь связаться) */}
         <div className="mt-4 rounded-xl border border-gray-200 p-3">
+          <div className="mb-2">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
+              Kontakt
+            </span>
+          </div>
+          <div className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+            {b.client?.phone ? (
+              <a
+                href={`tel:${b.client.phone}`}
+                className="font-semibold text-gray-800 hover:text-primary"
+              >
+                📞 {b.client.phone}
+              </a>
+            ) : (
+              <span className="text-gray-400">📞 telefon není uveden</span>
+            )}
+            {b.client?.email ? (
+              <a
+                href={`mailto:${b.client.email}`}
+                className="break-all text-gray-800 hover:text-primary"
+              >
+                ✉️ {b.client.email}
+              </a>
+            ) : (
+              <span className="text-gray-400">✉️ e-mail není uveden</span>
+            )}
+          </div>
+        </div>
+
+        {/* Карточка «Termín»: дата · время · мастер + кнопка переноса (дата/время/мастер) */}
+        <div className="mt-3 rounded-xl border border-gray-200 p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Termín</span>
             {b.status === 'active' && !readOnly && (
