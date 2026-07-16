@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getSessionRole } from '../../services/auth'
 import type {
+  AdminRoster,
   BlockedRange,
   CalendarBooking,
   CalendarDay,
@@ -15,7 +16,14 @@ import type {
   ClientHistoryItem,
   MasterColumn,
 } from './fetch/calendarDay'
-import { busyIntervals, fetchCalendarDay, fetchCalendarWeek, fetchWeekEmployees } from './fetch/calendarDay'
+import {
+  busyIntervals,
+  fetchAdminRoster,
+  fetchCalendarDay,
+  fetchCalendarWeek,
+  fetchWeekEmployees,
+} from './fetch/calendarDay'
+import { AdminShiftBar } from './AdminShiftBar'
 import { engineDeleteBooking, enginePatchBooking } from './fetch/engineApi'
 import { fetchBookingLabels, type BookingLabel } from './fetch/bookingLabels'
 import { CalendarGrid } from './CalendarGrid'
@@ -66,6 +74,8 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<CalendarBooking | null>(null)
+  // график дежурных админов на показанную неделю (плашка «кто открыт», все роли)
+  const [adminRoster, setAdminRoster] = useState<AdminRoster>({})
   const [employees, setEmployees] = useState<CalendarEmployee[]>([])
   const [weekEmpId, setWeekEmpId] = useState<string>('')
   const [mutating, setMutating] = useState(false)
@@ -163,6 +173,19 @@ export default function CalendarPage() {
   useEffect(() => {
     load(date, mode, weekEmpId, employees)
   }, [date, mode, weekEmpId, employees, load])
+
+  // График дежурных админов недели, в которую попала показанная дата (одна запись
+  // shift = неделя, покрывает оба вида). Видно всем ролям; сбой → пустой график.
+  useEffect(() => {
+    const monday = mondayOf(date)
+    let cancelled = false
+    fetchAdminRoster(monday).then((r) => {
+      if (!cancelled) setAdminRoster(r)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [date])
 
   const reload = useCallback(
     (silent = true) => load(date, mode, weekEmpId, employees, silent),
@@ -504,6 +527,9 @@ export default function CalendarPage() {
           )}
       </div>
 
+      {/* Кто в этот день администратор (график shift) — информативно, для всех ролей */}
+      <AdminShiftBar roster={adminRoster} date={date} mode={mode} />
+
       {/* Грид скроллится внутри собственной области (sticky ось/шапки живут там);
           при переключении дня остаётся на месте — поверх появляется лоадер */}
       <div className="relative min-h-0 flex-1 pb-2">
@@ -637,6 +663,12 @@ export default function CalendarPage() {
           busy={mutating}
           readOnly={isMaster}
           masterRate={isMaster ? (employees[0]?.ratePercent ?? null) : null}
+          // Мастеру — история клиента только по ЕГО броням (визиты к другим мастерам
+          // не показываем). Фолбэк на мастера самой брони = он же (мастер видит
+          // только свою колонку); '__none__' — fail-closed, если id вдруг нет.
+          historyEmployeeId={
+            isMaster ? employees[0]?.id || selected.noonaEmployeeId || '__none__' : null
+          }
         />
       )}
       {reschedule && (

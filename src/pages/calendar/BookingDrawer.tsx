@@ -36,8 +36,18 @@ const HistoryRow = ({ r, onOpen }: { r: ClientHistoryItem; onOpen: (r: ClientHis
   )
 }
 
-// Секция «Historie klienta» в drawer — грузит все брони клиента, делит на будущие/прошлые
-const ClientHistory = ({ b, onOpen }: { b: CalendarBooking; onOpen: (r: ClientHistoryItem) => void }) => {
+// Секция «Historie klienta» в drawer — грузит брони клиента, делит на будущие/прошлые.
+// restrictEmployeeId (роль master) → только брони ЭТОГО мастера с клиентом; визиты
+// клиента к другим мастерам мастеру не показываются (и не запрашиваются).
+const ClientHistory = ({
+  b,
+  onOpen,
+  restrictEmployeeId,
+}: {
+  b: CalendarBooking
+  onOpen: (r: ClientHistoryItem) => void
+  restrictEmployeeId?: string | null
+}) => {
   const [history, setHistory] = useState<ClientHistoryItem[] | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -45,7 +55,11 @@ const ClientHistory = ({ b, onOpen }: { b: CalendarBooking; onOpen: (r: ClientHi
     let cancelled = false
     setHistory(null)
     setLoading(true)
-    fetchClientHistory({ clientDocId: b.client?.documentId, clientName: b.clientNameRaw })
+    fetchClientHistory({
+      clientDocId: b.client?.documentId,
+      clientName: b.clientNameRaw,
+      employeeNoonaId: restrictEmployeeId,
+    })
       .then((rows) => {
         if (!cancelled) setHistory(rows.filter((r) => r.documentId !== b.documentId))
       })
@@ -58,7 +72,7 @@ const ClientHistory = ({ b, onOpen }: { b: CalendarBooking; onOpen: (r: ClientHi
     return () => {
       cancelled = true
     }
-  }, [b.documentId, b.client?.documentId, b.clientNameRaw])
+  }, [b.documentId, b.client?.documentId, b.clientNameRaw, restrictEmployeeId])
 
   const today = todayStrPrague()
   const rows = history || []
@@ -151,6 +165,7 @@ export const BookingDrawer = ({
   busy,
   readOnly = false,
   masterRate = null,
+  historyEmployeeId = null,
 }: {
   b: CalendarBooking
   labels: BookingLabel[]
@@ -167,6 +182,9 @@ export const BookingDrawer = ({
   readOnly?: boolean
   // процент мастера — если задан, «Celkem» показывает его долю, а не полную цену
   masterRate?: number | null
+  // id мастера (noonaEmployeeId) — история клиента ограничивается его бронями.
+  // Задаётся только для роли master; у админа/владельца null = вся история.
+  historyEmployeeId?: string | null
 }) => {
   // active + arrived → зелёный бейдж «dorazila» (промежуточный шаг перед proběhla)
   const meta =
@@ -368,7 +386,7 @@ export const BookingDrawer = ({
           </div>
         )}
 
-        <ClientHistory b={b} onOpen={onOpenHistory} />
+        <ClientHistory b={b} onOpen={onOpenHistory} restrictEmployeeId={historyEmployeeId} />
         </div>
 
         {/* Фиксированный футер: кнопки статусов (+ инлайн-подтверждение отмены).

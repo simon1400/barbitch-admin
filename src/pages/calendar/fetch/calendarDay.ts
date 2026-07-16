@@ -177,6 +177,10 @@ export interface ClientHistoryItem {
 export async function fetchClientHistory(opts: {
   clientDocId?: string | null
   clientName?: string | null
+  // Ограничение выборки одним мастером (роль master видит только СВОИ брони
+  // с этим клиентом — визиты к другим мастерам ему не показываются). Фильтр
+  // уходит в запрос → чужие брони в браузер мастера вообще не приезжают.
+  employeeNoonaId?: string | null
 }): Promise<ClientHistoryItem[]> {
   const base = opts.clientDocId
     ? `filters[client][documentId][$eq]=${opts.clientDocId}`
@@ -184,8 +188,11 @@ export async function fetchClientHistory(opts: {
       ? `filters[clientNameRaw][$eq]=${encodeURIComponent(opts.clientName)}`
       : null
   if (!base) return []
+  const empFilter = opts.employeeNoonaId
+    ? `&filters[noonaEmployeeId][$eq]=${encodeURIComponent(opts.employeeNoonaId)}`
+    : ''
   const res = (await Axios.get(
-    `/api/bookings?${base}&sort=startsAt:desc&fields[0]=date&fields[1]=startsAt&fields[2]=status&fields[3]=employeeNameRaw&fields[4]=services&fields[5]=totalPrice&pagination[pageSize]=200`,
+    `/api/bookings?${base}${empFilter}&sort=startsAt:desc&fields[0]=date&fields[1]=startsAt&fields[2]=status&fields[3]=employeeNameRaw&fields[4]=services&fields[5]=totalPrice&pagination[pageSize]=200`,
     { headers: authHeaders },
   )) as ClientHistoryItem[]
   return res || []
@@ -473,4 +480,57 @@ export async function fetchCalendarWeek(
   closeMin = Math.ceil(closeMin / 60) * 60
 
   return { openMin, closeMin, columns }
+}
+
+// ── Кто в этот день администратор ────────────────────────────────────────────
+// Источник — коллекция shift («Рабочие смены»): плановый график, который админы
+// ведут ЗАРАНЕЕ, по одной записи на неделю (from = понедельник, days.monday…sunday
+// = имя дежурного, напр. «Вика»/«Оля»).
+//
+// Почему НЕ work-time («Рабочие часы»): та запись создаётся по факту, в конце
+// смены (проверено на проде: created_at 16:30–20:50 того же дня) → днём, когда
+// эта инфа и нужна, её ещё нет. График же лежит заранее.
+//
+// status=draft — отдаёт черновую версию ВСЕХ документов, т.е. и уже закрытые
+// недели, и ещё не опубликованный будущий график. Без явного Bearer (PII нет).
+
+export type AdminRoster = Record<string, string> // 'YYYY-MM-DD' → имя дежурного
+
+const DAY_KEYS = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+] as const
+
+interface RawShift {
+  from: string
+  days?: Partial<Record<(typeof DAY_KEYS)[number], string | null>> | null
+}
+
+// График недели, в которую попадает monday (= результат mondayOf).
+// Матчим по `from` (у всех записей это понедельник), а НЕ по диапазону from..to:
+// поле `to` местами заполнено с опечаткой (есть запись с to === from).
+export async function fetchAdminRoster(monday: string): Promise<AdminRoster> {
+  try {
+    const res = (await Axios.get(
+      `/api/shifts?filters[from][$eq]=${monday}&fields[0]=from&populate=days&pagination[pageSize]=5&status=draft`,
+    )) as RawShift[]
+    const days = (res || [])[0]?.days
+    if (!days) return {}
+    const roster: AdminRoster = {}
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(`${monday}T12:00:00`)
+      d.setDate(d.getDate() + i)
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const name = (days[DAY_KEYS[d.getDay()]] || '').trim()
+      if (name) roster[dateStr] = name
+    }
+    return roster
+  } catch {
+    return {} // график — вспомогательная инфа, календарь из-за неё не роняем
+  }
 }
