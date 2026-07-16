@@ -229,7 +229,7 @@ const OptimizedWorks = () => {
                 <span className={'text-md'}>{data.offersDone.length}</span>
               </span>
               <span className={'text-md font-bold text-primary'}>
-                {result.toLocaleString()} {'Kč'}
+                {(salary + tipSum).toLocaleString()} {'Kč'}
               </span>
             </div>
           )}
