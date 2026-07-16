@@ -1,22 +1,26 @@
 // «Změnit termín» — перенос брони из drawer: дата + время + мастер одним модалом
-// (PATCH date/time/employee — сервер перепроверяет пересечения → slot_taken).
+// (PATCH date/time/employee). Пересечение с другой бронью админа НЕ блокирует (решает
+// человек) — про него предупреждаем жёлтой плашкой, как про «служба не влезает в окно».
 // Чекбокс «уведомить клиента» шлёт письмо о переносе (как при DnD-переносе).
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { CalendarBooking, CalendarEmployee } from '../fetch/calendarDay'
 import { enginePatchBooking } from '../fetch/engineApi'
 import { fmtTime } from '../utils'
-import { TIME_OPTIONS, btnPrimaryCls, btnSecondaryCls, inputCls, labelCls } from './helpers'
+import { TIME_OPTIONS, btnPrimaryCls, btnSecondaryCls, inputCls, labelCls, toMin } from './helpers'
+import type { SlotFitContext } from './NewBookingModal'
 import { ModalShell, Section } from './ui'
 
 export const RescheduleModal = ({
   booking,
   employees,
+  slotFit,
   onClose,
   onMoved,
 }: {
   booking: CalendarBooking
   employees: CalendarEmployee[]
+  slotFit?: SlotFitContext | null
   onClose: () => void
   onMoved: (newDate: string) => void
 }) => {
@@ -34,6 +38,29 @@ export const RescheduleModal = ({
   const masterChanged = Boolean(empDocId) && empDocId !== (curEmp?.docId || '')
   const changed = date !== booking.date || time !== curTime || masterChanged
   const ddmm = (d: string) => d.split('-').reverse().join('. ')
+
+  const durMin = useMemo(() => {
+    if (!booking.startsAt || !booking.endsAt) return 0
+    return Math.round((new Date(booking.endsAt).getTime() - new Date(booking.startsAt).getTime()) / 60000)
+  }, [booking.startsAt, booking.endsAt])
+
+  // Накладывается ли новый термин на чужую бронь/блок этого мастера. Только информация:
+  // перенос всё равно разрешён (сервер тоже не блокирует — см. adminPatchBooking).
+  const conflict = useMemo(() => {
+    if (!slotFit || !durMin || !/^\d{2}:\d{2}$/.test(time)) return false
+    const busy = slotFit.busyByKey[`${empDocId}|${date}`]
+    if (!busy) return false // дата/мастер вне загруженного дня — не врём, подсказку не показываем
+    const start = toMin(time)
+    // свой же интервал не считаем конфликтом (сдвиг внутри собственного слота)
+    const ownStart = toMin(curTime)
+    const sameColumn = date === booking.date && empDocId === (curEmp?.docId || '')
+    return busy.some(
+      (b) =>
+        !(sameColumn && b.startMin === ownStart && b.endMin === ownStart + durMin) &&
+        b.startMin < start + durMin &&
+        start < b.endMin
+    )
+  }, [slotFit, empDocId, date, time, durMin, curTime, booking.date, curEmp?.docId])
 
   const submit = async () => {
     setSubmitting(true)
@@ -112,6 +139,14 @@ export const RescheduleModal = ({
               </select>
             </div>
           </div>
+          {conflict && (
+            <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <span className="text-sm leading-none">⚠</span>
+              <span>
+                V tomto čase už mistr má rezervaci nebo blok — termíny se budou překrývat. Přesunout to lze i tak.
+              </span>
+            </div>
+          )}
         </Section>
 
         <Section title="Oznámení">

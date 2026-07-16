@@ -2,14 +2,15 @@
 // нерабочее время, карточки броней по позиции/длительности, линия now.
 // Скроллится внутри собственной области: ось времени липнет слева, шапки мастеров —
 // сверху (мобильный паттерн «замороженная строка+колонка»), свайп примагничивается
-// к колонкам. Write-операции: drag-and-drop активных броней ТОЛЬКО мышью (на тач
-// HTML5 DnD не работает — перенос через «Změnit termín» в drawer), клик по пустой
-// клетке → новая бронь, клик по блоку → управление блоком.
+// к колонкам. Write-операции: перенос активных броней мышью (HTML5 DnD) и пальцем
+// (удержание → перетаскивание, см. useTouchDrag), клик по пустой клетке → новая
+// бронь, клик по блоку → управление блоком.
 
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { BlockedRange, CalendarBooking, CalendarDay, MasterColumn } from './fetch/calendarDay'
 import { packColumn, nowMinPrague } from './fetch/calendarDay'
 import { useCoarsePointer, useIsNarrow } from './useMediaQuery'
+import { useTouchDrag } from './useTouchDrag'
 import { fmtHM } from './utils'
 import { LogoIcon } from '../../icons/Logo'
 
@@ -23,6 +24,8 @@ const AXIS_W = 56 // ширина оси времени
 const SNAP_MIN = 30 // сетка клика/переноса — шаг резервации везде полчаса
 const EXTRA_MIN = 120 // запас шкалы: ±2 часа до открытия и после закрытия (как в Noona)
 const RIGHT_GUTTER_PCT = 10 // полоса справа от ВСЕХ карточек для клика/дозаписи на занятое время
+const EDGE_SCROLL_PX = 52 // зона у края грида, в которой перенос пальцем сам подкручивает скролл
+const EDGE_SCROLL_STEP = 10 // px за тик автоскролла (~16мс)
 
 // Цвет карточки: бренд красно-розовый для всех статусов (как в Noona), junior —
 // фиолетовый. Статус различается ЛЕЙБЛОМ (закладка в углу), отменённые — полупрозрачные,
@@ -140,10 +143,104 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
     return Math.max(0, Math.round(raw / SNAP_MIN) * SNAP_MIN)
   }
 
+  // ── перенос пальцем (планшет): цель ищется по координатам, а не по событию дропа ──
+
+  const colById = useMemo(() => new Map(columns.map((c) => [c.id, c])), [columns])
+  // откуда потащили — чтобы дроп в то же место не открывал окно подтверждения
+  const dragSrc = useRef<{ colId: string; startMin: number } | null>(null)
+
+  // Колонка + минута под пальцем. Колонку ищем через elementFromPoint (призрак и
+  // подсветка pointer-events-none, карточки/блоки внутри тела → closest его найдёт)
+  const resolvePoint = (x: number, y: number): { col: MasterColumn; min: number } | null => {
+    const el = document.elementFromPoint(x, y) as HTMLElement | null
+    const body = el?.closest('[data-col-body]') as HTMLElement | null
+    const col = body?.dataset.colBody ? colById.get(body.dataset.colBody) : undefined
+    if (!body || !col || !col.employeeDocId) return null // бывшие мастера (orphan) — read-only
+    const rect = body.getBoundingClientRect()
+    const raw = (y - dragOffsetY.current - rect.top) / pxPerMin + dispOpen
+    return { col, min: Math.max(0, Math.round(raw / SNAP_MIN) * SNAP_MIN) }
+  }
+  // ref: автоскролл-таймер живёт дольше рендера и не должен звать устаревший резолвер
+  const resolveRef = useRef(resolvePoint)
+  resolveRef.current = resolvePoint
+
+  const commitMove = (b: CalendarBooking, col: MasterColumn, min: number) => {
+    const src = dragSrc.current
+    dragSrc.current = null
+    if (src && src.colId === col.id && src.startMin === min) return // не сдвинули — нечего подтверждать
+    onMoveBooking?.(b, col, min)
+  }
+
+  // Автоскролл, когда палец у края: без него нельзя дотащить бронь к мастеру или
+  // времени, которых сейчас не видно на экране
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const edgeVec = useRef({ dx: 0, dy: 0 })
+  const lastPt = useRef({ x: 0, y: 0 })
+  const edgeTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const stopEdgeScroll = useCallback(() => {
+    if (edgeTimer.current) clearInterval(edgeTimer.current)
+    edgeTimer.current = null
+  }, [])
+  useEffect(() => stopEdgeScroll, [stopEdgeScroll])
+
+  const updateEdgeScroll = (x: number, y: number) => {
+    const el = scrollRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const dx = x < r.left + EDGE_SCROLL_PX ? -EDGE_SCROLL_STEP : x > r.right - EDGE_SCROLL_PX ? EDGE_SCROLL_STEP : 0
+    // сверху отступаем ещё на шапку колонок — она липкая и перекрывает грид
+    const dy =
+      y < r.top + HEADER_H + EDGE_SCROLL_PX
+        ? -EDGE_SCROLL_STEP
+        : y > r.bottom - EDGE_SCROLL_PX
+          ? EDGE_SCROLL_STEP
+          : 0
+    edgeVec.current = { dx, dy }
+    if (!dx && !dy) {
+      stopEdgeScroll()
+      return
+    }
+    if (edgeTimer.current) return
+    edgeTimer.current = setInterval(() => {
+      scrollRef.current?.scrollBy(edgeVec.current.dx, edgeVec.current.dy)
+      // грид уехал под неподвижным пальцем → цель поменялась, подсветку пересчитываем
+      const t = resolveRef.current(lastPt.current.x, lastPt.current.y)
+      if (t) setHoverSlot(t.col.id, t.min)
+      else setHover(null)
+    }, 16)
+  }
+
+  const touchDrag = useTouchDrag<CalendarBooking>({
+    enabled: Boolean(onMoveBooking),
+    onMove: (_b, x, y) => {
+      lastPt.current = { x, y }
+      const t = resolvePoint(x, y)
+      if (t) setHoverSlot(t.col.id, t.min)
+      else setHover(null)
+      updateEdgeScroll(x, y)
+    },
+    onDrop: (b, x, y) => {
+      stopEdgeScroll()
+      setHover(null)
+      const t = resolvePoint(x, y)
+      if (t) commitMove(b, t.col, t.min)
+      else dragSrc.current = null
+    },
+    onCancel: () => {
+      stopEdgeScroll()
+      setHover(null)
+      dragSrc.current = null
+    },
+  })
+  const touchDraggedId = touchDrag.active?.item.documentId
+
   return (
     // Скролл-контейнер (обе оси): sticky ось/шапки липнут к нему; snap-x —
     // горизонтальный свайп примагничивается к границам колонок
-    <div className="h-full snap-x snap-proximity overflow-auto overscroll-contain rounded-xl bg-white shadow-sm">
+    <div
+      ref={scrollRef}
+      className="h-full snap-x snap-proximity overflow-auto overscroll-contain rounded-xl bg-white shadow-sm"
+    >
       {/* pb на мобиле: нижняя пилюля даты не перекрывает последние слоты */}
       <div className="relative flex pb-16 sm:pb-0" style={{ minWidth: AXIS_W + columns.length * colW }}>
         {/* Вотермарка-лого по центру временно́й области грида (под шапкой): скроллится
@@ -232,8 +329,10 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                 )
               })()}
 
-              {/* Тело колонки: клик по пустому месту = новая бронь, drop = перенос */}
+              {/* Тело колонки: клик по пустому месту = новая бронь, drop = перенос.
+                  data-col-body — по нему перенос пальцем находит колонку под пальцем */}
               <div
+                data-col-body={col.id}
                 className={`relative ${writable && onEmptyCell ? 'cursor-pointer' : ''}`}
                 style={{ height: gridH }}
                 onClick={(e) => {
@@ -263,7 +362,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                   clearHover(col.id)
                   const b = dragged.current
                   dragged.current = null
-                  onMoveBooking(b, col, minuteOfDrag(e, e.currentTarget))
+                  commitMove(b, col, minuteOfDrag(e, e.currentTarget))
                 }}
               >
                 {/* Подсветка слота под курсором */}
@@ -342,10 +441,12 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                   const services = (p.booking.services || []).filter((s) => s.title)
                   const serviceTitles = services.map((s) => s.title)
                   const dur = p.endMin - p.startMin
-                  // на тач-устройстве HTML5 DnD не работает — перенос через «Změnit termín»
-                  // в drawer; draggable оставляем только мыши (иначе long-press глючит)
-                  const draggable = Boolean(onMoveBooking) && p.booking.status === 'active' && !coarse
+                  // Мышь — HTML5 DnD (на тач он мёртв). Палец — свой жест удержания
+                  // (useTouchDrag), поэтому на тач-устройстве перенос тоже доступен.
+                  const movable = Boolean(onMoveBooking) && p.booking.status === 'active'
+                  const draggable = movable && !coarse
                   const highlighted = highlightId === p.booking.documentId
+                  const lifted = touchDraggedId === p.booking.documentId // «поднята» пальцем
                   return (
                     <button
                       key={p.booking.documentId}
@@ -353,6 +454,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                       draggable={draggable}
                       onDragStart={(e) => {
                         dragged.current = p.booking
+                        dragSrc.current = { colId: col.id, startMin: p.startMin }
                         // где внутри карточки схватили — чтобы drop целился её верхним краем
                         dragOffsetY.current = e.clientY - e.currentTarget.getBoundingClientRect().top
                         e.dataTransfer.effectAllowed = 'move'
@@ -360,13 +462,21 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                       onDragEnd={() => {
                         dragged.current = null
                       }}
+                      onTouchStart={(e) => {
+                        if (!movable) return
+                        dragSrc.current = { colId: col.id, startMin: p.startMin }
+                        dragOffsetY.current = e.touches[0].clientY - e.currentTarget.getBoundingClientRect().top
+                        touchDrag.start(e, p.booking)
+                      }}
                       onClick={(e) => {
                         e.stopPropagation()
                         onSelect(p.booking)
                       }}
-                      className={`absolute overflow-hidden rounded-md border px-1.5 py-1 text-left transition hover:brightness-95 ${
+                      className={`absolute select-none overflow-hidden rounded-md border px-1.5 py-1 text-left transition [-webkit-touch-callout:none] hover:brightness-95 ${
                         draggable ? 'cursor-grab active:cursor-grabbing' : ''
-                      } ${highlighted ? 'animate-pulse ring-4 ring-[#e71e6e] ring-offset-1' : ''}`}
+                      } ${highlighted ? 'animate-pulse ring-4 ring-[#e71e6e] ring-offset-1' : ''} ${
+                        lifted ? 'ring-2 ring-[#e71e6e]' : ''
+                      }`}
                       style={{
                         top: yOf(p.startMin) + 1,
                         height: Math.max(isNarrow ? 22 : 16, dur * pxPerMin - 2),
@@ -375,7 +485,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                         background: st.bg,
                         borderColor: st.border,
                         color: st.text,
-                        opacity: st.opacity,
+                        opacity: lifted ? 0.4 : st.opacity,
                         zIndex: highlighted ? 25 : 10,
                       }}
                       title={`${fmtHM(p.startMin)}–${fmtHM(p.endMin)} · ${p.booking.clientNameRaw} · ${serviceTitles.join(' | ')}${label ? ` · ${label.name}` : ''}`}
@@ -424,6 +534,18 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
           )
         })}
       </div>
+      {/* Призрак под пальцем: показывает, ЧТО тащим и куда попадём (время = подсвеченный
+          слот). fixed → не зависит от скролла грида; pointer-events-none → не мешает
+          elementFromPoint искать колонку под пальцем */}
+      {touchDrag.active && (
+        <div
+          className="pointer-events-none fixed z-50 whitespace-nowrap rounded-md bg-primary px-2 py-1 text-[12px] font-bold text-white shadow-lg"
+          style={{ left: touchDrag.active.x, top: touchDrag.active.y, transform: 'translate(-50%, -170%)' }}
+        >
+          {hover ? `${fmtHM(hover.min)} · ` : ''}
+          {touchDrag.active.item.clientNameRaw || 'Rezervace'}
+        </div>
+      )}
     </div>
   )
 }

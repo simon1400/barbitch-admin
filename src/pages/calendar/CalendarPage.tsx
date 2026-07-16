@@ -643,6 +643,7 @@ export default function CalendarPage() {
         <RescheduleModal
           booking={reschedule}
           employees={employees}
+          slotFit={slotFit}
           onClose={() => setReschedule(null)}
           onMoved={(newDate) => {
             // как переход из истории: закрыть drawer, показать день брони, мигнуть 3 с
