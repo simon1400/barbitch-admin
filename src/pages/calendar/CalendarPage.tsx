@@ -209,6 +209,22 @@ export default function CalendarPage() {
     }
   }
 
+  // отметка «клиент dorazil» (промежуточный шаг перед Proběhla): drawer остаётся
+  // открытым — обновляем selected + грид (зелёный лейбл), кнопка меняется на «Proběhla»
+  const patchArrived = async () => {
+    if (!selected) return
+    setMutating(true)
+    try {
+      await enginePatchBooking(selected.documentId, { arrived: true })
+      setSelected({ ...selected, arrived: true })
+      await reload(true)
+    } catch (e) {
+      window.alert((e as Error).message)
+    } finally {
+      setMutating(false)
+    }
+  }
+
   // лейбл на бронь (drawer остаётся открытым — обновляем и selected, и грид)
   const patchLabel = async (label: { name: string; color: string } | null) => {
     if (!selected) return
@@ -605,6 +621,7 @@ export default function CalendarPage() {
           labels={labels}
           onClose={() => setSelected(null)}
           onStatus={patchStatus}
+          onArrived={patchArrived}
           onLabel={patchLabel}
           onManageLabels={() => setManageLabels(true)}
           onOpenHistory={openHistoryBooking}

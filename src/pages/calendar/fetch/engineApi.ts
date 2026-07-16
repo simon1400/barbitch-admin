@@ -80,6 +80,8 @@ export interface EnginePatchInput {
   time?: string
   employee?: string // personal documentId
   status?: 'active' | 'checkedOut' | 'cancelled' | 'noshow'
+  // «клиент dorazil» — промежуточный шаг перед checkedOut (Proběhla)
+  arrived?: boolean
   comment?: string
   totalPrice?: number
   // смена услуги: новый снапшот services + пересчёт цены/длительности на сервере
@@ -95,6 +97,7 @@ export interface EnginePatchInput {
 // Ответ = обновлённый документ брони (движок возвращает findOne после патча)
 export interface EnginePatchResult {
   status: string
+  arrived?: boolean
   services?: { title: string; price: number | null; durationMin: number | null }[] | null
   totalPrice?: number | null
   startsAt?: string | null

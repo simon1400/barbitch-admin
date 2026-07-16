@@ -51,6 +51,8 @@ const bookingLabel = (b: CalendarBooking): { name: string; color: string } | nul
     case 'noshow':
       return { name: 'Nedostavil/a se', color: '#f59e0b' }
     default:
+      // active + arrived (клиент dorazil) → зелёный лейбл; иначе кастомный лейбл брони
+      if (b.arrived) return { name: 'Dorazila', color: '#22c55e' }
       return b.label?.name && b.label?.color ? { name: b.label.name, color: b.label.color } : null
   }
 }

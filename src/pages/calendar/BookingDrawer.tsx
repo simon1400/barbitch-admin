@@ -141,6 +141,7 @@ export const BookingDrawer = ({
   labels,
   onClose,
   onStatus,
+  onArrived,
   onLabel,
   onManageLabels,
   onOpenHistory,
@@ -154,6 +155,7 @@ export const BookingDrawer = ({
   labels: BookingLabel[]
   onClose: () => void
   onStatus: (status: CalendarBooking['status'], notify?: boolean) => void
+  onArrived: () => void
   onLabel: (label: { name: string; color: string } | null) => void
   onManageLabels: () => void
   onOpenHistory: (r: ClientHistoryItem) => void
@@ -163,7 +165,11 @@ export const BookingDrawer = ({
   busy: boolean
   readOnly?: boolean
 }) => {
-  const meta = STATUS_META[b.status] ?? STATUS_META.active
+  // active + arrived → зелёный бейдж «dorazila» (промежуточный шаг перед proběhla)
+  const meta =
+    b.status === 'active' && b.arrived
+      ? { label: 'dorazila', cls: 'bg-green-100 text-green-700' }
+      : (STATUS_META[b.status] ?? STATUS_META.active)
   const hasEmail = Boolean((b.client?.email ?? '').trim())
   // инлайн-подтверждение отмены с чекбоксом «уведомить клиента» (роадмап §4.2)
   const [cancelling, setCancelling] = useState(false)
@@ -428,15 +434,29 @@ export const BookingDrawer = ({
               </div>
             </div>
           )}
+          {/* Верхняя кнопка: активная бронь без прихода → «Dorazila» (зелёная);
+              после прихода (arrived) или у неактивной → «Proběhla» (checkedOut).
+              Логика: клиент не может «проběhnout» пока не dorazil. */}
           <div className={'mb-2'}>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => onStatus('checkedOut')}
-              className="w-full text-nowrap rounded-md bg-blue-600 px-3 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 sm:py-2"
-            >
-              ✓ Proběhla
-            </button>
+            {b.status === 'active' && !b.arrived ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={onArrived}
+                className="w-full text-nowrap rounded-md bg-green-600 px-3 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-40 sm:py-2"
+              >
+                ✓ Dorazila
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onStatus('checkedOut')}
+                className="w-full text-nowrap rounded-md bg-blue-600 px-3 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 sm:py-2"
+              >
+                ✓ Proběhla
+              </button>
+            )}
           </div>
           
           <div className="flex flex-wrap gap-2">

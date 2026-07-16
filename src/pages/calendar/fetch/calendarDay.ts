@@ -24,6 +24,8 @@ export interface CalendarBooking {
   startsAt: string | null
   endsAt: string | null
   status: 'active' | 'checkedOut' | 'cancelled' | 'noshow'
+  // клиент dorazil (промежуточный шаг перед checkedOut) — зелёный лейбл на карточке
+  arrived?: boolean
   services: CalendarService[] | null
   totalPrice: number | null
   comment: string | null
