@@ -82,9 +82,11 @@ interface Props {
   onEmptyCell?: (col: MasterColumn, startMin: number) => void
   onMoveBooking?: (b: CalendarBooking, target: MasterColumn, startMin: number) => void
   onSelectBlock?: (block: BlockedRange, col: MasterColumn) => void
+  // процент мастера (режим master): на карточках показывается ЕГО доля, а не полная цена
+  masterRate?: number | null
 }
 
-export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectMaster, onEmptyCell, onMoveBooking, onSelectBlock }: Props) => {
+export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectMaster, onEmptyCell, onMoveBooking, onSelectBlock, masterRate }: Props) => {
   const { openMin, closeMin, columns } = day
   // Адаптивный масштаб: телефон — уже колонки, крупнее минуты; тач — без HTML5 DnD
   const isNarrow = useIsNarrow()
@@ -408,7 +410,11 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                           </div>
                         ))}
                       {dur >= 70 && p.booking.totalPrice != null && (
-                        <div className="mt-0.5 text-[12px] font-semibold">{p.booking.totalPrice} Kč</div>
+                        <div className="mt-0.5 text-[12px] font-semibold">
+                          {masterRate != null
+                            ? `${Math.round((p.booking.totalPrice * masterRate) / 100)} Kč`
+                            : `${p.booking.totalPrice} Kč`}
+                        </div>
                       )}
                     </button>
                   )

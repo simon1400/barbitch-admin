@@ -150,6 +150,7 @@ export const BookingDrawer = ({
   onDelete,
   busy,
   readOnly = false,
+  masterRate = null,
 }: {
   b: CalendarBooking
   labels: BookingLabel[]
@@ -164,6 +165,8 @@ export const BookingDrawer = ({
   onDelete: () => void
   busy: boolean
   readOnly?: boolean
+  // процент мастера — если задан, «Celkem» показывает его долю, а не полную цену
+  masterRate?: number | null
 }) => {
   // active + arrived → зелёный бейдж «dorazila» (промежуточный шаг перед proběhla)
   const meta =
@@ -283,9 +286,14 @@ export const BookingDrawer = ({
             ))}
           </div>
           <div className="mt-2 flex items-center justify-between border-t border-gray-200 pt-2">
+            {/* Мастеру (masterRate) показываем его долю, а не полную цену услуги */}
             <span className="text-sm font-semibold text-gray-700">Celkem</span>
             <span className="text-sm1 font-bold text-primary">
-              {b.totalPrice != null ? `${b.totalPrice} Kč` : '—'}
+              {b.totalPrice == null
+                ? '—'
+                : masterRate != null
+                  ? `${Math.round((b.totalPrice * masterRate) / 100)} Kč`
+                  : `${b.totalPrice} Kč`}
             </span>
           </div>
         </div>

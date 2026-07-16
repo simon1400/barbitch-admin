@@ -21,6 +21,7 @@ import { fetchBookingLabels, type BookingLabel } from './fetch/bookingLabels'
 import { CalendarGrid } from './CalendarGrid'
 import { BookingDrawer } from './BookingDrawer'
 import { InstallAppButton } from './InstallAppButton'
+import { NotificationButton } from './NotificationButton'
 import { useCoarsePointer } from './useMediaQuery'
 import { fmtHM, fmtTime, mondayOf, shiftDate, todayStr, type Mode } from './utils'
 import {
@@ -392,6 +393,10 @@ export default function CalendarPage() {
           <InstallAppButton
             className={`${tbBtn} border border-gray-300 bg-white text-gray-700 shadow-sm hover:bg-gray-50`}
           />
+          {/* Web Push: уведомления о бронях к этому мастеру (и админу) на телефон */}
+          <NotificationButton
+            className={`${tbBtn} border border-gray-300 bg-white text-gray-700 shadow-sm hover:bg-gray-50`}
+          />
 
           {/* Режим задаётся кликом: в дневном виде — клик по имени мастера в шапке
               открывает его неделю; в недельном — селектор мастера + «Všichni mistři»
@@ -519,6 +524,7 @@ export default function CalendarPage() {
                   }
                 : undefined
             }
+            masterRate={isMaster ? (employees[0]?.ratePercent ?? null) : null}
           />
         )}
         {/* master, чей personal не найден по username — календарь показать нечего */}
@@ -630,6 +636,7 @@ export default function CalendarPage() {
           onDelete={deleteBooking}
           busy={mutating}
           readOnly={isMaster}
+          masterRate={isMaster ? (employees[0]?.ratePercent ?? null) : null}
         />
       )}
       {reschedule && (

@@ -1,7 +1,7 @@
 {
-  "name": "Barbitch Kalendář",
-  "short_name": "Kalendář",
-  "description": "Kalendář rezervací salonu Barbitch",
+  "name": "Bar.Bitch",
+  "short_name": "Bar.Bitch",
+  "description": "Kalendář rezervací salonu Bar.Bitch",
   "id": "/calendar",
   "start_url": "/calendar",
   "scope": "/",

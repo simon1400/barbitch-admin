@@ -78,6 +78,8 @@ export interface CalendarEmployee {
   name: string
   tier: 'senior' | 'junior'
   calendarOrder: number
+  // процент мастера от цены услуги (для показа его доли в календаре мастера)
+  ratePercent: number | null
 }
 
 export interface CalendarDay {
@@ -110,6 +112,7 @@ interface RawPersonal {
   noonaEmployeeId: string | null
   tier: 'senior' | 'junior' | null
   calendarOrder: number | null
+  ratePercent: number | null
 }
 interface MirrorSalonHour {
   date: string
@@ -132,7 +135,7 @@ interface MirrorTimeBlock {
 // Порядок колонок = personal.calendarOrder (меньше — левее), fallback алфавит.
 export async function fetchEmployees(): Promise<CalendarEmployee[]> {
   const res = (await Axios.get(
-    `/api/personals?filters[isActive][$eq]=true&fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=position&fields[3]=tier&fields[4]=calendarOrder&pagination[pageSize]=100`,
+    `/api/personals?filters[isActive][$eq]=true&fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=position&fields[3]=tier&fields[4]=calendarOrder&fields[5]=ratePercent&pagination[pageSize]=100`,
     { headers: authHeaders },
   )) as RawPersonal[]
   // Запрос уже фильтрует isActive=true; здесь только отсекаем без noona-id и ❌
@@ -144,6 +147,7 @@ export async function fetchEmployees(): Promise<CalendarEmployee[]> {
       name: p.name.trim(),
       tier: p.tier === 'junior' ? ('junior' as const) : ('senior' as const),
       calendarOrder: p.calendarOrder ?? 0,
+      ratePercent: p.ratePercent ?? null,
     }))
     .sort((a, b) => a.calendarOrder - b.calendarOrder || a.name.localeCompare(b.name, 'cs'))
 }
