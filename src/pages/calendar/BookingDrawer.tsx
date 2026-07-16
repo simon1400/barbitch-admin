@@ -198,7 +198,9 @@ export const BookingDrawer = ({
 
         
 
-        {/* Карточка «Kontakt» — телефон/e-mail клиента (админ должен уметь связаться) */}
+        {/* Карточка «Kontakt» — телефон/e-mail клиента (админ должен уметь связаться).
+            Мастерам (readOnly) НЕ показываем — контакты клиентов только для админов. */}
+        {!readOnly && (
         <div className="mt-4 rounded-xl border border-gray-200 p-3">
           <div className="mb-2">
             <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
@@ -228,6 +230,7 @@ export const BookingDrawer = ({
             )}
           </div>
         </div>
+        )}
 
         {/* Карточка «Termín»: дата · время · мастер + кнопка переноса (дата/время/мастер) */}
         <div className="mt-3 rounded-xl border border-gray-200 p-3">
