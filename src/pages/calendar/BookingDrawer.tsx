@@ -8,6 +8,10 @@ import { fetchClientHistory, todayStrPrague } from './fetch/calendarDay'
 import type { BookingLabel } from './fetch/bookingLabels'
 import { STATUS_META, fmtTime } from './utils'
 
+// Карточка «Štítek» (кастомные лейблы + «Spravovat štítky») временно скрыта по решению владельца.
+// Вернуть = поставить true. Авто-лейблы по статусу на карточках грида это не трогает.
+const SHOW_LABEL_CARD = false
+
 // Строка истории клиента (прошлая/будущая бронь) — клик открывает её день в календаре
 const HistoryRow = ({ r, onOpen }: { r: ClientHistoryItem; onOpen: (r: ClientHistoryItem) => void }) => {
   const meta = STATUS_META[r.status] ?? STATUS_META.active
@@ -417,7 +421,7 @@ export const BookingDrawer = ({
         ) : null}
 
         {/* Read-only (master): štítek показываем статично, без управления */}
-        {readOnly && b.label && (
+        {SHOW_LABEL_CARD && readOnly && b.label && (
           <div className="mt-3 rounded-xl border border-gray-200 p-3">
             <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-500">Štítek</div>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700">
@@ -428,7 +432,7 @@ export const BookingDrawer = ({
         )}
 
         {/* Карточка «Štítek» (только активные; прошедшие/отменённые получают авто-лейбл) */}
-        {b.status === 'active' && !readOnly && (
+        {SHOW_LABEL_CARD && b.status === 'active' && !readOnly && (
           <div className="mt-3 rounded-xl border border-gray-200 p-3">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Štítek</span>
