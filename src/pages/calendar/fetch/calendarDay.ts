@@ -369,10 +369,17 @@ export function packColumn(bookings: CalendarBooking[]): PositionedBooking[] {
   let cluster: typeof items = []
   let clusterEnd = -1
 
+  // приоритет слоя внутри пересечения: активная бронь всегда сверху (lane 0, во всю
+  // ширину и читаема), отменённые/noshow уходят под неё и выглядывают сзади
+  const statusRank = (s: string) => (s === 'active' ? 0 : s === 'checkedOut' ? 1 : s === 'noshow' ? 2 : 3)
+
   const flush = () => {
     if (!cluster.length) return
     const laneEnds: number[] = []
-    const placed = cluster.map((it) => {
+    // порядок назначения lane: сначала активные (получат меньший lane), затем по
+    // времени начала; кластеризация выше идёт по времени старта и не ломается
+    const ordered = [...cluster].sort((a, b) => statusRank(a.b.status) - statusRank(b.b.status) || a.s - b.s || a.e - b.e)
+    const placed = ordered.map((it) => {
       let lane = laneEnds.findIndex((end) => end <= it.s)
       if (lane === -1) {
         lane = laneEnds.length

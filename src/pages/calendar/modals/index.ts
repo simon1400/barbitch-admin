@@ -2,6 +2,7 @@
 // Общие куски: ui.tsx (ModalShell/Section/OptionRow), helpers.ts (константы,
 // fmtHM/toMin, ServiceSelection), ServicePicker.tsx (пикер услуги).
 
+export { AuditLogModal } from './AuditLogModal'
 export { CellActionModal } from './CellActionModal'
 export { ChangeServiceModal } from './ChangeServiceModal'
 export { ClientSearchModal } from './ClientSearchModal'

@@ -70,3 +70,11 @@ export const IconSearch = ({ className = 'h-4 w-4' }: IconProps) => (
     <path d="m21 21-4.35-4.35" />
   </svg>
 )
+
+export const IconHistory = ({ className = 'h-4 w-4' }: IconProps) => (
+  <svg viewBox="0 0 24 24" className={className} {...svgProps}>
+    <path d="M3 3v5h5" />
+    <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
+    <path d="M12 7v5l4 2" />
+  </svg>
+)

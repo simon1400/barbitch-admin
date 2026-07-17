@@ -31,9 +31,10 @@ import { BookingDrawer } from './BookingDrawer'
 import { InstallAppButton } from './InstallAppButton'
 import { NotificationButton } from './NotificationButton'
 import { useCoarsePointer } from './useMediaQuery'
-import { IconArrowLeft, IconMoon, IconSearch, IconSun } from './icons'
+import { IconArrowLeft, IconHistory, IconMoon, IconSearch, IconSun } from './icons'
 import { fmtHM, fmtTime, mondayOf, shiftDate, todayStr, type Mode } from './utils'
 import {
+  AuditLogModal,
   CellActionModal,
   ChangeServiceModal,
   ClientSearchModal,
@@ -77,6 +78,8 @@ export default function CalendarPage() {
   // Роль: master видит ТОЛЬКО свой недельный календарь, read-only (без броней/блоков/статусов)
   const role = getSessionRole()
   const isMaster = role === 'master'
+  // журнал действий календаря видит ТОЛЬКО владелец (оверсайт над админами)
+  const isOwner = role === 'owner'
   // тач-устройство (телефон/планшет) — там показываем кнопки зума грида
   const coarse = useCoarsePointer()
   // Параметры из push-нотификации (?date=YYYY-MM-DD&highlight=<bookingDocId>):
@@ -116,6 +119,8 @@ export default function CalendarPage() {
   const [orderModal, setOrderModal] = useState(false)
   // модал глобального поиска клиента (история/контакты/blacklist, admin-only)
   const [clientSearch, setClientSearch] = useState(false)
+  // журнал действий календаря (owner-only)
+  const [showLog, setShowLog] = useState(false)
   // мобильное меню «⋯» тулбара (второстепенные действия: + Blok, ⇅ Pořadí)
   const [moreOpen, setMoreOpen] = useState(false)
   // вертикальный зум грида (кнопки +/− на мобиле, как в Noona); живёт между сессиями
@@ -495,12 +500,22 @@ export default function CalendarPage() {
               {weekLabelCs(date)}
             </span>
           ) : (
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => e.target.value && setDate(e.target.value)}
-              className={`${tbInput} hidden min-w-0 px-2 py-1 sm:block sm:min-h-[34px]`}
-            />
+            // подпись с днём недели без года («Pá 17. 7.»); нативный пикер — невидимым
+            // инпутом поверх (тап/клик открывает календарь)
+            <div className="relative hidden sm:block">
+              <span
+                className={`${tbInput} flex min-h-[34px] items-center whitespace-nowrap px-3 py-1 text-sm font-semibold`}
+              >
+                {dateLabelShortCs(date)}
+              </span>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => e.target.value && setDate(e.target.value)}
+                aria-label="Datum"
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              />
+            </div>
           )}
           <button
             type="button"
@@ -532,6 +547,18 @@ export default function CalendarPage() {
             >
               <IconSearch />
               <span className="ml-1.5">Klient</span>
+            </button>
+          )}
+          {/* Deník kalendáře — журнал действий админов; ТОЛЬКО владелец (оверсайт) */}
+          {isOwner && (
+            <button
+              type="button"
+              onClick={() => setShowLog(true)}
+              title="Deník kalendáře — historie akcí administrátorů"
+              className={tbNeutral}
+            >
+              <IconHistory />
+              <span className="ml-1.5">Deník</span>
             </button>
           )}
 
@@ -790,6 +817,20 @@ export default function CalendarPage() {
                     {calTheme === 'dark' ? <IconSun /> : <IconMoon />}
                     <span className="ml-2">{calTheme === 'dark' ? 'Světlý režim' : 'Tmavý režim'}</span>
                   </button>
+                  {/* Deník kalendáře — журнал действий; только владелец */}
+                  {isOwner && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMoreOpen(false)
+                        setShowLog(true)
+                      }}
+                      className={menuItemCls}
+                    >
+                      <IconHistory />
+                      <span className="ml-2">Deník kalendáře</span>
+                    </button>
+                  )}
                   {!isMaster && (
                     <>
                       <button
@@ -922,6 +963,8 @@ export default function CalendarPage() {
           }}
         />
       )}
+
+      {showLog && <AuditLogModal onClose={() => setShowLog(false)} />}
 
       {orderModal && (
         <ColumnOrderModal
