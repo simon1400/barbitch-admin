@@ -1,7 +1,7 @@
 import { getEventsHistory, isAttended, isActive, todayStr } from './eventsHistory'
 import { getExpenses } from '../../fetch/expenses'
 
-// Прогноз текущего месяца по броням Noona.
+// Прогноз текущего месяца по броням календаря.
 // ⚠️ «Выручка» здесь = сумма ЦЕН броней (event_types price), а не фактическая касса —
 // скидки/допродажи/ваучеры не учитываются. Это оценка темпа, точные деньги — в GlobalPage.
 

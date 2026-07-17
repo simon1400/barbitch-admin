@@ -240,14 +240,14 @@ export interface ShiftCheckResult {
     count: number
     items: any[]
   }
-  noona: {
+  calendar: {
     found: boolean
     count: number
     events: any[]
   }
   comparison: {
     strapiCount: number
-    noonaCount: number
+    calendarCount: number
     match: boolean
     difference: number
   }
@@ -328,13 +328,12 @@ const fetchPayroll = async (dateStr: string) => {
   }
 }
 
-// Брони дня из НАШЕЙ БД (own-booking фаза 4: внутренняя сверка booking ↔
-// services-provided вместо Noona API). Форма событий сохранена 1:1
-// (customer_name / event_types[0].title / employee.name) — вся логика сверки
-// (diffByName, buildOfferMatches, NoonaEventsCard) работает без изменений.
-// customer_name берётся ТЕКУЩИЙ (client relation) — боль устаревших снимков
-// имён (s97) исчезает по построению.
-const fetchNoonaEvents = async (dateStr: string) => {
+// Брони дня из НАШЕГО календаря (booking-коллекция) для сверки со
+// services-provided. Форма событий историческая (customer_name /
+// event_types[0].title / employee.name) — вся логика сверки (diffByName,
+// buildOfferMatches, CalendarBookingsCard) на неё завязана. customer_name
+// берётся ТЕКУЩИЙ (client relation) — устаревших снимков имён нет по построению.
+const fetchCalendarBookings = async (dateStr: string) => {
   try {
     const bookings = await fetchMirrorBookingsRange(dateStr, dateStr)
     const activeEvents = bookings
@@ -354,7 +353,7 @@ const fetchNoonaEvents = async (dateStr: string) => {
       }))
     return { found: activeEvents.length > 0, count: activeEvents.length, events: activeEvents }
   } catch (e) {
-    console.error('fetchNoonaEvents error:', e)
+    console.error('fetchCalendarBookings error:', e)
     return { found: false, count: 0, events: [] }
   }
 }
@@ -362,7 +361,7 @@ const fetchNoonaEvents = async (dateStr: string) => {
 // Карта id клиента → текущее имя (из НАШЕЙ коллекции client). Ленивый фолбэк
 // пере-матча имён (s97) — с текущими именами из relation почти не срабатывает,
 // но остаётся страховкой при опечатках в clientName записей Strapi.
-const fetchNoonaCustomerNames = async (): Promise<Map<string, string>> => {
+const fetchCurrentClientNames = async (): Promise<Map<string, string>> => {
   try {
     const clients = await fetchMirrorClients()
     const map = new Map<string, string>()
@@ -371,7 +370,7 @@ const fetchNoonaCustomerNames = async (): Promise<Map<string, string>> => {
     }
     return map
   } catch (e) {
-    console.error('fetchNoonaCustomerNames error:', e)
+    console.error('fetchCurrentClientNames error:', e)
     return new Map()
   }
 }
@@ -924,31 +923,29 @@ export const revertShift = async (dateStr: string): Promise<RevertResult> => {
 export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
   const dateStr = format(date, 'yyyy-MM-dd')
 
-  const [cash, serviceProvided, workTime, payroll, noona] = await Promise.all([
+  const [cash, serviceProvided, workTime, payroll, calendar] = await Promise.all([
     fetchCash(dateStr),
     fetchServiceProvided(dateStr),
     fetchWorkTime(dateStr),
     fetchPayroll(dateStr),
-    fetchNoonaEvents(dateStr),
+    fetchCalendarBookings(dateStr),
   ])
 
-  // Internal worker-to-worker services never exist in Noona, so they must NOT count
-  // toward the Noona↔Strapi comparison — otherwise they mask a real missing client.
+  // Internal worker-to-worker services never exist in the calendar, so they must NOT
+  // count toward the calendar↔Strapi comparison — otherwise they mask a real missing client.
   const strapiComparableItems = serviceProvided.items.filter((i: any) => !i?.internal)
   const strapiComparable = strapiComparableItems.length
   // Match by NAME, not just head-count: a wrong/typo'd client name keeps the count
   // equal (extra of one name offsets a missing other) but is a genuine discrepancy.
-  let events = noona.events
+  let events = calendar.events
   let nameDiff = diffByName(strapiComparableItems, events)
 
-  // Noona events store customer_name as a snapshot taken at booking time. If the
-  // customer was later renamed, that stale snapshot won't match the current Strapi
-  // clientName → false "Pouze v Noona"/"Pouze v Strapi". Only when a leftover remains
-  // on BOTH sides do we pay for the full customer list (Noona can't filter by id) and
-  // refresh the events' names via event.customer, then re-match. Patched events flow
-  // into the result so the comparison, offer-match and event list all show current names.
-  if (nameDiff.strapiExtra.length > 0 && nameDiff.noonaExtra.length > 0) {
-    const nameById = await fetchNoonaCustomerNames()
+  // Safety net for name typos: if a leftover remains on BOTH sides, refresh the
+  // bookings' names from the client collection (via event.customer) and re-match.
+  // Patched events flow into the result so the comparison, offer-match and the
+  // bookings list all show current names.
+  if (nameDiff.strapiExtra.length > 0 && nameDiff.calendarExtra.length > 0) {
+    const nameById = await fetchCurrentClientNames()
     if (nameById.size > 0) {
       events = events.map((e: any) => {
         const current = e.customer ? nameById.get(e.customer) : undefined
@@ -960,11 +957,11 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
     }
   }
 
-  const mismatchCount = nameDiff.strapiExtra.length + nameDiff.noonaExtra.length
+  const mismatchCount = nameDiff.strapiExtra.length + nameDiff.calendarExtra.length
   const comparison = {
     strapiCount: strapiComparable,
-    noonaCount: noona.count,
-    match: strapiComparable === noona.count && mismatchCount === 0,
+    calendarCount: calendar.count,
+    match: strapiComparable === calendar.count && mismatchCount === 0,
     difference: mismatchCount,
   }
 
@@ -974,7 +971,7 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
     serviceProvided,
     workTime,
     payroll,
-    noona: { ...noona, events },
+    calendar: { ...calendar, events },
     comparison,
   }
 }

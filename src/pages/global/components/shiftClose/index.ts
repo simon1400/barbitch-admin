@@ -1,5 +1,5 @@
 export { ComparisonCard } from './ComparisonCard'
 export { ServiceProvidedCard } from './ServiceProvidedCard'
-export { NoonaEventsCard } from './NoonaEventsCard'
+export { CalendarBookingsCard } from './CalendarBookingsCard'
 export { CashCard, WorkTimeCard, PayrollCard } from './RecordCards'
 export { PublishSection } from './PublishSection'

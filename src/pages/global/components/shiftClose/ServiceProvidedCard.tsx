@@ -21,7 +21,7 @@ const STRAPI_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost
 const strapiLink = (documentId: string) =>
   `${STRAPI_URL}/admin/content-manager/collection-types/api::service-provided.service-provided/${documentId}?status=draft`
 
-// Header icon for the "offer vs Noona service" comparison column.
+// Header icon for the "offer vs calendar service" comparison column.
 const CompareIcon = () => (
   <svg
     width="16"
@@ -101,9 +101,9 @@ const OFFER_MATCH_META: Record<OfferMatchStatus, { symbol: string; chipCls: stri
 
 const offerMatchTitle = (m: OfferMatch): string => {
   switch (m.status) {
-    case 'match': return `Shoduje se s Noona: ${m.noonaTitle}`
-    case 'mismatch': return `Strapi: ${m.strapiTitle}\nNoona: ${m.noonaTitle}`
-    case 'missing': return `Strapi: ${m.strapiTitle}\nKlient nemá událost v Noona`
+    case 'match': return `Shoduje se s kalendářem: ${m.calendarTitle}`
+    case 'mismatch': return `Strapi: ${m.strapiTitle}\nKalendář: ${m.calendarTitle}`
+    case 'missing': return `Strapi: ${m.strapiTitle}\nKlient nemá rezervaci v kalendáři`
     default: return 'Služba (offer) není připojena'
   }
 }
@@ -164,13 +164,13 @@ const FlagChip = ({ flag, item }: { flag: VerifyFlag; item: any }) => {
 
 export const ServiceProvidedCard = ({
   data,
-  noonaEvents,
+  calendarBookings,
 }: {
   data: ShiftCheckResult['serviceProvided']
-  noonaEvents: any[]
+  calendarBookings: any[]
 }) => {
   const visibleCounters = VERIFY_FLAGS.filter((f) => data.flagCounts[f] > 0)
-  const offerMatches = buildOfferMatches(data.items, noonaEvents)
+  const offerMatches = buildOfferMatches(data.items, calendarBookings)
   const mismatchCount = [...offerMatches.values()].filter((m) => m.status === 'mismatch').length
   const voucherCount = data.items.filter((i: any) => hasVoucher(i)).length
 
@@ -205,7 +205,7 @@ export const ServiceProvidedCard = ({
         {mismatchCount > 0 && (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
             <span className="w-2 h-2 rounded-full bg-red-500" />
-            Služba se liší od Noona: {mismatchCount}
+            Služba se liší od kalendáře: {mismatchCount}
           </span>
         )}
         {voucherCount > 0 && (
@@ -222,7 +222,7 @@ export const ServiceProvidedCard = ({
               <tr className="text-left text-gray-500 border-b">
                 <th className="pb-2 pr-3">Klient</th>
                 <th className="pb-2 pr-3">Mistr</th>
-                <th className="pb-2 pr-3" title="Služba (offer) vs Noona">
+                <th className="pb-2 pr-3" title="Služba (offer) vs kalendář">
                   <span className="inline-flex items-center text-gray-500">
                     <CompareIcon />
                   </span>

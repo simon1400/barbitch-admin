@@ -65,7 +65,7 @@ export default function SleepingTab() {
       setLastSent(buildLastSentMap(logs))
       setCampaigns(await getCampaignResults(logs).catch(() => []))
     } catch {
-      setError('Не удалось загрузить данные из Noona')
+      setError('Не удалось загрузить данные')
     } finally {
       setLoading(false)
     }
@@ -193,7 +193,7 @@ export default function SleepingTab() {
           </label>
         </div>
         <span className="text-xs text-gray-400">
-          Клиенты без будущей брони · деньги = сумма цен состоявшихся визитов (Noona)
+          Клиенты без будущей брони · деньги = сумма цен состоявшихся визитов
         </span>
       </div>
 

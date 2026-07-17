@@ -58,7 +58,7 @@ export default function ForecastTab() {
     <>
       <StatSection title={`Прогноз — ${data.monthLabel}`} id="forecast" defaultOpen>
         <p className="text-xs text-gray-400 mb-4">
-          Суммы = цены броней Noona (без скидок/допродаж) — оценка темпа, не касса.
+          Суммы = цены броней (без скидок/допродаж) — оценка темпа, не касса.
         </p>
         {/* Герой-блок: формула прогноза */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-4">

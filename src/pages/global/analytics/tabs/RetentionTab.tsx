@@ -31,7 +31,7 @@ export default function RetentionTab() {
     try {
       setData(await getRetention(force))
     } catch {
-      setError('Не удалось загрузить данные из Noona')
+      setError('Не удалось загрузить данные')
     } finally {
       setLoading(false)
     }

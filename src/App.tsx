@@ -15,14 +15,6 @@ const ShiftClosePage = lazy(() => import('./pages/global/ShiftClosePage'))
 const BlogAIPage = lazy(() => import('./pages/global/BlogAIPage'))
 const ReviewSyncPage = lazy(() => import('./pages/global/ReviewSyncPage'))
 const ErrorLogsPage = lazy(() => import('./pages/global/ErrorLogsPage'))
-// Unified Noona module — layout with URL sub-route tabs
-const NoonaPage = lazy(() => import('./pages/global/noona/NoonaPage'))
-const NoonaServicesTab = lazy(() => import('./pages/global/noona/tabs/ServicesTab'))
-const NoonaManageTab = lazy(() => import('./pages/global/noona/tabs/ManageTab'))
-const NoonaMastersTab = lazy(() => import('./pages/global/noona/tabs/MastersTab'))
-const NoonaPriceIncreaseTab = lazy(() => import('./pages/global/noona/tabs/PriceIncreaseTab'))
-const NoonaHistoryTab = lazy(() => import('./pages/global/noona/tabs/HistoryTab'))
-const NoonaJuniorTab = lazy(() => import('./pages/global/noona/tabs/JuniorTab'))
 // Unified analytics module — layout with URL sub-route tabs
 const AnalyticsPage = lazy(() => import('./pages/global/analytics/AnalyticsPage'))
 const AnalyticsOverviewTab = lazy(() => import('./pages/global/analytics/tabs/OverviewTab'))
@@ -311,35 +303,6 @@ function App() {
             }
           />
           <Route
-            path="/global/noona"
-            element={
-              <ProtectedRoute>
-                <OwnerRoute>
-                  <AdminLayout>
-                    <NoonaPage />
-                  </AdminLayout>
-                </OwnerRoute>
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/global/noona/services" replace />} />
-            <Route path="services" element={<NoonaServicesTab />} />
-            <Route path="manage" element={<NoonaManageTab />} />
-            <Route path="masters" element={<NoonaMastersTab />} />
-            <Route path="price-increase" element={<NoonaPriceIncreaseTab />} />
-            <Route path="history" element={<NoonaHistoryTab />} />
-            <Route path="junior" element={<NoonaJuniorTab />} />
-          </Route>
-          {/* Legacy URL redirects — old standalone pages now live as Noona tabs */}
-          <Route
-            path="/global/noona-services"
-            element={<Navigate to="/global/noona/services" replace />}
-          />
-          <Route
-            path="/global/noona-activity"
-            element={<Navigate to="/global/noona/history" replace />}
-          />
-          <Route
             path="/global/shift-close"
             element={
               <ProtectedRoute>
@@ -386,14 +349,6 @@ function App() {
                 </OwnerRoute>
               </ProtectedRoute>
             }
-          />
-          <Route
-            path="/global/price-increase"
-            element={<Navigate to="/global/noona/price-increase" replace />}
-          />
-          <Route
-            path="/global/junior-services"
-            element={<Navigate to="/global/noona/junior" replace />}
           />
           <Route
             path="/administrator-cabinet"

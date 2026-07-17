@@ -26,7 +26,7 @@ export default function CancellationsTab() {
     try {
       setData(await getCancellations(month, year))
     } catch {
-      setError('Не удалось загрузить данные из Noona')
+      setError('Не удалось загрузить данные')
     } finally {
       setLoading(false)
     }

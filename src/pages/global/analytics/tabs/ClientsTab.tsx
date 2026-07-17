@@ -25,7 +25,7 @@ export default function ClientsTab() {
     try {
       setData(await getClientStats(force))
     } catch {
-      setError('Не удалось загрузить данные из Noona. Попробуйте обновить.')
+      setError('Не удалось загрузить данные. Попробуйте обновить.')
     } finally {
       setLoading(false)
     }
@@ -74,7 +74,7 @@ export default function ClientsTab() {
 
       <StatSection title={'Новые и повторные клиенты по месяцам'} id={'clients-monthly'} defaultOpen>
         <p className={'text-xss text-gray-500 mb-4'}>
-          По дате визита, уникальные клиенты Noona, отменённые брони исключены. «Новый» — первый
+          По дате визита, уникальные клиенты, отменённые брони исключены. «Новый» — первый
           визит за всю историю пришёлся на этот месяц; «Повторный» — приходил и раньше (2-й и более
           раз).
         </p>

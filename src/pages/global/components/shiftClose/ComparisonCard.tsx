@@ -7,7 +7,7 @@ export const ComparisonCard = ({ result }: { result: ShiftCheckResult }) => {
   const diff = getDiff(result)
 
   return (
-    <StatSection title="Porovnání Noona vs Strapi" id="comparison" defaultOpen>
+    <StatSection title="Porovnání kalendář vs Strapi" id="comparison" defaultOpen>
       <div
         className={`rounded-xl p-5 border ${
           result.comparison.match
@@ -17,8 +17,8 @@ export const ComparisonCard = ({ result }: { result: ShiftCheckResult }) => {
       >
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
-            <p className="text-sm text-gray-600">Noona (aktivní)</p>
-            <p className="text-2xl font-bold text-gray-800">{result.noona.count}</p>
+            <p className="text-sm text-gray-600">Kalendář (aktivní)</p>
+            <p className="text-2xl font-bold text-gray-800">{result.calendar.count}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Service Provided</p>
@@ -48,7 +48,7 @@ export const ComparisonCard = ({ result }: { result: ShiftCheckResult }) => {
             {diff.strapiExtra.length > 0 && (
               <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
                 <p className="text-sm font-semibold text-orange-800 mb-2">
-                  Pouze v Strapi (chybí v Noona):
+                  Pouze v Strapi (chybí v kalendáři):
                 </p>
                 {diff.strapiExtra.map((item: any, i: number) => (
                   <div key={i} className="text-sm text-orange-700 flex items-center gap-2">
@@ -65,12 +65,12 @@ export const ComparisonCard = ({ result }: { result: ShiftCheckResult }) => {
               </div>
             )}
 
-            {diff.noonaExtra.length > 0 && (
+            {diff.calendarExtra.length > 0 && (
               <div className="rounded-lg border border-purple-200 bg-purple-50 p-4">
                 <p className="text-sm font-semibold text-purple-800 mb-2">
-                  Pouze v Noona (chybí v Strapi):
+                  Pouze v kalendáři (chybí v Strapi):
                 </p>
-                {diff.noonaExtra.map((event: any, i: number) => (
+                {diff.calendarExtra.map((event: any, i: number) => (
                   <div key={i} className="text-sm text-purple-700 flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
                     <span className="font-medium">{event.customer_name}</span>

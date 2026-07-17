@@ -39,7 +39,7 @@ export default function CrossSellTab() {
       setSelected(new Set(data.filter((c) => !c.alreadySent).map((c) => c.key)))
     } catch {
       setCands([])
-      setError('Не удалось загрузить данные из Noona')
+      setError('Не удалось загрузить данные')
     } finally {
       setLoading(false)
     }

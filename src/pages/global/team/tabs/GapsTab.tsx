@@ -167,7 +167,7 @@ export default function GapsTab() {
       setRows(data.sort((a, b) => b.deadMin - a.deadMin))
     } catch {
       setRows([])
-      setError('Не удалось загрузить данные из Noona')
+      setError('Не удалось загрузить данные')
     } finally {
       setLoading(false)
     }
@@ -281,7 +281,7 @@ export default function GapsTab() {
             Отправлено: <b>{results.sent}</b> · записалось:{' '}
             <b className="text-primary">{results.converted}</b> ({results.pct}%). Конверсия —
             приблизительно (бронь к предложенному мастеру в день предложения или позже); точная
-            отметка — в комментарии брони Noona.
+            отметка — в комментарии брони.
           </p>
           <TableWrapper>
             <table className="w-full text-left table-auto min-w-max">

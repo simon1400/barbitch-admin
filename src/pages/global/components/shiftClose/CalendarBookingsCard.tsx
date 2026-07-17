@@ -3,8 +3,8 @@ import type { ShiftCheckResult } from '../../fetch/shiftClose'
 import { CheckCard } from './CheckCard'
 import { sortByClientName } from './helpers'
 
-export const NoonaEventsCard = ({ data }: { data: ShiftCheckResult['noona'] }) => (
-  <CheckCard title="Noona události" found={data.found} count={data.count}>
+export const CalendarBookingsCard = ({ data }: { data: ShiftCheckResult['calendar'] }) => (
+  <CheckCard title="Rezervace v kalendáři" found={data.found} count={data.count}>
     {data.found && data.events.length > 0 && (
       <div className="mt-3 overflow-x-auto">
         <table className="w-full text-sm">

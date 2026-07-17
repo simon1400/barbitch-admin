@@ -19,7 +19,7 @@ import {
 import {
   ComparisonCard,
   ServiceProvidedCard,
-  NoonaEventsCard,
+  CalendarBookingsCard,
   CashCard,
   WorkTimeCard,
   PayrollCard,
@@ -301,8 +301,8 @@ export default function ShiftClosePage() {
               <StatSection title="Kontrola záznamů" id="checks" defaultOpen>
                 <div className="grid gap-4">
                   <CashCard data={result.cash} />
-                  <ServiceProvidedCard data={result.serviceProvided} noonaEvents={result.noona.events} />
-                  <NoonaEventsCard data={result.noona} />
+                  <ServiceProvidedCard data={result.serviceProvided} calendarBookings={result.calendar.events} />
+                  <CalendarBookingsCard data={result.calendar} />
                   <WorkTimeCard data={result.workTime} />
                   <PayrollCard data={result.payroll} />
                 </div>

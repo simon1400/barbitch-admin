@@ -84,7 +84,7 @@ export default function LoadTab() {
       )
     } catch {
       setData(null)
-      setError('Не удалось загрузить данные из Noona')
+      setError('Не удалось загрузить данные')
     } finally {
       setLoading(false)
     }
@@ -156,7 +156,7 @@ export default function LoadTab() {
           )}
         </div>
         <span className="text-xs text-gray-400">
-          Капацита = часы салона − блоки «Nepracovni doba» в Noona · Занято = брони (кроме
+          Капацита = часы салона − блоки «Nepracovní doba» в календаре · Занято = брони (кроме
           отменённых)
         </span>
       </div>

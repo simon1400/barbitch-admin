@@ -1,5 +1,5 @@
 import { getEventsHistory, fetchEmployeeNames, isAttended, todayStr } from './eventsHistory'
-import { fetchEmployees } from '../../noona/fetch/masterServices'
+import { fetchMirrorEmployees } from '../../../../lib/mirror'
 
 // Возвращаемость по мастерам: какой % НОВЫХ клиентов мастера вернулся в салон
 // в течение 30/60/90 дней после ПЕРВОГО визита. Новый клиент атрибутируется
@@ -40,7 +40,7 @@ export const getRetention = async (force = false): Promise<RetentionResult> => {
   const [events, empNames, activeEmployees] = await Promise.all([
     getEventsHistory(force),
     fetchEmployeeNames(),
-    fetchEmployees(), // только активные (available_for_bookings) — их и показываем
+    fetchMirrorEmployees(), // только активные (personal isActive) — их и показываем
   ])
   const activeIds = new Set(activeEmployees.map((e) => e.id))
   const today = todayStr()
