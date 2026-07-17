@@ -27,8 +27,6 @@ export class EngineApiError extends Error {
 const CODE_MESSAGES: Record<string, string> = {
   slot_taken: 'Termín je již obsazený (mistr má v tuto dobu rezervaci nebo blok).',
   blacklisted: 'Klient je na blacklistu.',
-  mirror_block: 'Blok pochází z Noona — spravuje ho synchronizace, smazat lze jen vlastní bloky.',
-  mirror_booking: 'Rezervace pochází z Noona — spravuje ji synchronizace, smazat ji lze jen v Noona.',
   unauthorized: 'Přihlášení vypršelo — přihlaste se znovu.',
   employee_service_mismatch: 'Mistr tuto službu nedělá.',
 }

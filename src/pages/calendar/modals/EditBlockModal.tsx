@@ -67,9 +67,6 @@ export const EditBlockModal = ({ block, masterName, date, onClose, onChanged }: 
         {/* инфо-шапка */}
         <div className="rounded-lg bg-gray-50 dark:bg-[#2a2a28] px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
           <b>{masterName}</b> · {date}
-          {!block.own && (
-            <p className="mt-1 text-xs text-amber-600">Blok pochází ze synchronizace Noona.</p>
-          )}
           {seriesCount > 1 && (
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Součást série — celkem {seriesCount} {blokPlural(seriesCount)}.</p>
           )}
