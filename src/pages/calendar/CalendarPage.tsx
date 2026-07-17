@@ -46,19 +46,28 @@ import {
   type NewBookingInitial,
 } from './modals'
 
-// Чешские дни недели для нижней пилюли даты (мобила, Noona-паттерн)
-const WEEKDAYS_CS = ['Neděle', 'Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota']
-const dateLabelCs = (d: string): string => {
-  const [y, m, dd] = d.split('-')
-  return `${WEEKDAYS_CS[new Date(`${d}T00:00:00`).getDay()]} ${+dd}. ${+m}. ${y}`
-}
-
 // «14. 7. – 20. 7. 2026» — подпись недели Пн–Вс (для мастера вместо конкретной даты)
 const weekLabelCs = (d: string): string => {
   const mon = mondayOf(d)
   const [y, m, dd] = mon.split('-').map(Number)
   const end = new Date(y, m - 1, dd + 6)
   return `${dd}. ${m}. – ${end.getDate()}. ${end.getMonth() + 1}. ${end.getFullYear()}`
+}
+
+// Короткие подписи для нижней панели телефона: «Pá 17. 7.» / «14. 7. – 20. 7.»
+// (в узкой панели рядом с кнопками полная подпись с годом не помещается)
+const WEEKDAYS_SHORT_CS = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So']
+const dateLabelShortCs = (d: string): string => {
+  const [, m, dd] = d.split('-')
+  return `${WEEKDAYS_SHORT_CS[new Date(`${d}T00:00:00`).getDay()]} ${+dd}. ${+m}.`
+}
+const weekLabelShortCs = (d: string): string => {
+  const mon = mondayOf(d)
+  const [y, m, dd] = mon.split('-').map(Number)
+  const end = new Date(y, m - 1, dd + 6)
+  const endM = end.getMonth() + 1
+  // в пределах месяца — «13.–19. 7.», через границу — «29. 6.–5. 7.»
+  return m === endM ? `${dd}.–${end.getDate()}. ${m}.` : `${dd}. ${m}.–${end.getDate()}. ${endM}.`
 }
 
 export default function CalendarPage() {
@@ -108,11 +117,11 @@ export default function CalendarPage() {
   // вертикальный зум грида (кнопки +/− на мобиле, как в Noona); живёт между сессиями
   const [zoom, setZoom] = useState(() => {
     const v = Number(localStorage.getItem('bb_cal_zoom'))
-    return v >= 0.7 && v <= 2.2 ? v : 1
+    return v >= 0.4 && v <= 2.2 ? v : 1
   })
   const changeZoom = (dir: 1 | -1) =>
     setZoom((z) => {
-      const next = Math.min(2.2, Math.max(0.7, +(z + dir * 0.3).toFixed(1)))
+      const next = Math.min(2.2, Math.max(0.4, +(z + dir * 0.3).toFixed(1)))
       localStorage.setItem('bb_cal_zoom', String(next))
       return next
     })
@@ -422,13 +431,16 @@ export default function CalendarPage() {
   // Кнопка тулбара: на тач-экране ≥44px высоты, на десктопе компактная (как раньше)
   const tbBtn =
     'inline-flex min-h-11 items-center justify-center rounded-md px-3 text-sm font-semibold sm:min-h-[34px]'
+  // Кнопка нижней панели (телефон): видимая рамка + крупная тач-цель
+  const mbBtn =
+    'flex h-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white leading-none text-gray-700 shadow-sm active:bg-gray-100'
 
   return (
     // Страница = вся высота окна (dvh — iOS-safe): тулбар фикс, грид скроллится внутри
     <div className="flex h-[100dvh] w-full flex-col px-2 pt-3 md:px-4">
-      {/* Тулбар: минимальный (Noona-паттерн) — на мобиле навигация по датам живёт
-          в нижней пилюле, тут только режим/«Dnes»/действия; на sm+ полный ряд */}
-      <div className="mb-2 flex shrink-0 flex-wrap items-center gap-1.5 sm:mb-3 sm:gap-2">
+      {/* Тулбар — ТОЛЬКО sm+ (десктоп/планшет): на телефоне всё управление живёт
+          в нижней панели (у большого пальца), сверху остаётся максимум места гриду */}
+      <div className="mb-3 hidden shrink-0 flex-wrap items-center gap-2 sm:flex">
           {/* Возврат на главную (страница без общего хедера) */}
           <button
             type="button"
@@ -540,54 +552,31 @@ export default function CalendarPage() {
             >
               ⇅ Pořadí
             </button>
-            {/* Мобила: то же в меню «⋯» */}
-            <div className="relative sm:hidden">
-              <button
-                type="button"
-                onClick={() => setMoreOpen((v) => !v)}
-                aria-label="Další akce"
-                className={`${tbBtn} border border-gray-300 bg-white text-gray-700`}
-              >
-                ⋯
-              </button>
-              {moreOpen && (
-                <>
-                  {/* невидимая подложка — клик мимо закрывает меню */}
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    aria-hidden
-                    onClick={() => setMoreOpen(false)}
-                    className="fixed inset-0 z-40 cursor-default"
-                  />
-                  <div className="absolute right-0 z-50 mt-1 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMoreOpen(false)
-                        setBlockModal({ date })
-                      }}
-                      className="flex min-h-11 w-full items-center px-4 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                    >
-                      + Blok
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMoreOpen(false)
-                        setOrderModal(true)
-                      }}
-                      className="flex min-h-11 w-full items-center px-4 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                    >
-                      ⇅ Pořadí sloupců
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
           </div>
           )}
       </div>
+
+      {/* Мобила: селектор мастера недельного вида — тулбар сверху скрыт, а без
+          селектора из чужой недели нельзя вернуться к «Všichni mistři» */}
+      {mode === 'week' && !isMaster && (
+        <div className="mb-2 shrink-0 sm:hidden">
+          <select
+            value={weekEmpId}
+            onChange={(e) => {
+              if (e.target.value === '__all__') setMode('day')
+              else setWeekEmpId(e.target.value)
+            }}
+            className="min-h-11 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm font-semibold"
+          >
+            <option value="__all__">← Všichni mistři (denní)</option>
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>
+                {emp.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Кто в этот день администратор (график shift) — информативно, для всех ролей */}
       <AdminShiftBar roster={adminRoster} date={date} mode={mode} />
@@ -650,7 +639,7 @@ export default function CalendarPage() {
             <button
               type="button"
               onClick={() => changeZoom(-1)}
-              disabled={zoom <= 0.7}
+              disabled={zoom <= 0.4}
               aria-label="Oddálit"
               className="flex h-11 w-11 items-center justify-center text-[20px] leading-none text-gray-700 active:bg-gray-100 disabled:opacity-30"
             >
@@ -672,40 +661,111 @@ export default function CalendarPage() {
           </button>
         )}
 
-        {/* Пилюля даты внизу по центру: ‹ Pondělí 13. 7. 2026 › — тап по дате
-            открывает нативный пикер (невидимый input поверх лейбла) */}
-        <div className="absolute bottom-3 left-1/2 z-40 flex -translate-x-1/2 items-center overflow-hidden rounded-full border border-gray-200 bg-white shadow-lg sm:hidden">
+        {/* Нижняя панель управления (телефон): ← Domů / Dnes / ‹ дата › / Instalovat /
+            Upozornění / ⋯ — весь бывший верхний тулбар у большого пальца. Тап по дате
+            открывает нативный пикер (невидимый input поверх лейбла). Низ грида
+            подгоняется к верхнему краю этой панели (fit-масштаб в CalendarGrid). */}
+        <div className="absolute inset-x-1 bottom-2 z-40 flex items-center gap-1 rounded-2xl border border-gray-200 bg-white px-1 py-1 shadow-lg sm:hidden">
           <button
             type="button"
-            onClick={() => setDate(shiftDate(date, mode === 'week' ? -7 : -1))}
-            aria-label="Předchozí"
-            className="flex h-11 w-11 items-center justify-center text-gray-700 active:bg-gray-100"
+            onClick={goHome}
+            aria-label="Domů"
+            className={`${mbBtn} w-10 text-[18px]`}
           >
-            ‹
+            ←
           </button>
-          <div className="relative">
-            <span className="block min-w-[10rem] px-1 text-center text-sm font-semibold text-gray-800">
-              {isMaster ? weekLabelCs(date) : dateLabelCs(date)}
-            </span>
-            {/* master листает целыми неделями — нативный пикер конкретной даты не нужен */}
-            {!isMaster && (
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => e.target.value && setDate(e.target.value)}
-                aria-label="Datum"
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-              />
+          <button type="button" onClick={() => setDate(todayStr())} className={`${mbBtn} px-2 text-[13px] font-bold`}>
+            Dnes
+          </button>
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-1">
+            <button
+              type="button"
+              onClick={() => setDate(shiftDate(date, mode === 'week' ? -7 : -1))}
+              aria-label="Předchozí"
+              className={`${mbBtn} w-10 text-[22px]`}
+            >
+              ‹
+            </button>
+            <div className="relative min-w-0">
+              <span className="block truncate px-0.5 text-center text-sm font-semibold text-gray-800">
+                {isMaster ? weekLabelShortCs(date) : dateLabelShortCs(date)}
+              </span>
+              {/* master листает целыми неделями — нативный пикер конкретной даты не нужен */}
+              {!isMaster && (
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => e.target.value && setDate(e.target.value)}
+                  aria-label="Datum"
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                />
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setDate(shiftDate(date, mode === 'week' ? 7 : 1))}
+              aria-label="Další"
+              className={`${mbBtn} w-10 text-[22px]`}
+            >
+              ›
+            </button>
+          </div>
+          <InstallAppButton popup="up" className={`${mbBtn} w-10 text-[16px]`} />
+          {/* «⋯» — все роли: Upozornění (push) для всех + write-действия; меню ВВЕРХ */}
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setMoreOpen((v) => !v)}
+              aria-label="Další akce"
+              className={`${mbBtn} w-10 text-[18px]`}
+            >
+              ⋯
+            </button>
+            {moreOpen && (
+              <>
+                {/* невидимая подложка — клик мимо закрывает меню */}
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-hidden
+                  onClick={() => setMoreOpen(false)}
+                  className="fixed inset-0 z-40 cursor-default"
+                />
+                <div className="absolute bottom-full right-0 z-50 mb-2 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                  {/* Пуш-уведомления (меню не закрываем — кнопка может показать подсказку) */}
+                  <NotificationButton
+                    popup="up"
+                    menuItem
+                    className="flex min-h-11 w-full items-center px-4 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  />
+                  {!isMaster && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMoreOpen(false)
+                          setBlockModal({ date })
+                        }}
+                        className="flex min-h-11 w-full items-center px-4 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                      >
+                        + Blok
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMoreOpen(false)
+                          setOrderModal(true)
+                        }}
+                        className="flex min-h-11 w-full items-center px-4 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                      >
+                        ⇅ Pořadí sloupců
+                      </button>
+                    </>
+                  )}
+                </div>
+              </>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => setDate(shiftDate(date, mode === 'week' ? 7 : 1))}
-            aria-label="Další"
-            className="flex h-11 w-11 items-center justify-center text-gray-700 active:bg-gray-100"
-          >
-            ›
-          </button>
         </div>
       </div>
 

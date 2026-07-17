@@ -6,7 +6,7 @@
 // (удержание → перетаскивание, см. useTouchDrag), клик по пустой клетке → новая
 // бронь, клик по блоку → управление блоком.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { BlockedRange, CalendarBooking, CalendarDay, MasterColumn } from './fetch/calendarDay'
 import { packColumn, nowMinPrague } from './fetch/calendarDay'
 import { useCoarsePointer, useIsNarrow } from './useMediaQuery'
@@ -18,11 +18,15 @@ const COL_W = 150 // ширина колонки (десктоп)
 const COL_W_NARROW = 128 // ширина колонки на телефоне (видно ~2.5 мастера + ось)
 
 const PX_PER_MIN = 1.0 // высота минуты; 60 мин = 60px (компактный масштаб как в Noona)
-const PX_PER_MIN_NARROW = 1.4 // на телефоне крупнее — легче попасть пальцем в короткую бронь
+// Телефон: базовый масштаб считается АДАПТИВНО — весь день влезает в высоту экрана
+// (низ грида у нижней панели), zoomFactor умножается поверх. Эта константа — только
+// фолбэк до первого замера контейнера.
+const PX_PER_MIN_NARROW = 1.0
+const MOBILE_BOTTOM_PAD = 64 // = pb-16 контента грида (клиренс нижней панели управления)
 const HEADER_H = 44 // высота шапки колонок
 const AXIS_W = 56 // ширина оси времени
 const SNAP_MIN = 30 // сетка клика/переноса — шаг резервации везде полчаса
-const EXTRA_MIN = 120 // запас шкалы: ±2 часа до открытия и после закрытия (как в Noona)
+const EXTRA_MIN = 60 // запас шкалы: ±1 час до открытия и после закрытия (s121: было ±2ч, лишние пустые часы)
 const RIGHT_GUTTER_PCT = 10 // полоса справа от ВСЕХ карточек для клика/дозаписи на занятое время
 const EDGE_SCROLL_PX = 52 // зона у края грида, в которой перенос пальцем сам подкручивает скролл
 const EDGE_SCROLL_STEP = 10 // px за тик автоскролла (~16мс)
@@ -94,7 +98,9 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
   // Адаптивный масштаб: телефон — уже колонки, крупнее минуты; тач — без HTML5 DnD
   const isNarrow = useIsNarrow()
   const coarse = useCoarsePointer()
-  const pxPerMin = (isNarrow ? PX_PER_MIN_NARROW : PX_PER_MIN) * (zoomFactor || 1)
+  // Телефон: замеренный fit-масштаб (день целиком в экран); null до первого замера
+  const [fitPx, setFitPx] = useState<number | null>(null)
+  const pxPerMin = (isNarrow ? (fitPx ?? PX_PER_MIN_NARROW) : PX_PER_MIN) * (zoomFactor || 1)
   const colW = isNarrow ? COL_W_NARROW : COL_W
   // Отображаемое окно шкалы = рабочий день ± EXTRA_MIN (в пределах суток);
   // зоны вне [openMin, closeMin] затеняются в каждой колонке
@@ -174,6 +180,24 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
   // Автоскролл, когда палец у края: без него нельзя дотащить бронь к мастеру или
   // времени, которых сейчас не видно на экране
   const scrollRef = useRef<HTMLDivElement | null>(null)
+
+  // Телефон (портрет): базовый масштаб = «весь день влезает по высоте» — низ грида
+  // упирается в нижнюю панель управления, вертикального скролла по умолчанию нет.
+  // Пере-замер при повороте/resize (ResizeObserver) и смене окна дня (totalMin).
+  useLayoutEffect(() => {
+    if (!isNarrow) return
+    const el = scrollRef.current
+    if (!el) return
+    const measure = () => {
+      const free = el.clientHeight - HEADER_H - MOBILE_BOTTOM_PAD
+      if (free > 120) setFitPx(Math.min(3, Math.max(0.3, free / totalMin)))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [isNarrow, totalMin])
+
   const edgeVec = useRef({ dx: 0, dy: 0 })
   const lastPt = useRef({ x: 0, y: 0 })
   const edgeTimer = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -479,7 +503,12 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                       }`}
                       style={{
                         top: yOf(p.startMin) + 1,
-                        height: Math.max(isNarrow ? 22 : 16, dur * pxPerMin - 2),
+                        // мин-высота (тач-цель) не больше высоты слота — при сильном зум-ауте
+                        // короткие брони не должны наезжать на соседние
+                        height: Math.max(
+                          Math.min(isNarrow ? 22 : 16, Math.max(12, dur * pxPerMin)),
+                          dur * pxPerMin - 2,
+                        ),
                         left: `calc(${p.lane * laneW}% + 2px)`,
                         width: `calc(${laneW}% - 4px)`,
                         background: st.bg,

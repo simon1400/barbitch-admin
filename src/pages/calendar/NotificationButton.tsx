@@ -13,7 +13,16 @@ const isIos = () =>
   /iphone|ipad|ipod/i.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
-export function NotificationButton({ className }: { className?: string }) {
+export function NotificationButton({
+  className,
+  popup = 'down',
+  menuItem = false,
+}: {
+  className?: string
+  popup?: 'down' | 'up'
+  // пункт меню «⋯» (мобила): подпись видна всегда, не только на md+
+  menuItem?: boolean
+}) {
   const [state, setState] = useState<PushState>('default')
   const [busy, setBusy] = useState(false)
   const [hint, setHint] = useState('')
@@ -60,7 +69,7 @@ export function NotificationButton({ className }: { className?: string }) {
         className={className}
       >
         {bell}
-        <span className="ml-1 hidden md:inline">{label}</span>
+        <span className={menuItem ? 'ml-1.5' : 'ml-1 hidden md:inline'}>{label}</span>
       </button>
       {hint && (
         <>
@@ -71,7 +80,11 @@ export function NotificationButton({ className }: { className?: string }) {
             onClick={() => setHint('')}
             className="fixed inset-0 z-40 cursor-default"
           />
-          <div className="absolute left-0 z-50 mt-1 w-64 rounded-lg border border-gray-200 bg-white p-3 text-left shadow-lg">
+          <div
+            className={`absolute z-50 w-64 rounded-lg border border-gray-200 bg-white p-3 text-left shadow-lg ${
+              popup === 'up' ? 'bottom-full right-0 mb-1' : 'left-0 mt-1'
+            }`}
+          >
             {hint === 'ios' ? (
               <>
                 <p className="text-sm font-semibold text-gray-800">Nejdřív nainstalovat</p>

@@ -16,7 +16,7 @@ const isIos = () =>
   /iphone|ipad|ipod/i.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
-export function InstallAppButton({ className }: { className?: string }) {
+export function InstallAppButton({ className, popup = 'down' }: { className?: string; popup?: 'down' | 'up' }) {
   const [, force] = useState(0)
   const [showIosHint, setShowIosHint] = useState(false)
 
@@ -45,7 +45,11 @@ export function InstallAppButton({ className }: { className?: string }) {
             onClick={() => setShowIosHint(false)}
             className="fixed inset-0 z-40 cursor-default"
           />
-          <div className="absolute left-0 z-50 mt-1 w-64 rounded-lg border border-gray-200 bg-white p-3 text-left shadow-lg">
+          <div
+            className={`absolute z-50 w-64 rounded-lg border border-gray-200 bg-white p-3 text-left shadow-lg ${
+              popup === 'up' ? 'bottom-full right-0 mb-1' : 'left-0 mt-1'
+            }`}
+          >
             <p className="text-sm font-semibold text-gray-800">Přidat na plochu</p>
             <p className="mt-1 text-xss leading-snug text-gray-600">
               Otevřete tuto stránku v Safari, klepněte na tlačítko <b>Sdílet</b> (čtvereček se
