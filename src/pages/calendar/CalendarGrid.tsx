@@ -46,7 +46,7 @@ const cardStyle = (
   const base =
     tier === 'junior'
       ? { bg: '#a78bfa', border: '#8b5cf6', text: '#ffffff' } // junior — фиолетовый
-      : { bg: '#f87184', border: '#ee5c72', text: '#ffffff' } // бренд красно-розовый
+      : { bg: '#fd80cc', border: '#f45bb8', text: '#ffffff' } // бренд розовый
   return { ...base, opacity: booking.status === 'cancelled' ? 0.45 : 1 }
 }
 
@@ -364,7 +364,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                             ? '#9ca3af'
                             : col.tier === 'junior'
                               ? '#a78bfa'
-                              : '#f87184',
+                              : '#fd80cc',
                         }}
                         onMouseEnter={
                           col.photoUrl
