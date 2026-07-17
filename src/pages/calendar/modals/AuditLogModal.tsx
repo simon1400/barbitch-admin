@@ -90,6 +90,9 @@ const LogRow = ({
     >
       <div className="flex items-center gap-2">
         <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${meta.cls}`}>{meta.label}</span>
+        <span className="truncate rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-bold text-gray-700 dark:bg-[#3a3a38] dark:text-gray-200">
+          {log.actorName || 'neznámý admin'}
+        </span>
         <span
           className="ml-auto shrink-0 text-[11px] text-gray-400 dark:text-gray-500"
           title={fullTime(log.createdAt)}
@@ -98,9 +101,6 @@ const LogRow = ({
         </span>
       </div>
       <div className="mt-1 text-sm text-gray-800 dark:text-gray-300">{log.summary || '—'}</div>
-      <div className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">
-        {log.actorName ? `${log.actorName}` : 'neznámý admin'}
-      </div>
       {open && <DetailBlock log={log} />}
     </button>
   )
