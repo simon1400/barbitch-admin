@@ -68,7 +68,18 @@ export default function CalendarPage() {
   const isMaster = role === 'master'
   // тач-устройство (телефон/планшет) — там показываем кнопки зума грида
   const coarse = useCoarsePointer()
-  const [date, setDate] = useState(todayStr())
+  // Параметры из push-нотификации (?date=YYYY-MM-DD&highlight=<bookingDocId>):
+  // открыть календарь сразу на дне брони и мигнуть её карточкой (см. sw.js)
+  const bootParams = useRef<{ date: string | null; highlight: string | null } | null>(null)
+  if (bootParams.current === null) {
+    const p = new URLSearchParams(window.location.search)
+    const d = p.get('date') || ''
+    bootParams.current = {
+      date: /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null,
+      highlight: p.get('highlight'),
+    }
+  }
+  const [date, setDate] = useState(bootParams.current.date || todayStr())
   const [mode, setMode] = useState<Mode>(isMaster ? 'week' : 'day')
   const [day, setDay] = useState<CalendarDay | null>(null)
   const [loading, setLoading] = useState(true)
@@ -105,9 +116,20 @@ export default function CalendarPage() {
       localStorage.setItem('bb_cal_zoom', String(next))
       return next
     })
-  // подсветка брони после перехода из истории клиента (мигает 3 сек)
-  const [highlightId, setHighlightId] = useState<string | null>(null)
+  // подсветка брони после перехода из истории клиента (мигает 3 сек);
+  // стартовое значение — из пуша (?highlight=), гасится эффектом ниже
+  const [highlightId, setHighlightId] = useState<string | null>(bootParams.current.highlight)
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Подсветка из пуша: держим дольше (6 с — данные дня ещё грузятся), затем чистим
+  // query из URL, чтобы обновление страницы не прыгало на тот же день заново
+  useEffect(() => {
+    if (bootParams.current?.highlight) {
+      highlightTimer.current = setTimeout(() => setHighlightId(null), 6000)
+    }
+    if (window.location.search) navigate(window.location.pathname, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   // смена услуги открытой брони (модал «Změnit službu»)
   const [changeService, setChangeService] = useState<CalendarBooking | null>(null)
   // перенос открытой брони из drawer (модал «Změnit termín»: дата/время/мастер)

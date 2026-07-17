@@ -28,11 +28,15 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
+  // target несёт query (?date=…&highlight=…) → уже открытое окно ФОКУСИРУЕМ И
+  // НАВИГИРУЕМ на него (полная перезагрузка SPA — календарь прочитает параметры
+  // на старте и подсветит бронь); закрытое — открываем сразу с параметрами
   const target = (event.notification.data && event.notification.data.url) || '/calendar'
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      for (const c of list) {
-        if (c.url.includes(target) && 'focus' in c) return c.focus()
+      const c = list.find((w) => 'focus' in w)
+      if (c) {
+        return c.focus().then((fc) => (fc && 'navigate' in fc ? fc.navigate(target) : undefined))
       }
       if (self.clients.openWindow) return self.clients.openWindow(target)
       return undefined
