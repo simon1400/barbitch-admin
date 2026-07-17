@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 
 import { disablePush, enablePush, getPushState, isPushSupported, type PushState } from '../../lib/push'
+import { IconBell, IconBellOff } from './icons'
 
 const isStandalone = () =>
   window.matchMedia('(display-mode: standalone)').matches ||
@@ -57,7 +58,7 @@ export function NotificationButton({
   }
 
   const label = state === 'subscribed' ? 'Upozornění zap.' : 'Upozornění'
-  const bell = state === 'subscribed' ? '🔔' : '🔕'
+  const bell = state === 'subscribed' ? <IconBell /> : <IconBellOff />
 
   return (
     <div className="relative">
@@ -66,10 +67,12 @@ export function NotificationButton({
         onClick={onClick}
         disabled={busy}
         aria-label="Zapnout upozornění"
+        title={label}
         className={className}
       >
         {bell}
-        <span className={menuItem ? 'ml-1.5' : 'ml-1 hidden md:inline'}>{label}</span>
+        {/* десктоп/мобила: только иконка; в пункте меню «⋯» — с подписью */}
+        {menuItem && <span className="ml-1.5">{label}</span>}
       </button>
       {hint && (
         <>

@@ -161,7 +161,7 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
       onClose={onClose}
       footer={
         <>
-          {error && <p className="mb-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+          {error && <p className="mb-2 rounded-md bg-red-50 dark:bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">{error}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={onClose} className={btnSecondaryCls}>
               Zrušit
@@ -200,16 +200,16 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
               <input className={`${inputCls} col-span-2`} placeholder="E-mail" value={ncEmail} onChange={(e) => setNcEmail(e.target.value)} />
             </div>
           ) : client ? (
-            <div className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm">
+            <div className="flex items-center justify-between rounded-md border border-gray-200 dark:border-[#2e2e2c] bg-white dark:bg-[#2a2a28] px-3 py-2 text-sm">
               <div>
-                <b>{client.name}</b> <span className="text-gray-500">{client.phone}</span>
+                <b>{client.name}</b> <span className="text-gray-500 dark:text-gray-400">{client.phone}</span>
                 {client.blacklisted && (
-                  <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">
+                  <span className="ml-2 rounded bg-red-100 dark:bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:text-red-300">
                     BLACKLIST
                   </span>
                 )}
               </div>
-              <button type="button" onClick={() => setClient(null)} className="text-gray-400 hover:text-red-500">
+              <button type="button" onClick={() => setClient(null)} className="text-gray-400 dark:text-gray-500 hover:text-red-500">
                 ✕
               </button>
             </div>
@@ -222,7 +222,7 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
                 onChange={(e) => setQuery(e.target.value)}
               />
               {hits.length > 0 && (
-                <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                <div className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-gray-200 dark:border-[#2e2e2c] bg-white dark:bg-[#2a2a28] shadow-lg">
                   {hits.map((h) => (
                     <button
                       key={h.documentId}
@@ -232,13 +232,13 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
                         setHits([])
                         setQuery('')
                       }}
-                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50"
+                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-[#333331]"
                     >
                       <span>
                         {h.name}
-                        {h.blacklisted && <span className="ml-1 text-[10px] font-bold text-red-600">⛔</span>}
+                        {h.blacklisted && <span className="ml-1 text-[10px] font-bold text-red-600 dark:text-red-300">⛔</span>}
                       </span>
-                      <span className="text-xs text-gray-400">{h.phone}</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">{h.phone}</span>
                     </button>
                   ))}
                 </div>
@@ -283,10 +283,10 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
           </div>
 
           {pricing && (
-            <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3.5 py-2.5">
+            <div className="flex items-center justify-between rounded-lg border border-[#e71e6e33] bg-[#e71e6e0d] px-3.5 py-2.5">
               <div className="flex flex-col gap-1">
-                <span className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <span className="font-semibold text-gray-700">{pricing.durationMin} min</span>
+                <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">{pricing.durationMin} min</span>
                   {endTime && <span>· do {endTime}</span>}
                 </span>
                 {employee?.tier === 'junior' && (
@@ -297,7 +297,7 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
               </div>
               <div className="flex items-baseline gap-1.5">
                 {employee?.tier === 'junior' && (
-                  <span className="text-xs font-normal text-gray-400 line-through">{pricing.seniorPrice} Kč</span>
+                  <span className="text-xs font-normal text-gray-400 dark:text-gray-500 line-through">{pricing.seniorPrice} Kč</span>
                 )}
                 <span className="text-base font-bold leading-none text-primary">{pricing.price} Kč</span>
               </div>
@@ -305,7 +305,7 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
           )}
 
           {overflow != null && pricing && (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
               <span className="text-sm leading-none">⚠</span>
               <span>
                 Služba trvá <b>{pricing.durationMin} min</b>, ale do dalšího termínu je volných jen{' '}
@@ -326,7 +326,7 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
               value={priceOverride}
               onChange={(e) => setPriceOverride(e.target.value.replace(/[^\d]/g, ''))}
             />
-            <p className="mt-1 text-[10px] leading-tight text-gray-400">
+            <p className="mt-1 text-[10px] leading-tight text-gray-400 dark:text-gray-500">
               Vyplňte jen při individuální ceně. Prázdné = vypočtená ({pricing ? `${pricing.price} Kč` : '—'}).
             </p>
           </div>
@@ -337,7 +337,7 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
 
           {/* Уведомление клиента (роадмап §4.3): письмо-подтверждение с ICS */}
           {hasEmail ? (
-            <label className="flex cursor-pointer items-center gap-2.5 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:border-gray-300">
+            <label className="flex cursor-pointer items-center gap-2.5 rounded-md border border-gray-200 dark:border-[#2e2e2c] bg-white dark:bg-[#2a2a28] px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:border-gray-300">
               <input
                 type="checkbox"
                 checked={notify}
@@ -347,7 +347,7 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
               Poslat klientovi potvrzení e-mailem
             </label>
           ) : (
-            <p className="rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-400">
+            <p className="rounded-md bg-gray-50 dark:bg-[#2a2a28] px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
               Klient nemá e-mail — potvrzení nelze odeslat.
             </p>
           )}

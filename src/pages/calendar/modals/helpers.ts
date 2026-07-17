@@ -35,14 +35,15 @@ export const weekdayOf = (d: string): number => new Date(`${d}T00:00:00Z`).getUT
 export const blokPlural = (n: number): string =>
   n === 1 ? 'blok' : n >= 2 && n <= 4 ? 'bloky' : 'bloků'
 
-export const inputCls = 'w-full min-h-11 rounded-md border border-gray-300 px-2 py-1.5 text-sm sm:min-h-0'
-export const labelCls = 'mb-1 block text-xs font-semibold text-gray-500'
+export const inputCls =
+  'w-full min-h-11 rounded-md border border-gray-300 px-2 py-1.5 text-sm sm:min-h-0 dark:border-[#3f3f3d] dark:bg-[#2a2a28] dark:text-gray-100 dark:[color-scheme:dark] dark:placeholder:text-gray-500'
+export const labelCls = 'mb-1 block text-xs font-semibold text-gray-500 dark:text-gray-400'
 
 // Кнопки футера модалов: на тач-экране ≥44px высоты, на десктопе компактные
 export const btnPrimaryCls =
   'inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-white disabled:opacity-40 sm:min-h-[38px]'
 export const btnSecondaryCls =
-  'inline-flex min-h-11 items-center justify-center rounded-md border border-gray-300 px-4 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40 sm:min-h-[38px]'
+  'inline-flex min-h-11 items-center justify-center rounded-md border border-gray-300 px-4 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40 sm:min-h-[38px] dark:border-[#3f3f3d] dark:text-gray-300 dark:hover:bg-[#2e2e2c]'
 
 // Выбор в пикере услуги (ServicePicker) — общий для «Nová rezervace» и «Změnit službu»
 export interface ServiceSelection {

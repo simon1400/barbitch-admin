@@ -102,7 +102,7 @@ export const NewBlockModal = ({ employees, initial, onClose, onCreated }: NewBlo
       onClose={onClose}
       footer={
         <>
-          {error && <p className="mb-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+          {error && <p className="mb-2 rounded-md bg-red-50 dark:bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">{error}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={onClose} className={btnSecondaryCls}>
               Zrušit
@@ -171,7 +171,7 @@ export const NewBlockModal = ({ employees, initial, onClose, onCreated }: NewBlo
                     className={`h-11 w-11 rounded-md border text-xs font-semibold transition sm:h-8 sm:w-9 ${
                       weekdays.includes(w.v)
                         ? 'border-primary bg-primary text-white'
-                        : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
+                        : 'border-gray-300 dark:border-[#3f3f3d] bg-white dark:bg-[#2a2a28] text-gray-600 dark:text-gray-300 hover:border-gray-400 dark:hover:border-[#5a5a56]'
                     }`}
                   >
                     {w.label}
@@ -185,7 +185,7 @@ export const NewBlockModal = ({ employees, initial, onClose, onCreated }: NewBlo
             <div>
               <span className={labelCls}>Opakovat do</span>
               <input type="date" className={inputCls} min={date} value={until} onChange={(e) => setUntil(e.target.value)} />
-              <p className="mt-1 text-[10px] leading-tight text-gray-400">
+              <p className="mt-1 text-[10px] leading-tight text-gray-400 dark:text-gray-500">
                 {occurrences > 0
                   ? `Vytvoří se ${occurrences} ${blokPlural(occurrences)}.`
                   : 'Vyberte datum konce (musí být po začátku).'}

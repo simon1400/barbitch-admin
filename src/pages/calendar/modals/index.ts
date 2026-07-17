@@ -4,6 +4,7 @@
 
 export { CellActionModal } from './CellActionModal'
 export { ChangeServiceModal } from './ChangeServiceModal'
+export { ClientSearchModal } from './ClientSearchModal'
 export { ColumnOrderModal } from './ColumnOrderModal'
 export { EditBlockModal } from './EditBlockModal'
 export { ManageLabelsModal } from './ManageLabelsModal'

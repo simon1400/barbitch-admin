@@ -43,17 +43,17 @@ export const ColumnOrderModal = ({
 
   return (
     <ModalShell title="Pořadí mistrů" onClose={onClose}>
-      <p className="mb-3 text-xs text-gray-400">
+      <p className="mb-3 text-xs text-gray-400 dark:text-gray-500">
         Pořadí sloupců v kalendáři (zleva doprava). Platí pro všechny administrátory.
       </p>
       <div className="space-y-1.5">
         {list.map((e, i) => (
           <div
             key={e.docId}
-            className="flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2"
+            className="flex items-center justify-between rounded-md border border-gray-200 dark:border-[#2e2e2c] bg-white dark:bg-[#2a2a28] px-3 py-2"
           >
-            <span className="flex items-center gap-2 text-sm text-gray-800">
-              <span className="w-5 text-right text-xs text-gray-400">{i + 1}.</span>
+            <span className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-300">
+              <span className="w-5 text-right text-xs text-gray-400 dark:text-gray-500">{i + 1}.</span>
               {e.name}
               {e.tier === 'junior' && (
                 <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
@@ -66,7 +66,7 @@ export const ColumnOrderModal = ({
                 type="button"
                 disabled={i === 0 || saving}
                 onClick={() => move(i, -1)}
-                className="rounded border border-gray-300 px-2 py-0.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-30"
+                className="rounded border border-gray-300 dark:border-[#3f3f3d] px-2 py-0.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#333331] disabled:opacity-30"
               >
                 ↑
               </button>
@@ -74,7 +74,7 @@ export const ColumnOrderModal = ({
                 type="button"
                 disabled={i === list.length - 1 || saving}
                 onClick={() => move(i, 1)}
-                className="rounded border border-gray-300 px-2 py-0.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-30"
+                className="rounded border border-gray-300 dark:border-[#3f3f3d] px-2 py-0.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#333331] disabled:opacity-30"
               >
                 ↓
               </button>
@@ -82,12 +82,12 @@ export const ColumnOrderModal = ({
           </div>
         ))}
       </div>
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-3 text-sm text-red-600 dark:text-red-300">{error}</p>}
       <div className="mt-4 flex justify-end gap-2">
         <button
           type="button"
           onClick={onClose}
-          className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+          className="rounded-md border border-gray-300 dark:border-[#3f3f3d] px-4 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#333331]"
         >
           Zavřít
         </button>

@@ -30,19 +30,19 @@ export const MoveBookingModal = ({ pending, onClose, onConfirm, busy }: MoveModa
     <ModalShell title="Přesunout rezervaci" onClose={onClose}>
       <div className="space-y-4">
         {/* что и куда */}
-        <div className="rounded-lg bg-gray-50 px-3 py-2.5 text-sm">
-          <div className="mb-1.5 font-semibold text-gray-900">{pending.booking.clientNameRaw || 'Klient'}</div>
-          <div className="flex items-center gap-2 text-gray-600">
-            <span className="text-gray-400 line-through">{pending.fromLabel}</span>
+        <div className="rounded-lg bg-gray-50 dark:bg-[#2a2a28] px-3 py-2.5 text-sm">
+          <div className="mb-1.5 font-semibold text-gray-900 dark:text-gray-300">{pending.booking.clientNameRaw || 'Klient'}</div>
+          <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
+            <span className="text-gray-400 dark:text-gray-500 line-through">{pending.fromLabel}</span>
             <span className="text-primary">→</span>
-            <span className="font-semibold text-gray-900">{pending.toLabel}</span>
+            <span className="font-semibold text-gray-900 dark:text-gray-300">{pending.toLabel}</span>
           </div>
         </div>
 
         {/* уведомление клиента */}
         <Section title="Oznámení">
           {hasEmail ? (
-            <label className="flex cursor-pointer items-center gap-2.5 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:border-gray-300">
+            <label className="flex cursor-pointer items-center gap-2.5 rounded-md border border-gray-200 dark:border-[#2e2e2c] bg-white dark:bg-[#2a2a28] px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:border-gray-300">
               <input
                 type="checkbox"
                 checked={notifyClient}
@@ -52,7 +52,7 @@ export const MoveBookingModal = ({ pending, onClose, onConfirm, busy }: MoveModa
               Poslat klientovi e-mail o změně termínu
             </label>
           ) : (
-            <p className="rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-400">
+            <p className="rounded-md bg-gray-50 dark:bg-[#2a2a28] px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
               Klient nemá e-mail — oznámení nelze odeslat.
             </p>
           )}
@@ -60,7 +60,7 @@ export const MoveBookingModal = ({ pending, onClose, onConfirm, busy }: MoveModa
         </Section>
 
         <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100">
+          <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100">
             Zrušit
           </button>
           <button

@@ -6,6 +6,7 @@
 // (standalone) кнопка не рендерится.
 import { useEffect, useState } from 'react'
 import { hasInstallPrompt, promptInstall, subscribeInstallPrompt } from '../../lib/pwaInstall'
+import { IconDownload } from './icons'
 
 const isStandalone = () =>
   window.matchMedia('(display-mode: standalone)').matches ||
@@ -33,8 +34,14 @@ export function InstallAppButton({ className, popup = 'down' }: { className?: st
 
   return (
     <div className="relative">
-      <button type="button" onClick={onClick} aria-label="Nainstalovat aplikaci" className={className}>
-        ⤓<span className="ml-1 hidden md:inline">Instalovat</span>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="Nainstalovat aplikaci"
+        title="Instalovat"
+        className={className}
+      >
+        <IconDownload />
       </button>
       {showIosHint && (
         <>

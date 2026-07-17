@@ -28,6 +28,8 @@ const AXIS_W = 56 // ширина оси времени
 const SNAP_MIN = 30 // сетка клика/переноса — шаг резервации везде полчаса
 const EXTRA_MIN = 60 // запас шкалы: ±1 час до открытия и после закрытия (s121: было ±2ч, лишние пустые часы)
 const RIGHT_GUTTER_PCT = 10 // полоса справа от ВСЕХ карточек для клика/дозаписи на занятое время
+const OVERLAP_STEP_PCT = 10 // каскад пересекающихся карточек (как в Noona): нижняя выглядывает справа полоской этой ширины
+const PHOTO_PREVIEW_DELAY_MS = 1000 // удержание ховера на аватарке до показа увеличенного фото
 const EDGE_SCROLL_PX = 52 // зона у края грида, в которой перенос пальцем сам подкручивает скролл
 const EDGE_SCROLL_STEP = 10 // px за тик автоскролла (~16мс)
 
@@ -115,6 +117,26 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
   const dragOffsetY = useRef(0)
   // Подсветка получасового слота под курсором (куда попадёт клик/дроп)
   const [hover, setHover] = useState<{ colId: string; min: number } | null>(null)
+  // карточка каскада, поднятая ховером на передний план (documentId брони)
+  const [frontCardId, setFrontCardId] = useState<string | null>(null)
+  // увеличенное фото мастера: ховер на аватарке в шапке ≥ PHOTO_PREVIEW_DELAY_MS
+  const [photoPreview, setPhotoPreview] = useState<{ url: string; name: string } | null>(null)
+  const photoTimer = useRef<number | null>(null)
+  const cancelPhotoPreview = useCallback(() => {
+    if (photoTimer.current != null) {
+      window.clearTimeout(photoTimer.current)
+      photoTimer.current = null
+    }
+    setPhotoPreview(null)
+  }, [])
+  const schedulePhotoPreview = useCallback(
+    (url: string, name: string) => {
+      cancelPhotoPreview()
+      photoTimer.current = window.setTimeout(() => setPhotoPreview({ url, name }), PHOTO_PREVIEW_DELAY_MS)
+    },
+    [cancelPhotoPreview],
+  )
+  useEffect(() => cancelPhotoPreview, [cancelPhotoPreview]) // чистка таймера на unmount
   const setHoverSlot = (colId: string, min: number) =>
     setHover((prev) => (prev && prev.colId === colId && prev.min === min ? prev : { colId, min }))
   const clearHover = (colId: string) => setHover((prev) => (prev?.colId === colId ? null : prev))
@@ -263,7 +285,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
     // горизонтальный свайп примагничивается к границам колонок
     <div
       ref={scrollRef}
-      className="h-full snap-x snap-proximity overflow-auto overscroll-contain rounded-xl bg-white shadow-sm"
+      className="h-full snap-x snap-proximity overflow-auto overscroll-contain bg-white shadow-sm dark:bg-[#1c1c1b]"
     >
       {/* pb на мобиле: нижняя пилюля даты не перекрывает последние слоты */}
       <div className="relative flex pb-16 sm:pb-0" style={{ minWidth: AXIS_W + columns.length * colW }}>
@@ -275,18 +297,26 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
           style={{ top: HEADER_H, height: gridH }}
           aria-hidden
         >
-          <LogoIcon className="w-1/2 max-w-2xl fill-gray-900 opacity-[0.05]" />
+          {/* Вотермарка во всю ширину календаря: отступ по 15% слева/справа (w-70%),
+              высота пропорционально (SVG сохраняет соотношение сторон) */}
+          <LogoIcon className="w-[70%] fill-gray-900 opacity-[0.05] dark:fill-white dark:opacity-[0.06]" />
         </div>
         {/* Ось времени — липнет слева при горизонтальном скролле; z выше шапок
             колонок, чтобы они уходили ПОД ось (не поверх) */}
-        <div className="sticky left-0 z-40 shrink-0 border-r border-gray-200 bg-white" style={{ width: AXIS_W }}>
+        <div
+          className="sticky left-0 z-40 shrink-0 border-r border-gray-200 bg-white dark:border-[#2e2e2c] dark:bg-[#1c1c1b]"
+          style={{ width: AXIS_W }}
+        >
           {/* Угол (шапка оси) — липнет ещё и кверху */}
-          <div style={{ height: HEADER_H }} className="sticky top-0 z-10 border-b border-gray-200 bg-white" />
+          <div
+            style={{ height: HEADER_H }}
+            className="sticky top-0 z-10 border-b border-gray-200 bg-white dark:border-[#2e2e2c] dark:bg-[#1c1c1b]"
+          />
           <div className="relative" style={{ height: gridH }}>
             {hourLines.map((m) => (
               <div
                 key={m}
-                className="absolute right-1 -translate-y-1/2 text-[11px] font-medium text-gray-400"
+                className="absolute right-1 -translate-y-1/2 text-[11px] font-medium text-gray-400 dark:text-gray-500"
                 style={{ top: yOf(m) }}
               >
                 {fmtHM(m)}
@@ -306,7 +336,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
             // свайп примагничивает колонку к правому краю липкой оси
             <div
               key={col.id}
-              className="min-w-0 flex-1 snap-start scroll-ml-14 border-r border-gray-200"
+              className="min-w-0 flex-1 snap-start scroll-ml-14 border-r border-gray-200 dark:border-[#2e2e2c]"
               style={{ minWidth: colW }}
             >
               {/* Шапка — липнет кверху при вертикальном скролле; у колонок-мастеров
@@ -322,13 +352,13 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                     onClick={clickable ? () => onSelectMaster!(col) : undefined}
                     title={clickable ? `Týdenní přehled — ${col.name}` : undefined}
                     style={{ height: HEADER_H }}
-                    className={`sticky top-0 z-30 flex w-full items-center justify-center gap-1.5 border-b border-gray-200 bg-white px-2 text-center ${
-                      clickable ? 'cursor-pointer transition hover:bg-pink-50' : ''
+                    className={`sticky top-0 z-30 flex w-full items-center justify-center gap-1.5 border-b border-gray-200 bg-white px-2 text-center dark:border-[#2e2e2c] dark:bg-[#1c1c1b] ${
+                      clickable ? 'cursor-pointer transition hover:bg-pink-50 dark:hover:bg-[#2a2226]' : ''
                     }`}
                   >
                     {!/^\d{4}-/.test(col.id) && (
                       <span
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                        className="relative flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-bold text-white"
                         style={{
                           background: col.id.startsWith('orphan:')
                             ? '#9ca3af'
@@ -336,18 +366,39 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                               ? '#a78bfa'
                               : '#f87184',
                         }}
+                        onMouseEnter={
+                          col.photoUrl
+                            ? () => schedulePhotoPreview(col.photoFullUrl || col.photoUrl!, col.name)
+                            : undefined
+                        }
+                        onMouseLeave={col.photoUrl ? cancelPhotoPreview : undefined}
                         aria-hidden
                       >
                         {(col.name.trim()[0] || '?').toUpperCase()}
+                        {/* Фото поверх инициала; нет/битое → виден инициал-фолбэк */}
+                        {col.photoUrl && (
+                          <img
+                            src={col.photoUrl}
+                            alt=""
+                            loading="lazy"
+                            draggable={false}
+                            className="absolute inset-0 h-full w-full rounded-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none'
+                            }}
+                          />
+                        )}
                       </span>
                     )}
                     <span
-                      className={`truncate text-sm font-semibold text-gray-800 ${clickable ? 'underline decoration-gray-300 decoration-dotted underline-offset-4' : ''}`}
+                      className={`truncate text-sm font-semibold text-gray-800 dark:text-gray-300 ${clickable ? 'underline decoration-gray-300 decoration-dotted underline-offset-4 dark:decoration-gray-600' : ''}`}
                     >
                       {col.name.split(' ')[0]}
                     </span>
                     {col.id.startsWith('orphan:') && (
-                      <span className="rounded bg-gray-100 px-1 text-[10px] text-gray-500">bývalý</span>
+                      <span className="rounded bg-gray-100 px-1 text-[10px] text-gray-500 dark:bg-[#2c2c2a] dark:text-gray-400">
+                        bývalý
+                      </span>
                     )}
                   </HeaderTag>
                 )
@@ -405,7 +456,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                 {hourLines.map((m) => (
                   <div
                     key={m}
-                    className="pointer-events-none absolute left-0 right-0 border-t border-gray-100"
+                    className="pointer-events-none absolute left-0 right-0 border-t border-gray-100 dark:border-[#262624]"
                     style={{ top: yOf(m) }}
                   />
                 ))}
@@ -413,13 +464,13 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                 {/* Зоны вне рабочего дня салона (запас ±2ч на шкале) */}
                 {dispOpen < openMin && (
                   <div
-                    className="pointer-events-none absolute left-0 right-0 bg-gray-400/15"
+                    className="pointer-events-none absolute left-0 right-0 bg-gray-400/15 dark:bg-black/30"
                     style={{ top: 0, height: (openMin - dispOpen) * pxPerMin }}
                   />
                 )}
                 {dispClose > closeMin && (
                   <div
-                    className="pointer-events-none absolute left-0 right-0 bg-gray-400/15"
+                    className="pointer-events-none absolute left-0 right-0 bg-gray-400/15 dark:bg-black/30"
                     style={{ top: yOf(closeMin), height: (dispClose - closeMin) * pxPerMin }}
                   />
                 )}
@@ -429,8 +480,10 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                   <div
                     key={bl.documentId || i}
                     role={onSelectBlock && bl.documentId ? 'button' : undefined}
-                    className={`absolute left-0.5 right-0.5 rounded-md bg-gray-500/45 ${
-                      onSelectBlock && bl.documentId ? 'cursor-pointer hover:bg-gray-500/55' : 'pointer-events-none'
+                    className={`absolute left-0.5 right-0.5 rounded-md bg-gray-500/45 dark:bg-gray-300/20 ${
+                      onSelectBlock && bl.documentId
+                        ? 'cursor-pointer hover:bg-gray-500/55 dark:hover:bg-gray-300/30'
+                        : 'pointer-events-none'
                     }`}
                     style={{ top: yOf(bl.startMin), height: (bl.endMin - bl.startMin) * pxPerMin }}
                     title={`${bl.title || 'Nepracovní doba'} (${fmtHM(bl.startMin)}–${fmtHM(bl.endMin)})`}
@@ -439,7 +492,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                       if (onSelectBlock && bl.documentId) onSelectBlock(bl, col)
                     }}
                   >
-                    <span className="pointer-events-none max-w-full p-2 absolute left-1.5 top-0.5 truncate text-sm font-bold text-gray-800">
+                    <span className="pointer-events-none max-w-full p-2 absolute left-1.5 top-0.5 truncate text-sm font-bold text-gray-800 dark:text-gray-200">
                       {bl.title || (bl.own ? 'blok' : 'Nepracovní doba')}
                     </span>
                   </div>
@@ -459,9 +512,16 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                 {positioned.map((p) => {
                   const st = cardStyle(p.booking, col.tier)
                   const label = bookingLabel(p.booking)
-                  // лейны делят не всю ширину, а без правой полосы (RIGHT_GUTTER_PCT):
-                  // карточки не сжимаются, но справа всегда есть место кликнуть
-                  const laneW = (100 - RIGHT_GUTTER_PCT) / p.lanes
+                  // Noona-стиль каскада: РАННЯЯ бронь (lane 0) сверху и левее; каждая
+                  // следующая в стеке сдвинута вправо на OVERLAP_STEP_PCT и лежит ПОД
+                  // предыдущей, выглядывая справа полоской этой ширины (кликабельна).
+                  // Ховер поднимает нижнюю карточку на передний план. Справа по-прежнему
+                  // свободна полоса RIGHT_GUTTER_PCT для клика/дозаписи.
+                  const usableW = 100 - RIGHT_GUTTER_PCT
+                  // все карточки стека одной ширины (кламп ≥40%, чтобы оставались читаемы)
+                  const cardW = Math.max(usableW - (p.lanes - 1) * OVERLAP_STEP_PCT, 40)
+                  const leftPct = Math.min(p.lane * OVERLAP_STEP_PCT, usableW - cardW)
+                  const stacked = p.lanes > 1
                   const services = (p.booking.services || []).filter((s) => s.title)
                   const serviceTitles = services.map((s) => s.title)
                   const dur = p.endMin - p.startMin
@@ -471,11 +531,14 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                   const draggable = movable && !coarse
                   const highlighted = highlightId === p.booking.documentId
                   const lifted = touchDraggedId === p.booking.documentId // «поднята» пальцем
+                  const isFront = stacked && frontCardId === p.booking.documentId
                   return (
                     <button
                       key={p.booking.documentId}
                       type="button"
                       draggable={draggable}
+                      onMouseEnter={stacked ? () => setFrontCardId(p.booking.documentId) : undefined}
+                      onMouseLeave={stacked ? () => setFrontCardId(null) : undefined}
                       onDragStart={(e) => {
                         dragged.current = p.booking
                         dragSrc.current = { colId: col.id, startMin: p.startMin }
@@ -509,13 +572,19 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                           Math.min(isNarrow ? 22 : 16, Math.max(12, dur * pxPerMin)),
                           dur * pxPerMin - 2,
                         ),
-                        left: `calc(${p.lane * laneW}% + 2px)`,
-                        width: `calc(${laneW}% - 4px)`,
+                        left: `calc(${leftPct}% + 2px)`,
+                        width: `calc(${cardW}% - 4px)`,
                         background: st.bg,
                         borderColor: st.border,
                         color: st.text,
-                        opacity: lifted ? 0.4 : st.opacity,
-                        zIndex: highlighted ? 25 : 10,
+                        // ховер в стеке делает карточку полностью непрозрачной (читаемость)
+                        opacity: lifted ? 0.4 : isFront ? 1 : st.opacity,
+                        // ранняя (lane 0) выше поздних; ховер поднимает на передний план;
+                        // подсветка перехода из истории — выше всего
+                        // 19..10: под линией now (z-20); ховер (24) — поверх неё
+                        zIndex: highlighted ? 25 : isFront ? 24 : 19 - Math.min(p.lane, 9),
+                        // тень у карточек стека — края каскада читаются друг на друге
+                        boxShadow: stacked ? '2px 1px 6px rgba(0,0,0,0.3)' : undefined,
                       }}
                       title={`${fmtHM(p.startMin)}–${fmtHM(p.endMin)} · ${p.booking.clientNameRaw} · ${serviceTitles.join(' | ')}${label ? ` · ${label.name}` : ''}`}
                     >
@@ -573,6 +642,20 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
         >
           {hover ? `${fmtHM(hover.min)} · ` : ''}
           {touchDrag.active.item.clientNameRaw || 'Rezervace'}
+        </div>
+      )}
+      {/* Увеличенное фото мастера (ховер на аватарке ≥1с). pointer-events-none —
+          закрывается само уходом мыши с аватарки, кликов не перехватывает */}
+      {photoPreview && (
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="flex flex-col items-center gap-2 rounded-2xl bg-white p-3 shadow-2xl dark:bg-[#252523]">
+            <img
+              src={photoPreview.url}
+              alt={photoPreview.name}
+              className="h-72 w-72 rounded-xl object-cover"
+            />
+            <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">{photoPreview.name}</span>
+          </div>
         </div>
       )}
     </div>

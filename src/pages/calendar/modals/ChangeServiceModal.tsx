@@ -71,7 +71,7 @@ export const ChangeServiceModal = ({
       onClose={onClose}
       footer={
         <>
-          {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+          {error && <p className="mb-2 text-sm text-red-600 dark:text-red-300">{error}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={onClose} className={btnSecondaryCls}>
               Zrušit
@@ -89,9 +89,9 @@ export const ChangeServiceModal = ({
       }
     >
       <div className="space-y-3">
-        <div className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
+        <div className="rounded-md bg-gray-50 dark:bg-[#2a2a28] px-3 py-2 text-sm text-gray-600 dark:text-gray-300">
           Nyní: <b>{currentTitle || '—'}</b>
-          {booking.totalPrice != null && <span className="text-gray-400"> · {booking.totalPrice} Kč</span>}
+          {booking.totalPrice != null && <span className="text-gray-400 dark:text-gray-500"> · {booking.totalPrice} Kč</span>}
         </div>
 
         <Section title="Nová služba">
@@ -99,8 +99,8 @@ export const ChangeServiceModal = ({
         </Section>
 
         {pricing && (
-          <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-            <span className="text-sm text-gray-600">
+          <div className="flex items-center justify-between rounded-lg border border-[#e71e6e33] bg-[#e71e6e0d] px-3 py-2">
+            <span className="text-sm text-gray-600 dark:text-gray-300">
               {pricing.durationMin} min
               {tier === 'junior' && (
                 <span className="ml-1.5 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
@@ -110,7 +110,7 @@ export const ChangeServiceModal = ({
             </span>
             <span className="flex items-baseline gap-2">
               {tier === 'junior' && pricing.seniorPrice !== pricing.price && (
-                <span className="text-xs text-gray-400 line-through">{pricing.seniorPrice} Kč</span>
+                <span className="text-xs text-gray-400 dark:text-gray-500 line-through">{pricing.seniorPrice} Kč</span>
               )}
               <span className="text-base font-bold text-primary">{pricing.price} Kč</span>
             </span>
@@ -125,7 +125,7 @@ export const ChangeServiceModal = ({
             value={priceOverride}
             onChange={(e) => setPriceOverride(e.target.value)}
           />
-          <p className="mt-0.5 text-[11px] text-gray-400">Prázdné → cena se přepočítá automaticky.</p>
+          <p className="mt-0.5 text-[11px] text-gray-400 dark:text-gray-500">Prázdné → cena se přepočítá automaticky.</p>
         </div>
 
       </div>

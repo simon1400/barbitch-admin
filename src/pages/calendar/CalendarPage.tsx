@@ -31,10 +31,12 @@ import { BookingDrawer } from './BookingDrawer'
 import { InstallAppButton } from './InstallAppButton'
 import { NotificationButton } from './NotificationButton'
 import { useCoarsePointer } from './useMediaQuery'
+import { IconArrowLeft, IconMoon, IconSearch, IconSun } from './icons'
 import { fmtHM, fmtTime, mondayOf, shiftDate, todayStr, type Mode } from './utils'
 import {
   CellActionModal,
   ChangeServiceModal,
+  ClientSearchModal,
   ColumnOrderModal,
   EditBlockModal,
   ManageLabelsModal,
@@ -112,6 +114,8 @@ export default function CalendarPage() {
   const [manageLabels, setManageLabels] = useState(false)
   // модал порядка колонок мастеров (personal.calendarOrder)
   const [orderModal, setOrderModal] = useState(false)
+  // модал глобального поиска клиента (история/контакты/blacklist, admin-only)
+  const [clientSearch, setClientSearch] = useState(false)
   // мобильное меню «⋯» тулбара (второстепенные действия: + Blok, ⇅ Pořadí)
   const [moreOpen, setMoreOpen] = useState(false)
   // вертикальный зум грида (кнопки +/− на мобиле, как в Noona); живёт между сессиями
@@ -123,6 +127,19 @@ export default function CalendarPage() {
     setZoom((z) => {
       const next = Math.min(2.2, Math.max(0.4, +(z + dir * 0.3).toFixed(1)))
       localStorage.setItem('bb_cal_zoom', String(next))
+      return next
+    })
+  // Тема календаря (light/dark): выбор живёт между сессиями; дефолт — системная.
+  // Класс `dark` вешается на корень страницы → dark:-варианты Tailwind (darkMode: class)
+  const [calTheme, setCalTheme] = useState<'light' | 'dark'>(() => {
+    const s = localStorage.getItem('bb_cal_theme')
+    if (s === 'dark' || s === 'light') return s
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  })
+  const toggleTheme = () =>
+    setCalTheme((t) => {
+      const next = t === 'dark' ? 'light' : 'dark'
+      localStorage.setItem('bb_cal_theme', next)
       return next
     })
   // подсветка брони после перехода из истории клиента (мигает 3 сек);
@@ -431,30 +448,44 @@ export default function CalendarPage() {
   // Кнопка тулбара: на тач-экране ≥44px высоты, на десктопе компактная (как раньше)
   const tbBtn =
     'inline-flex min-h-11 items-center justify-center rounded-md px-3 text-sm font-semibold sm:min-h-[34px]'
+  // Нейтральная кнопка тулбара, тема-aware: светлая тема — белая с рамкой (как было),
+  // тёмная — приглушённая #252523 (тон карточек клиентской резервации); акцент
+  // в обеих темах остаётся только у «+ Rezervace»
+  const tbNeutral = `${tbBtn} border border-gray-300 bg-white text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-[#3f3f3d] dark:bg-[#252523] dark:text-gray-200 dark:shadow-none dark:hover:bg-[#343431] dark:hover:text-white`
+  // тема-aware классы нативных контролов (date input / select)
+  const tbInput =
+    'rounded-md border border-gray-300 bg-white text-sm text-gray-900 dark:border-[#3f3f3d] dark:bg-[#252523] dark:text-gray-100 dark:[color-scheme:dark]'
   // Кнопка нижней панели (телефон): видимая рамка + крупная тач-цель
   const mbBtn =
-    'flex h-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white leading-none text-gray-700 shadow-sm active:bg-gray-100'
+    'flex h-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white leading-none text-gray-700 shadow-sm active:bg-gray-100 dark:border-[#3f3f3d] dark:bg-[#2a2a28] dark:text-gray-200 dark:shadow-none dark:active:bg-[#343431]'
+  // пункт мобильного меню «⋯»
+  const menuItemCls =
+    'flex min-h-11 w-full items-center px-4 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-[#343431]'
 
   return (
     // Страница = вся высота окна (dvh — iOS-safe): тулбар фикс, грид скроллится внутри
-    <div className="flex h-[100dvh] w-full flex-col px-2 pt-3 md:px-4">
+    // Класс `dark` на корне включает dark:-варианты всего календаря (тема-переключатель)
+    <div className={`${calTheme === 'dark' ? 'dark' : ''} flex h-[100dvh] w-full flex-col bg-white dark:bg-[#161615]`}>
       {/* Тулбар — ТОЛЬКО sm+ (десктоп/планшет): на телефоне всё управление живёт
-          в нижней панели (у большого пальца), сверху остаётся максимум места гриду */}
-      <div className="mb-3 hidden shrink-0 flex-wrap items-center gap-2 sm:flex">
+          в нижней панели (у большого пальца), сверху остаётся максимум места гриду.
+          Паддинг только у тулбара, грид ниже идёт от края до края. Тёмная тема —
+          #161615 (фон страницы резервации клиента) */}
+      <div className="hidden shrink-0 flex-wrap items-center gap-2 border-b border-gray-200 bg-white px-2 py-2.5 dark:border-[#2e2e2c] dark:bg-[#161615] sm:flex md:px-4">
           {/* Возврат на главную (страница без общего хедера) */}
           <button
             type="button"
             onClick={goHome}
             aria-label="Domů"
-            className={`${tbBtn} border border-gray-300 bg-white text-gray-700 shadow-sm hover:bg-gray-50 sm:mr-2`}
+            className={`${tbNeutral} sm:mr-2`}
           >
-            ←<span className="ml-1 hidden sm:inline">Domů</span>
+            <IconArrowLeft />
+            <span className="ml-1.5 hidden sm:inline">Domů</span>
           </button>
           {/* ◀ дата ▶ — только десктоп; на мобиле — нижняя пилюля (как в Noona) */}
           <button
             type="button"
             onClick={() => setDate(shiftDate(date, mode === 'week' ? -7 : -1))}
-            className={`${tbBtn} hidden bg-white shadow-sm hover:bg-gray-50 sm:inline-flex`}
+            className={`${tbNeutral} hidden sm:inline-flex`}
           >
             ◀
           </button>
@@ -468,32 +499,41 @@ export default function CalendarPage() {
               type="date"
               value={date}
               onChange={(e) => e.target.value && setDate(e.target.value)}
-              className="hidden min-w-0 rounded-md border border-gray-300 px-2 py-1 text-sm sm:block sm:min-h-[34px]"
+              className={`${tbInput} hidden min-w-0 px-2 py-1 sm:block sm:min-h-[34px]`}
             />
           )}
           <button
             type="button"
             onClick={() => setDate(shiftDate(date, mode === 'week' ? 7 : 1))}
-            className={`${tbBtn} hidden bg-white shadow-sm hover:bg-gray-50 sm:inline-flex`}
+            className={`${tbNeutral} hidden sm:inline-flex`}
           >
             ▶
           </button>
-          <button
-            type="button"
-            onClick={() => setDate(todayStr())}
-            className={`${tbBtn} bg-white shadow-sm hover:bg-gray-50`}
-          >
+          <button type="button" onClick={() => setDate(todayStr())} className={tbNeutral}>
             Dnes
           </button>
+          {/* Счётчик — только sm+ (мобильный верх минимальный, как в Noona) */}
+          <span className="hidden whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 sm:inline">
+            <b className="dark:text-gray-200">{totals.total}</b> rezervací
+          </span>
           {/* Установка календаря как PWA-приложения на телефон (видна только вне
               установленного приложения и только когда установка доступна) */}
-          <InstallAppButton
-            className={`${tbBtn} border border-gray-300 bg-white text-gray-700 shadow-sm hover:bg-gray-50`}
-          />
+          <InstallAppButton className={tbNeutral} />
           {/* Web Push: уведомления о бронях к этому мастеру (и админу) на телефон */}
-          <NotificationButton
-            className={`${tbBtn} border border-gray-300 bg-white text-gray-700 shadow-sm hover:bg-gray-50`}
-          />
+          <NotificationButton className={tbNeutral} />
+          {/* Глобальный поиск клиента (историe / kontakt / blacklist) — только админ:
+              мастер видит лишь свои брони, чужие данные клиентов ему не показываем */}
+          {!isMaster && (
+            <button
+              type="button"
+              onClick={() => setClientSearch(true)}
+              title="Hledat klienta — jméno, telefon nebo e-mail"
+              className={tbNeutral}
+            >
+              <IconSearch />
+              <span className="ml-1.5">Klient</span>
+            </button>
+          )}
 
           {/* Режим задаётся кликом: в дневном виде — клик по имени мастера в шапке
               открывает его неделю; в недельном — селектор мастера + «Všichni mistři»
@@ -505,7 +545,7 @@ export default function CalendarPage() {
                 if (e.target.value === '__all__') setMode('day')
                 else setWeekEmpId(e.target.value)
               }}
-              className="min-h-11 min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm font-semibold sm:min-h-[34px] sm:flex-none"
+              className={`${tbInput} min-h-11 min-w-0 flex-1 px-2 py-1.5 font-semibold sm:min-h-[34px] sm:flex-none`}
             >
               <option value="__all__">← Všichni mistři (denní)</option>
               {employees.map((emp) => (
@@ -517,13 +557,24 @@ export default function CalendarPage() {
           )}
           {/* master: вместо селектора — его имя (переключать мастера нельзя) */}
           {isMaster && employees[0] && (
-            <span className="truncate text-sm font-semibold text-gray-800">{employees[0].name}</span>
+            <span className="truncate text-sm font-semibold text-gray-800 dark:text-gray-300">
+              {employees[0].name}
+            </span>
           )}
+          {/* Переключатель темы календаря (light/dark, живёт в localStorage) */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            title={calTheme === 'dark' ? 'Světlý režim' : 'Tmavý režim'}
+            aria-label="Přepnout vzhled"
+            className={tbNeutral}
+          >
+            {calTheme === 'dark' ? <IconSun /> : <IconMoon />}
+          </button>
 
-          {/* Счётчик — только sm+ (мобильный верх минимальный, как в Noona) */}
-          <span className="hidden whitespace-nowrap text-sm text-gray-600 sm:inline">
-            <b>{totals.total}</b> rezervací
-          </span>
+          
+
+          
 
           {/* Write-действия — только owner/administrator; master = read-only */}
           {!isMaster && (
@@ -540,7 +591,7 @@ export default function CalendarPage() {
             <button
               type="button"
               onClick={() => setBlockModal({ date })}
-              className={`${tbBtn} hidden border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 sm:inline-flex`}
+              className={`${tbNeutral} hidden sm:inline-flex`}
             >
               + Blok
             </button>
@@ -548,7 +599,7 @@ export default function CalendarPage() {
               type="button"
               onClick={() => setOrderModal(true)}
               title="Pořadí sloupců mistrů"
-              className={`${tbBtn} hidden border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 sm:inline-flex`}
+              className={`${tbNeutral} hidden sm:inline-flex`}
             >
               ⇅ Pořadí
             </button>
@@ -566,7 +617,7 @@ export default function CalendarPage() {
               if (e.target.value === '__all__') setMode('day')
               else setWeekEmpId(e.target.value)
             }}
-            className="min-h-11 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm font-semibold"
+            className={`${tbInput} min-h-11 w-full px-2 py-1.5 font-semibold`}
           >
             <option value="__all__">← Všichni mistři (denní)</option>
             {employees.map((emp) => (
@@ -583,7 +634,7 @@ export default function CalendarPage() {
 
       {/* Грид скроллится внутри собственной области (sticky ось/шапки живут там);
           при переключении дня остаётся на месте — поверх появляется лоадер */}
-      <div className="relative min-h-0 flex-1 pb-2">
+      <div className="relative min-h-0 flex-1">
         {day && (
           <CalendarGrid
             day={day}
@@ -612,10 +663,10 @@ export default function CalendarPage() {
           </div>
         )}
         {loading && (
-          <div className="absolute inset-0 z-40 flex items-start justify-center rounded-xl bg-white/60 pt-20">
-            <div className="flex items-center gap-2 rounded-full bg-white px-4 py-2 shadow-md">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-primary" />
-              <span className="text-sm font-medium text-gray-600">Načítám…</span>
+          <div className="absolute inset-0 z-40 flex items-start justify-center rounded-xl bg-white/60 pt-20 dark:bg-black/40">
+            <div className="flex items-center gap-2 rounded-full bg-white px-4 py-2 shadow-md dark:bg-[#252523]">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-primary dark:border-[#4a4a48]" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Načítám…</span>
             </div>
           </div>
         )}
@@ -625,23 +676,23 @@ export default function CalendarPage() {
 
         {/* Зум грида +/− (слева внизу) — на любом тач-устройстве (телефон/планшет) */}
         {coarse && (
-          <div className="absolute bottom-[4.5rem] left-3 z-40 flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg sm:bottom-4">
+          <div className="absolute bottom-[4.5rem] left-3 z-40 flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-[#3f3f3d] dark:bg-[#2a2a28] sm:bottom-4">
             <button
               type="button"
               onClick={() => changeZoom(1)}
               disabled={zoom >= 2.2}
               aria-label="Přiblížit"
-              className="flex h-11 w-11 items-center justify-center text-[20px] leading-none text-gray-700 active:bg-gray-100 disabled:opacity-30"
+              className="flex h-11 w-11 items-center justify-center text-[20px] leading-none text-gray-700 active:bg-gray-100 disabled:opacity-30 dark:text-gray-200 dark:active:bg-[#343431]"
             >
               +
             </button>
-            <div className="border-t border-gray-200" />
+            <div className="border-t border-gray-200 dark:border-[#3f3f3d]" />
             <button
               type="button"
               onClick={() => changeZoom(-1)}
               disabled={zoom <= 0.4}
               aria-label="Oddálit"
-              className="flex h-11 w-11 items-center justify-center text-[20px] leading-none text-gray-700 active:bg-gray-100 disabled:opacity-30"
+              className="flex h-11 w-11 items-center justify-center text-[20px] leading-none text-gray-700 active:bg-gray-100 disabled:opacity-30 dark:text-gray-200 dark:active:bg-[#343431]"
             >
               −
             </button>
@@ -665,14 +716,14 @@ export default function CalendarPage() {
             Upozornění / ⋯ — весь бывший верхний тулбар у большого пальца. Тап по дате
             открывает нативный пикер (невидимый input поверх лейбла). Низ грида
             подгоняется к верхнему краю этой панели (fit-масштаб в CalendarGrid). */}
-        <div className="absolute inset-x-1 bottom-2 z-40 flex items-center gap-1 rounded-2xl border border-gray-200 bg-white px-1 py-1 shadow-lg sm:hidden">
+        <div className="absolute inset-x-1 bottom-2 z-40 flex items-center gap-1 rounded-2xl border border-gray-200 bg-white px-1 py-1 shadow-lg dark:border-[#333331] dark:bg-[#1f1f1e] sm:hidden">
           <button
             type="button"
             onClick={goHome}
             aria-label="Domů"
-            className={`${mbBtn} w-10 text-[18px]`}
+            className={`${mbBtn} w-10`}
           >
-            ←
+            <IconArrowLeft className="h-5 w-5" />
           </button>
           <button type="button" onClick={() => setDate(todayStr())} className={`${mbBtn} px-2 text-[13px] font-bold`}>
             Dnes
@@ -687,7 +738,7 @@ export default function CalendarPage() {
               ‹
             </button>
             <div className="relative min-w-0">
-              <span className="block truncate px-0.5 text-center text-sm font-semibold text-gray-800">
+              <span className="block truncate px-0.5 text-center text-sm font-semibold text-gray-800 dark:text-gray-300">
                 {isMaster ? weekLabelShortCs(date) : dateLabelShortCs(date)}
               </span>
               {/* master листает целыми неделями — нативный пикер конкретной даты не нужен */}
@@ -731,22 +782,34 @@ export default function CalendarPage() {
                   onClick={() => setMoreOpen(false)}
                   className="fixed inset-0 z-40 cursor-default"
                 />
-                <div className="absolute bottom-full right-0 z-50 mb-2 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                <div className="absolute bottom-full right-0 z-50 mb-2 w-52 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-[#3f3f3d] dark:bg-[#252523]">
                   {/* Пуш-уведомления (меню не закрываем — кнопка может показать подсказку) */}
-                  <NotificationButton
-                    popup="up"
-                    menuItem
-                    className="flex min-h-11 w-full items-center px-4 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                  />
+                  <NotificationButton popup="up" menuItem className={menuItemCls} />
+                  {/* Переключатель темы (на мобиле верхний тулбар скрыт) */}
+                  <button type="button" onClick={toggleTheme} className={menuItemCls}>
+                    {calTheme === 'dark' ? <IconSun /> : <IconMoon />}
+                    <span className="ml-2">{calTheme === 'dark' ? 'Světlý režim' : 'Tmavý režim'}</span>
+                  </button>
                   {!isMaster && (
                     <>
                       <button
                         type="button"
                         onClick={() => {
                           setMoreOpen(false)
+                          setClientSearch(true)
+                        }}
+                        className={menuItemCls}
+                      >
+                        <IconSearch />
+                        <span className="ml-2">Hledat klienta</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMoreOpen(false)
                           setBlockModal({ date })
                         }}
-                        className="flex min-h-11 w-full items-center px-4 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                        className={menuItemCls}
                       >
                         + Blok
                       </button>
@@ -756,7 +819,7 @@ export default function CalendarPage() {
                           setMoreOpen(false)
                           setOrderModal(true)
                         }}
-                        className="flex min-h-11 w-full items-center px-4 text-left text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                        className={menuItemCls}
                       >
                         ⇅ Pořadí sloupců
                       </button>
@@ -845,6 +908,17 @@ export default function CalendarPage() {
           onClose={() => {
             setManageLabels(false)
             fetchBookingLabels().then(setLabels).catch(() => {})
+          }}
+        />
+      )}
+
+      {clientSearch && (
+        <ClientSearchModal
+          onClose={() => setClientSearch(false)}
+          onOpenBooking={(r) => {
+            // как клик из истории drawer'а: закрыть, перейти на день брони, мигнуть
+            setClientSearch(false)
+            openHistoryBooking(r)
           }}
         />
       )}

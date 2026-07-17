@@ -233,12 +233,15 @@ export async function updateClientBlacklist(clientDocId: string, blacklisted: bo
   await Axios.put(`/api/clients/${clientDocId}`, { data: { blacklisted } })
 }
 
-export async function searchClients(q: string): Promise<ClientHit[]> {
-  const query = q.trim()
+export async function searchClients(q: string, limit = 8): Promise<ClientHit[]> {
+  let query = q.trim()
   if (query.length < 2) return []
+  // телефон в БД хранится слитно (+420777111222), а вводят часто с пробелами —
+  // чисто цифровой запрос нормализуем (пробелы вон), чтобы contains матчился
+  if (/^[\d\s+]+$/.test(query)) query = query.replace(/\s+/g, '')
   const enc = encodeURIComponent(query)
   const res = (await Axios.get(
-    `/api/clients?filters[$or][0][name][$containsi]=${enc}&filters[$or][1][phone][$containsi]=${enc}&fields[0]=name&fields[1]=phone&fields[2]=email&fields[3]=blacklisted&pagination[pageSize]=8&sort=name:asc`,
+    `/api/clients?filters[$or][0][name][$containsi]=${enc}&filters[$or][1][phone][$containsi]=${enc}&filters[$or][2][email][$containsi]=${enc}&fields[0]=name&fields[1]=phone&fields[2]=email&fields[3]=blacklisted&pagination[pageSize]=${limit}&sort=name:asc`,
     { headers: strapiHeaders },
   )) as ClientHit[]
   return res || []

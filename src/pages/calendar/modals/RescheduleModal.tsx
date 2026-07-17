@@ -85,7 +85,7 @@ export const RescheduleModal = ({
       onClose={onClose}
       footer={
         <>
-          {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+          {error && <p className="mb-2 text-sm text-red-600 dark:text-red-300">{error}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={onClose} className={btnSecondaryCls}>
               Zrušit
@@ -103,9 +103,9 @@ export const RescheduleModal = ({
       }
     >
       <div className="space-y-3">
-        <div className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
+        <div className="rounded-md bg-gray-50 dark:bg-[#2a2a28] px-3 py-2 text-sm text-gray-600 dark:text-gray-300">
           <b>{booking.clientNameRaw || 'Klient'}</b> · nyní {ddmm(booking.date)} · {curTime}
-          {booking.employeeNameRaw && <span className="text-gray-400"> · {booking.employeeNameRaw}</span>}
+          {booking.employeeNameRaw && <span className="text-gray-400 dark:text-gray-500"> · {booking.employeeNameRaw}</span>}
         </div>
 
         <Section title="Nový termín">
@@ -140,7 +140,7 @@ export const RescheduleModal = ({
             </div>
           </div>
           {conflict && (
-            <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
               <span className="text-sm leading-none">⚠</span>
               <span>
                 V tomto čase už mistr má rezervaci nebo blok — termíny se budou překrývat. Přesunout to lze i tak.
@@ -151,7 +151,7 @@ export const RescheduleModal = ({
 
         <Section title="Oznámení">
           {hasEmail ? (
-            <label className="flex cursor-pointer items-center gap-2.5 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:border-gray-300">
+            <label className="flex cursor-pointer items-center gap-2.5 rounded-md border border-gray-200 dark:border-[#2e2e2c] bg-white dark:bg-[#2a2a28] px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:border-gray-300">
               <input
                 type="checkbox"
                 checked={notifyClient}
@@ -161,7 +161,7 @@ export const RescheduleModal = ({
               Poslat klientovi e-mail o změně termínu
             </label>
           ) : (
-            <p className="rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-400">
+            <p className="rounded-md bg-gray-50 dark:bg-[#2a2a28] px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
               Klient nemá e-mail — oznámení nelze odeslat.
             </p>
           )}

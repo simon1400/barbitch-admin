@@ -65,13 +65,13 @@ export const EditBlockModal = ({ block, masterName, date, onClose, onChanged }: 
     <ModalShell title="Blok" onClose={onClose}>
       <div className="space-y-4">
         {/* инфо-шапка */}
-        <div className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+        <div className="rounded-lg bg-gray-50 dark:bg-[#2a2a28] px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
           <b>{masterName}</b> · {date}
           {!block.own && (
             <p className="mt-1 text-xs text-amber-600">Blok pochází ze synchronizace Noona.</p>
           )}
           {seriesCount > 1 && (
-            <p className="mt-1 text-xs text-gray-500">Součást série — celkem {seriesCount} {blokPlural(seriesCount)}.</p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Součást série — celkem {seriesCount} {blokPlural(seriesCount)}.</p>
           )}
         </div>
 
@@ -108,7 +108,7 @@ export const EditBlockModal = ({ block, masterName, date, onClose, onChanged }: 
               type="button"
               disabled={busy}
               onClick={removeOne}
-              className="rounded-md border border-red-300 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40"
+              className="rounded-md border border-red-300 px-4 py-2 text-sm font-semibold text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-40"
             >
               Smazat tento blok
             </button>
@@ -117,7 +117,7 @@ export const EditBlockModal = ({ block, masterName, date, onClose, onChanged }: 
                 type="button"
                 disabled={busy}
                 onClick={removeSeries}
-                className="rounded-md border border-red-300 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40"
+                className="rounded-md border border-red-300 px-4 py-2 text-sm font-semibold text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-40"
               >
                 Smazat celou sérii ({seriesCount})
               </button>
@@ -125,10 +125,10 @@ export const EditBlockModal = ({ block, masterName, date, onClose, onChanged }: 
           </div>
         </Section>
 
-        {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+        {error && <p className="rounded-md bg-red-50 dark:bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">{error}</p>}
 
         <div className="flex justify-end">
-          <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100">
+          <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100">
             Zavřít
           </button>
         </div>
