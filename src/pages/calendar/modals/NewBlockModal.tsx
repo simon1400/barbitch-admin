@@ -16,7 +16,7 @@ import {
   toMin,
   weekdayOf,
 } from './helpers'
-import { ModalShell, Section } from './ui'
+import { ModalShell, Section, TimeSelect } from './ui'
 
 interface NewBlockProps {
   employees: CalendarEmployee[]
@@ -137,11 +137,11 @@ export const NewBlockModal = ({ employees, initial, onClose, onCreated }: NewBlo
           </div>
           <div>
             <span className={labelCls}>Od</span>
-            <input type="time" step={900} className={inputCls} value={fromTime} onChange={(e) => setFromTime(e.target.value)} />
+            <TimeSelect value={fromTime} onChange={setFromTime} />
           </div>
           <div>
             <span className={labelCls}>Do</span>
-            <input type="time" step={900} className={inputCls} value={toTime} onChange={(e) => setToTime(e.target.value)} />
+            <TimeSelect value={toTime} onChange={setToTime} />
           </div>
         </div>
         <div>

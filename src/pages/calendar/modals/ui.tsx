@@ -1,4 +1,28 @@
-// Общие UI-примитивы модалов календаря: каркас модала, секция формы, строка выбора.
+// Общие UI-примитивы модалов календаря: каркас модала, секция формы, строка выбора,
+// пикер времени блока.
+
+import { useIsNarrow } from '../useMediaQuery'
+import { TIME_OPTIONS_15, inputCls } from './helpers'
+
+// Пикер времени: на телефоне нативный input type=time (работает хорошо),
+// на десктопе обычный select 10:00–19:00 с шагом 15 мин. Нестандартное текущее
+// значение (легаси-блок вне сетки) вставляется в список отдельным пунктом.
+export const TimeSelect = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
+  const isNarrow = useIsNarrow()
+  if (isNarrow) {
+    return <input type="time" step={900} className={inputCls} value={value} onChange={(e) => onChange(e.target.value)} />
+  }
+  const options = TIME_OPTIONS_15.includes(value) ? TIME_OPTIONS_15 : [...TIME_OPTIONS_15, value].sort()
+  return (
+    <select className={inputCls} value={value} onChange={(e) => onChange(e.target.value)}>
+      {options.map((t) => (
+        <option key={t} value={t}>
+          {t}
+        </option>
+      ))}
+    </select>
+  )
+}
 
 // Каркас модала. На телефоне (<sm) — bottom-sheet: выезжает снизу, скруглён сверху,
 // «ручка», max-h в dvh (iOS-safe). На sm+ — карточка сверху по центру (как раньше).

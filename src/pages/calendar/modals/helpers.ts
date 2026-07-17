@@ -16,6 +16,13 @@ export const TIME_OPTIONS: string[] = (() => {
   return out
 })()
 
+// Слоты времени блоков: 10:00–19:00, шаг 15 мин (десктопный TimeSelect)
+export const TIME_OPTIONS_15: string[] = (() => {
+  const out: string[] = []
+  for (let m = 10 * 60; m <= 19 * 60; m += 15) out.push(fmtHM(m))
+  return out
+})()
+
 // Дни недели: value = getUTCDay (0=Ne..6=So), порядок Po..Ne
 export const WEEKDAYS: { v: number; label: string }[] = [
   { v: 1, label: 'Po' },

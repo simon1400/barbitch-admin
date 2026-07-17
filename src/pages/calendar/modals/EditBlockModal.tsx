@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import type { BlockedRange } from '../fetch/calendarDay'
 import { engineDeleteBlock, enginePatchBlock, fetchBlockSeriesCount } from '../fetch/engineApi'
 import { blokPlural, fmtHM, inputCls, labelCls, toMin } from './helpers'
-import { ModalShell, Section } from './ui'
+import { ModalShell, Section, TimeSelect } from './ui'
 
 interface EditBlockProps {
   block: BlockedRange
@@ -77,11 +77,11 @@ export const EditBlockModal = ({ block, masterName, date, onClose, onChanged }: 
           <div className="grid grid-cols-2 gap-2">
             <div>
               <span className={labelCls}>Od</span>
-              <input type="time" step={900} className={inputCls} value={fromTime} onChange={(e) => setFromTime(e.target.value)} />
+              <TimeSelect value={fromTime} onChange={setFromTime} />
             </div>
             <div>
               <span className={labelCls}>Do</span>
-              <input type="time" step={900} className={inputCls} value={toTime} onChange={(e) => setToTime(e.target.value)} />
+              <TimeSelect value={toTime} onChange={setToTime} />
             </div>
           </div>
           <div>
