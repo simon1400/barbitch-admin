@@ -419,6 +419,15 @@ function RewardsSection({ rewards, onChanged }: { rewards: Reward[]; onChanged: 
 
 // ── страница ──
 
+type LoyaltyTab = 'accounts' | 'metrics' | 'rewards' | 'adjust'
+
+const TABS: { id: LoyaltyTab; label: string }[] = [
+  { id: 'accounts', label: 'Аккаунты' },
+  { id: 'metrics', label: 'Метрики' },
+  { id: 'rewards', label: 'Награды и погашения' },
+  { id: 'adjust', label: 'Корректировка' },
+]
+
 export default function LoyaltyPage() {
   const cardYear = new Date().getFullYear()
   const [accounts, setAccounts] = useState<LoyaltyAccount[]>([])
@@ -430,6 +439,7 @@ export default function LoyaltyPage() {
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [tab, setTab] = useState<LoyaltyTab>('accounts')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -502,7 +512,7 @@ export default function LoyaltyPage() {
             </div>
           )}
 
-          <div className={'flex flex-wrap gap-2 mb-6'}>
+          <div className={'flex flex-wrap gap-2 mb-4'}>
             <span className={'px-3 py-1.5 rounded-lg bg-white shadow-sm text-sm'}>
               Аккаунтов с копилкой: <b>{accounts.length}</b>
             </span>
@@ -514,98 +524,125 @@ export default function LoyaltyPage() {
             </span>
           </div>
 
-          <MetricsSection metrics={metrics} accounts={accounts} rewards={rewards} />
-
-          <ManualAdjustment cardYear={cardYear} onDone={() => void load()} />
-
-          <RewardsSection rewards={rewards} onChanged={() => void load()} />
-
-          <div className={'mb-6'}>
-            <h3 className={'text-2xl font-bold mb-3'}>Активные награды (доступны к погашению)</h3>
-            {redemptions.length === 0 ? (
-              <p className={'text-sm text-gray-500'}>Нет активных наград.</p>
-            ) : (
-              <TableWrapper>
-                <table className={'w-full text-left table-auto min-w-max'}>
-                  <thead>
-                    <tr>
-                      <Cell title={'Клиент'} asHeader />
-                      <Cell title={'Награда'} asHeader />
-                      <Cell title={'Код'} asHeader />
-                      <Cell title={'Действует до'} asHeader />
-                      <Cell title={''} asHeader />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {redemptions.map((r) => (
-                      <tr key={r.documentId} className={'hover:bg-gray-50'}>
-                        <Cell title={r.client?.name || '—'} />
-                        <Cell
-                          title={`${r.reward?.title || '—'} (от ${r.reward?.thresholdKc ?? '?'} Kč)`}
-                        />
-                        <Cell title={r.code || '—'} className={'font-mono text-primary'} />
-                        <Cell title={fmtDay(r.expiresAt)} />
-                        <td className={'p-4 border-b border-blue-gray-50'}>
-                          <button
-                            type={'button'}
-                            disabled={busy}
-                            className={'text-sm px-2 py-1 rounded-lg border border-gray-300 hover:bg-pink-50'}
-                            onClick={() => void markUsed(r)}
-                          >
-                            Отметить использованной
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </TableWrapper>
-            )}
+          <div className={'flex flex-wrap gap-2 mb-6'}>
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type={'button'}
+                onClick={() => setTab(t.id)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  tab === t.id
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'bg-white border border-gray-300 text-gray-700 shadow-sm hover:bg-pink-50'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
 
-          <div className={'mb-2 flex items-center justify-between'}>
-            <h3 className={'text-2xl font-bold'}>Аккаунты ({cardYear})</h3>
-            <input
-              className={'border border-gray-300 rounded-lg px-3 py-2 text-sm w-64'}
-              placeholder={'Поиск: имя / e-mail'}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          {loading && accounts.length === 0 ? (
-            <p className={'text-sm text-gray-500'}>Загрузка…</p>
-          ) : (
-            <TableWrapper additionalInfo={`Показано ${filtered.length} из ${accounts.length}`}>
-              <table className={'w-full text-left table-auto min-w-max'}>
-                <thead>
-                  <tr>
-                    <Cell title={'Клиент'} asHeader />
-                    <Cell title={'Копилка'} asHeader />
-                    <Cell title={'Наклейки'} asHeader />
-                    <Cell title={'Визитов'} asHeader />
-                    <Cell title={'Вход в кабинет'} asHeader />
-                    <Cell title={'Последняя транзакция'} asHeader />
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((a) => (
-                    <Fragment key={a.clientDocId}>
-                      <tr
-                        className={'hover:bg-gray-50 cursor-pointer'}
-                        onClick={() =>
-                          setExpanded(expanded === a.clientDocId ? null : a.clientDocId)
-                        }
-                      >
-                        <Cell title={a.name} className={'text-primary'} />
-                        <Cell title={fmtKc(a.balanceKc)} className={'font-bold'} />
-                        <Cell title={'●'.repeat(Math.min(a.stamps, 8)) || '—'} />
-                        <Cell title={String(a.visits)} />
-                        <Cell title={a.cabinetLastLoginAt ? fmtDay(a.cabinetLastLoginAt) : '—'} />
-                        <Cell title={fmtDay(a.lastTxAt)} />
-                      </tr>
-                      {expanded === a.clientDocId && (
+          {tab === 'metrics' && (
+            <MetricsSection metrics={metrics} accounts={accounts} rewards={rewards} />
+          )}
+
+          {tab === 'adjust' && <ManualAdjustment cardYear={cardYear} onDone={() => void load()} />}
+
+          {tab === 'rewards' && (
+            <>
+              <RewardsSection rewards={rewards} onChanged={() => void load()} />
+
+              <div className={'mb-6'}>
+                <h3 className={'text-2xl font-bold mb-3'}>Активные награды (доступны к погашению)</h3>
+                {redemptions.length === 0 ? (
+                  <p className={'text-sm text-gray-500'}>Нет активных наград.</p>
+                ) : (
+                  <TableWrapper>
+                    <table className={'w-full text-left table-auto min-w-max'}>
+                      <thead>
                         <tr>
-                          <td colSpan={6} className={'p-4 bg-gray-50 border-b border-blue-gray-50'}>
+                          <Cell title={'Клиент'} asHeader />
+                          <Cell title={'Награда'} asHeader />
+                          <Cell title={'Код'} asHeader />
+                          <Cell title={'Действует до'} asHeader />
+                          <Cell title={''} asHeader />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {redemptions.map((r) => (
+                          <tr key={r.documentId} className={'hover:bg-gray-50'}>
+                            <Cell title={r.client?.name || '—'} />
+                            <Cell
+                              title={`${r.reward?.title || '—'} (от ${r.reward?.thresholdKc ?? '?'} Kč)`}
+                            />
+                            <Cell title={r.code || '—'} className={'font-mono text-primary'} />
+                            <Cell title={fmtDay(r.expiresAt)} />
+                            <td className={'p-4 border-b border-blue-gray-50'}>
+                              <button
+                                type={'button'}
+                                disabled={busy}
+                                className={'text-sm px-2 py-1 rounded-lg border border-gray-300 hover:bg-pink-50'}
+                                onClick={() => void markUsed(r)}
+                              >
+                                Отметить использованной
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </TableWrapper>
+                )}
+              </div>
+            </>
+          )}
+
+          {tab === 'accounts' && (
+            <>
+              <div className={'mb-2 flex items-center justify-between'}>
+                <h3 className={'text-2xl font-bold'}>Аккаунты ({cardYear})</h3>
+                <input
+                  className={'border border-gray-300 rounded-lg px-3 py-2 text-sm w-64'}
+                  placeholder={'Поиск: имя / e-mail'}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              {loading && accounts.length === 0 ? (
+                <p className={'text-sm text-gray-500'}>Загрузка…</p>
+              ) : (
+                <TableWrapper additionalInfo={`Показано ${filtered.length} из ${accounts.length}`}>
+                  <table className={'w-full text-left table-auto min-w-max'}>
+                    <thead>
+                      <tr>
+                        <Cell title={'Клиент'} asHeader />
+                        <Cell title={'E-mail'} asHeader />
+                        <Cell title={'Копилка'} asHeader />
+                        <Cell title={'Наклейки'} asHeader />
+                        <Cell title={'Визитов'} asHeader />
+                        <Cell title={'Вход в кабинет'} asHeader />
+                        <Cell title={'Последняя транзакция'} asHeader />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((a) => (
+                        <Fragment key={a.clientDocId}>
+                          <tr
+                            className={'hover:bg-gray-50 cursor-pointer'}
+                            onClick={() =>
+                              setExpanded(expanded === a.clientDocId ? null : a.clientDocId)
+                            }
+                          >
+                            <Cell title={a.name} className={'text-primary'} />
+                            <Cell title={a.email || '—'} className={'text-gray-600'} />
+                            <Cell title={fmtKc(a.balanceKc)} className={'font-bold'} />
+                            <Cell title={'●'.repeat(Math.min(a.stamps, 8)) || '—'} />
+                            <Cell title={String(a.visits)} />
+                            <Cell title={a.cabinetLastLoginAt ? fmtDay(a.cabinetLastLoginAt) : '—'} />
+                            <Cell title={fmtDay(a.lastTxAt)} />
+                          </tr>
+                          {expanded === a.clientDocId && (
+                            <tr>
+                              <td colSpan={7} className={'p-4 bg-gray-50 border-b border-blue-gray-50'}>
                             <div className={'flex flex-col gap-1'}>
                               {a.transactions.map((tx) => (
                                 <div key={tx.documentId} className={'flex gap-3 text-sm'}>
@@ -631,9 +668,11 @@ export default function LoyaltyPage() {
                       )}
                     </Fragment>
                   ))}
-                </tbody>
-              </table>
-            </TableWrapper>
+                    </tbody>
+                  </table>
+                </TableWrapper>
+              )}
+            </>
           )}
         </Container>
       </div>
