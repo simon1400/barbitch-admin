@@ -11,9 +11,21 @@ import { diffByName } from '../components/shiftClose/helpers'
 
 // Mirror of Strapi lifecycle (strapi/.../service-provided/lifecycles.ts).
 // Kept in sync — also used to recompute flags for legacy records (verify is string).
-export type VerifyFlag = 'ok' | 'sleva' | 'ztrata' | 'salon_up' | 'mistr_up' | 'mistr_down' | 'internal'
+// sleva_bez_karty (K4): informational — record has a sale, but the client has no
+// used bitchcard redemption that day (discount given outside the loyalty program).
+// Computed ONLY by the Strapi lifecycle (needs booking/redemption lookup) — the
+// client-side recompute paths below can't derive it and simply omit it.
+export type VerifyFlag =
+  | 'ok'
+  | 'sleva'
+  | 'ztrata'
+  | 'salon_up'
+  | 'mistr_up'
+  | 'mistr_down'
+  | 'internal'
+  | 'sleva_bez_karty'
 
-export const VERIFY_FLAGS: VerifyFlag[] = ['ok', 'internal', 'sleva', 'salon_up', 'mistr_up', 'mistr_down', 'ztrata']
+export const VERIFY_FLAGS: VerifyFlag[] = ['ok', 'internal', 'sleva', 'sleva_bez_karty', 'salon_up', 'mistr_up', 'mistr_down', 'ztrata']
 
 export interface FlagMeta {
   emoji: string
@@ -72,6 +84,13 @@ export const FLAG_META: Record<VerifyFlag, FlagMeta> = {
     label: 'Interní služba',
     chipCls: 'bg-indigo-100 text-indigo-800',
     dotCls: 'bg-indigo-500',
+    severity: 0,
+  },
+  sleva_bez_karty: {
+    emoji: '🎟',
+    label: 'Sleva mimo bitchcard',
+    chipCls: 'bg-teal-100 text-teal-800',
+    dotCls: 'bg-teal-500',
     severity: 0,
   },
 }
@@ -276,7 +295,7 @@ const fetchServiceProvided = async (dateStr: string) => {
     const items = Array.isArray(res) ? res : (res as any)?.data || []
     // Counters are per-flag (one item with multiple flags is counted in each)
     const flagCounts: Record<VerifyFlag, number> = {
-      ok: 0, sleva: 0, ztrata: 0, salon_up: 0, mistr_up: 0, mistr_down: 0, internal: 0,
+      ok: 0, sleva: 0, ztrata: 0, salon_up: 0, mistr_up: 0, mistr_down: 0, internal: 0, sleva_bez_karty: 0,
     }
     let unverified = 0
     for (const i of items as any[]) {
@@ -293,7 +312,7 @@ const fetchServiceProvided = async (dateStr: string) => {
     return {
       found: false,
       count: 0,
-      flagCounts: { ok: 0, sleva: 0, ztrata: 0, salon_up: 0, mistr_up: 0, mistr_down: 0, internal: 0 },
+      flagCounts: { ok: 0, sleva: 0, ztrata: 0, salon_up: 0, mistr_up: 0, mistr_down: 0, internal: 0, sleva_bez_karty: 0 },
       unverified: 0,
       items: [],
     }

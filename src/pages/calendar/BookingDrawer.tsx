@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { CalendarBooking, ClientHistoryItem } from './fetch/calendarDay'
 import { fetchClientHistory, todayStrPrague } from './fetch/calendarDay'
 import type { BookingLabel } from './fetch/bookingLabels'
+import type { BookingRedemption } from './fetch/engineApi'
+import { fetchBookingRedemptions } from './fetch/engineApi'
 import { STATUS_META, fmtTime } from './utils'
 
 // Карточка «Štítek» (кастомные лейблы + «Spravovat štítky») временно скрыта по решению владельца.
@@ -119,6 +121,104 @@ const ClientHistory = ({
   )
 }
 
+// Лейбл награды bitchcard: «Sleva 20 %» / «Sleva 400 Kč» уже в title — добавляем порог
+const redemptionRewardLabel = (r: BookingRedemption) =>
+  `${r.reward.title} (od ${r.reward.thresholdKc.toLocaleString('cs-CZ')} Kč)`
+
+// Карточка «Bitchcard» в drawer (walk-in флоу К4): награды available у клиента
+// брони + применённая к этой брони. Свой fetch (паттерн ClientHistory); рефетч
+// по totalPrice — после apply/release CalendarPage обновляет selected и данные
+// перезагружаются. Программа выключена (enabled:false) / нет наград → карточки нет.
+const LoyaltyCard = ({
+  b,
+  busy,
+  onApply,
+  onRelease,
+}: {
+  b: CalendarBooking
+  busy: boolean
+  onApply: (code: string) => void
+  onRelease: () => void
+}) => {
+  const [redemptions, setRedemptions] = useState<BookingRedemption[] | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetchBookingRedemptions(b.documentId)
+      .then((res) => {
+        if (!cancelled) setRedemptions(res.enabled ? res.redemptions : [])
+      })
+      .catch(() => {
+        if (!cancelled) setRedemptions([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [b.documentId, b.totalPrice])
+
+  const used = (redemptions || []).find(
+    (r) => r.status === 'used' && r.usedInBookingDocId === b.documentId,
+  )
+  const available = (redemptions || []).filter((r) => r.status === 'available')
+  if (!used && available.length === 0) return null
+
+  return (
+    <div className="mt-3 rounded-xl border border-gray-200 p-3 dark:border-[#2e2e2c]">
+      <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        Bitchcard — věrnostní program
+      </div>
+      {used && (
+        <div className="flex items-center justify-between gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm dark:bg-emerald-500/10">
+          <span className="text-emerald-800 dark:text-emerald-200">
+            ✓ Uplatněno: <b>{redemptionRewardLabel(used)}</b>
+            {used.discountKc != null && ` · −${used.discountKc} Kč`}
+            {used.code && <span className="ml-1 font-mono text-xs">({used.code})</span>}
+          </span>
+          {b.status === 'active' && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                if (window.confirm('Zrušit uplatněnou slevu? Cena rezervace se vrátí zpět.')) onRelease()
+              }}
+              className="shrink-0 rounded-md border border-gray-300 px-2.5 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40 dark:border-[#3f3f3d] dark:text-gray-300 dark:hover:bg-[#2e2e2c]"
+            >
+              Zrušit slevu
+            </button>
+          )}
+        </div>
+      )}
+      {!used &&
+        available.map((r) => (
+          <div
+            key={r.documentId}
+            className="mb-1.5 flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm last:mb-0 dark:bg-[#252523]"
+          >
+            <span className="min-w-0 text-gray-800 dark:text-gray-300">
+              🎟 <b>{redemptionRewardLabel(r)}</b>
+              {r.code && <span className="ml-1 font-mono text-xs text-gray-500 dark:text-gray-400">{r.code}</span>}
+            </span>
+            <button
+              type="button"
+              disabled={busy || !r.code}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Uplatnit slevu „${r.reward.title}“ na tuto rezervaci? Cena se přepočítá.`,
+                  )
+                )
+                  onApply(r.code || '')
+              }}
+              className="shrink-0 rounded-md border border-pink-300 bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50 disabled:opacity-40 dark:border-[#e71e6e80] dark:bg-transparent dark:shadow-none dark:hover:bg-[#e71e6e26] sm:px-2.5 sm:py-1"
+            >
+              Uplatnit slevu
+            </button>
+          </div>
+        ))}
+    </div>
+  )
+}
+
 // Человеческие названия каналов Noona (bsChannel зеркальных броней)
 const CHANNEL_LABELS: Record<string, string> = {
   bookingLink: 'web (rezervační odkaz)',
@@ -169,6 +269,8 @@ export const BookingDrawer = ({
   onChangeService,
   onReschedule,
   onDelete,
+  onApplyRedemption,
+  onReleaseRedemption,
   busy,
   readOnly = false,
   masterRate = null,
@@ -190,6 +292,9 @@ export const BookingDrawer = ({
   onChangeService: () => void
   onReschedule: () => void
   onDelete: () => void
+  // bitchcard (walk-in): применить/снять награду клиента на эту бронь
+  onApplyRedemption: (code: string) => void
+  onReleaseRedemption: () => void
   busy: boolean
   readOnly?: boolean
   // процент мастера — если задан, «Celkem» показывает его долю, а не полную цену
@@ -385,6 +490,12 @@ export const BookingDrawer = ({
             </span>
           </div>
         </div>
+
+        {/* Bitchcard (walk-in К4): награды клиента брони — уплатнить/снять скидку.
+            Только админам и только на active/checkedOut (сервер это тоже проверяет) */}
+        {!readOnly && b.client?.documentId && (b.status === 'active' || b.status === 'checkedOut') && (
+          <LoyaltyCard b={b} busy={busy} onApply={onApplyRedemption} onRelease={onReleaseRedemption} />
+        )}
 
         {/* Интерн-позна́мка: админам — редактируемая карточка (свободная заметка,
             дописываются и заметки отмены/noshow); мастерам (readOnly) — статично */}

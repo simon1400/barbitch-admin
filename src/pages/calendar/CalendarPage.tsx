@@ -24,7 +24,13 @@ import {
   fetchWeekEmployees,
 } from './fetch/calendarDay'
 import { AdminShiftBar } from './AdminShiftBar'
-import { engineDeleteBooking, enginePatchBooking, updateClientBlacklist } from './fetch/engineApi'
+import {
+  engineApplyRedemption,
+  engineDeleteBooking,
+  enginePatchBooking,
+  engineReleaseRedemption,
+  updateClientBlacklist,
+} from './fetch/engineApi'
 import { fetchBookingLabels, type BookingLabel } from './fetch/bookingLabels'
 import { CalendarGrid } from './CalendarGrid'
 import { BookingDrawer } from './BookingDrawer'
@@ -319,6 +325,42 @@ export default function CalendarPage() {
       await engineDeleteBooking(selected.documentId)
       setSelected(null)
       await reload()
+    } catch (e) {
+      window.alert((e as Error).message)
+    } finally {
+      setMutating(false)
+    }
+  }
+
+  // bitchcard (walk-in К4): уплатнить награду клиента на бронь — цена пересчитывается
+  // на сервере в одной транзакции с redemption→used; drawer остаётся открытым
+  // (обновлённый totalPrice в selected сам рефетчит карточку Bitchcard)
+  const applyRedemption = async (code: string) => {
+    if (!selected) return
+    setMutating(true)
+    try {
+      const res = await engineApplyRedemption(selected.documentId, code)
+      setSelected({ ...selected, totalPrice: res.totalPrice })
+      await reload(true)
+    } catch (e) {
+      window.alert((e as Error).message)
+    } finally {
+      setMutating(false)
+    }
+  }
+
+  // снять ошибочно применённую скидку: redemption → available, цена возвращается
+  const releaseRedemption = async () => {
+    if (!selected) return
+    setMutating(true)
+    try {
+      const res = await engineReleaseRedemption(selected.documentId)
+      const restored =
+        selected.totalPrice != null && res.discountKc
+          ? selected.totalPrice + res.discountKc
+          : selected.totalPrice
+      setSelected({ ...selected, totalPrice: restored })
+      await reload(true)
     } catch (e) {
       window.alert((e as Error).message)
     } finally {
@@ -888,6 +930,8 @@ export default function CalendarPage() {
           onChangeService={() => selected && setChangeService(selected)}
           onReschedule={() => selected && setReschedule(selected)}
           onDelete={deleteBooking}
+          onApplyRedemption={applyRedemption}
+          onReleaseRedemption={releaseRedemption}
           busy={mutating}
           readOnly={isMaster}
           masterRate={isMaster ? (employees[0]?.ratePercent ?? null) : null}
