@@ -8,12 +8,20 @@ import { Container } from '../../components/Container'
 import { Cell } from '../dashboard/components/Cell'
 import { OwnerProtection } from './components/OwnerProtection'
 import { TableWrapper } from './components/TableWrapper'
-import type { ClientHit, LoyaltyAccount, Redemption, Reward, RewardInput } from './fetch/loyalty'
+import type {
+  ClientHit,
+  LoyaltyAccount,
+  LoyaltyMetrics,
+  Redemption,
+  Reward,
+  RewardInput,
+} from './fetch/loyalty'
 import {
   createManualTransaction,
   createReward,
   deleteReward,
   fetchLoyaltyAccounts,
+  fetchLoyaltyMetrics,
   fetchRedemptions,
   fetchRewards,
   markRedemptionUsed,
@@ -173,6 +181,131 @@ function ManualAdjustment({ cardYear, onDone }: { cardYear: number; onDone: () =
   )
 }
 
+// ── метрики программы ──
+
+const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0)
+
+function StatTile({
+  label,
+  value,
+  sub,
+}: {
+  label: string
+  value: string
+  sub?: string
+}) {
+  return (
+    <div className={'bg-white shadow-md rounded-xl p-4 flex flex-col gap-1'}>
+      <span className={'text-xs text-gray-500'}>{label}</span>
+      <span className={'text-2xl font-bold'}>{value}</span>
+      {sub && <span className={'text-xs text-gray-400'}>{sub}</span>}
+    </div>
+  )
+}
+
+function MetricsSection({
+  metrics,
+  accounts,
+  rewards,
+}: {
+  metrics: LoyaltyMetrics | null
+  accounts: LoyaltyAccount[]
+  rewards: Reward[]
+}) {
+  const minThreshold = useMemo(
+    () => (rewards.length ? Math.min(...rewards.map((r) => r.thresholdKc)) : 0),
+    [rewards],
+  )
+  const withEnoughBalance = useMemo(
+    () => (minThreshold ? accounts.filter((a) => a.balanceKc >= minThreshold).length : 0),
+    [accounts, minThreshold],
+  )
+
+  if (!metrics) return null
+  const { clientTotal, clientVerified, clientLoggedIn, redemptionsByStatus, discountUsedKc, tiers } =
+    metrics
+
+  return (
+    <div className={'mb-8'}>
+      <h3 className={'text-2xl font-bold mb-3'}>Метрики программы ({metrics.cardYear})</h3>
+
+      <p className={'text-sm font-semibold text-gray-600 mb-2'}>Охват</p>
+      <div className={'grid grid-cols-2 md:grid-cols-4 gap-3 mb-5'}>
+        <StatTile label={'Клиентов в базе'} value={clientTotal.toLocaleString('cs-CZ')} />
+        <StatTile
+          label={'С цифровым аккаунтом'}
+          value={clientVerified.toLocaleString('cs-CZ')}
+          sub={`${pct(clientVerified, clientTotal)} % базы (e-mail подтверждён)`}
+        />
+        <StatTile
+          label={'Заходили в кабинет'}
+          value={clientLoggedIn.toLocaleString('cs-CZ')}
+          sub={`${pct(clientLoggedIn, clientVerified)} % аккаунтов`}
+        />
+        <StatTile
+          label={`Копилка ≥ ${minThreshold} Kč`}
+          value={withEnoughBalance.toLocaleString('cs-CZ')}
+          sub={'достигли первой награды'}
+        />
+      </div>
+
+      <p className={'text-sm font-semibold text-gray-600 mb-2'}>Скидки (стоимость программы)</p>
+      <div className={'grid grid-cols-2 md:grid-cols-4 gap-3 mb-5'}>
+        <StatTile
+          label={'Применено скидок'}
+          value={fmtKc(discountUsedKc)}
+          sub={`за ${metrics.cardYear} год (использованные награды)`}
+        />
+        <StatTile label={'Выдано наград'} value={String(redemptionsByStatus.available)} sub={'доступны'} />
+        <StatTile
+          label={'Использовано'}
+          value={String(redemptionsByStatus.used)}
+          sub={`${pct(redemptionsByStatus.used, redemptionsByStatus.available + redemptionsByStatus.used + redemptionsByStatus.expired)} % всех выданных`}
+        />
+        <StatTile label={'Истекло'} value={String(redemptionsByStatus.expired)} sub={'не погашены до 31.12'} />
+      </div>
+
+      {tiers.length > 0 && (
+        <>
+          <p className={'text-sm font-semibold text-gray-600 mb-2'}>По ступеням</p>
+          <TableWrapper>
+            <table className={'w-full text-left table-auto min-w-max'}>
+              <thead>
+                <tr>
+                  <Cell title={'Награда'} asHeader />
+                  <Cell title={'Порог Kč'} asHeader />
+                  <Cell title={'Доступно'} asHeader />
+                  <Cell title={'Использовано'} asHeader />
+                  <Cell title={'Истекло'} asHeader />
+                  <Cell title={'Скидок Kč'} asHeader />
+                </tr>
+              </thead>
+              <tbody>
+                {tiers.map((t) => (
+                  <tr key={`${t.thresholdKc}-${t.title}`} className={'hover:bg-gray-50'}>
+                    <Cell title={t.title} />
+                    <Cell title={String(t.thresholdKc)} />
+                    <Cell title={String(t.available)} />
+                    <Cell title={String(t.used)} className={'font-medium'} />
+                    <Cell title={String(t.expired)} className={'text-gray-400'} />
+                    <Cell title={fmtKc(t.discountUsedKc)} className={'text-primary'} />
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableWrapper>
+        </>
+      )}
+
+      <p className={'mt-3 text-xs text-gray-500'}>
+        ⚠️ Числа описывают <b>охват и стоимость</b> программы, а не её причинный эффект: нет чистой
+        контрольной группы (участники vs нет), поэтому сравнивать удержание/чек напрямую нельзя —
+        разница может объясняться тем, что активные клиенты и так лояльнее.
+      </p>
+    </div>
+  )
+}
+
 // ── CRUD наград ──
 
 function RewardsSection({ rewards, onChanged }: { rewards: Reward[]; onChanged: () => void }) {
@@ -291,6 +424,7 @@ export default function LoyaltyPage() {
   const [accounts, setAccounts] = useState<LoyaltyAccount[]>([])
   const [rewards, setRewards] = useState<Reward[]>([])
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
+  const [metrics, setMetrics] = useState<LoyaltyMetrics | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -301,14 +435,16 @@ export default function LoyaltyPage() {
     setLoading(true)
     setError(null)
     try {
-      const [acc, rw, rd] = await Promise.all([
+      const [acc, rw, rd, mt] = await Promise.all([
         fetchLoyaltyAccounts(cardYear),
         fetchRewards(),
         fetchRedemptions('available'),
+        fetchLoyaltyMetrics(cardYear),
       ])
       setAccounts(acc)
       setRewards(rw)
       setRedemptions(rd)
+      setMetrics(mt)
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -377,6 +513,8 @@ export default function LoyaltyPage() {
               Активных наград: <b>{redemptions.length}</b>
             </span>
           </div>
+
+          <MetricsSection metrics={metrics} accounts={accounts} rewards={rewards} />
 
           <ManualAdjustment cardYear={cardYear} onDone={() => void load()} />
 

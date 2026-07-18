@@ -11,7 +11,7 @@ const strapiToken = import.meta.env.VITE_STRAPI_TOKEN as string | undefined
 
 interface StrapiListResponse<T> {
   data: T[]
-  meta?: { pagination?: { pageCount?: number } }
+  meta?: { pagination?: { pageCount?: number; total?: number } }
 }
 
 const authHeaders = (): Record<string, string> =>
@@ -218,4 +218,89 @@ export async function fetchRedemptions(status?: Redemption['status']): Promise<R
 
 export async function markRedemptionUsed(documentId: string): Promise<void> {
   await sendJson('PUT', `/api/redemptions/${documentId}`, { data: { status: 'used' } })
+}
+
+// ── метрики программы (охват + стоимость скидок) ──
+
+// Считает только `meta.pagination.total` (pageSize=1 — сами строки не тянем).
+const countClients = async (filterQuery = ''): Promise<number> => {
+  const res = await getJson<{ id: number }>(
+    `/api/clients?fields[0]=id&pagination[pageSize]=1&pagination[withCount]=true${filterQuery}`,
+  )
+  return res.meta?.pagination?.total ?? 0
+}
+
+interface RedemptionMetricRow {
+  status: Redemption['status']
+  discountKc: number | null
+  reward: { documentId: string; title: string; thresholdKc: number } | null
+}
+
+export interface RewardTierMetric {
+  title: string
+  thresholdKc: number
+  available: number
+  used: number
+  expired: number
+  discountUsedKc: number
+}
+
+export interface LoyaltyMetrics {
+  cardYear: number
+  clientTotal: number
+  clientVerified: number
+  clientLoggedIn: number
+  redemptionsByStatus: { available: number; used: number; expired: number }
+  discountUsedKc: number
+  tiers: RewardTierMetric[]
+}
+
+export async function fetchLoyaltyMetrics(cardYear: number): Promise<LoyaltyMetrics> {
+  const [clientTotal, clientVerified, clientLoggedIn, rows] = await Promise.all([
+    countClients(),
+    countClients('&filters[emailVerifiedAt][$notNull]=true'),
+    countClients('&filters[cabinetLastLoginAt][$notNull]=true'),
+    fetchAllPages<RedemptionMetricRow>(
+      `/api/redemptions?filters[cardYear][$eq]=${cardYear}` +
+        `&fields[0]=status&fields[1]=discountKc` +
+        `&populate[reward][fields][0]=title&populate[reward][fields][1]=thresholdKc`,
+    ),
+  ])
+
+  const redemptionsByStatus = { available: 0, used: 0, expired: 0 }
+  let discountUsedKc = 0
+  const tierMap = new Map<string, RewardTierMetric>()
+
+  for (const r of rows) {
+    redemptionsByStatus[r.status]++
+    const applied = r.status === 'used' ? Number(r.discountKc) || 0 : 0
+    discountUsedKc += applied
+
+    const key = r.reward?.documentId || `t${r.reward?.thresholdKc ?? 0}`
+    let tier = tierMap.get(key)
+    if (!tier) {
+      tier = {
+        title: r.reward?.title || '—',
+        thresholdKc: r.reward?.thresholdKc ?? 0,
+        available: 0,
+        used: 0,
+        expired: 0,
+        discountUsedKc: 0,
+      }
+      tierMap.set(key, tier)
+    }
+    tier[r.status]++
+    tier.discountUsedKc += applied
+  }
+
+  const tiers = [...tierMap.values()].sort((a, b) => a.thresholdKc - b.thresholdKc)
+  return {
+    cardYear,
+    clientTotal,
+    clientVerified,
+    clientLoggedIn,
+    redemptionsByStatus,
+    discountUsedKc,
+    tiers,
+  }
 }
