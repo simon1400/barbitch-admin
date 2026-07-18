@@ -55,6 +55,47 @@ const fmtDate = (s: string | null) =>
 const fmtDay = (s: string | null) =>
   s ? new Date(s).toLocaleDateString('cs-CZ', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
 
+const PAGE_SIZE = 25
+
+function Pagination({
+  page,
+  total,
+  onPage,
+}: {
+  page: number
+  total: number
+  onPage: (p: number) => void
+}) {
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  if (pageCount <= 1) return null
+  const from = (page - 1) * PAGE_SIZE + 1
+  const to = Math.min(page * PAGE_SIZE, total)
+  const btn = 'px-3 py-1 rounded-lg border border-gray-300 bg-white shadow-sm disabled:opacity-40'
+  return (
+    <div className={'flex items-center justify-between mt-3 text-sm'}>
+      <span className={'text-gray-500'}>
+        {from}–{to} из {total}
+      </span>
+      <div className={'flex items-center gap-2'}>
+        <button type={'button'} disabled={page <= 1} onClick={() => onPage(page - 1)} className={btn}>
+          ←
+        </button>
+        <span className={'text-gray-600'}>
+          {page} / {pageCount}
+        </span>
+        <button
+          type={'button'}
+          disabled={page >= pageCount}
+          onClick={() => onPage(page + 1)}
+          className={btn}
+        >
+          →
+        </button>
+      </div>
+    </div>
+  )
+}
+
 const EMPTY_REWARD: RewardInput = {
   title: '',
   thresholdKc: 0,
@@ -440,6 +481,8 @@ export default function LoyaltyPage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [tab, setTab] = useState<LoyaltyTab>('accounts')
+  const [accPage, setAccPage] = useState(1)
+  const [redPage, setRedPage] = useState(1)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -455,6 +498,8 @@ export default function LoyaltyPage() {
       setRewards(rw)
       setRedemptions(rd)
       setMetrics(mt)
+      setAccPage(1)
+      setRedPage(1)
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -475,6 +520,15 @@ export default function LoyaltyPage() {
   }, [accounts, search])
 
   const totalBalance = useMemo(() => accounts.reduce((s, a) => s + a.balanceKc, 0), [accounts])
+
+  const pagedAccounts = useMemo(
+    () => filtered.slice((accPage - 1) * PAGE_SIZE, accPage * PAGE_SIZE),
+    [filtered, accPage],
+  )
+  const pagedRedemptions = useMemo(
+    () => redemptions.slice((redPage - 1) * PAGE_SIZE, redPage * PAGE_SIZE),
+    [redemptions, redPage],
+  )
 
   const markUsed = async (r: Redemption) => {
     if (!window.confirm(`Отметить награду «${r.reward?.title}» (${r.client?.name}) использованной?`))
@@ -568,7 +622,7 @@ export default function LoyaltyPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {redemptions.map((r) => (
+                        {pagedRedemptions.map((r) => (
                           <tr key={r.documentId} className={'hover:bg-gray-50'}>
                             <Cell title={r.client?.name || '—'} />
                             <Cell
@@ -592,6 +646,7 @@ export default function LoyaltyPage() {
                     </table>
                   </TableWrapper>
                 )}
+                <Pagination page={redPage} total={redemptions.length} onPage={setRedPage} />
               </div>
             </>
           )}
@@ -604,7 +659,10 @@ export default function LoyaltyPage() {
                   className={'border border-gray-300 rounded-lg px-3 py-2 text-sm w-64'}
                   placeholder={'Поиск: имя / e-mail'}
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value)
+                    setAccPage(1)
+                  }}
                 />
               </div>
               {loading && accounts.length === 0 ? (
@@ -624,7 +682,7 @@ export default function LoyaltyPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.map((a) => (
+                      {pagedAccounts.map((a) => (
                         <Fragment key={a.clientDocId}>
                           <tr
                             className={'hover:bg-gray-50 cursor-pointer'}
@@ -672,6 +730,7 @@ export default function LoyaltyPage() {
                   </table>
                 </TableWrapper>
               )}
+              <Pagination page={accPage} total={filtered.length} onPage={setAccPage} />
             </>
           )}
         </Container>
