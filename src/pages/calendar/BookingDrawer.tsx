@@ -193,7 +193,7 @@ const LoyaltyCard = ({
         available.map((r) => (
           <div
             key={r.documentId}
-            className="mb-1.5 flex items-center justify-between gap-2 rounded-lg bg-white/80 px-3 py-2 text-sm last:mb-0 dark:bg-[#252523]"
+            className="mb-1.5 flex items-center justify-between gap-2 rounded-lg bg-white/80 px-3 py-2 text-sm last:mb-0 dark:bg-[#2c2c2a]"
           >
             <span className="min-w-0 text-gray-800 dark:text-gray-300">
               🎟 <b>{redemptionRewardLabel(r)}</b>
@@ -263,7 +263,7 @@ const RebookDiscountCard = ({
           )}
         </div>
       ) : (
-        <div className="flex items-center justify-between gap-2 rounded-lg bg-white/80 px-3 py-2 text-sm dark:bg-[#252523]">
+        <div className="flex items-center justify-between gap-2 rounded-lg bg-white/80 px-3 py-2 text-sm dark:bg-[#2c2c2a]">
           <span className="text-gray-600 dark:text-gray-400">
             {`Sleva −${d.percent} % (−${d.discountKc} Kč) je zrušená — klient platí plnou cenu.`}
           </span>
@@ -445,20 +445,22 @@ export const BookingDrawer = ({
 
         
 
-        {/* ГЛАВНАЯ КАРТА БРОНИ (розовый акцент): термин + мастер + услуги + цена +
-            скидки + действия — вся суть брони одним взглядом сразу при открытии.
+        {/* ГЛАВНАЯ КАРТА БРОНИ: термин + мастер + услуги + цена + скидки + действия —
+            вся суть брони одним взглядом сразу при открытии. Единый стиль в обеих
+            темах: нейтральная карта + розовая полоса слева (inset-тень) = «главная».
+            Розовый — только акцент (полоса, цена, главная кнопка), не заливка фона.
             Остальные секции (kontakt/poznámka/vytvořeno/historie) — нейтральные ниже. */}
-        <div className="mt-4 rounded-xl border border-pink-200 bg-pink-50/60 p-3 dark:border-[#e71e6e40] dark:bg-[#e71e6e0f]">
+        <div className="mt-4 border border-gray-200 bg-gray-50/70 p-3 shadow-[inset_3px_0_0_0_#e71e6e] dark:border-[#2e2e2c] dark:bg-[#252523]">
           <div className="text-[15px] font-bold text-gray-900 dark:text-gray-200">
             {dateLabelCs(b.date)} · {fmtTime(b.startsAt)}–{fmtTime(b.endsAt)}
           </div>
           {b.employeeNameRaw && (
             <div className="mt-0.5 text-sm text-gray-600 dark:text-gray-400">{b.employeeNameRaw}</div>
           )}
-          <div className="my-2.5 border-t border-pink-200/80 dark:border-[#e71e6e26]" />
+          <div className="my-2.5 border-t border-gray-200 dark:border-[#2e2e2c]" />
           <div className="space-y-1.5">
             {(b.services || []).map((s, i) => (
-              <div key={i} className="flex justify-between gap-2 rounded-lg bg-white/80 px-3 py-1.5 dark:bg-[#252523] text-sm">
+              <div key={i} className="flex justify-between gap-2 rounded-lg bg-white/80 px-3 py-1.5 dark:bg-[#2c2c2a] text-sm">
                 <span className="text-gray-800 dark:text-gray-300">{s.title}</span>
                 <span className="text-gray-500 dark:text-gray-400 text-nowrap">
                    {s.durationMin ? `${s.durationMin} min` : ''}
@@ -492,20 +494,22 @@ export const BookingDrawer = ({
             />
           )}
 
-          {/* Действия над активной бронью — внутри главной карты, не надо искать */}
+          {/* Действия над активной бронью — внутри главной карты, не надо искать.
+              «Změnit termín» = главное действие (залитая розовая), «Změnit službu» —
+              вторичное (нейтральная обводка); одинаково в обеих темах. */}
           {b.status === 'active' && !readOnly && (
-            <div className="mt-2.5 flex gap-2 border-t border-pink-200/80 pt-2.5 dark:border-[#e71e6e26]">
+            <div className="mt-2.5 flex gap-2 border-t border-gray-200 pt-2.5 dark:border-[#2e2e2c]">
               <button
                 type="button"
                 onClick={onReschedule}
-                className="flex-1 rounded-md border border-pink-300 bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50 dark:border-[#e71e6e80] dark:bg-transparent dark:shadow-none dark:hover:bg-[#e71e6e26]"
+                className="flex-1 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:brightness-95 active:brightness-90"
               >
                 Změnit termín
               </button>
               <button
                 type="button"
                 onClick={onChangeService}
-                className="flex-1 rounded-md border border-pink-300 bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50 dark:border-[#e71e6e80] dark:bg-transparent dark:shadow-none dark:hover:bg-[#e71e6e26]"
+                className="flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-[#3f3f3d] dark:bg-transparent dark:text-gray-300 dark:shadow-none dark:hover:bg-[#2e2e2c]"
               >
                 Změnit službu
               </button>
@@ -519,7 +523,7 @@ export const BookingDrawer = ({
             со связанным клиентом (у старых импортных связи нет).
             Мастерам (readOnly) карточку НЕ показываем — контакты только для админов. */}
         {!readOnly && (
-        <div className="mt-3 rounded-xl border border-gray-200 p-3 dark:border-[#2e2e2c]">
+        <div className="mt-3 rounded-xl border border-gray-400 p-3 dark:border-[#2e2e2c]">
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
               Kontakt
@@ -575,7 +579,7 @@ export const BookingDrawer = ({
         {/* Интерн-позна́мка: админам — редактируемая карточка (свободная заметка,
             дописываются и заметки отмены/noshow); мастерам (readOnly) — статично */}
         {!readOnly && (
-          <div className="mt-3 rounded-xl border border-gray-200 p-3 dark:border-[#2e2e2c]">
+          <div className="mt-3 rounded-xl border border-gray-400 p-3 dark:border-[#2e2e2c]">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 Poznámka

@@ -337,23 +337,8 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                       clickable ? 'cursor-pointer transition hover:bg-pink-50 dark:hover:bg-[#2a2226]' : ''
                     }`}
                   >
-                    {/* Кружок-инициал: цвет = tier (junior фиолетовый / senior розовый /
-                        бывший серый). Фото мастеров убраны — в календаре лишние. */}
-                    {!/^\d{4}-/.test(col.id) && (
-                      <span
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
-                        style={{
-                          background: col.id.startsWith('orphan:')
-                            ? '#9ca3af'
-                            : col.tier === 'junior'
-                              ? '#a78bfa'
-                              : '#fd80cc',
-                        }}
-                        aria-hidden
-                      >
-                        {(col.name.trim()[0] || '?').toUpperCase()}
-                      </span>
-                    )}
+                    {/* Аватарки/кружки мастеров убраны — в календаре лишние.
+                        Junior-мастера различимы по фиолетовым карточкам броней. */}
                     <span className="truncate text-sm font-semibold text-gray-800 dark:text-gray-300">
                       {col.name.split(' ')[0]}
                     </span>
