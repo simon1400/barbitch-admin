@@ -29,6 +29,19 @@ const CODE_MESSAGES: Record<string, string> = {
   blacklisted: 'Klient je na blacklistu.',
   unauthorized: 'Přihlášení vypršelo — přihlaste se znovu.',
   employee_service_mismatch: 'Mistr tuto službu nedělá.',
+  // лояльность bitchcard (walk-in)
+  loyalty_disabled: 'Věrnostní program není zapnutý.',
+  redemption_not_found: 'Kód slevy nenalezen u klienta této rezervace.',
+  redemption_unavailable: 'Sleva už byla uplatněna nebo vypršela.',
+  booking_has_redemption: 'Na rezervaci už je uplatněna sleva.',
+  booking_not_active: 'Slevu lze uplatnit jen na aktivní rezervaci.',
+  reward_not_earned: 'Klient zatím na tuto slevu nemá nárok (nedosáhl prahu).',
+  no_price: 'Rezervace nemá cenu — slevu není z čeho počítat.',
+  no_client: 'Rezervace nemá připojeného klienta.',
+  // скидка дозаписи (rebook, thank-you)
+  rebook_discount_missing: 'Na rezervaci není sleva za dozápis.',
+  discount_already_applied: 'Sleva už je uplatněná.',
+  discount_not_applied: 'Sleva už je zrušená.',
 }
 
 async function engineFetch<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -108,6 +121,70 @@ export const enginePatchBooking = (bookingDocId: string, patch: EnginePatchInput
 // Полное удаление брони (корзина в drawer) — ЖЁСТКИЙ delete, не отмена
 export const engineDeleteBooking = (bookingDocId: string) =>
   engineFetch<{ deleted: number }>('DELETE', `/engine/admin/bookings/${bookingDocId}`)
+
+// ── лояльность bitchcard (walk-in флоу в drawer) ──
+
+export interface BookingRedemption {
+  documentId: string
+  status: 'available' | 'used' | 'expired'
+  code: string | null
+  cardYear: number
+  expiresAt: string | null
+  usedInBookingDocId: string | null
+  discountKc: number | null
+  reward: {
+    title: string
+    thresholdKc: number
+    discountType: 'percent' | 'fixed' | 'voucher'
+    discountValue: number
+  }
+}
+
+// Награды клиента брони: available + применённая к ЭТОЙ брони.
+// enabled:false → программа выключена (LOYALTY_ENABLED) — карточку не показываем.
+export const fetchBookingRedemptions = (bookingDocId: string) =>
+  engineFetch<{ enabled: boolean; redemptions: BookingRedemption[] }>(
+    'GET',
+    `/engine/admin/bookings/${bookingDocId}/redemptions`,
+  )
+
+export interface ApplyRedemptionResult {
+  applied: boolean
+  code: string
+  reward: { title: string; discountType: string; discountValue: number }
+  discountKc: number
+  totalPrice: number
+  originalPrice: number
+}
+
+// Применить код с карточки клиентки: скидка на totalPrice + redemption used (транзакция)
+export const engineApplyRedemption = (bookingDocId: string, code: string) =>
+  engineFetch<ApplyRedemptionResult>('POST', `/engine/admin/bookings/${bookingDocId}/redemption`, {
+    code,
+  })
+
+// Снять скидку (ошибочный ввод): redemption → available, цена восстанавливается
+export const engineReleaseRedemption = (bookingDocId: string) =>
+  engineFetch<{ released: number; code?: string; discountKc?: number }>(
+    'DELETE',
+    `/engine/admin/bookings/${bookingDocId}/redemption`,
+  )
+
+// ── скидка дозаписи (rebook −15%, thank-you) ──
+
+export interface RebookDiscountResult {
+  applied: boolean
+  discountKc: number
+  totalPrice: number | null
+}
+
+// Снять скидку дозаписи: цена брони возвращается к полной, скидка applied:false
+export const engineRemoveRebookDiscount = (bookingDocId: string) =>
+  engineFetch<RebookDiscountResult>('DELETE', `/engine/admin/bookings/${bookingDocId}/rebook-discount`)
+
+// Вернуть ошибочно снятую скидку дозаписи (−discountKc от цены, applied:true)
+export const engineRestoreRebookDiscount = (bookingDocId: string) =>
+  engineFetch<RebookDiscountResult>('POST', `/engine/admin/bookings/${bookingDocId}/rebook-discount`)
 
 // ── блоки времени ──
 

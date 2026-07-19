@@ -15,6 +15,7 @@ const ShiftClosePage = lazy(() => import('./pages/global/ShiftClosePage'))
 const BlogAIPage = lazy(() => import('./pages/global/BlogAIPage'))
 const ReviewSyncPage = lazy(() => import('./pages/global/ReviewSyncPage'))
 const ErrorLogsPage = lazy(() => import('./pages/global/ErrorLogsPage'))
+const LoyaltyPage = lazy(() => import('./pages/global/LoyaltyPage'))
 // Unified analytics module — layout with URL sub-route tabs
 const AnalyticsPage = lazy(() => import('./pages/global/analytics/AnalyticsPage'))
 const AnalyticsOverviewTab = lazy(() => import('./pages/global/analytics/tabs/OverviewTab'))
@@ -345,6 +346,18 @@ function App() {
                 <OwnerRoute>
                   <AdminLayout>
                     <ErrorLogsPage />
+                  </AdminLayout>
+                </OwnerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/global/loyalty"
+            element={
+              <ProtectedRoute>
+                <OwnerRoute>
+                  <AdminLayout>
+                    <LoyaltyPage />
                   </AdminLayout>
                 </OwnerRoute>
               </ProtectedRoute>

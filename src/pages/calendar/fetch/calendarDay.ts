@@ -50,6 +50,15 @@ export interface CalendarBooking {
   } | null
   // кастомный лейбл (снапшот из справочника booking-label)
   label?: { name: string; color: string } | null
+  // структурированная скидка дозаписи с thank-you (rebook −15%, пишет движок);
+  // applied=false — админ скидку снял (цена возвращена к полной)
+  discount?: {
+    type: string
+    percent: number
+    discountKc: number
+    originalPrice: number
+    applied: boolean
+  } | null
 }
 
 export interface BlockedRange {
@@ -69,8 +78,6 @@ export interface MasterColumn {
   employeeDocId?: string // personal.documentId — для write-операций движка
   date?: string // дата колонки (день = дата вида, неделя = своя на колонку)
   tier?: 'senior' | 'junior' // junior → фиолетовые карточки броней
-  photoUrl?: string | null // фото мастера (personal.photo, thumbnail) — аватарка в шапке колонки
-  photoFullUrl?: string | null // полноразмерное фото — увеличенное превью по ховеру
   bookings: CalendarBooking[]
   blocks: BlockedRange[]
   showNow?: boolean // рисовать линию текущего времени в этой колонке
@@ -84,8 +91,6 @@ export interface CalendarEmployee {
   calendarOrder: number
   // процент мастера от цены услуги (для показа его доли в календаре мастера)
   ratePercent: number | null
-  photoUrl: string | null
-  photoFullUrl: string | null
 }
 
 export interface CalendarDay {
@@ -119,19 +124,8 @@ interface RawPersonal {
   tier: 'senior' | 'junior' | null
   calendarOrder: number | null
   ratePercent: number | null
-  photo?: { url?: string | null; formats?: { thumbnail?: { url?: string | null } } | null } | null
 }
 
-// Локальный /uploads → абсолютный URL Strapi; прод (ImageKit) уже абсолютный
-const STRAPI_BASE = import.meta.env.VITE_API_URL || 'http://localhost:1337'
-const absUrl = (u: string | null | undefined): string | null => {
-  if (!u) return null
-  return u.startsWith('http') ? u : `${STRAPI_BASE}${u}`
-}
-// тумба для кружка-аватарки; полный размер — для увеличенного превью
-const personalPhotoUrl = (p: RawPersonal): string | null =>
-  absUrl(p.photo?.formats?.thumbnail?.url || p.photo?.url)
-const personalPhotoFullUrl = (p: RawPersonal): string | null => absUrl(p.photo?.url)
 interface MirrorSalonHour {
   date: string
   openMin: number | null
@@ -153,7 +147,7 @@ interface MirrorTimeBlock {
 // Порядок колонок = personal.calendarOrder (меньше — левее), fallback алфавит.
 export async function fetchEmployees(): Promise<CalendarEmployee[]> {
   const res = (await Axios.get(
-    `/api/personals?filters[isActive][$eq]=true&fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=position&fields[3]=tier&fields[4]=calendarOrder&fields[5]=ratePercent&populate[photo][fields][0]=url&populate[photo][fields][1]=formats&pagination[pageSize]=100`,
+    `/api/personals?filters[isActive][$eq]=true&fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=position&fields[3]=tier&fields[4]=calendarOrder&fields[5]=ratePercent&pagination[pageSize]=100`,
     { headers: authHeaders },
   )) as RawPersonal[]
   // Запрос уже фильтрует isActive=true; здесь только отсекаем без noona-id и ❌
@@ -166,8 +160,6 @@ export async function fetchEmployees(): Promise<CalendarEmployee[]> {
       tier: p.tier === 'junior' ? ('junior' as const) : ('senior' as const),
       calendarOrder: p.calendarOrder ?? 0,
       ratePercent: p.ratePercent ?? null,
-      photoUrl: personalPhotoUrl(p),
-      photoFullUrl: personalPhotoFullUrl(p),
     }))
     .sort((a, b) => a.calendarOrder - b.calendarOrder || a.name.localeCompare(b.name, 'cs'))
 }
@@ -310,8 +302,6 @@ export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
     employeeDocId: e.docId,
     date: dateStr,
     tier: e.tier,
-    photoUrl: e.photoUrl,
-    photoFullUrl: e.photoFullUrl,
     bookings: bookingsByEmp.get(e.id) || [],
     blocks: blocksByEmp.get(e.id) || [],
     showNow: isToday,

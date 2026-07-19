@@ -24,7 +24,15 @@ import {
   fetchWeekEmployees,
 } from './fetch/calendarDay'
 import { AdminShiftBar } from './AdminShiftBar'
-import { engineDeleteBooking, enginePatchBooking, updateClientBlacklist } from './fetch/engineApi'
+import {
+  engineApplyRedemption,
+  engineDeleteBooking,
+  enginePatchBooking,
+  engineReleaseRedemption,
+  engineRemoveRebookDiscount,
+  engineRestoreRebookDiscount,
+  updateClientBlacklist,
+} from './fetch/engineApi'
 import { fetchBookingLabels, type BookingLabel } from './fetch/bookingLabels'
 import { CalendarGrid } from './CalendarGrid'
 import { BookingDrawer } from './BookingDrawer'
@@ -326,6 +334,80 @@ export default function CalendarPage() {
     }
   }
 
+  // bitchcard (walk-in К4): уплатнить награду клиента на бронь — цена пересчитывается
+  // на сервере в одной транзакции с redemption→used; drawer остаётся открытым
+  // (обновлённый totalPrice в selected сам рефетчит карточку Bitchcard)
+  const applyRedemption = async (code: string) => {
+    if (!selected) return
+    setMutating(true)
+    try {
+      const res = await engineApplyRedemption(selected.documentId, code)
+      setSelected({ ...selected, totalPrice: res.totalPrice })
+      await reload(true)
+    } catch (e) {
+      window.alert((e as Error).message)
+    } finally {
+      setMutating(false)
+    }
+  }
+
+  // снять ошибочно применённую скидку: redemption → available, цена возвращается
+  const releaseRedemption = async () => {
+    if (!selected) return
+    setMutating(true)
+    try {
+      const res = await engineReleaseRedemption(selected.documentId)
+      const restored =
+        selected.totalPrice != null && res.discountKc
+          ? selected.totalPrice + res.discountKc
+          : selected.totalPrice
+      setSelected({ ...selected, totalPrice: restored })
+      await reload(true)
+    } catch (e) {
+      window.alert((e as Error).message)
+    } finally {
+      setMutating(false)
+    }
+  }
+
+  // скидка дозаписи (rebook −15% с thank-you): снять / вернуть — цена и discount
+  // меняются транзакционно на сервере; drawer остаётся открытым (selected обновляется)
+  const removeRebookDiscount = async () => {
+    if (!selected) return
+    setMutating(true)
+    try {
+      const res = await engineRemoveRebookDiscount(selected.documentId)
+      setSelected({
+        ...selected,
+        totalPrice: res.totalPrice ?? selected.totalPrice,
+        discount: selected.discount ? { ...selected.discount, applied: false } : selected.discount,
+      })
+      await reload(true)
+    } catch (e) {
+      window.alert((e as Error).message)
+    } finally {
+      setMutating(false)
+    }
+  }
+
+  const restoreRebookDiscount = async () => {
+    if (!selected) return
+    setMutating(true)
+    try {
+      const res = await engineRestoreRebookDiscount(selected.documentId)
+      setSelected({
+        ...selected,
+        totalPrice: res.totalPrice ?? selected.totalPrice,
+        discount: selected.discount ? { ...selected.discount, applied: true } : selected.discount,
+      })
+      await reload(true)
+    } catch (e) {
+      window.alert((e as Error).message)
+    } finally {
+      setMutating(false)
+    }
+  }
+
   // отметка «клиент dorazil» (промежуточный шаг перед Proběhla): drawer остаётся
   // открытым — обновляем selected + грид (зелёный лейбл), кнопка меняется на «Proběhla»
   const patchArrived = async () => {
@@ -512,6 +594,15 @@ export default function CalendarPage() {
                 type="date"
                 value={date}
                 onChange={(e) => e.target.value && setDate(e.target.value)}
+                onClick={(e) => {
+                  // клик по невидимому date-инпуту сам не открывает нативный пикер —
+                  // форсим showPicker() (жест пользователя есть → без NotAllowedError)
+                  try {
+                    e.currentTarget.showPicker()
+                  } catch {
+                    /* старый браузер без showPicker — остаётся дефолтное поведение */
+                  }
+                }}
                 aria-label="Datum"
                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               />
@@ -703,7 +794,7 @@ export default function CalendarPage() {
 
         {/* Зум грида +/− (слева внизу) — на любом тач-устройстве (телефон/планшет) */}
         {coarse && (
-          <div className="absolute bottom-[4.5rem] left-3 z-40 flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-[#3f3f3d] dark:bg-[#2a2a28] sm:bottom-4">
+          <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] left-3 z-40 flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-[#3f3f3d] dark:bg-[#2a2a28] sm:bottom-4">
             <button
               type="button"
               onClick={() => changeZoom(1)}
@@ -732,7 +823,7 @@ export default function CalendarPage() {
             type="button"
             onClick={() => openNewBooking()}
             aria-label="Nová rezervace"
-            className="absolute bottom-[4.5rem] right-3 z-40 flex h-12 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-bold text-white shadow-lg active:brightness-90 sm:hidden"
+            className="absolute bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] right-3 z-40 flex h-12 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-bold text-white shadow-lg active:brightness-90 sm:hidden"
           >
             {/* ⚠️ НЕ text-xl — в admin-конфиге это 71px (гоча s42) */}
             <span className="text-[20px] leading-none">+</span> Rezervace
@@ -743,7 +834,7 @@ export default function CalendarPage() {
             Upozornění / ⋯ — весь бывший верхний тулбар у большого пальца. Тап по дате
             открывает нативный пикер (невидимый input поверх лейбла). Низ грида
             подгоняется к верхнему краю этой панели (fit-масштаб в CalendarGrid). */}
-        <div className="absolute inset-x-1 bottom-2 z-40 flex items-center gap-1 rounded-2xl border border-gray-200 bg-white px-1 py-1 shadow-lg dark:border-[#333331] dark:bg-[#1f1f1e] sm:hidden">
+        <div className="absolute inset-x-1 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-40 flex items-center gap-1 rounded-2xl border border-gray-200 bg-white px-1 py-1 shadow-lg dark:border-[#333331] dark:bg-[#1f1f1e] sm:hidden">
           <button
             type="button"
             onClick={goHome}
@@ -774,6 +865,14 @@ export default function CalendarPage() {
                   type="date"
                   value={date}
                   onChange={(e) => e.target.value && setDate(e.target.value)}
+                  onClick={(e) => {
+                    // клик по невидимому date-инпуту сам не открывает пикер — форсим showPicker()
+                    try {
+                      e.currentTarget.showPicker()
+                    } catch {
+                      /* старый браузер без showPicker — дефолтное поведение */
+                    }
+                  }}
                   aria-label="Datum"
                   className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                 />
@@ -888,6 +987,10 @@ export default function CalendarPage() {
           onChangeService={() => selected && setChangeService(selected)}
           onReschedule={() => selected && setReschedule(selected)}
           onDelete={deleteBooking}
+          onApplyRedemption={applyRedemption}
+          onReleaseRedemption={releaseRedemption}
+          onRemoveRebookDiscount={removeRebookDiscount}
+          onRestoreRebookDiscount={restoreRebookDiscount}
           busy={mutating}
           readOnly={isMaster}
           masterRate={isMaster ? (employees[0]?.ratePercent ?? null) : null}
