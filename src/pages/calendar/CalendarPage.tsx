@@ -794,7 +794,7 @@ export default function CalendarPage() {
 
         {/* Зум грида +/− (слева внизу) — на любом тач-устройстве (телефон/планшет) */}
         {coarse && (
-          <div className="absolute bottom-[4.5rem] left-3 z-40 flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-[#3f3f3d] dark:bg-[#2a2a28] sm:bottom-4">
+          <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] left-3 z-40 flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-[#3f3f3d] dark:bg-[#2a2a28] sm:bottom-4">
             <button
               type="button"
               onClick={() => changeZoom(1)}
@@ -823,7 +823,7 @@ export default function CalendarPage() {
             type="button"
             onClick={() => openNewBooking()}
             aria-label="Nová rezervace"
-            className="absolute bottom-[4.5rem] right-3 z-40 flex h-12 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-bold text-white shadow-lg active:brightness-90 sm:hidden"
+            className="absolute bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] right-3 z-40 flex h-12 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-bold text-white shadow-lg active:brightness-90 sm:hidden"
           >
             {/* ⚠️ НЕ text-xl — в admin-конфиге это 71px (гоча s42) */}
             <span className="text-[20px] leading-none">+</span> Rezervace
@@ -834,7 +834,7 @@ export default function CalendarPage() {
             Upozornění / ⋯ — весь бывший верхний тулбар у большого пальца. Тап по дате
             открывает нативный пикер (невидимый input поверх лейбла). Низ грида
             подгоняется к верхнему краю этой панели (fit-масштаб в CalendarGrid). */}
-        <div className="absolute inset-x-1 bottom-2 z-40 flex items-center gap-1 rounded-2xl border border-gray-200 bg-white px-1 py-1 shadow-lg dark:border-[#333331] dark:bg-[#1f1f1e] sm:hidden">
+        <div className="absolute inset-x-1 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-40 flex items-center gap-1 rounded-2xl border border-gray-200 bg-white px-1 py-1 shadow-lg dark:border-[#333331] dark:bg-[#1f1f1e] sm:hidden">
           <button
             type="button"
             onClick={goHome}

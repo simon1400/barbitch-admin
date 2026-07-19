@@ -390,9 +390,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                         )}
                       </span>
                     )}
-                    <span
-                      className={`truncate text-sm font-semibold text-gray-800 dark:text-gray-300 ${clickable ? 'underline decoration-gray-300 decoration-dotted underline-offset-4 dark:decoration-gray-600' : ''}`}
-                    >
+                    <span className="truncate text-sm font-semibold text-gray-800 dark:text-gray-300">
                       {col.name.split(' ')[0]}
                     </span>
                     {col.id.startsWith('orphan:') && (
