@@ -162,9 +162,10 @@ const LoyaltyCard = ({
   const available = (redemptions || []).filter((r) => r.status === 'available')
   if (!used && available.length === 0) return null
 
+  // Рендерится ВНУТРИ главной карты брони (под ценой) — без своей рамки-карточки
   return (
-    <div className="mt-3 rounded-xl border border-gray-200 p-3 dark:border-[#2e2e2c]">
-      <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+    <div className="mt-2.5">
+      <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
         Bitchcard — věrnostní program
       </div>
       {used && (
@@ -192,7 +193,7 @@ const LoyaltyCard = ({
         available.map((r) => (
           <div
             key={r.documentId}
-            className="mb-1.5 flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm last:mb-0 dark:bg-[#252523]"
+            className="mb-1.5 flex items-center justify-between gap-2 rounded-lg bg-white/80 px-3 py-2 text-sm last:mb-0 dark:bg-[#252523]"
           >
             <span className="min-w-0 text-gray-800 dark:text-gray-300">
               🎟 <b>{redemptionRewardLabel(r)}</b>
@@ -236,9 +237,10 @@ const RebookDiscountCard = ({
   const d = b.discount
   if (!d || d.type !== 'rebook') return null
   const editable = b.status === 'active'
+  // Рендерится ВНУТРИ главной карты брони (под ценой) — без своей рамки-карточки
   return (
-    <div className="mt-3 rounded-xl border border-gray-200 p-3 dark:border-[#2e2e2c]">
-      <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+    <div className="mt-2.5">
+      <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
         Sleva za dozápis
       </div>
       {d.applied ? (
@@ -261,7 +263,7 @@ const RebookDiscountCard = ({
           )}
         </div>
       ) : (
-        <div className="flex items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm dark:bg-[#252523]">
+        <div className="flex items-center justify-between gap-2 rounded-lg bg-white/80 px-3 py-2 text-sm dark:bg-[#252523]">
           <span className="text-gray-600 dark:text-gray-400">
             {`Sleva −${d.percent} % (−${d.discountKc} Kč) je zrušená — klient platí plnou cenu.`}
           </span>
@@ -314,6 +316,14 @@ const bookingCreatedLabel = (b: CalendarBooking): string | null => {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+// «Ne 19. 7. 2026» — дата брони с днём недели (сразу видно, о каком дне речь)
+const CS_DOW = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So']
+const dateLabelCs = (dateStr: string): string => {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  if (!y || !m || !d) return dateStr
+  return `${CS_DOW[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]} ${d}. ${m}. ${y}`
 }
 
 // Drawer с деталями брони + кнопки статусов (пишут в движок).
@@ -435,49 +445,86 @@ export const BookingDrawer = ({
 
         
 
-        {/* Карточка «Kontakt» — телефон/e-mail клиента (админ должен уметь связаться).
-            Мастерам (readOnly) НЕ показываем — контакты клиентов только для админов. */}
+        {/* ГЛАВНАЯ КАРТА БРОНИ (розовый акцент): термин + мастер + услуги + цена +
+            скидки + действия — вся суть брони одним взглядом сразу при открытии.
+            Остальные секции (kontakt/poznámka/vytvořeno/historie) — нейтральные ниже. */}
+        <div className="mt-4 rounded-xl border border-pink-200 bg-pink-50/60 p-3 dark:border-[#e71e6e40] dark:bg-[#e71e6e0f]">
+          <div className="text-[15px] font-bold text-gray-900 dark:text-gray-200">
+            {dateLabelCs(b.date)} · {fmtTime(b.startsAt)}–{fmtTime(b.endsAt)}
+          </div>
+          {b.employeeNameRaw && (
+            <div className="mt-0.5 text-sm text-gray-600 dark:text-gray-400">{b.employeeNameRaw}</div>
+          )}
+          <div className="my-2.5 border-t border-pink-200/80 dark:border-[#e71e6e26]" />
+          <div className="space-y-1.5">
+            {(b.services || []).map((s, i) => (
+              <div key={i} className="flex justify-between gap-2 rounded-lg bg-white/80 px-3 py-1.5 dark:bg-[#252523] text-sm">
+                <span className="text-gray-800 dark:text-gray-300">{s.title}</span>
+                <span className="text-gray-500 dark:text-gray-400 text-nowrap">
+                   {s.durationMin ? `${s.durationMin} min` : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex items-center justify-between">
+            {/* Мастеру (masterRate) показываем его долю, а не полную цену услуги */}
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Celkem</span>
+            <span className="text-sm1 font-bold text-primary">
+              {b.totalPrice == null
+                ? '—'
+                : masterRate != null
+                  ? `${Math.round((b.totalPrice * masterRate) / 100)} Kč`
+                  : `${b.totalPrice} Kč`}
+            </span>
+          </div>
+
+          {/* Скидки — сразу под ценой, к которой относятся. Bitchcard: только админам
+              и только active/checkedOut (сервер это тоже проверяет); rebook −15% тоже. */}
+          {!readOnly && b.client?.documentId && (b.status === 'active' || b.status === 'checkedOut') && (
+            <LoyaltyCard b={b} busy={busy} onApply={onApplyRedemption} onRelease={onReleaseRedemption} />
+          )}
+          {!readOnly && (
+            <RebookDiscountCard
+              b={b}
+              busy={busy}
+              onRemove={onRemoveRebookDiscount}
+              onRestore={onRestoreRebookDiscount}
+            />
+          )}
+
+          {/* Действия над активной бронью — внутри главной карты, не надо искать */}
+          {b.status === 'active' && !readOnly && (
+            <div className="mt-2.5 flex gap-2 border-t border-pink-200/80 pt-2.5 dark:border-[#e71e6e26]">
+              <button
+                type="button"
+                onClick={onReschedule}
+                className="flex-1 rounded-md border border-pink-300 bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50 dark:border-[#e71e6e80] dark:bg-transparent dark:shadow-none dark:hover:bg-[#e71e6e26]"
+              >
+                Změnit termín
+              </button>
+              <button
+                type="button"
+                onClick={onChangeService}
+                className="flex-1 rounded-md border border-pink-300 bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50 dark:border-[#e71e6e80] dark:bg-transparent dark:shadow-none dark:hover:bg-[#e71e6e26]"
+              >
+                Změnit službu
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Kontakt (компакт): телефон/e-mail, блэклист-кнопка в шапке карточки.
+            Блэклист блокирует клиенту ТОЛЬКО запись через сайт (движок 403);
+            из календаря админ бронировать может как раньше. Кнопка — только у броней
+            со связанным клиентом (у старых импортных связи нет).
+            Мастерам (readOnly) карточку НЕ показываем — контакты только для админов. */}
         {!readOnly && (
-        <div className="mt-4 rounded-xl border border-gray-200 p-3 dark:border-[#2e2e2c]">
-          <div className="mb-2">
+        <div className="mt-3 rounded-xl border border-gray-200 p-3 dark:border-[#2e2e2c]">
+          <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
               Kontakt
             </span>
-          </div>
-          <div className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 dark:bg-[#252523] text-sm">
-            {b.client?.phone ? (
-              <a
-                href={`tel:${b.client.phone}`}
-                className="font-semibold text-gray-800 hover:text-primary dark:text-gray-300"
-              >
-                📞 {b.client.phone}
-              </a>
-            ) : (
-              <span className="text-gray-400 dark:text-gray-500">📞 telefon není uveden</span>
-            )}
-            {b.client?.email ? (
-              <a
-                href={`mailto:${b.client.email}`}
-                className="break-all text-gray-800 hover:text-primary dark:text-gray-300"
-              >
-                ✉️ {b.client.email}
-              </a>
-            ) : (
-              <span className="text-gray-400 dark:text-gray-500">✉️ e-mail není uveden</span>
-            )}
-          </div>
-          {/* Блэклист: статус + toggle. Блокирует клиенту ТОЛЬКО запись через сайт
-              (движок 403 blacklisted); из календаря админ бронировать может как раньше.
-              Только для броней со связанным клиентом (у старых импортных связи нет). */}
-          {b.client?.documentId && (
-            <div className="mt-2 flex items-center justify-between gap-2">
-              {b.client.blacklisted ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700 dark:bg-red-500/20 dark:text-red-300">
-                  ⛔ Na blacklistu
-                </span>
-              ) : (
-                <span className="text-xs text-gray-400 dark:text-gray-500">Klient není na blacklistu</span>
-              )}
+            {b.client?.documentId && (
               <button
                 type="button"
                 disabled={busy}
@@ -490,90 +537,39 @@ export const BookingDrawer = ({
                   )
                   if (ok) onToggleBlacklist(next)
                 }}
-                className={`rounded-md border px-3 py-2 text-xs font-semibold shadow-sm transition disabled:opacity-40 dark:shadow-none sm:px-2.5 sm:py-1 ${
+                className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition disabled:opacity-40 ${
                   b.client.blacklisted
-                    ? 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-[#3f3f3d] dark:bg-transparent dark:text-gray-300 dark:hover:bg-[#2e2e2c]'
-                    : 'border-red-300 bg-white text-red-600 hover:bg-red-50 dark:border-red-500/50 dark:bg-transparent dark:text-red-300 dark:hover:bg-red-500/10'
+                    ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-500/20 dark:text-red-300 dark:hover:bg-red-500/30'
+                    : 'border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-500/50 dark:text-red-300 dark:hover:bg-red-500/10'
                 }`}
               >
-                {b.client.blacklisted ? 'Odebrat z blacklistu' : '⛔ Na blacklist'}
-              </button>
-            </div>
-          )}
-        </div>
-        )}
-
-        {/* Карточка «Termín»: дата · время · мастер + кнопка переноса (дата/время/мастер) */}
-        <div className="mt-3 rounded-xl border border-gray-200 p-3 dark:border-[#2e2e2c]">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Termín</span>
-            {b.status === 'active' && !readOnly && (
-              <button
-                type="button"
-                onClick={onReschedule}
-                className="rounded-md border border-pink-300 bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50 dark:border-[#e71e6e80] dark:bg-transparent dark:shadow-none dark:hover:bg-[#e71e6e26] sm:px-2.5 sm:py-1"
-              >
-                Změnit termín
+                {b.client.blacklisted ? '⛔ Na blacklistu · zrušit' : '⛔ Na blacklist'}
               </button>
             )}
           </div>
-          <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-[#252523] text-sm text-gray-800 dark:text-gray-300 flex flex-col">
-            <span>{b.date.split('-').reverse().join('. ')} | {fmtTime(b.startsAt)}–{fmtTime(b.endsAt)}</span>
-            {b.employeeNameRaw && <span className="text-gray-500 dark:text-gray-400">{b.employeeNameRaw}</span>}
-          </div>
-        </div>
-
-        {/* Карточка «Služby» — услуги + итоговая цена (Celkem относится к услугам) */}
-        <div className="mt-3 rounded-xl border border-gray-200 p-3 dark:border-[#2e2e2c]">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Služby</span>
-            {b.status === 'active' && !readOnly && (
-              <button
-                type="button"
-                onClick={onChangeService}
-                className="rounded-md border border-pink-300 bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50 dark:border-[#e71e6e80] dark:bg-transparent dark:shadow-none dark:hover:bg-[#e71e6e26] sm:px-2.5 sm:py-1"
+          <div className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 dark:bg-[#252523] text-sm">
+            {b.client?.phone ? (
+              <a
+                href={`tel:${b.client.phone}`}
+                className="font-semibold text-gray-800 hover:text-primary dark:text-gray-300"
               >
-                Změnit službu
-              </button>
+                {b.client.phone}
+              </a>
+            ) : (
+              <span className="text-gray-400 dark:text-gray-500">telefon není uveden</span>
+            )}
+            {b.client?.email ? (
+              <a
+                href={`mailto:${b.client.email}`}
+                className="break-all text-gray-800 hover:text-primary dark:text-gray-300"
+              >
+                {b.client.email}
+              </a>
+            ) : (
+              <span className="text-gray-400 dark:text-gray-500">e-mail není uveden</span>
             )}
           </div>
-          <div className="space-y-2">
-            {(b.services || []).map((s, i) => (
-              <div key={i} className="flex justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2 dark:bg-[#252523] text-sm">
-                <span className="text-gray-800 dark:text-gray-300">{s.title}</span>
-                <span className="text-gray-500 dark:text-gray-400 text-nowrap">
-                   {s.durationMin ? `${s.durationMin} min` : ''} {/*{s.price != null ? `· ${s.price} Kč` : ''} */}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-2 flex items-center justify-between border-t border-gray-200 pt-2 dark:border-[#2e2e2c]">
-            {/* Мастеру (masterRate) показываем его долю, а не полную цену услуги */}
-            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Celkem</span>
-            <span className="text-sm1 font-bold text-primary">
-              {b.totalPrice == null
-                ? '—'
-                : masterRate != null
-                  ? `${Math.round((b.totalPrice * masterRate) / 100)} Kč`
-                  : `${b.totalPrice} Kč`}
-            </span>
-          </div>
         </div>
-
-        {/* Bitchcard (walk-in К4): награды клиента брони — уплатнить/снять скидку.
-            Только админам и только на active/checkedOut (сервер это тоже проверяет) */}
-        {!readOnly && b.client?.documentId && (b.status === 'active' || b.status === 'checkedOut') && (
-          <LoyaltyCard b={b} busy={busy} onApply={onApplyRedemption} onRelease={onReleaseRedemption} />
-        )}
-
-        {/* Скидка дозаписи с thank-you (rebook −15%): админ может снять/вернуть */}
-        {!readOnly && (
-          <RebookDiscountCard
-            b={b}
-            busy={busy}
-            onRemove={onRemoveRebookDiscount}
-            onRestore={onRestoreRebookDiscount}
-          />
         )}
 
         {/* Интерн-позна́мка: админам — редактируемая карточка (свободная заметка,
@@ -599,7 +595,7 @@ export const BookingDrawer = ({
               ref={commentRef}
               value={commentDraft}
               onChange={(e) => setCommentDraft(e.target.value)}
-              rows={2}
+              rows={1}
               placeholder="Interní poznámka k rezervaci… (klient ji nevidí)"
               className="w-full resize-none rounded-lg border border-gray-200 bg-amber-50/60 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-pink-300 focus:outline-none dark:border-[#3f3f3d] dark:bg-[#2a2a24] dark:text-gray-300 dark:placeholder:text-gray-500 dark:focus:border-[#e71e6e99]"
             />
@@ -788,30 +784,33 @@ export const BookingDrawer = ({
               </div>
             </div>
           )}
-          {/* Верхняя кнопка: активная бронь без прихода → «Dorazila» (зелёная);
-              после прихода (arrived) или у неактивной → «Proběhla» (checkedOut).
-              Логика: клиент не может «проběhnout» пока не dorazil. */}
-          <div className={'mb-2'}>
-            {b.status === 'active' && !b.arrived ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={onArrived}
-                className="w-full text-nowrap rounded-md bg-green-600 px-3 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-40 sm:py-2"
-              >
-                ✓ Dorazila
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => onStatus('checkedOut')}
-                className="w-full text-nowrap rounded-md bg-blue-600 px-3 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 sm:py-2"
-              >
-                ✓ Proběhla
-              </button>
-            )}
-          </div>
+          {/* Верхняя кнопка — только пока бронь активна: без прихода → «Dorazila»
+              (зелёная), после прихода (arrived) → «Proběhla» (checkedOut).
+              Уже проведённая/отменённая/noshow — кнопки нет (её смысл потерян;
+              вернуть в active можно кнопкой «Obnovit» ниже). */}
+          {b.status === 'active' && (
+            <div className={'mb-2'}>
+              {!b.arrived ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={onArrived}
+                  className="w-full text-nowrap rounded-md bg-green-600 px-3 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-40 sm:py-2"
+                >
+                  ✓ Dorazila
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onStatus('checkedOut')}
+                  className="w-full text-nowrap rounded-md bg-blue-600 px-3 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 sm:py-2"
+                >
+                  ✓ Proběhla
+                </button>
+              )}
+            </div>
+          )}
           
           <div className="flex flex-wrap gap-2">
             {b.status === 'active' ? (

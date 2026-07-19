@@ -594,6 +594,15 @@ export default function CalendarPage() {
                 type="date"
                 value={date}
                 onChange={(e) => e.target.value && setDate(e.target.value)}
+                onClick={(e) => {
+                  // клик по невидимому date-инпуту сам не открывает нативный пикер —
+                  // форсим showPicker() (жест пользователя есть → без NotAllowedError)
+                  try {
+                    e.currentTarget.showPicker()
+                  } catch {
+                    /* старый браузер без showPicker — остаётся дефолтное поведение */
+                  }
+                }}
                 aria-label="Datum"
                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               />
@@ -856,6 +865,14 @@ export default function CalendarPage() {
                   type="date"
                   value={date}
                   onChange={(e) => e.target.value && setDate(e.target.value)}
+                  onClick={(e) => {
+                    // клик по невидимому date-инпуту сам не открывает пикер — форсим showPicker()
+                    try {
+                      e.currentTarget.showPicker()
+                    } catch {
+                      /* старый браузер без showPicker — дефолтное поведение */
+                    }
+                  }}
                   aria-label="Datum"
                   className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                 />
