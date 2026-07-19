@@ -35,6 +35,7 @@ const CODE_MESSAGES: Record<string, string> = {
   redemption_unavailable: 'Sleva už byla uplatněna nebo vypršela.',
   booking_has_redemption: 'Na rezervaci už je uplatněna sleva.',
   booking_not_active: 'Slevu lze uplatnit jen na aktivní rezervaci.',
+  reward_not_earned: 'Klient zatím na tuto slevu nemá nárok (nedosáhl prahu).',
   no_price: 'Rezervace nemá cenu — slevu není z čeho počítat.',
   no_client: 'Rezervace nemá připojeného klienta.',
 }
