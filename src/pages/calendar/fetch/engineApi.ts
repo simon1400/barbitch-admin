@@ -38,6 +38,10 @@ const CODE_MESSAGES: Record<string, string> = {
   reward_not_earned: 'Klient zatím na tuto slevu nemá nárok (nedosáhl prahu).',
   no_price: 'Rezervace nemá cenu — slevu není z čeho počítat.',
   no_client: 'Rezervace nemá připojeného klienta.',
+  // скидка дозаписи (rebook, thank-you)
+  rebook_discount_missing: 'Na rezervaci není sleva za dozápis.',
+  discount_already_applied: 'Sleva už je uplatněná.',
+  discount_not_applied: 'Sleva už je zrušená.',
 }
 
 async function engineFetch<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -165,6 +169,22 @@ export const engineReleaseRedemption = (bookingDocId: string) =>
     'DELETE',
     `/engine/admin/bookings/${bookingDocId}/redemption`,
   )
+
+// ── скидка дозаписи (rebook −15%, thank-you) ──
+
+export interface RebookDiscountResult {
+  applied: boolean
+  discountKc: number
+  totalPrice: number | null
+}
+
+// Снять скидку дозаписи: цена брони возвращается к полной, скидка applied:false
+export const engineRemoveRebookDiscount = (bookingDocId: string) =>
+  engineFetch<RebookDiscountResult>('DELETE', `/engine/admin/bookings/${bookingDocId}/rebook-discount`)
+
+// Вернуть ошибочно снятую скидку дозаписи (−discountKc от цены, applied:true)
+export const engineRestoreRebookDiscount = (bookingDocId: string) =>
+  engineFetch<RebookDiscountResult>('POST', `/engine/admin/bookings/${bookingDocId}/rebook-discount`)
 
 // ── блоки времени ──
 

@@ -29,6 +29,8 @@ import {
   engineDeleteBooking,
   enginePatchBooking,
   engineReleaseRedemption,
+  engineRemoveRebookDiscount,
+  engineRestoreRebookDiscount,
   updateClientBlacklist,
 } from './fetch/engineApi'
 import { fetchBookingLabels, type BookingLabel } from './fetch/bookingLabels'
@@ -360,6 +362,44 @@ export default function CalendarPage() {
           ? selected.totalPrice + res.discountKc
           : selected.totalPrice
       setSelected({ ...selected, totalPrice: restored })
+      await reload(true)
+    } catch (e) {
+      window.alert((e as Error).message)
+    } finally {
+      setMutating(false)
+    }
+  }
+
+  // скидка дозаписи (rebook −15% с thank-you): снять / вернуть — цена и discount
+  // меняются транзакционно на сервере; drawer остаётся открытым (selected обновляется)
+  const removeRebookDiscount = async () => {
+    if (!selected) return
+    setMutating(true)
+    try {
+      const res = await engineRemoveRebookDiscount(selected.documentId)
+      setSelected({
+        ...selected,
+        totalPrice: res.totalPrice ?? selected.totalPrice,
+        discount: selected.discount ? { ...selected.discount, applied: false } : selected.discount,
+      })
+      await reload(true)
+    } catch (e) {
+      window.alert((e as Error).message)
+    } finally {
+      setMutating(false)
+    }
+  }
+
+  const restoreRebookDiscount = async () => {
+    if (!selected) return
+    setMutating(true)
+    try {
+      const res = await engineRestoreRebookDiscount(selected.documentId)
+      setSelected({
+        ...selected,
+        totalPrice: res.totalPrice ?? selected.totalPrice,
+        discount: selected.discount ? { ...selected.discount, applied: true } : selected.discount,
+      })
       await reload(true)
     } catch (e) {
       window.alert((e as Error).message)
@@ -932,6 +972,8 @@ export default function CalendarPage() {
           onDelete={deleteBooking}
           onApplyRedemption={applyRedemption}
           onReleaseRedemption={releaseRedemption}
+          onRemoveRebookDiscount={removeRebookDiscount}
+          onRestoreRebookDiscount={restoreRebookDiscount}
           busy={mutating}
           readOnly={isMaster}
           masterRate={isMaster ? (employees[0]?.ratePercent ?? null) : null}

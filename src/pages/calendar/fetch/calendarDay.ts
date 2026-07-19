@@ -50,6 +50,15 @@ export interface CalendarBooking {
   } | null
   // кастомный лейбл (снапшот из справочника booking-label)
   label?: { name: string; color: string } | null
+  // структурированная скидка дозаписи с thank-you (rebook −15%, пишет движок);
+  // applied=false — админ скидку снял (цена возвращена к полной)
+  discount?: {
+    type: string
+    percent: number
+    discountKc: number
+    originalPrice: number
+    applied: boolean
+  } | null
 }
 
 export interface BlockedRange {
