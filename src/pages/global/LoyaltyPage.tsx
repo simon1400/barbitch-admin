@@ -9,6 +9,7 @@ import { Cell } from '../dashboard/components/Cell'
 import { OwnerProtection } from './components/OwnerProtection'
 import { TableWrapper } from './components/TableWrapper'
 import type {
+  CabinetAccount,
   ClientHit,
   LoyaltyAccount,
   LoyaltyMetrics,
@@ -20,6 +21,7 @@ import {
   createManualTransaction,
   createReward,
   deleteReward,
+  fetchCabinetClients,
   fetchLoyaltyAccounts,
   fetchLoyaltyMetrics,
   fetchRedemptions,
@@ -458,12 +460,107 @@ function RewardsSection({ rewards, onChanged }: { rewards: Reward[]; onChanged: 
   )
 }
 
+// ── цифровые аккаунты кабинета ──
+
+function CabinetSection({ accounts }: { accounts: CabinetAccount[] }) {
+  const [query, setQuery] = useState('')
+  const [page, setPage] = useState(1)
+
+  const loggedIn = useMemo(() => accounts.filter((a) => a.cabinetLastLoginAt).length, [accounts])
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return accounts
+    return accounts.filter(
+      (a) =>
+        a.name.toLowerCase().includes(q) ||
+        (a.email || '').toLowerCase().includes(q) ||
+        (a.phone || '').includes(q),
+    )
+  }, [accounts, query])
+
+  const paged = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page])
+
+  return (
+    <div className={'mb-6'}>
+      <div className={'flex flex-wrap items-center justify-between gap-2 mb-3'}>
+        <h3 className={'text-2xl font-bold'}>Цифровые аккаунты кабинета</h3>
+        <div className={'flex flex-wrap items-center gap-2'}>
+          <span className={'px-3 py-1.5 rounded-lg bg-white shadow-sm text-sm'}>
+            Зарегистрировано: <b>{accounts.length}</b>
+          </span>
+          <span className={'px-3 py-1.5 rounded-lg bg-white shadow-sm text-sm'}>
+            Заходили: <b>{loggedIn}</b>
+          </span>
+          <input
+            className={'border border-gray-300 rounded-lg px-3 py-2 text-sm w-56'}
+            placeholder={'Поиск: имя / e-mail / телефон'}
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setPage(1)
+            }}
+          />
+        </div>
+      </div>
+
+      {accounts.length === 0 ? (
+        <p className={'text-sm text-gray-500'}>
+          Пока никто не завёл цифровой аккаунт (не подтвердил e-mail в кабинете).
+        </p>
+      ) : (
+        <TableWrapper additionalInfo={`Показано ${filtered.length} из ${accounts.length}`}>
+          <table className={'w-full text-left table-auto min-w-max'}>
+            <thead>
+              <tr>
+                <Cell title={'Клиент'} asHeader />
+                <Cell title={'E-mail'} asHeader />
+                <Cell title={'Телефон'} asHeader />
+                <Cell title={'Зарегистрирован'} asHeader />
+                <Cell title={'Последний вход'} asHeader />
+                <Cell title={'Реклама'} asHeader />
+              </tr>
+            </thead>
+            <tbody>
+              {paged.map((a) => (
+                <tr key={a.documentId} className={'hover:bg-gray-50'}>
+                  <Cell title={a.name} className={'text-primary'} />
+                  <Cell title={a.email || '—'} className={'text-gray-600'} />
+                  <Cell title={a.phone || '—'} className={'text-gray-600'} />
+                  <Cell title={fmtDate(a.emailVerifiedAt)} />
+                  <td className={'p-4 border-b border-blue-gray-50'}>
+                    {a.cabinetLastLoginAt ? (
+                      <span className={'text-emerald-700'}>{fmtDate(a.cabinetLastLoginAt)}</span>
+                    ) : (
+                      <span className={'text-gray-400'}>ещё не входил</span>
+                    )}
+                  </td>
+                  <Cell
+                    title={a.marketingConsent ? '✓' : '—'}
+                    className={a.marketingConsent ? 'text-emerald-600 font-bold' : 'text-gray-400'}
+                  />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableWrapper>
+      )}
+      <Pagination page={page} total={filtered.length} onPage={setPage} />
+      <p className={'mt-3 text-xs text-gray-500'}>
+        «Зарегистрирован» = клиент подтвердил e-mail и завёл цифровой аккаунт. «Последний вход» пуст,
+        если аккаунт создан, но в кабинет пока не заходили.
+      </p>
+    </div>
+  )
+}
+
 // ── страница ──
 
-type LoyaltyTab = 'accounts' | 'metrics' | 'rewards' | 'adjust'
+type LoyaltyTab = 'accounts' | 'cabinet' | 'metrics' | 'rewards' | 'adjust'
 
 const TABS: { id: LoyaltyTab; label: string }[] = [
   { id: 'accounts', label: 'Аккаунты' },
+  { id: 'cabinet', label: 'Кабинет' },
   { id: 'metrics', label: 'Метрики' },
   { id: 'rewards', label: 'Награды и погашения' },
   { id: 'adjust', label: 'Корректировка' },
@@ -472,6 +569,7 @@ const TABS: { id: LoyaltyTab; label: string }[] = [
 export default function LoyaltyPage() {
   const cardYear = new Date().getFullYear()
   const [accounts, setAccounts] = useState<LoyaltyAccount[]>([])
+  const [cabinetAccounts, setCabinetAccounts] = useState<CabinetAccount[]>([])
   const [rewards, setRewards] = useState<Reward[]>([])
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
   const [metrics, setMetrics] = useState<LoyaltyMetrics | null>(null)
@@ -488,13 +586,15 @@ export default function LoyaltyPage() {
     setLoading(true)
     setError(null)
     try {
-      const [acc, rw, rd, mt] = await Promise.all([
+      const [acc, cab, rw, rd, mt] = await Promise.all([
         fetchLoyaltyAccounts(cardYear),
+        fetchCabinetClients(),
         fetchRewards(),
         fetchRedemptions('available'),
         fetchLoyaltyMetrics(cardYear),
       ])
       setAccounts(acc)
+      setCabinetAccounts(cab)
       setRewards(rw)
       setRedemptions(rd)
       setMetrics(mt)
@@ -594,6 +694,8 @@ export default function LoyaltyPage() {
               </button>
             ))}
           </div>
+
+          {tab === 'cabinet' && <CabinetSection accounts={cabinetAccounts} />}
 
           {tab === 'metrics' && (
             <MetricsSection metrics={metrics} accounts={accounts} rewards={rewards} />

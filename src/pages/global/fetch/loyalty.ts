@@ -147,6 +147,32 @@ export async function fetchLoyaltyAccounts(cardYear: number): Promise<LoyaltyAcc
   return accounts
 }
 
+// ── цифровые аккаунты кабинета (зарегистрировались / заходили) ──
+
+export interface CabinetAccount {
+  documentId: string
+  name: string
+  email: string | null
+  phone: string | null
+  source: string | null
+  emailVerifiedAt: string | null
+  cabinetLastLoginAt: string | null
+  marketingConsent: boolean
+}
+
+// Клиенты с подтверждённым e-mail = завели цифровой аккаунт (карточка
+// «С цифровым аккаунтом»). cabinetLastLoginAt != null → реально входили.
+// Сортировка по дате регистрации (emailVerifiedAt всегда задан из-за фильтра;
+// сорт по cabinetLastLoginAt дал бы NULLS FIRST в Postgres → «не входившие» вверху).
+export async function fetchCabinetClients(): Promise<CabinetAccount[]> {
+  return fetchAllPages<CabinetAccount>(
+    `/api/clients?filters[emailVerifiedAt][$notNull]=true` +
+      `&fields[0]=name&fields[1]=email&fields[2]=phone&fields[3]=source` +
+      `&fields[4]=emailVerifiedAt&fields[5]=cabinetLastLoginAt&fields[6]=marketingConsent` +
+      `&sort=emailVerifiedAt:desc`,
+  )
+}
+
 // ── ручная корректировка ──
 
 export async function searchLoyaltyClients(q: string, limit = 8): Promise<ClientHit[]> {
