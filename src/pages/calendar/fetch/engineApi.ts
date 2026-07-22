@@ -29,6 +29,7 @@ const CODE_MESSAGES: Record<string, string> = {
   blacklisted: 'Klient je na blacklistu.',
   unauthorized: 'Přihlášení vypršelo — přihlaste se znovu.',
   employee_service_mismatch: 'Mistr tuto službu nedělá.',
+  phone_required: 'Chybí platné telefonní číslo klienta — zkontrolujte pole Telefon.',
   // лояльность bitchcard (walk-in)
   loyalty_disabled: 'Věrnostní program není zapnutý.',
   redemption_not_found: 'Kód slevy nenalezen u klienta této rezervace.',

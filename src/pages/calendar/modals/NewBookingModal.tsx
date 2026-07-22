@@ -66,8 +66,16 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Валидация нового клиента. Реальный кейс: два поля рядом с одними плейсхолдерами
+  // админы читали как «имя | фамилие» → фамилия попадала в Telefon, телефон в E-mail,
+  // а сервер отвечал 400 phone_required только после клика. Теперь у полей видимые
+  // подписи + телефон обязан содержать номер (мин. 9 цифр — чешский формат; с кодом длиннее).
+  const ncPhoneOk = ncPhone.replace(/\D/g, '').length >= 9
+  const ncEmailTrim = ncEmail.trim()
+  const ncEmailOk = !ncEmailTrim || /^\S+@\S+\.\S+$/.test(ncEmailTrim)
+
   // e-mail клиента (выбранного или нового) — гейт чекбокса «poslat potvrzení»
-  const clientEmail = newClient ? ncEmail.trim() : (client?.email ?? '').trim()
+  const clientEmail = newClient ? (ncEmailOk ? ncEmailTrim : '') : (client?.email ?? '').trim()
   const hasEmail = Boolean(clientEmail)
   // дефолт по роадмапу §4.3: вкл, когда у клиента есть e-mail
   useEffect(() => {
@@ -128,7 +136,7 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
 
   const canSubmit =
     Boolean(employeeDocId && date && /^\d{2}:\d{2}$/.test(time) && svc) &&
-    (newClient ? Boolean(ncName.trim() && ncPhone.trim()) : Boolean(client))
+    (newClient ? Boolean(ncName.trim()) && ncPhoneOk && ncEmailOk : Boolean(client))
 
   const submit = async () => {
     if (!canSubmit || !svc) return
@@ -194,10 +202,45 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
             </button>
           </div>
           {newClient ? (
-            <div className="grid grid-cols-2 gap-2">
-              <input className={inputCls} placeholder="Jméno *" value={ncName} onChange={(e) => setNcName(e.target.value)} />
-              <input className={inputCls} placeholder="Telefon *" value={ncPhone} onChange={(e) => setNcPhone(e.target.value)} />
-              <input className={`${inputCls} col-span-2`} placeholder="E-mail" value={ncEmail} onChange={(e) => setNcEmail(e.target.value)} />
+            <div className="space-y-2">
+              <div>
+                <span className={labelCls}>Jméno a příjmení *</span>
+                <input className={inputCls} placeholder="Jana Nováková" value={ncName} onChange={(e) => setNcName(e.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className={labelCls}>Telefon *</span>
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    className={inputCls}
+                    placeholder="+420 777 123 456"
+                    value={ncPhone}
+                    onChange={(e) => setNcPhone(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <span className={labelCls}>E-mail</span>
+                  <input
+                    type="email"
+                    inputMode="email"
+                    className={inputCls}
+                    placeholder="jana@email.cz"
+                    value={ncEmail}
+                    onChange={(e) => setNcEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+              {ncPhone.trim() !== '' && !ncPhoneOk && (
+                <p className="text-xs font-medium text-red-600 dark:text-red-300">
+                  Do pole Telefon zadejte číslo — aspoň 9 číslic (např. +420 777 123 456).
+                </p>
+              )}
+              {!ncEmailOk && (
+                <p className="text-xs font-medium text-red-600 dark:text-red-300">
+                  E-mail nevypadá platně — zkontrolujte ho, nebo pole nechte prázdné.
+                </p>
+              )}
             </div>
           ) : client ? (
             <div className="flex items-center justify-between rounded-md border border-gray-200 dark:border-[#2e2e2c] bg-white dark:bg-[#2a2a28] px-3 py-2 text-sm">
