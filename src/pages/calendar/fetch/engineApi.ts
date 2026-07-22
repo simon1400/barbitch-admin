@@ -141,10 +141,19 @@ export interface BookingRedemption {
   }
 }
 
-// Награды клиента брони: available + применённая к ЭТОЙ брони.
+// Прогресс копилки клиента за текущий карточный год: сколько утрачено и сколько
+// до следующей награды трека (voucher-бонус в next не считается — сюрприз).
+export interface LoyaltyProgress {
+  cardYear: number
+  balanceKc: number
+  nextReward: { title: string; thresholdKc: number; remainingKc: number } | null
+}
+
+// Награды клиента брони: available + применённая к ЭТОЙ брони + прогресс копилки.
 // enabled:false → программа выключена (LOYALTY_ENABLED) — карточку не показываем.
+// progress отсутствует у старого бэкенда (до деплоя Strapi) → optional.
 export const fetchBookingRedemptions = (bookingDocId: string) =>
-  engineFetch<{ enabled: boolean; redemptions: BookingRedemption[] }>(
+  engineFetch<{ enabled: boolean; redemptions: BookingRedemption[]; progress?: LoyaltyProgress | null }>(
     'GET',
     `/engine/admin/bookings/${bookingDocId}/redemptions`,
   )

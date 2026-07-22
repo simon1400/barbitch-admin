@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { CalendarBooking, ClientHistoryItem } from './fetch/calendarDay'
 import { fetchClientHistory, todayStrPrague } from './fetch/calendarDay'
 import type { BookingLabel } from './fetch/bookingLabels'
-import type { BookingRedemption } from './fetch/engineApi'
+import type { BookingRedemption, LoyaltyProgress } from './fetch/engineApi'
 import { fetchBookingRedemptions } from './fetch/engineApi'
 import { STATUS_META, fmtTime } from './utils'
 
@@ -141,15 +141,20 @@ const LoyaltyCard = ({
   onRelease: () => void
 }) => {
   const [redemptions, setRedemptions] = useState<BookingRedemption[] | null>(null)
+  const [progress, setProgress] = useState<LoyaltyProgress | null>(null)
 
   useEffect(() => {
     let cancelled = false
     fetchBookingRedemptions(b.documentId)
       .then((res) => {
-        if (!cancelled) setRedemptions(res.enabled ? res.redemptions : [])
+        if (cancelled) return
+        setRedemptions(res.enabled ? res.redemptions : [])
+        setProgress(res.enabled ? res.progress || null : null)
       })
       .catch(() => {
-        if (!cancelled) setRedemptions([])
+        if (cancelled) return
+        setRedemptions([])
+        setProgress(null)
       })
     return () => {
       cancelled = true
@@ -160,7 +165,7 @@ const LoyaltyCard = ({
     (r) => r.status === 'used' && r.usedInBookingDocId === b.documentId,
   )
   const available = (redemptions || []).filter((r) => r.status === 'available')
-  if (!used && available.length === 0) return null
+  if (!used && available.length === 0 && !progress) return null
 
   // Рендерится ВНУТРИ главной карты брони (под ценой) — без своей рамки-карточки
   return (
@@ -168,6 +173,26 @@ const LoyaltyCard = ({
       <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
         Bitchcard — věrnostní program
       </div>
+      {progress && (
+        <div className="mb-1.5 text-xs text-gray-600 dark:text-gray-400">
+          Letos utraceno:{' '}
+          <b className="text-gray-800 dark:text-gray-200">
+            {progress.balanceKc.toLocaleString('cs-CZ')} Kč
+          </b>
+          {progress.nextReward ? (
+            <>
+              {' · do „'}
+              {progress.nextReward.title}
+              {'“ zbývá '}
+              <b className="text-primary">
+                {progress.nextReward.remainingKc.toLocaleString('cs-CZ')} Kč
+              </b>
+            </>
+          ) : (
+            <> · dosaženy všechny odměny</>
+          )}
+        </div>
+      )}
       {used && (
         <div className="flex items-center justify-between gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm dark:bg-emerald-500/10">
           <span className="text-emerald-800 dark:text-emerald-200">

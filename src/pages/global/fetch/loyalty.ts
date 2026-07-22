@@ -98,7 +98,7 @@ export interface Redemption {
   usedInBookingDocId: string | null
   expiresAt: string | null
   createdAt: string
-  client: { documentId: string; name: string } | null
+  client: { documentId: string; name: string; email: string | null; phone: string | null } | null
   reward: { documentId: string; title: string; thresholdKc: number } | null
 }
 
@@ -237,6 +237,7 @@ export async function fetchRedemptions(status?: Redemption['status']): Promise<R
   const filter = status ? `&filters[status][$eq]=${status}` : ''
   return fetchAllPages<Redemption>(
     `/api/redemptions?populate[client][fields][0]=name` +
+      `&populate[client][fields][1]=email&populate[client][fields][2]=phone` +
       `&populate[reward][fields][0]=title&populate[reward][fields][1]=thresholdKc` +
       `&sort=createdAt:desc${filter}`,
   )

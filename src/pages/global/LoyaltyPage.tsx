@@ -576,6 +576,7 @@ export default function LoyaltyPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [redSearch, setRedSearch] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [tab, setTab] = useState<LoyaltyTab>('accounts')
@@ -625,9 +626,24 @@ export default function LoyaltyPage() {
     () => filtered.slice((accPage - 1) * PAGE_SIZE, accPage * PAGE_SIZE),
     [filtered, accPage],
   )
+  // Поиск по наградам: имя / e-mail / телефон (по цифрам) / код награды.
+  const filteredRedemptions = useMemo(() => {
+    const q = redSearch.trim().toLowerCase()
+    if (!q) return redemptions
+    const qDigits = q.replace(/[\s()+-]/g, '')
+    const isPhoneQ = /^\d{3,}$/.test(qDigits)
+    return redemptions.filter((r) => {
+      if ((r.client?.name || '').toLowerCase().includes(q)) return true
+      if ((r.client?.email || '').toLowerCase().includes(q)) return true
+      if ((r.code || '').toLowerCase().includes(q)) return true
+      if (isPhoneQ && (r.client?.phone || '').replace(/[\s()-]/g, '').includes(qDigits)) return true
+      return false
+    })
+  }, [redemptions, redSearch])
+
   const pagedRedemptions = useMemo(
-    () => redemptions.slice((redPage - 1) * PAGE_SIZE, redPage * PAGE_SIZE),
-    [redemptions, redPage],
+    () => filteredRedemptions.slice((redPage - 1) * PAGE_SIZE, redPage * PAGE_SIZE),
+    [filteredRedemptions, redPage],
   )
 
   const markUsed = async (r: Redemption) => {
@@ -708,15 +724,31 @@ export default function LoyaltyPage() {
               <RewardsSection rewards={rewards} onChanged={() => void load()} />
 
               <div className={'mb-6'}>
-                <h3 className={'text-2xl font-bold mb-3'}>Активные награды (доступны к погашению)</h3>
+                <div className={'mb-3 flex items-center justify-between gap-3 flex-wrap'}>
+                  <h3 className={'text-2xl font-bold'}>Активные награды (доступны к погашению)</h3>
+                  <input
+                    className={'border border-gray-300 rounded-lg px-3 py-2 text-sm w-64'}
+                    placeholder={'Поиск: имя / e-mail / телефон / код'}
+                    value={redSearch}
+                    onChange={(e) => {
+                      setRedSearch(e.target.value)
+                      setRedPage(1)
+                    }}
+                  />
+                </div>
                 {redemptions.length === 0 ? (
                   <p className={'text-sm text-gray-500'}>Нет активных наград.</p>
+                ) : filteredRedemptions.length === 0 ? (
+                  <p className={'text-sm text-gray-500'}>Ничего не найдено по запросу.</p>
                 ) : (
-                  <TableWrapper>
+                  <TableWrapper
+                    additionalInfo={`Показано ${filteredRedemptions.length} из ${redemptions.length}`}
+                  >
                     <table className={'w-full text-left table-auto min-w-max'}>
                       <thead>
                         <tr>
                           <Cell title={'Клиент'} asHeader />
+                          <Cell title={'Контакт'} asHeader />
                           <Cell title={'Награда'} asHeader />
                           <Cell title={'Код'} asHeader />
                           <Cell title={'Действует до'} asHeader />
@@ -727,6 +759,18 @@ export default function LoyaltyPage() {
                         {pagedRedemptions.map((r) => (
                           <tr key={r.documentId} className={'hover:bg-gray-50'}>
                             <Cell title={r.client?.name || '—'} />
+                            <td className={'p-4 border-b border-blue-gray-50'}>
+                              {r.client?.email || r.client?.phone ? (
+                                <span className={'block font-sans text-sm text-blue-gray-900'}>
+                                  {r.client?.email && <span className={'block'}>{r.client.email}</span>}
+                                  {r.client?.phone && (
+                                    <span className={'block text-gray-500'}>{r.client.phone}</span>
+                                  )}
+                                </span>
+                              ) : (
+                                <span className={'block font-sans text-sm text-gray-400'}>—</span>
+                              )}
+                            </td>
                             <Cell
                               title={`${r.reward?.title || '—'} (от ${r.reward?.thresholdKc ?? '?'} Kč)`}
                             />
@@ -748,7 +792,7 @@ export default function LoyaltyPage() {
                     </table>
                   </TableWrapper>
                 )}
-                <Pagination page={redPage} total={redemptions.length} onPage={setRedPage} />
+                <Pagination page={redPage} total={filteredRedemptions.length} onPage={setRedPage} />
               </div>
             </>
           )}
