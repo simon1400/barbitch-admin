@@ -22,6 +22,27 @@ const PctBadge = ({ pct, title }: { pct: number; title?: string }) => (
   </span>
 )
 
+// Рост от ×3 (+200 %) показываем множителем «×11,7» — проценты вроде «+1073 %»
+// нечитаемы. База сравнения — в title-тултипе.
+const fmtFactor = (cur: number, base: number) =>
+  `×${(cur / base).toLocaleString('cs-CZ', { maximumFractionDigits: 1 })}`
+
+const GrowthBadge = ({ cur, base, title }: { cur: number; base: number; title?: string }) => {
+  const p = growthPct(cur, base)
+  if (p === null) return null
+  if (p >= 200) {
+    return (
+      <span
+        title={title}
+        className="px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap cursor-default bg-green-100 text-green-700"
+      >
+        {fmtFactor(cur, base)}
+      </span>
+    )
+  }
+  return <PctBadge pct={p} title={title} />
+}
+
 const PERIOD_PRESETS = [3, 6, 12]
 
 export default function ForecastTab() {
@@ -219,9 +240,10 @@ export default function ForecastTab() {
                 <div className="text-xs text-gray-400 mb-1">Выручка за период</div>
                 <div className="text-2xl font-bold text-blue-gray-900 flex items-center gap-2 flex-wrap">
                   <span className="whitespace-nowrap">{fmtMoney(periodRevenue)}</span>
-                  {hasPrevPeriod && growthPct(periodRevenue, prevRevenue) !== null && (
-                    <PctBadge
-                      pct={growthPct(periodRevenue, prevRevenue) as number}
+                  {hasPrevPeriod && (
+                    <GrowthBadge
+                      cur={periodRevenue}
+                      base={prevRevenue}
                       title={`против предыдущих ${periodN} мес: ${fmtMoney(prevRevenue)}`}
                     />
                   )}
@@ -236,9 +258,10 @@ export default function ForecastTab() {
                 <div className="text-xs text-gray-400 mb-1">Визитов за период</div>
                 <div className="text-2xl font-bold text-blue-gray-900 flex items-center gap-2 flex-wrap">
                   <span>{periodVisits}</span>
-                  {hasPrevPeriod && growthPct(periodVisits, prevVisits) !== null && (
-                    <PctBadge
-                      pct={growthPct(periodVisits, prevVisits) as number}
+                  {hasPrevPeriod && (
+                    <GrowthBadge
+                      cur={periodVisits}
+                      base={prevVisits}
                       title={`против предыдущих ${periodN} мес: ${prevVisits} визитов`}
                     />
                   )}
@@ -258,10 +281,16 @@ export default function ForecastTab() {
                         : 'text-red-600'
                   }`}
                 >
-                  {periodGrowth === null ? '—' : `${periodGrowth >= 0 ? '+' : ''}${periodGrowth} %`}
+                  {periodGrowth === null
+                    ? '—'
+                    : periodGrowth >= 200 && first && last
+                      ? fmtFactor(last.revenue, first.revenue)
+                      : `${periodGrowth >= 0 ? '+' : ''}${periodGrowth} %`}
                 </div>
                 <div className="text-xs text-gray-400 mt-1">
-                  {first?.label} → {last?.label} (по месячной выручке)
+                  {periodGrowth !== null && periodGrowth >= 200
+                    ? `месячная выручка: ${first?.label} → ${last?.label} (во столько раз больше)`
+                    : `${first?.label} → ${last?.label} (по месячной выручке)`}
                 </div>
               </div>
               <div className="bg-white rounded-lg shadow-sm p-4">
@@ -296,8 +325,6 @@ export default function ForecastTab() {
                     // MoM первой строки периода считается против месяца ДО периода (из общей истории)
                     const histIdx = history.length - period.length + i
                     const prevRow = histIdx > 0 ? history[histIdx - 1] : null
-                    const mom = prevRow ? growthPct(h.revenue, prevRow.revenue) : null
-                    const vsStart = i > 0 && first ? growthPct(h.revenue, first.revenue) : null
                     return (
                       <tr key={h.month} className="hover:bg-gray-50 transition-colors">
                         <Cell title={h.label} className="font-medium" />
@@ -308,11 +335,23 @@ export default function ForecastTab() {
                           </span>
                         </td>
                         <td className="p-4 border-b border-blue-gray-50">
-                          {mom !== null ? <PctBadge pct={mom} /> : <span className="text-gray-300">—</span>}
+                          {prevRow && prevRow.revenue > 0 ? (
+                            <GrowthBadge
+                              cur={h.revenue}
+                              base={prevRow.revenue}
+                              title={`${prevRow.label}: ${fmtMoney(prevRow.revenue)}`}
+                            />
+                          ) : (
+                            <span className="text-gray-300">—</span>
+                          )}
                         </td>
                         <td className="p-4 border-b border-blue-gray-50">
-                          {vsStart !== null ? (
-                            <PctBadge pct={vsStart} title={`против ${first?.label}: ${fmtMoney(first?.revenue ?? 0)}`} />
+                          {i > 0 && first && first.revenue > 0 ? (
+                            <GrowthBadge
+                              cur={h.revenue}
+                              base={first.revenue}
+                              title={`против ${first.label}: ${fmtMoney(first.revenue)}`}
+                            />
                           ) : (
                             <span className="text-gray-300">—</span>
                           )}
@@ -334,6 +373,12 @@ export default function ForecastTab() {
                 </tbody>
               </table>
             </TableWrapper>
+            <p className="text-xs text-gray-400 mt-3">
+              «К пред. месяцу» — изменение против предыдущего месяца. «К началу периода» — против
+              первого месяца периода ({first?.label}); ×N = во столько раз месяц больше.
+              {periodN === 'all' &&
+                ' База «Всё время» — месяц открытия салона с маленькой выручкой, поэтому множители такие большие.'}
+            </p>
           </>
         )}
       </StatSection>
