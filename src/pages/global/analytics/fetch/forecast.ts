@@ -25,7 +25,7 @@ export interface ForecastData {
   prevMonthTotal: number
   prevMonthToSameDay: number // прошлый месяц на ту же дату — честное сравнение темпа
   expensesMonth: number // затраты (costs) текущего месяца
-  history: MonthRevenueRow[] // последние 6 полных месяцев
+  history: MonthRevenueRow[] // ВСЕ полные месяцы с данными (по возрастанию), период выбирается в UI
 }
 
 const MONTHS_RU = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']
@@ -83,12 +83,19 @@ export const getForecast = async (force = false): Promise<ForecastData> => {
     histRevenue.set(m, h)
   }
 
+  // История = все полные месяцы: от первого месяца с данными до прошлого месяца включительно.
+  // Пустые месяцы в середине заполняются нулями (непрерывная шкала для графика/приростов).
+  let firstMonth = prevMonth
+  for (const m of histRevenue.keys()) if (m < firstMonth) firstMonth = m
+  const [fy, fm] = firstMonth.split('-').map(Number)
   const history: MonthRevenueRow[] = []
-  for (let i = 6; i >= 1; i--) {
-    const d = new Date(year, month - i, 1)
-    const m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  const cursor = new Date(fy, fm - 1, 1)
+  const historyEnd = new Date(year, month - 1, 1) // прошлый месяц — последний полный
+  while (cursor <= historyEnd) {
+    const m = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`
     const h = histRevenue.get(m) || { revenue: 0, visits: 0 }
     history.push({ month: m, label: monthLabel(m), revenue: Math.round(h.revenue), visits: h.visits })
+    cursor.setMonth(cursor.getMonth() + 1)
   }
 
   const expensesMonth = expenses.reduce((a, x) => a + (x.sum || 0), 0)

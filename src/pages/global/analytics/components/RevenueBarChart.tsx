@@ -8,16 +8,41 @@ import {
   YAxis,
 } from 'recharts'
 
+interface Row {
+  label: string
+  revenue: number
+  visits: number
+}
+
 interface Props {
-  data: {
-    label: string
-    revenue: number
-    visits: number
-  }[]
+  data: Row[]
   title?: string
 }
 
 const fmtMoney = (n: number) => `${n.toLocaleString('cs-CZ')} Kč`
+
+// Кастомный тултип: выручка + визиты. Визиты НЕ рисуются второй линией со своей осью —
+// двойная ось Y (деньги слева, штуки справа) делала линии визуально сопоставимыми,
+// хотя шкалы разные. Визиты видны при наведении и в таблице под графиком.
+const ChartTooltip = ({
+  active,
+  label,
+  payload,
+}: {
+  active?: boolean
+  label?: string
+  payload?: { payload: Row }[]
+}) => {
+  if (!active || !payload?.length) return null
+  const row = payload[0].payload
+  return (
+    <div className={'bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-md'}>
+      <div className={'text-xs font-semibold text-blue-gray-900 mb-1'}>{label}</div>
+      <div className={'text-xs font-medium text-primary'}>{fmtMoney(row.revenue)}</div>
+      <div className={'text-xss text-gray-500'}>{row.visits} визитов</div>
+    </div>
+  )
+}
 
 export const RevenueBarChart = ({ data, title }: Props) => (
   <div className={'w-full'}>
@@ -38,44 +63,18 @@ export const RevenueBarChart = ({ data, title }: Props) => (
             height={70}
           />
           <YAxis
-            yAxisId={'left'}
             tick={{ fontSize: 12 }}
             tickFormatter={(v: number) => `${Math.round(v / 1000)}k`}
           />
-          <YAxis
-            yAxisId={'right'}
-            orientation={'right'}
-            tick={{ fontSize: 12 }}
-            allowDecimals={false}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: 'rgba(255, 255, 255, 0.95)',
-              border: '1px solid #ddd',
-              borderRadius: '8px',
-            }}
-            formatter={(value: number, name: string) =>
-              name === 'Выручка по броням' ? fmtMoney(value) : value
-            }
-          />
+          <Tooltip content={<ChartTooltip />} />
           <Line
-            yAxisId={'left'}
             type={'monotone'}
             dataKey={'revenue'}
             name={'Выручка по броням'}
             stroke={'#e71e6e'}
-            strokeWidth={3}
+            strokeWidth={2}
             dot={{ r: 4 }}
             activeDot={{ r: 6 }}
-          />
-          <Line
-            yAxisId={'right'}
-            type={'monotone'}
-            dataKey={'visits'}
-            name={'Визитов'}
-            stroke={'#161615'}
-            strokeWidth={2}
-            dot={{ r: 3 }}
           />
         </LineChart>
       </ResponsiveContainer>
