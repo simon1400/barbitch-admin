@@ -140,10 +140,11 @@ export const diffByName = (
 // Per-shift discrepancy list shown in ComparisonCard. Computed by client-name
 // matching ALWAYS (not gated on count equality) — a wrong/typo'd client name keeps
 // the head-count equal (one extra of name A offsets one missing of name B) yet is a
-// real mismatch. Internal worker-to-worker services are dropped (never in calendar).
+// real mismatch. Internal worker-to-worker services are included: they are booked
+// through the calendar too (walk-in booking + "Interní" flag).
 // Returns null only when every record lines up by name.
 export const getDiff = (result: ShiftCheckResult) => {
-  const strapiItems = result.serviceProvided.items.filter((i: any) => !i?.internal)
+  const strapiItems = result.serviceProvided.items
   const { strapiExtra, calendarExtra } = diffByName(strapiItems, result.calendar.events)
   if (strapiExtra.length === 0 && calendarExtra.length === 0) return null
   return { strapiExtra, calendarExtra }

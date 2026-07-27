@@ -950,9 +950,9 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
     fetchCalendarBookings(dateStr),
   ])
 
-  // Internal worker-to-worker services never exist in the calendar, so they must NOT
-  // count toward the calendar↔Strapi comparison — otherwise they mask a real missing client.
-  const strapiComparableItems = serviceProvided.items.filter((i: any) => !i?.internal)
+  // Internal worker-to-worker services are booked through the calendar too (walk-in
+  // booking + "Interní" flag), so ALL records count toward the calendar↔Strapi comparison.
+  const strapiComparableItems = serviceProvided.items
   const strapiComparable = strapiComparableItems.length
   // Match by NAME, not just head-count: a wrong/typo'd client name keeps the count
   // equal (extra of one name offsets a missing other) but is a genuine discrepancy.

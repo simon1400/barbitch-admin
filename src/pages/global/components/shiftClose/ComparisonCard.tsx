@@ -25,11 +25,6 @@ export const ComparisonCard = ({ result }: { result: ShiftCheckResult }) => {
             <p className="text-2xl font-bold text-gray-800">
               {result.comparison.strapiCount}
             </p>
-            {result.serviceProvided.count !== result.comparison.strapiCount && (
-              <p className="text-xs text-gray-500">
-                bez interních ({result.serviceProvided.count} celkem)
-              </p>
-            )}
           </div>
           <div>
             <p className="text-sm text-gray-600">Rozdíl</p>
