@@ -100,6 +100,11 @@ const OFFER_MATCH_META: Record<OfferMatchStatus, { symbol: string; chipCls: stri
 }
 
 const offerMatchTitle = (m: OfferMatch): string => {
+  // Запись из календаря («Uzavřít návštěvu») несёт линк на бронь → услуга взята
+  // из самой брони, расхождения быть не может.
+  if (m.source === 'booking') {
+    return `Služba z rezervace: ${m.strapiTitle || '—'}`
+  }
   switch (m.status) {
     case 'match': return `Shoduje se s kalendářem: ${m.calendarTitle}`
     case 'mismatch': return `Strapi: ${m.strapiTitle}\nKalendář: ${m.calendarTitle}`
@@ -222,7 +227,7 @@ export const ServiceProvidedCard = ({
               <tr className="text-left text-gray-500 border-b">
                 <th className="pb-2 pr-3">Klient</th>
                 <th className="pb-2 pr-3">Mistr</th>
-                <th className="pb-2 pr-3" title="Služba (offer) vs kalendář">
+                <th className="pb-2 pr-3" title="Služba (offer / rezervace) vs kalendář">
                   <span className="inline-flex items-center text-gray-500">
                     <CompareIcon />
                   </span>

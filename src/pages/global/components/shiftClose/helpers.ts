@@ -25,10 +25,82 @@ export const sortByClientName = <T,>(items: T[], nameKey: string): T[] =>
 // Junior offerings are titled "Юниор <senior title>" while the booking snapshot
 // keeps the plain title — strip the prefix. Also unify spacing around "+"
 // (historic combo titles sometimes glue parts differently).
-const normalizeTitle = (t: string) =>
+export const normalizeTitle = (t: string) =>
   normalize(t)
     .replace(/^юниор\s+/, '')
     .replace(/\s*\+\s*/g, ' + ')
+
+// --- Structural match: service-provided.booking ↔ calendar booking (V3) ------
+// Записи чекаута из календаря («Uzavřít návštěvu») несут ЛИНК на бронь →
+// матчатся по documentId, а не по имени клиента. Опечатка/переименование
+// клиента больше не разъезжает сверку. Имя-матчинг остаётся fallback'ом для
+// legacy-записей (~6000 исторических + всё, что заводят вручную в Strapi CM).
+
+/** documentId брони, к которой привязана запись (null у legacy-записей). */
+export const bookingDocIdOf = (item: any): string | null => {
+  const id = item?.booking?.documentId
+  return typeof id === 'string' && id ? id : null
+}
+
+/** Название услуги из снапшота брони: «Manikúra + Design» (пусто → ''). */
+export const bookingServiceTitle = (booking: any): string =>
+  (Array.isArray(booking?.services) ? booking.services : [])
+    .map((s: any) => String(s?.title || '').trim())
+    .filter(Boolean)
+    .join(' + ')
+
+export interface BookingMatchResult {
+  /** запись → её бронь (событие календаря) */
+  linked: Map<any, any>
+  /** записи С линком, чьей брони в списке дня нет (отменена/удалена) */
+  unmatchedLinked: any[]
+  /** записи БЕЗ линка — идут в имя-матчинг */
+  restItems: any[]
+  /** брони без привязанной записи — идут в имя-матчинг */
+  restEvents: any[]
+}
+
+// Каждое событие «съедается» максимум один раз (у клиента с двумя визитами в день
+// каждая запись матчится на свою бронь).
+export const matchByBooking = (items: any[], events: any[]): BookingMatchResult => {
+  const byId = new Map<string, any[]>()
+  for (const e of events) {
+    const id = e?.id ? String(e.id) : ''
+    if (!id) continue
+    if (!byId.has(id)) byId.set(id, [])
+    byId.get(id)!.push(e)
+  }
+
+  const usedEvents = new Set<any>()
+  const linked = new Map<any, any>()
+  const unmatchedLinked: any[] = []
+  const restItems: any[] = []
+
+  for (const item of items) {
+    const id = bookingDocIdOf(item)
+    if (!id) {
+      restItems.push(item)
+      continue
+    }
+    const hit = (byId.get(id) || []).find((e) => !usedEvents.has(e))
+    if (hit) {
+      usedEvents.add(hit)
+      linked.set(item, hit)
+    } else {
+      // Линк есть, а брони среди активных нет → визит закрыли, бронь потом отменили.
+      // В имя-матчинг НЕ отдаём: линк авторитетнее, иначе запись «спрячется» за
+      // однофамильцем и реальный сигнал (деньги на отменённой брони) пропадёт.
+      unmatchedLinked.push(item)
+    }
+  }
+
+  return {
+    linked,
+    unmatchedLinked,
+    restItems,
+    restEvents: events.filter((e) => !usedEvents.has(e)),
+  }
+}
 
 export type OfferMatchStatus = 'match' | 'mismatch' | 'missing' | 'no-offer'
 
@@ -36,6 +108,8 @@ export interface OfferMatch {
   status: OfferMatchStatus
   strapiTitle: string
   calendarTitle: string
+  /** 'booking' — услуга взята из самой брони (сравнивать нечего) */
+  source?: 'booking'
 }
 
 // Map keyed by the service-provided item object itself (rows get re-sorted in
@@ -43,15 +117,30 @@ export interface OfferMatch {
 // once — a client with two visits that day matches each record to its own
 // booking instead of double-counting one.
 export const buildOfferMatches = (items: any[], events: any[]): Map<any, OfferMatch> => {
+  const result = new Map<any, OfferMatch>()
+
+  // Записи с линком на бронь: услуга взята ИЗ брони → расхождения быть не может.
+  // Их брони выводятся из пула, чтобы legacy-запись однофамильца не сматчилась
+  // на чужую (уже использованную) бронь.
+  const { linked, unmatchedLinked, restItems, restEvents } = matchByBooking(items, events)
+  for (const item of [...linked.keys(), ...unmatchedLinked]) {
+    const title = bookingServiceTitle(item.booking)
+    result.set(item, {
+      status: 'match',
+      strapiTitle: title,
+      calendarTitle: title,
+      source: 'booking',
+    })
+  }
+
   const buckets = new Map<string, { title: string; used: boolean }[]>()
-  for (const e of events) {
+  for (const e of restEvents) {
     const key = normalize(e.customer_name || '')
     if (!buckets.has(key)) buckets.set(key, [])
     buckets.get(key)!.push({ title: e.event_types?.[0]?.title || '', used: false })
   }
 
-  const result = new Map<any, OfferMatch>()
-  for (const item of items) {
+  for (const item of restItems) {
     const strapiTitle = item?.offer?.title || ''
     if (!strapiTitle) {
       result.set(item, { status: 'no-offer', strapiTitle: '', calendarTitle: '' })
@@ -137,15 +226,39 @@ export const diffByName = (
   return { strapiExtra, calendarExtra }
 }
 
-// Per-shift discrepancy list shown in ComparisonCard. Computed by client-name
-// matching ALWAYS (not gated on count equality) — a wrong/typo'd client name keeps
-// the head-count equal (one extra of name A offsets one missing of name B) yet is a
-// real mismatch. Internal worker-to-worker services are included: they are booked
-// through the calendar too (walk-in booking + "Interní" flag).
-// Returns null only when every record lines up by name.
+export interface ShiftDiff {
+  /** записи без пары: сначала «линк есть, брони нет», затем остаток по именам */
+  strapiExtra: any[]
+  /** брони без записи */
+  calendarExtra: any[]
+  /** остаток по ИМЕНАМ есть с обеих сторон → имеет смысл пере-матч имён (s97) */
+  nameMismatch: boolean
+}
+
+// Расхождения смены. Сначала СТРУКТУРНО (service-provided.booking ↔ бронь), затем
+// остаток по именам — это и есть главный профит V3: опечатка в имени legacy-записи
+// больше не разъезжает записи, привязанные к броням.
+// Матчинг по именам считается ВСЕГДА (не по равенству счётчиков) — неверное имя
+// держит счётчик равным (лишний одного имени гасит недостающего другого), но это
+// настоящее расхождение. Интерни-услуги участвуют: они тоже бронируются через
+// календарь (walk-in + галка «Interní», s145).
+export const computeShiftDiff = (items: any[], events: any[]): ShiftDiff => {
+  const { unmatchedLinked, restItems, restEvents } = matchByBooking(items, events)
+  const byName = diffByName(restItems, restEvents)
+  return {
+    strapiExtra: [...unmatchedLinked, ...byName.strapiExtra],
+    calendarExtra: byName.calendarExtra,
+    nameMismatch: byName.strapiExtra.length > 0 && byName.calendarExtra.length > 0,
+  }
+}
+
+// Per-shift discrepancy list shown in ComparisonCard.
+// Returns null only when every record lines up.
 export const getDiff = (result: ShiftCheckResult) => {
-  const strapiItems = result.serviceProvided.items
-  const { strapiExtra, calendarExtra } = diffByName(strapiItems, result.calendar.events)
+  const { strapiExtra, calendarExtra } = computeShiftDiff(
+    result.serviceProvided.items,
+    result.calendar.events,
+  )
   if (strapiExtra.length === 0 && calendarExtra.length === 0) return null
   return { strapiExtra, calendarExtra }
 }

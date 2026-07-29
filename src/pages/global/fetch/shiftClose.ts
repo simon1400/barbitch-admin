@@ -7,117 +7,24 @@ import { getAdminsHours } from '../../dashboard/fetch/allAdminsHours'
 import { getAllWorks } from '../../dashboard/fetch/allWorks'
 import { splitTeam } from '../../dashboard/fetch/teamSplit'
 import { invalidateGlobalMonthData } from '../../dashboard/fetch/monthDataCache'
-import { diffByName } from '../components/shiftClose/helpers'
+import { computeShiftDiff } from '../components/shiftClose/helpers'
 
-// Mirror of Strapi lifecycle (strapi/.../service-provided/lifecycles.ts).
-// Kept in sync — also used to recompute flags for legacy records (verify is string).
-// sleva_bez_karty (K4): informational — record has a sale, but the client has no
-// used bitchcard redemption that day (discount given outside the loyalty program).
-// Computed ONLY by the Strapi lifecycle (needs booking/redemption lookup) — the
-// client-side recompute paths below can't derive it and simply omit it.
-export type VerifyFlag =
-  | 'ok'
-  | 'sleva'
-  | 'ztrata'
-  | 'salon_up'
-  | 'mistr_up'
-  | 'mistr_down'
-  | 'internal'
-  | 'sleva_bez_karty'
-
-export const VERIFY_FLAGS: VerifyFlag[] = ['ok', 'internal', 'sleva', 'sleva_bez_karty', 'salon_up', 'mistr_up', 'mistr_down', 'ztrata']
-
-export interface FlagMeta {
-  emoji: string
-  label: string
-  chipCls: string
-  dotCls: string
-  // severity for overall page status: 0 = ok/info, 1 = warning, 2 = error
-  severity: 0 | 1 | 2
-}
-
-export const FLAG_META: Record<VerifyFlag, FlagMeta> = {
-  ok: {
-    emoji: '🟩',
-    label: 'OK',
-    chipCls: 'bg-green-100 text-green-800',
-    dotCls: 'bg-green-500',
-    severity: 0,
-  },
-  sleva: {
-    emoji: '🟦',
-    label: 'Sleva',
-    chipCls: 'bg-blue-100 text-blue-800',
-    dotCls: 'bg-blue-500',
-    severity: 0,
-  },
-  ztrata: {
-    emoji: '🟥',
-    label: 'Ztráta salonu',
-    chipCls: 'bg-red-100 text-red-800',
-    dotCls: 'bg-red-500',
-    severity: 2,
-  },
-  salon_up: {
-    emoji: '🟪',
-    label: 'Salon dostal víc',
-    chipCls: 'bg-purple-100 text-purple-800',
-    dotCls: 'bg-purple-500',
-    severity: 1,
-  },
-  mistr_up: {
-    emoji: '🟨↑',
-    label: 'Mistr dostal víc',
-    chipCls: 'bg-yellow-100 text-yellow-800',
-    dotCls: 'bg-yellow-500',
-    severity: 1,
-  },
-  mistr_down: {
-    emoji: '🟨↓',
-    label: 'Mistr dostal míň',
-    chipCls: 'bg-amber-100 text-amber-800',
-    dotCls: 'bg-amber-500',
-    severity: 1,
-  },
-  internal: {
-    emoji: '🤝',
-    label: 'Interní služba',
-    chipCls: 'bg-indigo-100 text-indigo-800',
-    dotCls: 'bg-indigo-500',
-    severity: 0,
-  },
-  sleva_bez_karty: {
-    emoji: '🎟',
-    label: 'Sleva mimo bitchcard',
-    chipCls: 'bg-teal-100 text-teal-800',
-    dotCls: 'bg-teal-500',
-    severity: 0,
-  },
-}
+// Verify-флаги (метаданные + разбор скидки) живут в отдельном лёгком модуле
+// lib/verifyFlags — их переиспользует и drawer календаря, которому весь shiftClose
+// (mirror + dashboard-фетчи) в чанк не нужен. Реэкспорт — чтобы существующие
+// импорты из shiftClose продолжали работать.
+// sleva_bez_karty (K4): информационный — у записи есть скидка, но у клиента в этот
+// день нет погашенной награды bitchcard. Считается ТОЛЬКО в Strapi (нужен lookup
+// брони/redemption) — клиентские пересчёты ниже его просто не добавляют.
+export type { VerifyFlag, FlagMeta } from '../../../lib/verifyFlags'
+export { VERIFY_FLAGS, FLAG_META, parseSaleRate } from '../../../lib/verifyFlags'
+import { VERIFY_FLAGS, type VerifyFlag, parseSaleRate } from '../../../lib/verifyFlags'
 
 // Цены хранятся строками; junior-цены (−20%) бывают с запятой ("237,6").
 // Number("237,6") = NaN → 0. Нормализуем запятую перед парсом.
 const toNum = (v: unknown): number => {
   const n = Number(String(v ?? '').replace(',', '.').replace(/\s/g, ''))
   return Number.isFinite(n) ? n : 0
-}
-
-// Parse discount → fraction 0..1 of the full offer price.
-// Accepts percent ("20%", "20", "0.2") or an absolute amount in Kč ("400"):
-// a percent can't exceed 100, so values above 100 are treated as crowns off
-// the full price. Values in 1..100 stay percent ("50" = 50 %, not 50 Kč).
-// Keep in sync with strapi service-provided lifecycles.ts.
-const parseSaleRate = (raw: unknown, offerPrice: number): number => {
-  let n = 0
-  if (typeof raw === 'number') n = Number.isFinite(raw) ? raw : 0
-  else if (typeof raw === 'string') {
-    const m = raw.match(/(-?\d+(?:[.,]\d+)?)/)
-    n = m ? parseFloat(m[1].replace(',', '.')) : 0
-  }
-  if (!Number.isFinite(n) || n <= 0) return 0
-  if (n <= 1) return n
-  if (n <= 100) return n / 100
-  return offerPrice > 0 ? Math.min(n / offerPrice, 1) : 0
 }
 
 const computeMustValues = (
@@ -584,7 +491,7 @@ const COLLECTION_LABEL: Record<string, string> = {
 // Required-field map (mirrors strapi schema.json `required: true`).
 // Used for pre-flight validation so we never half-publish a shift.
 type FieldType = 'string' | 'html' | 'relation' | 'array' | 'date' | 'number' | 'boolean'
-const REQUIRED_FIELDS: Record<string, { name: string; type: FieldType }[]> = {
+const REQUIRED_FIELDS: Record<string, { name: string; type: FieldType; alt?: string }[]> = {
   'cashs': [
     { name: 'date', type: 'date' },
     { name: 'sum', type: 'string' },
@@ -609,7 +516,9 @@ const REQUIRED_FIELDS: Record<string, { name: string; type: FieldType }[]> = {
     { name: 'date', type: 'date' },
     { name: 'cash', type: 'boolean' },
     { name: 'personal', type: 'relation' },
-    { name: 'offer', type: 'relation' },
+    // услуга: legacy-записи несут `offer`, записи чекаута из календаря (D2) — `booking`;
+    // достаточно любой из двух связей
+    { name: 'offer', type: 'relation', alt: 'booking' },
   ],
 }
 
@@ -633,11 +542,13 @@ const validateDraft = (collectionKey: string, item: any): string[] => {
       case 'html':
         if (isEmptyHtml(v)) issue = `${f.name}: prázdné`
         break
-      case 'relation':
-        if (!v || typeof v !== 'object' || (v.id == null && v.documentId == null)) {
-          issue = `${f.name}: chybí vazba`
+      case 'relation': {
+        const hasRel = (r: any) => !!r && typeof r === 'object' && (r.id != null || r.documentId != null)
+        if (!hasRel(v) && !(f.alt && hasRel(item?.[f.alt]))) {
+          issue = `${f.alt ? `${f.name}/${f.alt}` : f.name}: chybí vazba`
         }
         break
+      }
       case 'array':
         if (!Array.isArray(v) || v.length === 0) issue = `${f.name}: prázdný seznam`
         break
@@ -954,16 +865,17 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
   // booking + "Interní" flag), so ALL records count toward the calendar↔Strapi comparison.
   const strapiComparableItems = serviceProvided.items
   const strapiComparable = strapiComparableItems.length
-  // Match by NAME, not just head-count: a wrong/typo'd client name keeps the count
-  // equal (extra of one name offsets a missing other) but is a genuine discrepancy.
+  // V3: сначала СТРУКТУРНО по service-provided.booking, остаток — по именам клиентов
+  // (legacy-записи без линка). Имя-матчинг нужен и потому, что неверное имя держит
+  // счётчик равным (лишний одного имени гасит недостающего другого).
   let events = calendar.events
-  let nameDiff = diffByName(strapiComparableItems, events)
+  let diff = computeShiftDiff(strapiComparableItems, events)
 
-  // Safety net for name typos: if a leftover remains on BOTH sides, refresh the
-  // bookings' names from the client collection (via event.customer) and re-match.
+  // Safety net for name typos: if a NAME-based leftover remains on BOTH sides, refresh
+  // the bookings' names from the client collection (via event.customer) and re-match.
   // Patched events flow into the result so the comparison, offer-match and the
-  // bookings list all show current names.
-  if (nameDiff.strapiExtra.length > 0 && nameDiff.calendarExtra.length > 0) {
+  // bookings list all show current names. При полном структурном матче не нужен.
+  if (diff.nameMismatch) {
     const nameById = await fetchCurrentClientNames()
     if (nameById.size > 0) {
       events = events.map((e: any) => {
@@ -972,11 +884,11 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
           ? { ...e, customer_name: current }
           : e
       })
-      nameDiff = diffByName(strapiComparableItems, events)
+      diff = computeShiftDiff(strapiComparableItems, events)
     }
   }
 
-  const mismatchCount = nameDiff.strapiExtra.length + nameDiff.calendarExtra.length
+  const mismatchCount = diff.strapiExtra.length + diff.calendarExtra.length
   const comparison = {
     strapiCount: strapiComparable,
     calendarCount: calendar.count,

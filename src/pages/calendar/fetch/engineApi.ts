@@ -43,6 +43,18 @@ const CODE_MESSAGES: Record<string, string> = {
   rebook_discount_missing: 'Na rezervaci není sleva za dozápis.',
   discount_already_applied: 'Sleva už je uplatněná.',
   discount_not_applied: 'Sleva už je zrušená.',
+  // закрытие визита («Uzavřít návštěvu»)
+  already_checked_out: 'Návštěva už je uzavřená.',
+  booking_not_closable: 'Zrušenou rezervaci nelze uzavřít.',
+  money_required: 'Vyplňte cenu mistra i zisk salonu.',
+  bad_money: 'Částky musí být čísla.',
+  already_published: 'Směna je už uzavřená — záznam upravte ve Strapi.',
+  checkout_not_found: 'Záznam o návštěvě nenalezen.',
+  not_booking_linked: 'Záznam není napojen na rezervaci.',
+  voucher_not_found: 'Voucher nenalezen.',
+  voucher_not_paid: 'Voucher není zaplacený.',
+  client_required: 'U rezervace chybí jméno klientky.',
+  employee_required: 'U rezervace chybí mistrová.',
 }
 
 async function engineFetch<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -179,6 +191,91 @@ export const engineReleaseRedemption = (bookingDocId: string) =>
     'DELETE',
     `/engine/admin/bookings/${bookingDocId}/redemption`,
   )
+
+// ── закрытие визита («Uzavřít návštěvu», D2) ──
+
+// Запись «Оказанная услуга», созданная чекаутом из календаря (черновик; публикует
+// её закрытие смены — тогда published:true и правки уходят в Strapi CM).
+export interface VisitCheckout {
+  documentId: string
+  clientName: string
+  date: string
+  time: string | null
+  staffSalaries: string
+  salonSalaries: string
+  tip: string | null
+  sale: string | null
+  cash: boolean
+  internal: boolean
+  comment: string
+  verify: string
+  verifyFlags: string[]
+  published: boolean
+  personalName: string
+  voucher: { documentId: string; idVoucher: string; sum: string } | null
+}
+
+// Подсказка расчёта для формы (НЕ автозаполнение — суммы вводит админ руками):
+// fullPrice = Σ услуг брони (у юниора — юниор-цена), paidExpected = totalPrice
+// (уже со скидками дозаписи/bitchcard), mustStaff = fullPrice × rate.
+export interface VisitCheckoutHint {
+  fullPrice: number
+  paidExpected: number
+  systemDiscountKc: number
+  ratePercent: number
+  mustStaff: number
+  mustSalon: number
+}
+
+export interface VisitCheckoutInput {
+  staffSalaries: number | string
+  salonSalaries: number | string
+  tip?: number | string | null
+  sale?: string | null
+  cash?: boolean
+  internal?: boolean
+  voucherDocId?: string | null
+  comment?: string | null
+}
+
+export const fetchVisitCheckout = (bookingDocId: string) =>
+  engineFetch<{ checkout: VisitCheckout | null; hint: VisitCheckoutHint }>(
+    'GET',
+    `/engine/admin/bookings/${bookingDocId}/checkout`,
+  )
+
+// Закрыть визит: создаёт черновик service-provided с линком на бронь + бронь → checkedOut
+export const engineCheckout = (bookingDocId: string, input: VisitCheckoutInput) =>
+  engineFetch<{ checkout: VisitCheckout; created: boolean }>(
+    'POST',
+    `/engine/admin/bookings/${bookingDocId}/checkout`,
+    input,
+  )
+
+// Правка сумм/галок закрытого визита (только пока смена не закрыта)
+export const engineCheckoutPatch = (spDocId: string, input: Partial<VisitCheckoutInput>) =>
+  engineFetch<{ checkout: VisitCheckout; updated: boolean }>('PATCH', `/engine/admin/checkout/${spDocId}`, input)
+
+// Отменить закрытие визита: запись удаляется, бронь возвращается в active
+export const engineCheckoutDelete = (spDocId: string) =>
+  engineFetch<{ deleted: boolean; bookingDocId: string | null }>('DELETE', `/engine/admin/checkout/${spDocId}`)
+
+// Оплаченные, ещё не реализованные ваучеры — для селекта в форме закрытия визита
+// (тот же фильтр, что в VoucherConfirmationPage и в relation-picker патче Fix 4)
+export interface PayableVoucher {
+  documentId: string
+  idVoucher: string
+  sum: string
+  name: string
+  for: string | null
+}
+
+export const fetchPayableVouchers = async (): Promise<PayableVoucher[]> => {
+  const res = await Axios.get<PayableVoucher[]>(
+    '/api/vouchers?filters[dateRealized][$null]=true&filters[datePay][$notNull]=true&sort=dateOrder:desc&pagination[pageSize]=200',
+  )
+  return Array.isArray(res) ? res : []
+}
 
 // ── скидка дозаписи (rebook −15%, thank-you) ──
 

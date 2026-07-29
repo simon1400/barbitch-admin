@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ShiftCheckResult } from '../../fetch/shiftClose'
 import { StatSection } from '../StatSection'
-import { getDiff } from './helpers'
+import { bookingDocIdOf, getDiff } from './helpers'
 
 export const ComparisonCard = ({ result }: { result: ShiftCheckResult }) => {
   const diff = getDiff(result)
@@ -55,6 +55,16 @@ export const ComparisonCard = ({ result }: { result: ShiftCheckResult }) => {
                         (Number(item.staffSalaries) || 0)}{' '}
                       Kč
                     </span>
+                    {/* Запись из календаря, но её брони среди активных нет —
+                        визит закрыли, а бронь потом отменили/удалили. */}
+                    {bookingDocIdOf(item) && (
+                      <span
+                        title="Záznam je napojený na rezervaci, která už není aktivní (zrušená nebo smazaná)"
+                        className="px-1.5 py-0.5 rounded text-xs font-medium bg-orange-200 text-orange-900"
+                      >
+                        rezervace zrušena
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>

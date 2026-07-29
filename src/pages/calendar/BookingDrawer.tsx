@@ -9,6 +9,7 @@ import type { BookingLabel } from './fetch/bookingLabels'
 import type { BookingRedemption, LoyaltyProgress } from './fetch/engineApi'
 import { fetchBookingRedemptions } from './fetch/engineApi'
 import { STATUS_META, fmtTime } from './utils'
+import { VisitCloseSection } from './VisitCloseSection'
 
 // Карточка «Štítek» (кастомные лейблы + «Spravovat štítky») временно скрыта по решению владельца.
 // Вернуть = поставить true. Авто-лейблы по статусу на карточках грида это не трогает.
@@ -372,6 +373,8 @@ export const BookingDrawer = ({
   onReleaseRedemption,
   onRemoveRebookDiscount,
   onRestoreRebookDiscount,
+  onVisitClosed,
+  onVisitReopened,
   busy,
   readOnly = false,
   masterRate = null,
@@ -399,6 +402,10 @@ export const BookingDrawer = ({
   // скидка дозаписи (rebook −15% с thank-you): снять / вернуть
   onRemoveRebookDiscount: () => void
   onRestoreRebookDiscount: () => void
+  // закрытие визита: статус брони меняет сервер, наверх сообщаем результат
+  // (checkedOut после сохранения записи / active после отмены закрытия)
+  onVisitClosed: () => void
+  onVisitReopened: () => void
   busy: boolean
   readOnly?: boolean
   // процент мастера — если задан, «Celkem» показывает его долю, а не полную цену
@@ -425,6 +432,11 @@ export const BookingDrawer = ({
   // черновик интерн-позна́мки (карточка «Poznámka»); ре-синк при смене брони —
   // drawer не размонтируется между брониями (нет key), state сам не сбросится
   const [commentDraft, setCommentDraft] = useState(b.comment || '')
+  // «✓ Proběhla» открывает форму закрытия визита (VisitCloseSection ниже), а не бьёт
+  // сразу в статус; hasCheckout — есть ли уже запись (тогда вместо «↩ Obnovit»
+  // действует «Zrušit uzavření» в самой карточке, чтобы статусы не разъезжались)
+  const [closingVisit, setClosingVisit] = useState(false)
+  const [hasCheckout, setHasCheckout] = useState(false)
   useEffect(() => {
     setCommentDraft(b.comment || '')
     setCancelling(false)
@@ -432,6 +444,7 @@ export const BookingDrawer = ({
     setDeleting(false)
     setCancelNote('')
     setNoshowNote('')
+    setClosingVisit(false)
   }, [b.documentId]) // eslint-disable-line react-hooks/exhaustive-deps
   const commentChanged = commentDraft.trim() !== (b.comment || '').trim()
   // авто-высота позна́мки: с контентом растёт под текст (кап 240px), пустая — компактная
@@ -541,6 +554,21 @@ export const BookingDrawer = ({
             </div>
           )}
         </div>
+
+        {/* Закрытие визита: форма (открывается кнопкой «✓ Proběhla») либо карточка
+            «Návštěva uzavřena» с суммами и verify-чипами. Мастерам (readOnly) деньги
+            не показываем. Секции нет вовсе, пока визит не закрыт и форма не открыта. */}
+        {!readOnly && (
+          <VisitCloseSection
+            b={b}
+            busy={busy}
+            open={closingVisit}
+            onOpenChange={setClosingVisit}
+            onHasCheckout={setHasCheckout}
+            onClosed={onVisitClosed}
+            onReopened={onVisitReopened}
+          />
+        )}
 
         {/* Kontakt (компакт): телефон/e-mail, блэклист-кнопка в шапке карточки.
             Блэклист блокирует клиенту ТОЛЬКО запись через сайт (движок 403);
@@ -817,7 +845,7 @@ export const BookingDrawer = ({
               (зелёная), после прихода (arrived) → «Proběhla» (checkedOut).
               Уже проведённая/отменённая/noshow — кнопки нет (её смысл потерян;
               вернуть в active можно кнопкой «Obnovit» ниже). */}
-          {b.status === 'active' && (
+          {b.status === 'active' && !closingVisit && (
             <div className={'mb-2'}>
               {!b.arrived ? (
                 <button
@@ -832,7 +860,14 @@ export const BookingDrawer = ({
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => onStatus('checkedOut')}
+                  onClick={() => {
+                    // открываем форму закрытия визита выше (статус поставит сервер
+                    // после сохранения записи «Оказанная услуга»)
+                    setClosingVisit(true)
+                    setCancelling(false)
+                    setNoshowing(false)
+                    setDeleting(false)
+                  }}
                   className="w-full text-nowrap rounded-md bg-blue-600 px-3 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 sm:py-2"
                 >
                   ✓ Proběhla
@@ -871,14 +906,38 @@ export const BookingDrawer = ({
                 </button>
               </>
             ) : (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => onStatus('active')}
-                className="flex-1 rounded-md border border-pink-300 px-3 py-3 text-sm font-semibold text-pink-700 hover:bg-pink-50 disabled:opacity-40 dark:border-[#e71e6e80] dark:text-pink-300 dark:hover:bg-[#e71e6e1a] sm:py-2"
-              >
-                ↩ Obnovit (aktivní)
-              </button>
+              // У брони с записью о закрытии визита «Obnovit» скрыт: вернуть её в
+              // active можно только через «Zrušit uzavření» (иначе запись осталась бы
+              // висеть на активной брони, а суммы уже попали бы в смену)
+              !hasCheckout && (
+                <>
+                  {/* Переходный период: бронь отмечена «Proběhla» ещё старым způsobem
+                      (без záznamu) — даём закрыть визит формой, не возвращая в active */}
+                  {b.status === 'checkedOut' && !closingVisit && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        setClosingVisit(true)
+                        setCancelling(false)
+                        setNoshowing(false)
+                        setDeleting(false)
+                      }}
+                      className="flex-1 rounded-md bg-blue-600 px-3 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-40 sm:py-2"
+                    >
+                      Uzavřít návštěvu
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onStatus('active')}
+                    className="flex-1 rounded-md border border-pink-300 px-3 py-3 text-sm font-semibold text-pink-700 hover:bg-pink-50 disabled:opacity-40 dark:border-[#e71e6e80] dark:text-pink-300 dark:hover:bg-[#e71e6e1a] sm:py-2"
+                  >
+                    ↩ Obnovit (aktivní)
+                  </button>
+                </>
+              )
             )}
             {/* Корзина: полное удаление брони (с инлайн-подтверждением выше) */}
             <button

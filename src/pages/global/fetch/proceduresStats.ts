@@ -2,6 +2,10 @@ import qs from 'qs'
 
 import { Axios } from '../../../lib/api'
 import { getMonthRange } from '../../../utils/getMonthRange'
+import {
+  bookingServiceTitle,
+  normalizeTitle,
+} from '../components/shiftClose/helpers'
 
 interface ServiceProvidedData {
   staffSalaries: string
@@ -12,7 +16,13 @@ interface ServiceProvidedData {
     title: string
     price: number | null
   } | null
+  // Записи чекаута из календаря (D2) оффера не имеют — услуга живёт в снапшоте брони
+  booking: {
+    services: { title?: string }[] | null
+  } | null
 }
+
+const NO_SERVICE = 'Bez služby'
 
 export interface ProcedureStats {
   name: string
@@ -42,6 +52,9 @@ export const getProceduresStats = async (month: number, year: number): Promise<P
         offer: {
           fields: ['title', 'price'],
         },
+        booking: {
+          fields: ['services'],
+        },
       },
       pagination: {
         page: 1,
@@ -59,7 +72,14 @@ export const getProceduresStats = async (month: number, year: number): Promise<P
     let totalRevenue = 0
 
     data.forEach((item) => {
-      const offerTitle = item.offer?.title || 'Без названия'
+      // Название процедуры: снапшот брони (новые записи из календаря) → offer
+      // (~6000 исторических записей) → заглушка.
+      const title =
+        bookingServiceTitle(item.booking) || item.offer?.title || NO_SERVICE
+      // Названия из брони и из легаси-офферов различаются регистром/пробелами
+      // вокруг «+» и префиксом «Юниор » → группируем по нормализованному ключу,
+      // показываем первое встреченное «человеческое» написание.
+      const key = normalizeTitle(title) || NO_SERVICE
       const revenue =
         Number.parseFloat(item.staffSalaries || '0') +
         Number.parseFloat(item.salonSalaries || '0') +
@@ -68,15 +88,15 @@ export const getProceduresStats = async (month: number, year: number): Promise<P
       totalCount += 1
       totalRevenue += revenue
 
-      if (!proceduresMap.has(offerTitle)) {
-        proceduresMap.set(offerTitle, {
-          name: offerTitle,
+      if (!proceduresMap.has(key)) {
+        proceduresMap.set(key, {
+          name: title,
           count: 0,
           totalRevenue: 0,
         })
       }
 
-      const stats = proceduresMap.get(offerTitle)!
+      const stats = proceduresMap.get(key)!
       stats.count += 1
       stats.totalRevenue += revenue
     })

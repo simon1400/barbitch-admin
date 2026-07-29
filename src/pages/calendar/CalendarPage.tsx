@@ -424,6 +424,20 @@ export default function CalendarPage() {
     }
   }
 
+  // Закрытие визита («Uzavřít návštěvu»): запись + статус пишет сама секция в drawer
+  // через движок — здесь только синхронизируем selected и сетку (drawer не закрываем,
+  // чтобы админ сразу видел карточку «Návštěva uzavřena» с verify-чипами).
+  const visitClosed = () => {
+    setSelected((prev) => (prev ? { ...prev, status: 'checkedOut', arrived: true } : prev))
+    reload(true)
+  }
+
+  // отмена закрытия визита: запись удалена, бронь снова active (клиент «dorazila»)
+  const visitReopened = () => {
+    setSelected((prev) => (prev ? { ...prev, status: 'active', arrived: true } : prev))
+    reload(true)
+  }
+
   // лейбл на бронь (drawer остаётся открытым — обновляем и selected, и грид)
   const patchLabel = async (label: { name: string; color: string } | null) => {
     if (!selected) return
@@ -991,6 +1005,8 @@ export default function CalendarPage() {
           onReleaseRedemption={releaseRedemption}
           onRemoveRebookDiscount={removeRebookDiscount}
           onRestoreRebookDiscount={restoreRebookDiscount}
+          onVisitClosed={visitClosed}
+          onVisitReopened={visitReopened}
           busy={mutating}
           readOnly={isMaster}
           masterRate={isMaster ? (employees[0]?.ratePercent ?? null) : null}
