@@ -56,3 +56,14 @@ export const fetchCalendarLogs = async ({
     total: json.meta?.pagination?.total || 0,
   }
 }
+
+// Удаление записи журнала. У calendar-log draftAndPublish:false → одна версия,
+// DELETE убирает её целиком (ловушки «DELETE ?status=published» тут нет).
+// Сам журнал — только история действий, на брони/блоки удаление не влияет.
+export const deleteCalendarLog = async (documentId: string): Promise<void> => {
+  const res = await fetch(`${API_URL}/api/calendar-logs/${documentId}`, {
+    method: 'DELETE',
+    headers: strapiToken ? { Authorization: `Bearer ${strapiToken}` } : undefined,
+  })
+  if (!res.ok) throw new Error(`smazání záznamu → ${res.status}`)
+}

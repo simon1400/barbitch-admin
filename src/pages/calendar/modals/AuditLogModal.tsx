@@ -4,7 +4,7 @@
 // тулбаре календаря, видной ТОЛЬКО владельцу. Записи создаёт движок booking-engine.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchCalendarLogs, type CalendarLog } from '../fetch/calendarLog'
+import { deleteCalendarLog, fetchCalendarLogs, type CalendarLog } from '../fetch/calendarLog'
 import { ModalShell } from './ui'
 import { inputCls } from './helpers'
 
@@ -76,33 +76,75 @@ const LogRow = ({
   log,
   open,
   onToggle,
+  confirming,
+  deleting,
+  onAskDelete,
+  onCancelDelete,
+  onConfirmDelete,
 }: {
   log: CalendarLog
   open: boolean
   onToggle: () => void
+  confirming: boolean
+  deleting: boolean
+  onAskDelete: () => void
+  onCancelDelete: () => void
+  onConfirmDelete: () => void
 }) => {
   const meta = actionMeta(log.action)
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-left transition hover:border-gray-300 dark:border-[#3f3f3d] dark:bg-[#2a2a28] dark:hover:border-[#4f4f4c]"
-    >
-      <div className="flex items-center gap-2">
-        <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${meta.cls}`}>{meta.label}</span>
-        <span className="truncate rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-bold text-gray-700 dark:bg-[#3a3a38] dark:text-gray-200">
-          {log.actorName || 'neznámý admin'}
-        </span>
-        <span
-          className="ml-auto shrink-0 text-[11px] text-gray-400 dark:text-gray-500"
-          title={fullTime(log.createdAt)}
+    <div className="relative rounded-lg border border-gray-200 bg-white transition hover:border-gray-300 dark:border-[#3f3f3d] dark:bg-[#2a2a28] dark:hover:border-[#4f4f4c]">
+      <button type="button" onClick={onToggle} className="w-full px-3 py-2 pr-9 text-left">
+        <div className="flex items-center gap-2">
+          <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${meta.cls}`}>{meta.label}</span>
+          <span className="truncate rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-bold text-gray-700 dark:bg-[#3a3a38] dark:text-gray-200">
+            {log.actorName || 'neznámý admin'}
+          </span>
+          <span
+            className="ml-auto shrink-0 text-[11px] text-gray-400 dark:text-gray-500"
+            title={fullTime(log.createdAt)}
+          >
+            {relTime(log.createdAt)}
+          </span>
+        </div>
+        <div className="mt-1 text-sm text-gray-800 dark:text-gray-300">{log.summary || '—'}</div>
+        {open && <DetailBlock log={log} />}
+      </button>
+
+      {/* крестик — удаление записи журнала (только владелец видит сам модал) */}
+      {!confirming && (
+        <button
+          type="button"
+          onClick={onAskDelete}
+          title="Smazat záznam z deníku"
+          className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded text-[15px] leading-none text-gray-400 transition hover:bg-red-50 hover:text-red-500 dark:text-gray-500 dark:hover:bg-red-500/15 dark:hover:text-red-400"
         >
-          {relTime(log.createdAt)}
-        </span>
-      </div>
-      <div className="mt-1 text-sm text-gray-800 dark:text-gray-300">{log.summary || '—'}</div>
-      {open && <DetailBlock log={log} />}
-    </button>
+          ✕
+        </button>
+      )}
+
+      {confirming && (
+        <div className="flex items-center justify-end gap-1.5 border-t border-gray-200 px-3 py-1.5 dark:border-[#3f3f3d]">
+          <span className="mr-auto text-[11px] text-gray-500 dark:text-gray-400">Smazat záznam z deníku?</span>
+          <button
+            type="button"
+            onClick={onCancelDelete}
+            disabled={deleting}
+            className="rounded px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 disabled:opacity-50 dark:text-gray-300 dark:hover:bg-[#3a3a38]"
+          >
+            Ne
+          </button>
+          <button
+            type="button"
+            onClick={onConfirmDelete}
+            disabled={deleting}
+            className="rounded bg-red-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-red-600 disabled:opacity-50"
+          >
+            {deleting ? 'Mažu…' : 'Smazat'}
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -119,6 +161,10 @@ export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState<string | null>(null)
+  // удаление записи журнала: подтверждение → процесс → ошибка
+  const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [delError, setDelError] = useState<string | null>(null)
   // последовательность — ответ устаревшего запроса не перетирает свежий фильтр
   const seq = useRef(0)
 
@@ -161,6 +207,21 @@ export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
     load(1, false)
   }, [load])
 
+  const handleDelete = useCallback(async (documentId: string) => {
+    setDeletingId(documentId)
+    setDelError(null)
+    try {
+      await deleteCalendarLog(documentId)
+      setRows((prev) => prev.filter((r) => r.documentId !== documentId))
+      setTotal((t) => Math.max(0, t - 1))
+      setConfirmId(null)
+    } catch (e) {
+      setDelError((e as Error).message)
+    } finally {
+      setDeletingId(null)
+    }
+  }, [])
+
   const tabBtn = (t: EntityTab, label: string) => (
     <button
       type="button"
@@ -193,6 +254,7 @@ export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
 
       <div className="mt-3 space-y-1.5">
         {error && <p className="text-[12px] text-red-500">Chyba: {error}</p>}
+        {delError && <p className="text-[12px] text-red-500">Smazání se nezdařilo: {delError}</p>}
         {!error && rows.length === 0 && !loading && (
           <p className="text-[12px] text-gray-400 dark:text-gray-500">Žádné akce.</p>
         )}
@@ -202,6 +264,14 @@ export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
             log={log}
             open={open === log.documentId}
             onToggle={() => setOpen((cur) => (cur === log.documentId ? null : log.documentId))}
+            confirming={confirmId === log.documentId}
+            deleting={deletingId === log.documentId}
+            onAskDelete={() => {
+              setDelError(null)
+              setConfirmId(log.documentId)
+            }}
+            onCancelDelete={() => setConfirmId(null)}
+            onConfirmDelete={() => handleDelete(log.documentId)}
           />
         ))}
         {loading && <p className="text-[12px] text-gray-400 dark:text-gray-500">Načítám…</p>}
