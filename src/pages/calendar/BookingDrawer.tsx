@@ -2,7 +2,7 @@
 // инлайн-подтверждение отмены с уведомлением, услуги (+ «Změnit službu»),
 // секция «Historie klienta» (все брони клиента, клик → переход на её день).
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CalendarBooking, ClientHistoryItem } from './fetch/calendarDay'
 import { fetchClientHistory, todayStrPrague } from './fetch/calendarDay'
 import type { BookingLabel } from './fetch/bookingLabels'
@@ -135,11 +135,13 @@ const LoyaltyCard = ({
   busy,
   onApply,
   onRelease,
+  onUsedChange,
 }: {
   b: CalendarBooking
   busy: boolean
   onApply: (code: string) => void
   onRelease: () => void
+  onUsedChange: (used: boolean) => void
 }) => {
   const [redemptions, setRedemptions] = useState<BookingRedemption[] | null>(null)
   const [progress, setProgress] = useState<LoyaltyProgress | null>(null)
@@ -149,23 +151,35 @@ const LoyaltyCard = ({
     fetchBookingRedemptions(b.documentId)
       .then((res) => {
         if (cancelled) return
-        setRedemptions(res.enabled ? res.redemptions : [])
+        const rows = res.enabled ? res.redemptions : []
+        setRedemptions(rows)
         setProgress(res.enabled ? res.progress || null : null)
+        // наверх — чтобы карточка «Sleva za dozápis» знала, что скидка bitchcard
+        // уже применена (одна скидка на услугу → «Vrátit slevu» прячем)
+        onUsedChange(
+          rows.some((r) => r.status === 'used' && r.usedInBookingDocId === b.documentId),
+        )
       })
       .catch(() => {
         if (cancelled) return
         setRedemptions([])
         setProgress(null)
+        onUsedChange(false)
       })
     return () => {
       cancelled = true
     }
-  }, [b.documentId, b.totalPrice])
+    // onUsedChange стабилен (useCallback в drawer) — рефетч только по брони/цене
+  }, [b.documentId, b.totalPrice, onUsedChange])
 
   const used = (redemptions || []).find(
     (r) => r.status === 'used' && r.usedInBookingDocId === b.documentId,
   )
   const available = (redemptions || []).filter((r) => r.status === 'available')
+  // Правило салона: одна скидка на услугу. При применённой скидке за дозапис
+  // награды показываем, но применить их нельзя (сервер тоже вернёт 409).
+  const rd = b.discount
+  const rebookApplied = !!rd && rd.type === 'rebook' && !!rd.applied
   if (!used && available.length === 0 && !progress) return null
 
   // Рендерится ВНУТРИ главной карты брони (под ценой) — без своей рамки-карточки
@@ -215,6 +229,12 @@ const LoyaltyCard = ({
           )}
         </div>
       )}
+      {!used && rebookApplied && available.length > 0 && (
+        <div className="mb-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+          Na rezervaci už je sleva za dozápis — slevy se nesčítají. Chcete-li uplatnit bitchcard,
+          nejdřív zrušte slevu za dozápis níže.
+        </div>
+      )}
       {!used &&
         available.map((r) => (
           <div
@@ -225,21 +245,23 @@ const LoyaltyCard = ({
               🎟 <b>{redemptionRewardLabel(r)}</b>
               {r.code && <span className="ml-1 font-mono text-xs text-gray-500 dark:text-gray-400">{r.code}</span>}
             </span>
-            <button
-              type="button"
-              disabled={busy || !r.code}
-              onClick={() => {
-                if (
-                  window.confirm(
-                    `Uplatnit slevu „${r.reward.title}“ na tuto rezervaci? Cena se přepočítá.`,
+            {!rebookApplied && (
+              <button
+                type="button"
+                disabled={busy || !r.code}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Uplatnit slevu „${r.reward.title}“ na tuto rezervaci? Cena se přepočítá.`,
+                    )
                   )
-                )
-                  onApply(r.code || '')
-              }}
-              className="shrink-0 rounded-md border border-pink-300 bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50 disabled:opacity-40 dark:border-[#e71e6e80] dark:bg-transparent dark:shadow-none dark:hover:bg-[#e71e6e26] sm:px-2.5 sm:py-1"
-            >
-              Uplatnit slevu
-            </button>
+                    onApply(r.code || '')
+                }}
+                className="shrink-0 rounded-md border border-pink-300 bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50 disabled:opacity-40 dark:border-[#e71e6e80] dark:bg-transparent dark:shadow-none dark:hover:bg-[#e71e6e26] sm:px-2.5 sm:py-1"
+              >
+                Uplatnit slevu
+              </button>
+            )}
           </div>
         ))}
     </div>
@@ -254,11 +276,15 @@ const RebookDiscountCard = ({
   busy,
   onRemove,
   onRestore,
+  blockedByRedemption,
 }: {
   b: CalendarBooking
   busy: boolean
   onRemove: () => void
   onRestore: () => void
+  // на брони уже применена награда bitchcard → вернуть скидку за дозапис нельзя
+  // (одна скидка на услугу; сервер тоже вернёт 409 booking_has_redemption)
+  blockedByRedemption: boolean
 }) => {
   const d = b.discount
   if (!d || d.type !== 'rebook') return null
@@ -292,8 +318,14 @@ const RebookDiscountCard = ({
         <div className="flex items-center justify-between gap-2 rounded-lg bg-white/80 px-3 py-2 text-sm dark:bg-[#2c2c2a]">
           <span className="text-gray-600 dark:text-gray-400">
             {`Sleva −${d.percent} % (−${d.discountKc} Kč) je zrušená — klient platí plnou cenu.`}
+            {blockedByRedemption && (
+              <span className="mt-1 block text-xs text-amber-700 dark:text-amber-300">
+                Na rezervaci je sleva bitchcard — slevy se nesčítají. Vrátit slevu za dozápis lze
+                až po zrušení slevy bitchcard.
+              </span>
+            )}
           </span>
-          {editable && (
+          {editable && !blockedByRedemption && (
             <button
               type="button"
               disabled={busy}
@@ -437,6 +469,10 @@ export const BookingDrawer = ({
   // действует «Zrušit uzavření» в самой карточке, чтобы статусы не разъезжались)
   const [closingVisit, setClosingVisit] = useState(false)
   const [hasCheckout, setHasCheckout] = useState(false)
+  // применена ли к брони награда bitchcard (сообщает LoyaltyCard, который её грузит) —
+  // нужно карточке скидки за дозапис: одна скидка на услугу, две не суммируем
+  const [redemptionUsed, setRedemptionUsed] = useState(false)
+  const handleUsedChange = useCallback((used: boolean) => setRedemptionUsed(used), [])
   useEffect(() => {
     setCommentDraft(b.comment || '')
     setCancelling(false)
@@ -445,6 +481,7 @@ export const BookingDrawer = ({
     setCancelNote('')
     setNoshowNote('')
     setClosingVisit(false)
+    setRedemptionUsed(false)
   }, [b.documentId]) // eslint-disable-line react-hooks/exhaustive-deps
   const commentChanged = commentDraft.trim() !== (b.comment || '').trim()
   // авто-высота позна́мки: с контентом растёт под текст (кап 240px), пустая — компактная
@@ -521,7 +558,13 @@ export const BookingDrawer = ({
           {/* Скидки — сразу под ценой, к которой относятся. Bitchcard: только админам
               и только active/checkedOut (сервер это тоже проверяет); rebook −15% тоже. */}
           {!readOnly && b.client?.documentId && (b.status === 'active' || b.status === 'checkedOut') && (
-            <LoyaltyCard b={b} busy={busy} onApply={onApplyRedemption} onRelease={onReleaseRedemption} />
+            <LoyaltyCard
+              b={b}
+              busy={busy}
+              onApply={onApplyRedemption}
+              onRelease={onReleaseRedemption}
+              onUsedChange={handleUsedChange}
+            />
           )}
           {!readOnly && (
             <RebookDiscountCard
@@ -529,6 +572,7 @@ export const BookingDrawer = ({
               busy={busy}
               onRemove={onRemoveRebookDiscount}
               onRestore={onRestoreRebookDiscount}
+              blockedByRedemption={redemptionUsed}
             />
           )}
 
