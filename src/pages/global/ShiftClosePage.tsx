@@ -19,7 +19,6 @@ import {
 import {
   ComparisonCard,
   ServiceProvidedCard,
-  CalendarBookingsCard,
   CashCard,
   WorkTimeCard,
   PayrollCard,
@@ -301,8 +300,10 @@ export default function ShiftClosePage() {
               <StatSection title="Kontrola záznamů" id="checks" defaultOpen>
                 <div className="grid gap-4">
                   <CashCard data={result.cash} />
+                  {/* Отдельная таблица «Rezervace v kalendáři» убрана: записи закрываются
+                      прямо в календаре → услуга/čas/cena брони видны в тултипе чипа ⇄,
+                      а брони БЕЗ записи показывает ComparisonCard («Pouze v kalendáři»). */}
                   <ServiceProvidedCard data={result.serviceProvided} calendarBookings={result.calendar.events} />
-                  <CalendarBookingsCard data={result.calendar} />
                   <WorkTimeCard data={result.workTime} />
                   <PayrollCard data={result.payroll} />
                 </div>

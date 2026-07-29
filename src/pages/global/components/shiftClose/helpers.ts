@@ -110,6 +110,9 @@ export interface OfferMatch {
   calendarTitle: string
   /** 'booking' — услуга взята из самой брони (сравнивать нечего) */
   source?: 'booking'
+  /** время и цена брони — показываются в тултипе чипа (отдельной таблицы броней нет) */
+  time?: string
+  price?: number | null
 }
 
 // Map keyed by the service-provided item object itself (rows get re-sorted in
@@ -125,11 +128,14 @@ export const buildOfferMatches = (items: any[], events: any[]): Map<any, OfferMa
   const { linked, unmatchedLinked, restItems, restEvents } = matchByBooking(items, events)
   for (const item of [...linked.keys(), ...unmatchedLinked]) {
     const title = bookingServiceTitle(item.booking)
+    const rawPrice = item?.booking?.totalPrice
     result.set(item, {
       status: 'match',
       strapiTitle: title,
       calendarTitle: title,
       source: 'booking',
+      time: typeof item?.time === 'string' ? item.time : '',
+      price: rawPrice == null ? null : Number(rawPrice),
     })
   }
 

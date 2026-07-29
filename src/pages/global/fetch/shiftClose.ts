@@ -20,6 +20,17 @@ export type { VerifyFlag, FlagMeta } from '../../../lib/verifyFlags'
 export { VERIFY_FLAGS, FLAG_META, parseSaleRate } from '../../../lib/verifyFlags'
 import { VERIFY_FLAGS, type VerifyFlag, parseSaleRate } from '../../../lib/verifyFlags'
 
+// 🟥 GET-ы админки идут БЕЗ токена (интерсептор Axios подставляет его только на
+// мутации) → Strapi санитизирует populate по Public-роли, а у коллекции `booking`
+// Public-прав нет (PII) → `populate=*` МОЛЧА выкидывает relation booking из ответа.
+// Записи чекаута из календаря выглядели непривязанными: янтарный «—» в колонке
+// услуги и pre-flight «offer/booking: chybí vazba», блокирующий закрытие смены.
+// Явный Bearer на запросах services-provided сохраняет booking в ответе.
+const STRAPI_TOKEN = import.meta.env.VITE_STRAPI_TOKEN as string | undefined
+const authHeaders = STRAPI_TOKEN
+  ? { headers: { Authorization: `Bearer ${STRAPI_TOKEN}` } }
+  : undefined
+
 // Цены хранятся строками; junior-цены (−20%) бывают с запятой ("237,6").
 // Number("237,6") = NaN → 0. Нормализуем запятую перед парсом.
 const toNum = (v: unknown): number => {
@@ -198,6 +209,7 @@ const fetchServiceProvided = async (dateStr: string) => {
   try {
     const res = await Axios.get(
       `/api/services-provided?filters[date][$eq]=${dateStr}&populate=*&pagination[pageSize]=100&status=draft`,
+      authHeaders,
     )
     const items = Array.isArray(res) ? res : (res as any)?.data || []
     // Counters are per-flag (one item with multiple flags is counted in each)
@@ -257,7 +269,7 @@ const fetchPayroll = async (dateStr: string) => {
 // Брони дня из НАШЕГО календаря (booking-коллекция) для сверки со
 // services-provided. Форма событий историческая (customer_name /
 // event_types[0].title / employee.name) — вся логика сверки (diffByName,
-// buildOfferMatches, CalendarBookingsCard) на неё завязана. customer_name
+// buildOfferMatches) на неё завязана. customer_name
 // берётся ТЕКУЩИЙ (client relation) — устаревших снимков имён нет по построению.
 const fetchCalendarBookings = async (dateStr: string) => {
   try {
@@ -581,11 +593,13 @@ export const publishShift = async (
     { key: 'payrolls', url: `/api/payrolls?filters[date][$eq]=${dateStr}&status=draft&populate=*&pagination[pageSize]=100` },
   ]
 
-  // Fetch all drafts in parallel
+  // Fetch all drafts in parallel. authHeaders обязательны: без токена pre-flight
+  // не увидел бы relation `booking` (санитизация Public-роли) и ложно завалил бы
+  // записи чекаута из календаря на правиле «offer/booking».
   const allDrafts = await Promise.all(
     collections.map(async (c) => {
       try {
-        const res = await Axios.get(c.url)
+        const res = await Axios.get(c.url, authHeaders)
         return Array.isArray(res) ? res : []
       } catch { return [] }
     }),
