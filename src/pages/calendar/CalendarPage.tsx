@@ -596,13 +596,15 @@ export default function CalendarPage() {
               {weekLabelCs(date)}
             </span>
           ) : (
-            // подпись с днём недели без года («Pá 17. 7.»); нативный пикер — невидимым
-            // инпутом поверх (тап/клик открывает календарь)
+            // день: подпись с днём недели без года («Pá 17. 7.»); неделя: диапазон
+            // Пн–Вс («13.–19. 7.»); нативный пикер — невидимым инпутом поверх
+            // (тап/клик открывает календарь; выбор даты в недельном виде = переход
+            // на её неделю)
             <div className="relative hidden sm:block">
               <span
                 className={`${tbInput} flex min-h-[34px] items-center whitespace-nowrap px-3 py-1 text-sm font-semibold`}
               >
-                {dateLabelShortCs(date)}
+                {mode === 'week' ? weekLabelShortCs(date) : dateLabelShortCs(date)}
               </span>
               <input
                 type="date"
@@ -870,8 +872,9 @@ export default function CalendarPage() {
               ‹
             </button>
             <div className="relative min-w-0">
+              {/* в недельном виде (и у мастера — он всегда week) показываем диапазон Пн–Вс */}
               <span className="block truncate px-0.5 text-center text-sm font-semibold text-gray-800 dark:text-gray-300">
-                {isMaster ? weekLabelShortCs(date) : dateLabelShortCs(date)}
+                {mode === 'week' ? weekLabelShortCs(date) : dateLabelShortCs(date)}
               </span>
               {/* master листает целыми неделями — нативный пикер конкретной даты не нужен */}
               {!isMaster && (
