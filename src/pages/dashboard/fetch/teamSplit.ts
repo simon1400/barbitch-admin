@@ -18,8 +18,8 @@ export interface CombinedResult {
   sum: number // заработок с клиентов (staffSalaries, как мастер)
   sumTip: number
   hours: number // отработанные часы (как администратор)
-  rate: number // почасовая ставка администратора
-  adminEarnings: number // hours * rate
+  rate: number // почасовая ставка администратора (на конец периода, информационно)
+  adminEarnings: number // заработок за часы (по-сменный расчёт — ставка может меняться посреди месяца)
   penalty: number
   extraProfit: number
   payrolls: number
@@ -68,7 +68,7 @@ export function splitTeam(works: Result[], admins: ResultAdmins[]): TeamSplit {
       sumTip: w?.sumTip ?? 0,
       hours: a?.sum ?? 0,
       rate: a?.rate ?? 0,
-      adminEarnings: (a?.sum ?? 0) * (a?.rate ?? 0),
+      adminEarnings: a?.earned ?? 0,
       penalty: corr.penalty,
       extraProfit: corr.extraProfit,
       payrolls: corr.payrolls,
@@ -84,7 +84,7 @@ export function splitTeam(works: Result[], admins: ResultAdmins[]): TeamSplit {
     0,
   )
   const sumAdmins = pureAdmins.reduce(
-    (s, a) => s + a.sum * a.rate + a.extraProfit - a.penalty - a.payrolls,
+    (s, a) => s + a.earned + a.extraProfit - a.penalty - a.payrolls,
     0,
   )
   const sumCombined = combined.reduce(

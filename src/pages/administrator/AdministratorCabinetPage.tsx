@@ -6,6 +6,7 @@ import { TableWrapper } from '../global/components/TableWrapper'
 import { StatSection } from '../global/components/StatSection'
 import { Select } from '../dashboard/components/Select'
 import { GlobalLineChart } from '../global/charts/components/GlobalLineChart'
+import { rateInfoForDate } from '../dashboard/fetch/allAdminsHours'
 import { useGlobalMonthData } from '../dashboard/hooks/useGlobalMonthData'
 
 interface ServiceProvided {
@@ -302,29 +303,13 @@ const AdministratorCabinetPage = () => {
     )
   }
 
-  // Функция для получения ставки для месяца
-  const getRateForMonth = (rates: any[], month: number, year: number) => {
-    if (!rates || rates.length === 0) return 115 // дефолтная ставка
-
-    const monthStart = new Date(year, month, 1)
-    const monthEnd = new Date(year, month + 1, 0)
-    const MAX_DATE = new Date(8640000000000000)
-
-    const found = rates.find((r: any) => {
-      const from = r.from ? new Date(r.from) : new Date(0)
-      const to = r.to ? new Date(r.to) : MAX_DATE
-      return from <= monthEnd && to >= monthStart
-    })
-
-    const val = found?.rate
-    const num = typeof val === 'string' ? Number(val) : val
-    return Number.isFinite(num as number) ? (num as number) : 115
-  }
-
-  // Рассчитываем общий заработок
+  // Рассчитываем общий заработок: каждая смена × ставка, действующая в ЕЁ дату
+  // (ставка может смениться посреди месяца — тогда часть смен по старой, часть по новой)
   const totalHours = filteredData.workTimes.reduce((sum, wt) => sum + Number(wt.sum), 0)
-  const rate = getRateForMonth(data.personal.rates, selectedMonth, selectedYear)
-  const totalEarnings = totalHours * rate
+  const totalEarnings = filteredData.workTimes.reduce(
+    (sum, wt) => sum + Number(wt.sum) * rateInfoForDate(data.personal.rates, wt.date).rate,
+    0,
+  )
 
   // Рассчитываем штрафы
   const totalPenalties = filteredData.penalties.reduce((sum, p) => sum + Number(p.sum), 0)

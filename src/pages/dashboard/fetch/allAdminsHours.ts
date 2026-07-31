@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { PersonalSumData } from './fetchHelpers'
 
 import { getMonthRange } from '../../../utils/getMonthRange'
@@ -19,22 +18,10 @@ interface RateInfo {
   isFixedMonthly: boolean // true если HPP (фиксированная месячная зарплата)
 }
 
-const MAX_DATE = new Date(8640000000000000) // бесконечная дата
+const DEFAULT_RATE_INFO: RateInfo = { rate: 115, fixedMonthlyRate: null, isFixedMonthly: false }
 
-function getRateInfoForMonth(
-  rates: RateItem[] | undefined,
-  monthStart: Date,
-  monthEnd: Date,
-): RateInfo {
-  if (!rates || !rates.length) return { rate: 115, fixedMonthlyRate: null, isFixedMonthly: false }
-
-  const found = rates.find((r) => {
-    const from = r.from ? new Date(r.from) : new Date(0)
-    const to = r.to ? new Date(r.to) : MAX_DATE
-    return from <= monthEnd && to >= monthStart
-  })
-
-  if (!found) return { rate: 115, fixedMonthlyRate: null, isFixedMonthly: false }
+function toRateInfo(found: RateItem | undefined): RateInfo {
+  if (!found) return DEFAULT_RATE_INFO
 
   const isFixedMonthly = found.typeWork === 'hpp'
 
@@ -57,16 +44,57 @@ function getRateInfoForMonth(
   return { rate: mainRate, fixedMonthlyRate: null, isFixedMonthly: false }
 }
 
+// Ставка, действующая НА КОНКРЕТНУЮ ДАТУ (а не «на месяц»). Ставка может смениться
+// посреди месяца (у записи истории ставок появляется `to`, у новой — `from` с того же
+// дня) — тогда часть смен месяца считается по старой ставке, часть по новой.
+// Даты сравниваются строками "YYYY-MM-DD" (тип поля date) — без таймзонных сюрпризов.
+// На граничный день (to старой == from новой) побеждает запись с более поздним from,
+// т.е. НОВАЯ ставка действует уже с указанного дня.
+export function rateInfoForDate(rates: RateItem[] | undefined, dateStr: string): RateInfo {
+  if (!rates || !rates.length) return DEFAULT_RATE_INFO
+
+  const d = (dateStr || '').slice(0, 10)
+  if (!d) return toRateInfo(rates[0])
+
+  let found: RateItem | undefined
+  let foundFrom = ''
+  for (const r of rates) {
+    const from = (r.from || '').slice(0, 10)
+    const to = r.to ? r.to.slice(0, 10) : '9999-12-31'
+    if (from <= d && d <= to && from >= foundFrom) {
+      found = r
+      foundFrom = from
+    }
+  }
+
+  // Дыра в истории ставок (дата ни в один период не попала) —
+  // берём последнюю ставку, начавшуюся ДО этой даты.
+  if (!found) {
+    for (const r of rates) {
+      const from = (r.from || '').slice(0, 10)
+      if (from <= d && from >= foundFrom) {
+        found = r
+        foundFrom = from
+      }
+    }
+  }
+
+  return toRateInfo(found ?? rates[0])
+}
+
 export interface ResultAdmins {
   name: string
   sum: number
+  // Заработок за часы = Σ (часы смены × ставка, действующая в ДАТУ смены).
+  // При смене ставки посреди месяца это НЕ равно sum × rate — использовать earned.
+  earned: number
   penalty: number
   extraProfit: number
   payrolls: number
   advance: number
   salaries: number
   taxes: number
-  rate: number // Почасовая ставка
+  rate: number // Почасовая ставка, действующая на конец периода (информационно)
   fixedMonthlyRate: number | null // Фиксированная месячная зарплата (только для HPP)
   isFixedMonthly: boolean
   excessThreshold: number
@@ -85,21 +113,25 @@ function summarizeAdmins(
   advance: PersonalSumData[],
   salaries: PersonalSumData[],
   taxes: PersonalSumData[],
-  monthStart: Date,
   monthEnd: Date,
 ): IFilteredAdminsData {
   const resultMap = new Map<string, ResultAdmins>()
   let sumAdmins = 0
+  const monthEndStr = monthEnd.toISOString().slice(0, 10)
 
-  data.forEach(({ sum, personal }) => {
+  data.forEach((item) => {
+    const { sum, personal } = item
     const name = personal?.name
     if (!name) return
     const hours = Number.parseFloat(sum || '0')
+    const rates = personal?.rates as unknown as RateItem[]
     if (!resultMap.has(name)) {
-      const rateInfo = getRateInfoForMonth(personal?.rates as unknown as RateItem[], monthStart, monthEnd)
+      // «Текущая» ставка на конец периода — информационно (в деньгах не участвует).
+      const rateInfo = rateInfoForDate(rates, monthEndStr)
       resultMap.set(name, {
         name,
         sum: 0,
+        earned: 0,
         penalty: 0,
         extraProfit: 0,
         payrolls: 0,
@@ -112,7 +144,11 @@ function summarizeAdmins(
         excessThreshold: personal?.excessThreshold ?? 0,
       })
     }
-    resultMap.get(name)!.sum += hours
+    const entry = resultMap.get(name)!
+    entry.sum += hours
+    // Каждая смена оплачивается по ставке, действующей в ЕЁ дату — смена ставки
+    // посреди месяца делит месяц корректно (часть по старой, часть по новой).
+    entry.earned += hours * rateInfoForDate(rates, item.date || monthEndStr).rate
   })
 
   // Корректировки считаются для КАЖДОГО администратора полностью. Совместителей
@@ -131,8 +167,10 @@ function summarizeAdmins(
   // налогов/отчётности) и НЕ означает фиксированный месячный оклад. Формула
   // совпадает с расчётом строки «Результат» в Administrators.tsx, поэтому
   // итог «Общая сумма» и значения по строкам всегда сходятся.
+  // earned (по-сменный расчёт) вместо sum × rate — иначе смена ставки посреди
+  // месяца не отражалась бы (весь месяц считался по одной ставке).
   summary.forEach((item) => {
-    sumAdmins += item.sum * item.rate + item.extraProfit - item.penalty - item.payrolls
+    sumAdmins += item.earned + item.extraProfit - item.penalty - item.payrolls
   })
 
   return { summary, sumAdmins }
@@ -197,7 +235,6 @@ export const getAdminsHours = async (month: number, year: number, previewDay?: s
     advance,
     salaries,
     taxes,
-    firstDay,
     lastDay,
   )
 
@@ -244,7 +281,6 @@ export const getAdminsHoursByDateRange = async (startDate: Date, endDate: Date) 
     advance,
     salaries,
     taxes,
-    startDate,
     endDate,
   )
 

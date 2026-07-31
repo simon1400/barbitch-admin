@@ -20,7 +20,7 @@ export const Administrators = ({
 
   // Рассчитываем общую сумму превышений
   const totalExcess = data.reduce((sum, item) => {
-    const result = item.sum * item.rate + item.extraProfit - item.penalty - item.payrolls
+    const result = item.earned + item.extraProfit - item.penalty - item.payrolls
     const remaining = result - item.advance - item.salaries
     const threshold = item.excessThreshold ?? 0
     // Считаем от остатка если есть авансы/зарплаты, иначе от результата
@@ -54,7 +54,8 @@ export const Administrators = ({
         </thead>
         <tbody>
           {data.map((item) => {
-            const result = item.sum * item.rate + item.extraProfit - item.penalty - item.payrolls
+            // earned = по-сменный расчёт (ставка может смениться посреди месяца)
+            const result = item.earned + item.extraProfit - item.penalty - item.payrolls
             const remaining = result - item.advance - item.salaries
             const threshold = item.excessThreshold ?? 0
             // Считаем превышение от остатка если есть авансы/зарплаты, иначе от результата
@@ -70,7 +71,7 @@ export const Administrators = ({
                   onClick={() => navigator.clipboard.writeText(item.name)}
                 />
                 <Cell title={`${item.sum.toLocaleString()} hod`} />
-                <Cell title={`${(item.sum * item.rate).toLocaleString()}`} />
+                <Cell title={`${item.earned.toLocaleString()}`} />
                 {!emptyKeys.has('penalty') && (
                   <Cell title={item.penalty ? `-${item.penalty.toLocaleString()}` : ''} />
                 )}

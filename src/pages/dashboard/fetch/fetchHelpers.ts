@@ -70,6 +70,7 @@ export const fetchDayDrafts = async <T>(
 
 export interface PersonalSumData {
   sum: string
+  date?: string // есть у work-times (fields включает 'date') — нужна для по-сменного расчёта ставки
   personal: {
     name: string
     rates?: any
