@@ -62,7 +62,9 @@ export default function TimeOffTab() {
     <>
       <div className="mb-6 flex justify-between items-center gap-3 flex-wrap sticky top-0 z-40">
         <Select month={month} setMonth={setMonth} year={year} setYear={setYear} />
-        <span className="text-xs text-gray-400">Považují se pouze pracovní dny (Po–Pá)</span>
+        <span className="text-xs text-gray-400">
+          Počítají se kalendářní dny včetně víkendů (od–do včetně)
+        </span>
       </div>
 
       <StatSection title="Сводка по сотрудникам" id="timeoff-summary" defaultOpen>
@@ -157,7 +159,7 @@ function SummaryRow({
                     {fmtDate(rec.startDate)} — {fmtDate(rec.endDate)}
                   </span>
                   <span className="text-xs text-gray-500">
-                    {daysInMonth(rec, month, year)} прац. дн. в этом месяце
+                    {daysInMonth(rec, month, year)} дн. в этом месяце
                   </span>
                   <span
                     className={`text-xs font-medium ${rec.paid ? 'text-green-600' : 'text-gray-400'}`}

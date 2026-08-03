@@ -40,8 +40,12 @@ const parseDate = (d: string): number => {
 
 const DAY_MS = 86_400_000
 
-// Кол-во РАБОЧИХ дней (Пн–Пт) записи, попавших ВНУТРЬ выбранного месяца
-// (пересечение периода отсутствия с границами месяца)
+// Кол-во дней записи, попавших ВНУТРЬ выбранного месяца (пересечение периода
+// отсутствия с границами месяца). Обе границы ВКЛЮЧИТЕЛЬНО: 12.07–15.07 = 4 дня.
+//
+// ⚠️ Раньше считались только Пн–Пт. Для салона это неверно: он работает 7 дней в
+// неделю, мастера и администраторы выходят по сменам в том числе в субботу и
+// воскресенье — отпуск, начатый в воскресенье, терял день.
 export const daysInMonth = (rec: TimeOffRecord, month: number, year: number): number => {
   const monthStart = Date.UTC(year, month, 1)
   const monthEnd = Date.UTC(year, month + 1, 0)
@@ -49,12 +53,7 @@ export const daysInMonth = (rec: TimeOffRecord, month: number, year: number): nu
   const to = Math.min(parseDate(rec.endDate), monthEnd)
   if (to < from) return 0
 
-  let count = 0
-  for (let t = from; t <= to; t += DAY_MS) {
-    const dow = new Date(t).getUTCDay() // 0 = Вс, 6 = Сб
-    if (dow !== 0 && dow !== 6) count++
-  }
-  return count
+  return Math.round((to - from) / DAY_MS) + 1
 }
 
 // Все записи, чей период пересекается с выбранным месяцем
@@ -96,7 +95,7 @@ export interface EmployeeSummary {
   records: TimeOffRecord[]
 }
 
-// Группирует записи по сотруднику и считает рабочие дни по типам внутри месяца
+// Группирует записи по сотруднику и считает дни по типам внутри месяца
 export const buildSummaries = (
   records: TimeOffRecord[],
   month: number,
