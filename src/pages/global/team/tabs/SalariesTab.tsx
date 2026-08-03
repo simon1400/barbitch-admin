@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { RefreshControl } from '../../../dashboard/components/RefreshControl'
 import { Select } from '../../../dashboard/components/Select'
 import { useGlobalMonthData } from '../../../dashboard/hooks/useGlobalMonthData'
 import { Administrators } from '../../components/Administrators'
@@ -9,12 +10,13 @@ import { StatSection } from '../../components/StatSection'
 export default function SalariesTab() {
   const [month, setMonth] = useState<number>(new Date().getMonth())
   const [year, setYear] = useState<number>(new Date().getFullYear())
-  const { data } = useGlobalMonthData(month, year)
+  const { data, loading, cachedAt, refresh } = useGlobalMonthData(month, year)
 
   return (
     <>
-      <div className="mb-6 flex justify-between items-center sticky top-0 z-40">
+      <div className="mb-6 flex justify-between items-center gap-3 sticky top-0 z-40">
         <Select month={month} setMonth={setMonth} year={year} setYear={setYear} />
+        <RefreshControl cachedAt={cachedAt} loading={loading} refresh={refresh} />
       </div>
 
       {/* Masters Section */}
