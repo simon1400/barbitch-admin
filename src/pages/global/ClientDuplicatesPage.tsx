@@ -23,6 +23,8 @@ type Tab = 'strong' | 'weak' | 'conflicts' | 'ignored'
 
 const REASON_LABEL: Record<string, string> = { name: 'имя', email: 'e-mail', phone: 'телефон' }
 
+const PAGE_SIZE = 10
+
 const fmtDay = (s: string | null) =>
   s ? new Date(s).toLocaleDateString('cs-CZ', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
 
@@ -349,6 +351,34 @@ function GroupCard({
   )
 }
 
+// ── пагинация ──
+
+function Pagination({ page, total, onPage }: { page: number; total: number; onPage: (p: number) => void }) {
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  if (pageCount <= 1) return null
+  const from = (page - 1) * PAGE_SIZE + 1
+  const to = Math.min(page * PAGE_SIZE, total)
+  const btn = 'px-3 py-1 rounded-lg border border-gray-300 bg-white shadow-sm text-sm disabled:opacity-40'
+  return (
+    <div className={'mt-4 flex items-center justify-between text-sm'}>
+      <span className={'text-gray-500'}>
+        {from}–{to} из {total} групп
+      </span>
+      <div className={'flex items-center gap-2'}>
+        <button className={btn} disabled={page <= 1} onClick={() => onPage(page - 1)}>
+          ← Назад
+        </button>
+        <span className={'text-gray-600'}>
+          {page} / {pageCount}
+        </span>
+        <button className={btn} disabled={page >= pageCount} onClick={() => onPage(page + 1)}>
+          Дальше →
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── история ──
 
 function HistorySection() {
@@ -400,6 +430,7 @@ const ClientDuplicatesPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('strong')
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -435,6 +466,21 @@ const ClientDuplicatesPage = () => {
       )
     )
   }, [data, tab, search])
+
+  // смена таба/поиска → на первую страницу; после reload держимся в границах
+  useEffect(() => {
+    setPage(1)
+  }, [tab, search])
+  const pageCount = Math.max(1, Math.ceil(groups.length / PAGE_SIZE))
+  const safePage = Math.min(page, pageCount)
+  const pageGroups = useMemo(
+    () => groups.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [groups, safePage]
+  )
+  const gotoPage = (p: number) => {
+    setPage(p)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const s = data?.stats
   const tabBtn = (t: Tab, label: string, count?: number) => (
@@ -524,10 +570,12 @@ const ClientDuplicatesPage = () => {
           )}
 
           <div className={'flex flex-col gap-4'}>
-            {groups.map((g) => (
+            {pageGroups.map((g) => (
               <GroupCard key={g.key} group={g} isIgnoredTab={tab === 'ignored'} onChanged={() => void load()} />
             ))}
           </div>
+
+          <Pagination page={safePage} total={groups.length} onPage={gotoPage} />
 
           <HistorySection />
         </div>
