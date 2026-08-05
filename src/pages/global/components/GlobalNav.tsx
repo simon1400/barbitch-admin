@@ -16,6 +16,7 @@ const navItems: NavItem[] = [
   { path: '/global/catalog', label: 'Каталог услуг' },
   { path: '/global/shift-close', label: 'Uzavření směny' },
   { path: '/global/loyalty', label: 'Лояльность' },
+  { path: '/global/client-duplicates', label: 'Дубли клиентов' },
   { path: '/global/blog-ai', label: 'Blog AI' },
   { path: '/global/reviews', label: 'Google Reviews' },
   { path: '/global/error-logs', label: 'Error Logs' },
