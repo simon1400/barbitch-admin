@@ -15,6 +15,24 @@ interface EditBlockProps {
   onChanged: () => void
 }
 
+// Когда и кем заведён блок: own-блоки движка несут createdByName (имя админа из сессии),
+// старые own-блоки (до этой правки) — только дату, зеркальные Noona — дату импорта.
+const blockCreatedLabel = (block: BlockedRange): string | null => {
+  const parts: string[] = []
+  if (block.createdAt) {
+    const d = new Date(block.createdAt)
+    if (!Number.isNaN(d.getTime())) {
+      parts.push(
+        d.toLocaleString('cs-CZ', { day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      )
+    }
+  }
+  if (block.createdByName) parts.push(block.createdByName)
+  else if (block.own) parts.push('kalendář (admin)')
+  else parts.push('import Noona')
+  return parts.length ? parts.join(' · ') : null
+}
+
 export const EditBlockModal = ({ block, masterName, date, onClose, onChanged }: EditBlockProps) => {
   const [fromTime, setFromTime] = useState(fmtHM(block.startMin))
   const [toTime, setToTime] = useState(fmtHM(block.endMin))
@@ -69,6 +87,11 @@ export const EditBlockModal = ({ block, masterName, date, onClose, onChanged }: 
           <b>{masterName}</b> · {date}
           {seriesCount > 1 && (
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Součást série — celkem {seriesCount} {blokPlural(seriesCount)}.</p>
+          )}
+          {blockCreatedLabel(block) && (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              <span className="font-semibold text-gray-600 dark:text-gray-300">Vytvořeno:</span> {blockCreatedLabel(block)}
+            </p>
           )}
         </div>
 

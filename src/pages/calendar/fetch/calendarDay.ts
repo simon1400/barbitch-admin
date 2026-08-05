@@ -70,6 +70,8 @@ export interface BlockedRange {
   // ключи серии: own-серия делит noonaKey; зеркальная rrule-серия делит noonaBlockedId
   noonaKey?: string | null
   noonaBlockedId?: string | null
+  createdAt?: string | null // когда блок заведён (Strapi createdAt)
+  createdByName?: string | null // имя админа-создателя (только own-блоки движка)
 }
 
 export interface MasterColumn {
@@ -140,6 +142,8 @@ interface MirrorTimeBlock {
   date: string
   startsAt: string | null
   endsAt: string | null
+  createdAt?: string | null
+  createdByName?: string | null
 }
 
 // Активные мастера из НАШЕЙ базы (personal). Ключ колонки = noonaEmployeeId
@@ -251,6 +255,8 @@ const toBlockedRange = (b: MirrorTimeBlock, startMin: number, endMin: number): B
   own: String(b.noonaKey || '').startsWith('own|'),
   noonaKey: b.noonaKey,
   noonaBlockedId: b.noonaBlockedId ?? null,
+  createdAt: b.createdAt ?? null,
+  createdByName: b.createdByName ?? null,
 })
 
 // Занятые интервалы колонки (для подсказки «служба se nevejde» в модале новой брони).
