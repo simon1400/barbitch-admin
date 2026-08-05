@@ -23,6 +23,7 @@ const AnalyticsProceduresTab = lazy(() => import('./pages/global/analytics/tabs/
 const AnalyticsChartsTab = lazy(() => import('./pages/global/analytics/tabs/ChartsTab'))
 const AnalyticsClientsTab = lazy(() => import('./pages/global/analytics/tabs/ClientsTab'))
 const AnalyticsSleepingTab = lazy(() => import('./pages/global/analytics/tabs/SleepingTab'))
+const AnalyticsComebackTab = lazy(() => import('./pages/global/analytics/tabs/ComebackTab'))
 const AnalyticsRetentionTab = lazy(() => import('./pages/global/analytics/tabs/RetentionTab'))
 const AnalyticsForecastTab = lazy(() => import('./pages/global/analytics/tabs/ForecastTab'))
 const AnalyticsCancellationsTab = lazy(
@@ -219,6 +220,7 @@ function App() {
             <Route path="charts" element={<AnalyticsChartsTab />} />
             <Route path="clients" element={<AnalyticsClientsTab />} />
             <Route path="sleeping" element={<AnalyticsSleepingTab />} />
+            <Route path="comeback" element={<AnalyticsComebackTab />} />
             <Route path="retention" element={<AnalyticsRetentionTab />} />
             <Route path="forecast" element={<AnalyticsForecastTab />} />
             <Route path="global-stats" element={<AnalyticsGlobalStatsTab />} />

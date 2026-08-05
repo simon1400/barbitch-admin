@@ -17,6 +17,7 @@ const tabs: AnalyticsTab[] = [
   { to: 'charts', label: 'Недельные графики' },
   { to: 'clients', label: 'Новые vs повторные' },
   { to: 'sleeping', label: 'Спящие клиенты' },
+  { to: 'comeback', label: 'Напоминания о визите' },
   { to: 'retention', label: 'Возвращаемость' },
   { to: 'cancellations', label: 'Отмены' },
   { to: 'vouchers', label: 'Ваучеры' },
