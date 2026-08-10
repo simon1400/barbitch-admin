@@ -73,7 +73,13 @@ export const ProceduresTable = ({ data, totalCount, totalRevenue, loading }: Pro
       totalSum={`${totalRevenue.toLocaleString()} Kč`}
       totalLabel={`Всего процедур: ${totalCount.toLocaleString()}`}
     >
-      <table className="w-full text-left table-auto min-w-max">
+      {/* Названия комбо-услуг из снапшота брони («Gel lak manikúra + Francouzská
+          manikúra + Posílení nehtů + …») длиннее экрана → min-w-max растягивал
+          таблицу и включал горизонтальный скролл на десктопе. Теперь колонка
+          названия переносится по словам, числовые колонки ужимаются по контенту
+          (w-px + nowrap), а min-w нужен только чтобы таблица не схлопывалась на
+          узком телефоне. */}
+      <table className="w-full text-left table-auto min-w-[560px]">
         <thead>
           <tr>
             <th
@@ -86,7 +92,7 @@ export const ProceduresTable = ({ data, totalCount, totalRevenue, loading }: Pro
               </p>
             </th>
             <th
-              className="p-4 border-b border-blue-gray-100 bg-blue-gray-50 cursor-pointer hover:bg-blue-gray-100 transition-colors"
+              className="w-px whitespace-nowrap p-4 border-b border-blue-gray-100 bg-blue-gray-50 cursor-pointer hover:bg-blue-gray-100 transition-colors"
               onClick={() => handleSort('count')}
             >
               <p className="flex items-center gap-2 font-sans text-sm font-normal text-blue-gray-900 opacity-70">
@@ -95,7 +101,7 @@ export const ProceduresTable = ({ data, totalCount, totalRevenue, loading }: Pro
               </p>
             </th>
             <th
-              className="p-4 border-b border-blue-gray-100 bg-blue-gray-50 cursor-pointer hover:bg-blue-gray-100 transition-colors"
+              className="w-px whitespace-nowrap p-4 border-b border-blue-gray-100 bg-blue-gray-50 cursor-pointer hover:bg-blue-gray-100 transition-colors"
               onClick={() => handleSort('totalRevenue')}
             >
               <p className="flex items-center gap-2 font-sans text-sm font-normal text-blue-gray-900 opacity-70">
@@ -103,7 +109,7 @@ export const ProceduresTable = ({ data, totalCount, totalRevenue, loading }: Pro
                 <span className="text-xs">{getSortIcon('totalRevenue')}</span>
               </p>
             </th>
-            <th className="p-4 border-b border-blue-gray-100 bg-blue-gray-50">
+            <th className="w-px whitespace-nowrap p-4 border-b border-blue-gray-100 bg-blue-gray-50">
               <p className="font-sans text-sm font-normal text-blue-gray-900 opacity-70">
                 Ср. чек
               </p>
@@ -116,13 +122,13 @@ export const ProceduresTable = ({ data, totalCount, totalRevenue, loading }: Pro
 
             return (
               <tr key={`${item.name}-${index}`} className="hover:bg-gray-50 transition-colors">
-                <Cell title={item.name} />
-                <Cell title={item.count.toLocaleString()} />
+                <Cell className="break-words" title={item.name} />
+                <Cell className="whitespace-nowrap" title={item.count.toLocaleString()} />
                 <Cell
-                  className="text-primary font-semibold"
+                  className="whitespace-nowrap text-primary font-semibold"
                   title={`${item.totalRevenue.toLocaleString()} Kč`}
                 />
-                <Cell title={`${averageCheck.toLocaleString()} Kč`} />
+                <Cell className="whitespace-nowrap" title={`${averageCheck.toLocaleString()} Kč`} />
               </tr>
             )
           })}

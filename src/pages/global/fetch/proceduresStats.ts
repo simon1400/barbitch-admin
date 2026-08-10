@@ -24,6 +24,17 @@ interface ServiceProvidedData {
 
 const NO_SERVICE = 'Bez služby'
 
+// 🟥 GET-ы админки идут БЕЗ токена (интерсептор Axios подставляет его только на
+// мутации) → Strapi санитизирует populate по Public-роли, а у коллекции `booking`
+// Public-прав нет (PII) → relation `booking` МОЛЧА выпадает из ответа. После
+// cutover'а услуга живёт ТОЛЬКО в снапшоте брони (offer у записей чекаута нет) →
+// все процедуры схлопывались в одну строку «Bez služby». Явный Bearer (паттерн
+// shiftClose.ts, s153) возвращает booking.services в ответ.
+const STRAPI_TOKEN = import.meta.env.VITE_STRAPI_TOKEN as string | undefined
+const authHeaders = STRAPI_TOKEN
+  ? { headers: { Authorization: `Bearer ${STRAPI_TOKEN}` } }
+  : undefined
+
 export interface ProcedureStats {
   name: string
   count: number
@@ -65,7 +76,10 @@ export const getProceduresStats = async (month: number, year: number): Promise<P
   )
 
   try {
-    const data: ServiceProvidedData[] = await Axios.get(`/api/services-provided?${query}`)
+    const data: ServiceProvidedData[] = await Axios.get(
+      `/api/services-provided?${query}`,
+      authHeaders,
+    )
 
     const proceduresMap = new Map<string, ProcedureStats>()
     let totalCount = 0
