@@ -14,6 +14,7 @@ const tabs: TeamTab[] = [
   { to: 'salaries', label: 'Зарплаты' },
   { to: 'priority', label: 'Priorita masterů' },
   { to: 'time-off', label: 'Больничные / отпуска' },
+  { to: 'taxes', label: 'Налоги' },
   { to: 'load', label: 'Загрузка' },
   { to: 'gaps', label: 'Окна' },
   { to: 'cross-sell', label: 'Дозапись в окно' },
