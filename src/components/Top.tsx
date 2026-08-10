@@ -32,6 +32,10 @@ export const Top = ({
               {admin && (userRole === 'administrator' || userRole === 'master') && (
                 <Button text={'Kalendář'} id={'calendar-button'} to={'/calendar'} small />
               )}
+              {/* Дубли клиентов: администраторы разбирают дубли сами (owner — через GlobalNav) */}
+              {admin && userRole === 'administrator' && (
+                <Button text={'Duplicity'} id={'client-duplicates-button'} to={'/global/client-duplicates'} small />
+              )}
               {admin && <LogoutButton />}
             </div>
           </div>

@@ -1,4 +1,4 @@
-// Модуль «Дубли клиентов» (/global/client-duplicates, owner-only):
+// Модуль «Дубли клиентов» (/global/client-duplicates, owner + administrator):
 // группы дублей (надёжные = общий e-mail/телефон; вероятные = одинаковое полное
 // имя), слияние карточек с переносом броней/лояльности, правка контактов
 // с распространением имени на брони календаря, синхронизация блэклиста,
@@ -498,7 +498,7 @@ const ClientDuplicatesPage = () => {
   )
 
   return (
-    <OwnerProtection>
+    <OwnerProtection allowAdministrator>
       <Container size={'lg'}>
         <div className={'py-6'}>
           <div className={'mb-1 flex flex-wrap items-center justify-between gap-3'}>

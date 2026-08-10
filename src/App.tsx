@@ -110,6 +110,18 @@ const CalendarRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>
 }
 
+// Дубли клиентов: owner + administrator (админы разбирают дубли из своего кабинета)
+const OwnerAdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const userRole = getSessionRole()
+  const allowed = userRole === 'owner' || userRole === 'administrator'
+
+  if (!allowed) {
+    return <Navigate to={getHomePageByRole(userRole)} replace />
+  }
+
+  return <>{children}</>
+}
+
 // Компонент для защиты маршрутов владельца
 const OwnerRoute = ({ children }: { children: React.ReactNode }) => {
   const userRole = getSessionRole()
@@ -358,11 +370,11 @@ function App() {
             path="/global/client-duplicates"
             element={
               <ProtectedRoute>
-                <OwnerRoute>
+                <OwnerAdminRoute>
                   <AdminLayout>
                     <ClientDuplicatesPage />
                   </AdminLayout>
-                </OwnerRoute>
+                </OwnerAdminRoute>
               </ProtectedRoute>
             }
           />

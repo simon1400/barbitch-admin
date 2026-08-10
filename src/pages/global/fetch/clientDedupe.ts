@@ -1,4 +1,4 @@
-// Data-слой модуля «Дубли клиентов» (/global/client-duplicates, owner-only).
+// Data-слой модуля «Дубли клиентов» (/global/client-duplicates, owner + administrator).
 //
 // Ручки /api/client-dedupe/* защищены admin-jwt → ЧИСТЫЙ fetch с Bearer userJwt
 // (Axios-интерсептор admin-апки подменяет Authorization на VITE_STRAPI_TOKEN

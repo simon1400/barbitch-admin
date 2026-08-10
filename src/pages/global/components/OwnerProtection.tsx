@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react'
 
 interface OwnerProtectionProps {
   children: React.ReactNode
+  // Пустить и администраторов (по умолчанию — только владелец)
+  allowAdministrator?: boolean
 }
 
-export const OwnerProtection = ({ children }: OwnerProtectionProps) => {
+export const OwnerProtection = ({ children, allowAdministrator = false }: OwnerProtectionProps) => {
   const { userRole } = useAppContext()
   const navigate = useNavigate()
   const [isChecking, setIsChecking] = useState(true)
@@ -14,13 +16,14 @@ export const OwnerProtection = ({ children }: OwnerProtectionProps) => {
   useEffect(() => {
     // Проверяем роль из localStorage
     const storedRole = localStorage.getItem('userRole')
+    const allowed = storedRole === 'owner' || (allowAdministrator && storedRole === 'administrator')
 
-    if (storedRole !== 'owner') {
+    if (!allowed) {
       navigate('/')
     } else {
       setIsChecking(false)
     }
-  }, [userRole, navigate])
+  }, [userRole, navigate, allowAdministrator])
 
   if (isChecking) {
     return (
