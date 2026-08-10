@@ -156,8 +156,20 @@ export default function TaxesTab() {
       social: a.social + res.socialTotal,
       tax: a.tax + res.tax,
       cost: a.cost + res.totalCost,
+      odvodyTotal: a.odvodyTotal + res.odvodyTotal,
+      employerShare: a.employerShare + res.employerShare,
+      employeeShare: a.employeeShare + res.employeeShare,
     }),
-    { gross: 0, health: 0, social: 0, tax: 0, cost: 0 },
+    {
+      gross: 0,
+      health: 0,
+      social: 0,
+      tax: 0,
+      cost: 0,
+      odvodyTotal: 0,
+      employerShare: 0,
+      employeeShare: 0,
+    },
   )
 
   const checks = [
@@ -231,6 +243,7 @@ export default function TaxesTab() {
             cost={totals.cost}
             big
           />
+          <OdvodyBox res={totals} totalLabel="Odvody celkem za všechny zaměstnance" />
         </div>
       </StatSection>
 
@@ -367,6 +380,34 @@ function StatBox({
       <div className={labelCls + ' mb-0.5'}>{label}</div>
       <div className={`${big ? 'text-[19px]' : 'text-[15px]'} font-bold leading-snug ${tone}`}>
         {value}
+      </div>
+    </div>
+  )
+}
+
+// Главный ответ на вопрос «сколько я заплатил за человека сверх того, что он
+// получил на руки». Инвариант: odvodyTotal = náklad firmy − čistá.
+// ⚠️ primary с alpha (bg-primary/5) в этом проекте не рендерится — только hex.
+function OdvodyBox({
+  res,
+  totalLabel = 'Odvody celkem — mimo čistou mzdu',
+}: {
+  res: Pick<EmployeeTaxResult, 'odvodyTotal' | 'employerShare' | 'employeeShare'>
+  totalLabel?: string
+}) {
+  if (!res.odvodyTotal) return null
+
+  return (
+    <div className="mt-3 rounded-lg border border-[#e71e6e40] bg-[#e71e6e0d] px-3 py-2.5">
+      <div className="flex items-baseline justify-between gap-3 flex-wrap">
+        <span className={labelCls + ' mb-0'}>{totalLabel}</span>
+        <span className="text-[19px] font-bold text-primary leading-none">
+          {kc(res.odvodyTotal)}
+        </span>
+      </div>
+      <div className="mt-1.5 text-xs text-gray-600">
+        z toho platí salon navíc <b>{kc(res.employerShare)}</b> · sráženo ze mzdy zaměstnance{' '}
+        <b>{kc(res.employeeShare)}</b>
       </div>
     </div>
   )
@@ -611,6 +652,8 @@ function EmployeeCard({
         tax={res.tax}
         cost={res.totalCost}
       />
+
+      <OdvodyBox res={res} />
 
       {(res.warnings.length > 0 || res.sickCompensation > 0 || res.healthDoplatek > 0) && (
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">

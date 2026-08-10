@@ -64,7 +64,12 @@ export interface EmployeeTaxInput {
 export interface EmployeeTaxResult {
   gross: number // hrubá mzda (без náhrady nemoci)
   sickCompensation: number // náhrada mzdy за nemoc — не облагается налогом и odvody
-  netWork: number // čistá без náhrady (= net − sickCompensation)
+  netWork: number // фактически достигнутая čistá за работу (без náhrady)
+  // Фактическая čistá целиком (netWork + náhrada). Из-за округлений «вверх» не
+  // всякая čistá достижима целым hrubým — тогда берётся ближайшая и ставится
+  // предупреждение. Инвариант odvodyTotal = totalCost − netActual держится
+  // всегда, поэтому считать нужно от него, а не от введённого числа.
+  netActual: number
   healthEmployee: number
   healthEmployer: number
   healthDoplatek: number // doplatek do minima (удерживается с сотрудника)
@@ -73,6 +78,11 @@ export interface EmployeeTaxResult {
   socialEmployer: number
   socialTotal: number // всё, что уходит на ČSSZ
   tax: number // záloha / srážková daň → finanční úřad
+  // Всё, что ушло в три института мимо кармана сотрудника. Инвариант:
+  // odvodyTotal === totalCost − čistá (сколько заплачено сверх суммы «на руки»).
+  employeeShare: number // удержано ИЗ зарплаты сотрудника (сидит внутри hrubé)
+  employerShare: number // платит салон СВЕРХ hrubé
+  odvodyTotal: number // employeeShare + employerShare
   taxWithheld: boolean // true = srážková daň (DPP без prohlášení под лимитом)
   odvodyApply: boolean // false = DPP под лимитом, без pojistného
   totalCost: number // полные затраты работодателя (hrubá + náhrada + odvody firmy)
@@ -360,14 +370,24 @@ export const computeEmployee = (
   }
 
   // Финальный пересчёт с устоявшейся náhradou
-  const netWork = Math.max(0, input.net - sickComp)
-  gross = grossFromNet(netWork, input, p)
+  const targetNetWork = Math.max(0, input.net - sickComp)
+  gross = grossFromNet(targetNetWork, input, p)
   bd = computeFromGross(gross, input, p)
+
+  // Достигнутая čistá (может отличаться от введённой на пару крон, если такая
+  // сумма недостижима, либо сильно — если ветка DPP «nad limitem» её не даёт)
+  const netWork = bd.net
+  const netActual = netWork + sickComp
+  if (input.net > 0 && netActual !== input.net) {
+    warnings.push(
+      `Přesně ${input.net.toLocaleString('cs-CZ')} Kč čistého nelze dosáhnout — počítáno z nejbližší ${netActual.toLocaleString('cs-CZ')} Kč`,
+    )
+  }
 
   if (input.contract === 'dpp' && gross >= p.dppThreshold) {
     warnings.push(`DPP nad limit ${p.dppThreshold.toLocaleString('cs-CZ')} Kč → полные odvody`)
   }
-  if (input.contract === 'dpp' && !input.dppAboveLimit && dppAmbiguous(netWork, input, p)) {
+  if (input.contract === 'dpp' && !input.dppAboveLimit && dppAmbiguous(targetNetWork, input, p)) {
     warnings.push('Ту же čistou даёт и вариант «nad limitem» — включи галку, если это он')
   }
   if (input.contract === 'dpp' && !bd.odvodyApply && input.sickDays > 0) {
@@ -383,10 +403,14 @@ export const computeEmployee = (
     warnings.push('Дней отсутствия больше, чем рабочих дней в месяце')
   }
 
+  const employeeShare = bd.healthEmp + bd.doplatek + bd.socialEmp + bd.tax
+  const employerShare = bd.healthEr + bd.socialEr
+
   return {
     gross,
     sickCompensation: sickComp,
     netWork,
+    netActual,
     healthEmployee: bd.healthEmp,
     healthEmployer: bd.healthEr,
     healthDoplatek: bd.doplatek,
@@ -395,6 +419,9 @@ export const computeEmployee = (
     socialEmployer: bd.socialEr,
     socialTotal: bd.socialEmp + bd.socialEr,
     tax: bd.tax,
+    employeeShare,
+    employerShare,
+    odvodyTotal: employeeShare + employerShare,
     taxWithheld: bd.withheld,
     odvodyApply: bd.odvodyApply,
     totalCost: gross + sickComp + bd.socialEr + bd.healthEr,
