@@ -4,6 +4,7 @@ import Login from './pages/Login'
 import AdminLayout from './pages/dashboard/AdminLayout'
 import { AppProvider } from './context/AppContext'
 import { checkUserStatus, logout, getSessionRole } from './services/auth'
+import { canAccessModule } from './moduleAccess'
 
 const AdminPage = lazy(() => import('./pages/dashboard/AdminPage'))
 const GlobalPage = lazy(() => import('./pages/global/GlobalPage'))
@@ -98,25 +99,12 @@ const AdministratorRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>
 }
 
-// Календарь: owner + administrator (полный доступ) + master (read-only, только свои брони —
-// страница сама ограничивает по роли)
-const CalendarRoute = ({ children }: { children: React.ReactNode }) => {
+// Гейт модульных роутов: роли берутся из ЕДИНОГО реестра src/moduleAccess.ts —
+// открыть/закрыть модуль для роли = поправить массив roles там (роуты трогать не надо)
+const ModuleRoute = ({ module, children }: { module: string; children: React.ReactNode }) => {
   const userRole = getSessionRole()
-  const allowed = userRole === 'owner' || userRole === 'administrator' || userRole === 'master'
 
-  if (!allowed) {
-    return <Navigate to={getHomePageByRole(userRole)} replace />
-  }
-
-  return <>{children}</>
-}
-
-// Дубли клиентов: owner + administrator (админы разбирают дубли из своего кабинета)
-const OwnerAdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const userRole = getSessionRole()
-  const allowed = userRole === 'owner' || userRole === 'administrator'
-
-  if (!allowed) {
+  if (!canAccessModule(module, userRole)) {
     return <Navigate to={getHomePageByRole(userRole)} replace />
   }
 
@@ -192,11 +180,11 @@ function App() {
             path="/calendar"
             element={
               <ProtectedRoute>
-                <CalendarRoute>
+                <ModuleRoute module="/calendar">
                   <AdminLayout bare>
                     <CalendarPage />
                   </AdminLayout>
-                </CalendarRoute>
+                </ModuleRoute>
               </ProtectedRoute>
             }
           />
@@ -204,11 +192,11 @@ function App() {
             path="/global/catalog"
             element={
               <ProtectedRoute>
-                <OwnerRoute>
+                <ModuleRoute module="/global/catalog">
                   <AdminLayout>
                     <CatalogPage />
                   </AdminLayout>
-                </OwnerRoute>
+                </ModuleRoute>
               </ProtectedRoute>
             }
           />
@@ -220,11 +208,11 @@ function App() {
             path="/global/analytics"
             element={
               <ProtectedRoute>
-                <OwnerRoute>
+                <ModuleRoute module="/global/analytics">
                   <AdminLayout>
                     <AnalyticsPage />
                   </AdminLayout>
-                </OwnerRoute>
+                </ModuleRoute>
               </ProtectedRoute>
             }
           >
@@ -258,11 +246,11 @@ function App() {
             path="/global/team"
             element={
               <ProtectedRoute>
-                <OwnerRoute>
+                <ModuleRoute module="/global/team">
                   <AdminLayout>
                     <TeamPage />
                   </AdminLayout>
-                </OwnerRoute>
+                </ModuleRoute>
               </ProtectedRoute>
             }
           >
@@ -288,11 +276,11 @@ function App() {
             path="/global/expenses"
             element={
               <ProtectedRoute>
-                <OwnerRoute>
+                <ModuleRoute module="/global/expenses">
                   <AdminLayout>
                     <ExpensesPage />
                   </AdminLayout>
-                </OwnerRoute>
+                </ModuleRoute>
               </ProtectedRoute>
             }
           />
@@ -300,11 +288,11 @@ function App() {
             path="/voucher-confirmation"
             element={
               <ProtectedRoute>
-                <OwnerRoute>
+                <ModuleRoute module="/voucher-confirmation">
                   <AdminLayout>
                     <VoucherConfirmationPage />
                   </AdminLayout>
-                </OwnerRoute>
+                </ModuleRoute>
               </ProtectedRoute>
             }
           />
@@ -312,11 +300,11 @@ function App() {
             path="/email-campaign"
             element={
               <ProtectedRoute>
-                <OwnerRoute>
+                <ModuleRoute module="/email-campaign">
                   <AdminLayout>
                     <EmailCampaignPage />
                   </AdminLayout>
-                </OwnerRoute>
+                </ModuleRoute>
               </ProtectedRoute>
             }
           />
@@ -324,11 +312,11 @@ function App() {
             path="/global/shift-close"
             element={
               <ProtectedRoute>
-                <OwnerRoute>
+                <ModuleRoute module="/global/shift-close">
                   <AdminLayout>
                     <ShiftClosePage />
                   </AdminLayout>
-                </OwnerRoute>
+                </ModuleRoute>
               </ProtectedRoute>
             }
           />
@@ -336,11 +324,11 @@ function App() {
             path="/global/blog-ai"
             element={
               <ProtectedRoute>
-                <OwnerRoute>
+                <ModuleRoute module="/global/blog-ai">
                   <AdminLayout>
                     <BlogAIPage />
                   </AdminLayout>
-                </OwnerRoute>
+                </ModuleRoute>
               </ProtectedRoute>
             }
           />
@@ -348,11 +336,11 @@ function App() {
             path="/global/reviews"
             element={
               <ProtectedRoute>
-                <OwnerRoute>
+                <ModuleRoute module="/global/reviews">
                   <AdminLayout>
                     <ReviewSyncPage />
                   </AdminLayout>
-                </OwnerRoute>
+                </ModuleRoute>
               </ProtectedRoute>
             }
           />
@@ -360,11 +348,11 @@ function App() {
             path="/global/error-logs"
             element={
               <ProtectedRoute>
-                <OwnerRoute>
+                <ModuleRoute module="/global/error-logs">
                   <AdminLayout>
                     <ErrorLogsPage />
                   </AdminLayout>
-                </OwnerRoute>
+                </ModuleRoute>
               </ProtectedRoute>
             }
           />
@@ -372,11 +360,11 @@ function App() {
             path="/global/client-duplicates"
             element={
               <ProtectedRoute>
-                <OwnerAdminRoute>
+                <ModuleRoute module="/global/client-duplicates">
                   <AdminLayout>
                     <ClientDuplicatesPage />
                   </AdminLayout>
-                </OwnerAdminRoute>
+                </ModuleRoute>
               </ProtectedRoute>
             }
           />
@@ -384,11 +372,11 @@ function App() {
             path="/global/loyalty"
             element={
               <ProtectedRoute>
-                <OwnerRoute>
+                <ModuleRoute module="/global/loyalty">
                   <AdminLayout>
                     <LoyaltyPage />
                   </AdminLayout>
-                </OwnerRoute>
+                </ModuleRoute>
               </ProtectedRoute>
             }
           />

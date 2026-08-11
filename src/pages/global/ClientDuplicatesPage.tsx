@@ -498,7 +498,7 @@ const ClientDuplicatesPage = () => {
   )
 
   return (
-    <OwnerProtection allowAdministrator>
+    <OwnerProtection>
       <Container size={'lg'}>
         <div className={'py-6'}>
           <div className={'mb-1 flex flex-wrap items-center justify-between gap-3'}>

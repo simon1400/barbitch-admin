@@ -1,6 +1,11 @@
 // Редактор собственного каталога услуг (salon-service) — замена Noona-модулей
 // управления после cutover. Owner-only (/global/catalog).
 // ⚠️ Каталог живой: движок бронирования читает эти записи — правки сразу на сайте.
+// Дизайн — 1:1 по standalone-макетам владельца (s163): «Каталог услуг» + «Форма
+// услуги». Все размеры/отступы/цвета взяты из inline-стилей макета (Montserrat,
+// карточки #fff/#eee9e6/r12, инпуты #f6f4f2 9px 12px, заголовки колонок 10.5px,
+// тоглы 36×21, sticky-бар с blur). Кастомная шкала шрифтов admin не используется —
+// только literal px.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type {
@@ -38,10 +43,167 @@ const EMPTY_PAYLOAD: ServicePayload = {
   modifiers: [],
 }
 
-const inputCls =
-  'border border-gray-300 rounded-md px-2 py-1.5 text-sm w-full focus:outline-none focus:border-primary'
-const numCls = `${inputCls} w-24`
-const btnCls = 'px-3 py-1.5 rounded-md text-xs font-semibold transition-colors'
+// ── стили макета (точные значения из standalone-HTML) ──
+
+const cardCls = 'bg-white border border-[#eee9e6] rounded-xl shadow-[0_1px_2px_rgba(22,22,21,0.04)]'
+
+// инпут формы: bg #f6f4f2, border transparent, focus = белый + розовая рамка + кольцо
+const inputBaseCls =
+  'box-border w-full bg-[#f6f4f2] border border-transparent font-semibold text-[#161615] transition-all duration-150 ' +
+  'placeholder:text-[#b6b0aa] placeholder:font-medium ' +
+  'focus:outline-none focus:bg-white focus:border-[#e71e6e] focus:shadow-[0_0_0_3px_rgba(231,30,110,0.1)] ' +
+  '[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
+// крупный инпут (Основное): padding 9px 12px, radius 8px, 15px
+const inputCls = `${inputBaseCls} rounded-lg px-3 py-[9px] text-[15px]`
+// строчный инпут (таблицы вариантов/дополнений): padding 7px 10px, radius 7px, 14px
+const rowInputCls = `${inputBaseCls} rounded-[7px] px-2.5 py-[7px] text-[14px]`
+
+const labelCls =
+  'block text-[11px] font-bold tracking-[0.07em] uppercase text-[#8b857f] mb-1.5'
+const colHeadCls = 'text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#b3ada7]'
+const kickerCls = 'text-[11px] font-bold tracking-[0.08em] uppercase text-[#a39e99] mb-[3px]'
+
+// кнопки макета
+const btnNeutralCls =
+  'px-[18px] py-[9px] rounded-lg border border-[#e7e2de] bg-white text-[#4c4844] text-[14px] font-bold whitespace-nowrap transition-colors hover:border-[#c9c3be]'
+const btnPinkCls =
+  'rounded-lg border-0 bg-[#e71e6e] text-white text-[14px] font-extrabold whitespace-nowrap shadow-[0_4px_12px_rgba(231,30,110,0.25)] transition-colors hover:bg-[#d11a62] disabled:opacity-60'
+
+// grid-шаблоны (inline style — точные minmax из макета)
+const LIST_GRID = 'minmax(170px,1.6fr) 84px 74px 128px minmax(130px,1fr) 118px'
+const VARIANT_GRID = '22px minmax(120px,1.3fr) 72px 72px minmax(90px,1fr) 30px'
+const MODIFIER_GRID = '22px minmax(110px,1.4fr) 72px 72px 84px minmax(80px,1fr) 30px'
+
+// ── мелкие UI-кирпичики макета ──
+
+const CountBadge = ({ n, big }: { n: number; big?: boolean }) => (
+  <span
+    className={`text-[11px] font-bold text-[#b81b60] bg-[#fce7f0] rounded-full ${big ? 'px-[9px] py-[3px]' : 'px-2 py-0.5'}`}
+  >
+    {n}
+  </span>
+)
+
+const Toggle = ({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean
+  label: string
+  onChange: (v: boolean) => void
+}) => (
+  <button
+    type="button"
+    className="flex items-center gap-[9px] cursor-pointer select-none bg-transparent border-0 p-0"
+    onClick={() => onChange(!checked)}
+  >
+    <span
+      className="relative inline-flex flex-none w-9 h-[21px] rounded-full transition-colors duration-150"
+      style={{ background: checked ? '#e71e6e' : '#d8d3cf' }}
+    >
+      <span
+        className="absolute top-[2.5px] w-4 h-4 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-all duration-150"
+        style={{ left: checked ? 17.5 : 2.5 }}
+      />
+    </span>
+    <span className="text-[13px] font-bold text-[#4c4844]">{label}</span>
+  </button>
+)
+
+// Инпут с суффиксом (Kč / мин) внутри поля справа
+const SuffixInput = ({
+  value,
+  suffix,
+  suffixPad,
+  onChange,
+}: {
+  value: number
+  suffix?: string
+  suffixPad?: number // padding-right инпута под суффикс (38 у Kč, 42 у мин)
+  onChange: (n: number) => void
+}) => (
+  <div className="relative">
+    <input
+      type="number"
+      className={inputCls}
+      style={suffix ? { paddingRight: suffixPad ?? 38 } : undefined}
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+    />
+    {suffix && (
+      <span className="pointer-events-none absolute right-[11px] top-1/2 -translate-y-1/2 text-[12px] font-bold text-[#aaa49e]">
+        {suffix}
+      </span>
+    )}
+  </div>
+)
+
+// Карточка-секция формы: слева заголовок (200px) + описание, справа контент
+const SectionCard = ({
+  title,
+  badge,
+  hint,
+  children,
+}: {
+  title: string
+  badge?: number
+  hint: string
+  children: React.ReactNode
+}) => (
+  <div className={`${cardCls} px-6 py-[22px] mb-3.5`}>
+    <div className="grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] gap-x-7 gap-y-[18px]">
+      <div>
+        <h2 className="m-0 mb-1.5 flex items-center gap-2 text-[15px] font-extrabold text-[#161615]">
+          {title}
+          {typeof badge === 'number' && <CountBadge n={badge} />}
+        </h2>
+        <p className="m-0 text-[12.5px] leading-[1.55] font-medium text-[#98928c]">{hint}</p>
+      </div>
+      <div className="min-w-0">{children}</div>
+    </div>
+  </div>
+)
+
+const MoveArrows = ({ onUp, onDown }: { onUp: () => void; onDown: () => void }) => (
+  <span className="flex flex-col items-center gap-px">
+    <button
+      type="button"
+      className="bg-transparent border-0 p-px text-[9px] leading-none text-[#c4bfba] cursor-pointer hover:text-[#161615]"
+      onClick={onUp}
+    >
+      ▲
+    </button>
+    <button
+      type="button"
+      className="bg-transparent border-0 p-px text-[9px] leading-none text-[#c4bfba] cursor-pointer hover:text-[#161615]"
+      onClick={onDown}
+    >
+      ▼
+    </button>
+  </span>
+)
+
+const RemoveBtn = ({ onClick }: { onClick: () => void }) => (
+  <button
+    type="button"
+    className="w-7 h-7 rounded-[7px] border-0 bg-transparent text-[#c2bcb6] text-[14px] cursor-pointer justify-self-center transition-colors hover:bg-[#fdecf2] hover:text-[#d61f61]"
+    title="Удалить"
+    onClick={onClick}
+  >
+    ✕
+  </button>
+)
+
+const AddDashedBtn = ({ label, onClick }: { label: string; onClick: () => void }) => (
+  <button
+    type="button"
+    className="box-border w-full mt-2.5 py-[9px] rounded-lg border border-dashed border-[#eeb9cd] bg-transparent text-[#e71e6e] text-[13px] font-bold cursor-pointer transition-colors hover:bg-[#fdf2f6]"
+    onClick={onClick}
+  >
+    ＋ {label}
+  </button>
+)
 
 const CatalogPage = () => {
   const [services, setServices] = useState<CatalogServiceFull[]>([])
@@ -192,246 +354,429 @@ const CatalogPage = () => {
     }
   }
 
-  const renderEditor = (ed: EditorState) => (
-    <div className="bg-white rounded-lg shadow p-4 md:p-6 mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-gray-800">
-          {ed.documentId ? `Редактирование: ${ed.payload.title}` : 'Новая услуга'}
-        </h3>
-        <button className={`${btnCls} bg-gray-200 text-gray-700 hover:bg-gray-300`} onClick={() => setEditor(null)}>
-          ← к списку
-        </button>
-      </div>
+  // ── редактор (форма услуги) ──
 
-      {/* Скаляры */}
-      <div className="grid md:grid-cols-2 gap-3 mb-4">
-        <label className="block text-xs text-gray-600">
-          Название
-          <input className={inputCls} value={ed.payload.title} onChange={(e) => patchPayload({ title: e.target.value })} />
-        </label>
-        <label className="block text-xs text-gray-600">
-          Категория
-          <input
-            className={inputCls}
-            list="catalog-categories"
-            value={ed.payload.category}
-            onChange={(e) => patchPayload({ category: e.target.value })}
+  const renderEditor = (ed: EditorState) => {
+    const p = ed.payload
+    return (
+      <>
+        {/* Шапка: назад + хлебная крошка + название + тоглы */}
+        <div className={`${cardCls} px-6 py-[18px] mb-4 flex items-center justify-between gap-4 flex-wrap`}>
+          <div className="flex items-center gap-4 min-w-0">
+            <button
+              type="button"
+              title="К списку"
+              className="flex-none w-[38px] h-[38px] rounded-[9px] border border-[#e7e2de] bg-white text-[#6f6a66] text-[17px] cursor-pointer transition-colors hover:border-[#c9c3be] hover:text-[#161615]"
+              onClick={() => setEditor(null)}
+            >
+              ←
+            </button>
+            <div className="min-w-0">
+              <div className={kickerCls}>
+                Каталог услуг{p.category ? ` · ${p.category}` : ''}
+              </div>
+              <h1 className="m-0 text-[22px] leading-[1.2] font-extrabold text-[#161615] truncate">
+                {p.title || 'Новая услуга'}
+              </h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-5">
+            <Toggle checked={p.active} label="Активна" onChange={(v) => patchPayload({ active: v })} />
+            <Toggle
+              checked={p.onlineBookable}
+              label="Онлайн-запись"
+              onChange={(v) => patchPayload({ onlineBookable: v })}
+            />
+          </div>
+        </div>
+
+        {/* Основное */}
+        <SectionCard title="Основное" hint="Название, цена и длительность — то, что клиент видит при записи.">
+          <div className="grid gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-[1.4fr_1fr] gap-3">
+              <div>
+                <label className={labelCls}>Название</label>
+                <input
+                  className={inputCls}
+                  value={p.title}
+                  onChange={(e) => patchPayload({ title: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Категория</label>
+                <input
+                  className={inputCls}
+                  list="catalog-categories"
+                  value={p.category}
+                  onChange={(e) => patchPayload({ category: e.target.value })}
+                />
+                <datalist id="catalog-categories">
+                  {categories.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label className={labelCls}>Цена</label>
+                <SuffixInput value={p.price} suffix="Kč" suffixPad={38} onChange={(n) => patchPayload({ price: n })} />
+              </div>
+              <div>
+                <label className={labelCls}>Время</label>
+                <SuffixInput
+                  value={p.durationMin}
+                  suffix="мин"
+                  suffixPad={42}
+                  onChange={(n) => patchPayload({ durationMin: n })}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Порядок</label>
+                <SuffixInput value={p.order} onChange={(n) => patchPayload({ order: n })} />
+              </div>
+              <div>
+                <label className={labelCls}>Порядок категории</label>
+                <SuffixInput value={p.categoryOrder} onChange={(n) => patchPayload({ categoryOrder: n })} />
+              </div>
+            </div>
+            <div>
+              <label className={labelCls}>
+                Описание{' '}
+                <span className="normal-case tracking-normal font-semibold text-[#b6b0aa]">
+                  · info-бейдж на сайте
+                </span>
+              </label>
+              <textarea
+                className={`${inputCls} h-16 resize-none text-[14px] leading-[1.5]`}
+                value={p.description}
+                onChange={(e) => patchPayload({ description: e.target.value })}
+              />
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* Варианты */}
+        <SectionCard
+          title="Варианты"
+          badge={p.variants.length}
+          hint="Радио-выбор на шаге /extras — клиент выбирает один вариант."
+        >
+          <div className="overflow-x-auto">
+            <div className="min-w-[478px]">
+              <div
+                className="grid gap-2 pb-[7px] border-b border-[#eee9e6]"
+                style={{ gridTemplateColumns: VARIANT_GRID }}
+              >
+                <span />
+                <span className={colHeadCls}>Название</span>
+                <span className={colHeadCls}>+ Kč</span>
+                <span className={colHeadCls}>+ мин</span>
+                <span className={colHeadCls}>Описание (info)</span>
+                <span />
+              </div>
+              {p.variants.map((v, idx) => (
+                <div
+                  key={idx}
+                  className={`grid gap-2 items-center py-[7px] ${idx > 0 ? 'border-t border-[#f2efec]' : ''}`}
+                  style={{ gridTemplateColumns: VARIANT_GRID }}
+                >
+                  <MoveArrows onUp={() => moveAt('variants', idx, -1)} onDown={() => moveAt('variants', idx, 1)} />
+                  <input
+                    className={rowInputCls}
+                    placeholder="Название варианта"
+                    value={v.label}
+                    onChange={(e) => patchVariant(idx, { label: e.target.value })}
+                  />
+                  <input
+                    type="number"
+                    className={rowInputCls}
+                    value={v.priceDiff}
+                    onChange={(e) => patchVariant(idx, { priceDiff: Number(e.target.value) })}
+                  />
+                  <input
+                    type="number"
+                    className={rowInputCls}
+                    value={v.durationDiff}
+                    onChange={(e) => patchVariant(idx, { durationDiff: Number(e.target.value) })}
+                  />
+                  <input
+                    className={rowInputCls}
+                    placeholder="—"
+                    value={v.description}
+                    onChange={(e) => patchVariant(idx, { description: e.target.value })}
+                  />
+                  <RemoveBtn onClick={() => removeAt('variants', idx)} />
+                </div>
+              ))}
+            </div>
+          </div>
+          <AddDashedBtn
+            label="Добавить вариант"
+            onClick={() =>
+              patchPayload({
+                variants: [...p.variants, { label: '', priceDiff: 0, durationDiff: 0, description: '' }],
+              })
+            }
           />
-          <datalist id="catalog-categories">
-            {categories.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-        </label>
-        <div className="flex gap-3">
-          <label className="block text-xs text-gray-600">
-            Цена (Kč)
-            <input type="number" className={numCls} value={ed.payload.price} onChange={(e) => patchPayload({ price: Number(e.target.value) })} />
-          </label>
-          <label className="block text-xs text-gray-600">
-            Время (мин)
-            <input type="number" className={numCls} value={ed.payload.durationMin} onChange={(e) => patchPayload({ durationMin: Number(e.target.value) })} />
-          </label>
-          <label className="block text-xs text-gray-600">
-            Порядок
-            <input type="number" className={numCls} value={ed.payload.order} onChange={(e) => patchPayload({ order: Number(e.target.value) })} />
-          </label>
-          <label className="block text-xs text-gray-600">
-            Порядок категории
-            <input type="number" className={numCls} value={ed.payload.categoryOrder} onChange={(e) => patchPayload({ categoryOrder: Number(e.target.value) })} />
-          </label>
-        </div>
-        <div className="flex items-end gap-5 pb-1">
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" checked={ed.payload.active} onChange={(e) => patchPayload({ active: e.target.checked })} />
-            Активна
-          </label>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" checked={ed.payload.onlineBookable} onChange={(e) => patchPayload({ onlineBookable: e.target.checked })} />
-            Онлайн-запись
-          </label>
-        </div>
-      </div>
-      <label className="block text-xs text-gray-600 mb-5">
-        Описание (info-бейдж на сайте)
-        <textarea className={`${inputCls} h-16 resize-none`} value={ed.payload.description} onChange={(e) => patchPayload({ description: e.target.value })} />
-      </label>
+        </SectionCard>
 
-      {/* Варианты */}
-      <div className="mb-5">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-sm font-bold text-gray-800">Варианты (радио на шаге /extras)</h4>
-          <button
-            className={`${btnCls} bg-primary text-white hover:opacity-90`}
-            onClick={() =>
-              patchPayload({ variants: [...ed.payload.variants, { label: '', priceDiff: 0, durationDiff: 0, description: '' }] })
-            }
-          >
-            + вариант
-          </button>
-        </div>
-        {ed.payload.variants.length === 0 && <p className="text-xs text-gray-400">Только базовый вариант.</p>}
-        {ed.payload.variants.map((v, idx) => (
-          <div key={idx} className="border border-gray-200 rounded-md p-2 mb-2 flex flex-wrap items-center gap-2">
-            <span className="flex flex-col gap-0.5">
-              <button className="text-gray-400 hover:text-gray-700 text-xs leading-none" onClick={() => moveAt('variants', idx, -1)}>▲</button>
-              <button className="text-gray-400 hover:text-gray-700 text-xs leading-none" onClick={() => moveAt('variants', idx, 1)}>▼</button>
-            </span>
-            <input className={`${inputCls} flex-1 min-w-[180px]`} placeholder="Название варианта" value={v.label} onChange={(e) => patchVariant(idx, { label: e.target.value })} />
-            <label className="text-xs text-gray-500">
-              +Kč <input type="number" className={numCls} value={v.priceDiff} onChange={(e) => patchVariant(idx, { priceDiff: Number(e.target.value) })} />
-            </label>
-            <label className="text-xs text-gray-500">
-              +мин <input type="number" className={numCls} value={v.durationDiff} onChange={(e) => patchVariant(idx, { durationDiff: Number(e.target.value) })} />
-            </label>
-            <input className={`${inputCls} flex-1 min-w-[160px]`} placeholder="Описание (info)" value={v.description} onChange={(e) => patchVariant(idx, { description: e.target.value })} />
-            <button className={`${btnCls} bg-red-50 text-red-600 hover:bg-red-100`} onClick={() => removeAt('variants', idx)}>
-              Удалить
-            </button>
+        {/* Дополнения */}
+        <SectionCard
+          title="Дополнения"
+          badge={p.modifiers.length}
+          hint="Чекбоксы: клиент отмечает любые. Одинаковая «группа» — взаимоисключающие."
+        >
+          <div className="overflow-x-auto">
+            <div className="min-w-[518px]">
+              <div
+                className="grid gap-2 pb-[7px] border-b border-[#eee9e6]"
+                style={{ gridTemplateColumns: MODIFIER_GRID }}
+              >
+                <span />
+                <span className={colHeadCls}>Название</span>
+                <span className={colHeadCls}>+ Kč</span>
+                <span className={colHeadCls}>+ мин</span>
+                <span className={colHeadCls}>Группа</span>
+                <span className={colHeadCls}>Описание (info)</span>
+                <span />
+              </div>
+              {p.modifiers.map((m, idx) => (
+                <div
+                  key={idx}
+                  className={`grid gap-2 items-center py-[7px] ${idx > 0 ? 'border-t border-[#f2efec]' : ''}`}
+                  style={{ gridTemplateColumns: MODIFIER_GRID }}
+                >
+                  <MoveArrows onUp={() => moveAt('modifiers', idx, -1)} onDown={() => moveAt('modifiers', idx, 1)} />
+                  <input
+                    className={rowInputCls}
+                    placeholder="Название дополнения"
+                    value={m.label}
+                    onChange={(e) => patchModifier(idx, { label: e.target.value })}
+                  />
+                  <input
+                    type="number"
+                    className={rowInputCls}
+                    value={m.priceDiff}
+                    onChange={(e) => patchModifier(idx, { priceDiff: Number(e.target.value) })}
+                  />
+                  <input
+                    type="number"
+                    className={rowInputCls}
+                    value={m.durationDiff}
+                    onChange={(e) => patchModifier(idx, { durationDiff: Number(e.target.value) })}
+                  />
+                  <input
+                    className={rowInputCls}
+                    placeholder="—"
+                    value={m.group}
+                    onChange={(e) => patchModifier(idx, { group: e.target.value })}
+                  />
+                  <input
+                    className={rowInputCls}
+                    placeholder="—"
+                    value={m.description}
+                    onChange={(e) => patchModifier(idx, { description: e.target.value })}
+                  />
+                  <RemoveBtn onClick={() => removeAt('modifiers', idx)} />
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
-
-      {/* Дополнения */}
-      <div className="mb-5">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-sm font-bold text-gray-800">
-            Дополнения (чекбоксы; одинаковая «группа» = взаимоисключающие)
-          </h4>
-          <button
-            className={`${btnCls} bg-primary text-white hover:opacity-90`}
+          <AddDashedBtn
+            label="Добавить дополнение"
             onClick={() =>
-              patchPayload({ modifiers: [...ed.payload.modifiers, { key: '', label: '', priceDiff: 0, durationDiff: 0, group: '', description: '' }] })
+              patchPayload({
+                modifiers: [
+                  ...p.modifiers,
+                  { key: '', label: '', priceDiff: 0, durationDiff: 0, group: '', description: '' },
+                ],
+              })
             }
-          >
-            + дополнение
-          </button>
-        </div>
-        {ed.payload.modifiers.length === 0 && <p className="text-xs text-gray-400">Без дополнений.</p>}
-        {ed.payload.modifiers.map((m, idx) => (
-          <div key={idx} className="border border-gray-200 rounded-md p-2 mb-2 flex flex-wrap items-center gap-2">
-            <span className="flex flex-col gap-0.5">
-              <button className="text-gray-400 hover:text-gray-700 text-xs leading-none" onClick={() => moveAt('modifiers', idx, -1)}>▲</button>
-              <button className="text-gray-400 hover:text-gray-700 text-xs leading-none" onClick={() => moveAt('modifiers', idx, 1)}>▼</button>
-            </span>
-            <input className={`${inputCls} flex-1 min-w-[180px]`} placeholder="Название дополнения" value={m.label} onChange={(e) => patchModifier(idx, { label: e.target.value })} />
-            <label className="text-xs text-gray-500">
-              +Kč <input type="number" className={numCls} value={m.priceDiff} onChange={(e) => patchModifier(idx, { priceDiff: Number(e.target.value) })} />
-            </label>
-            <label className="text-xs text-gray-500">
-              +мин <input type="number" className={numCls} value={m.durationDiff} onChange={(e) => patchModifier(idx, { durationDiff: Number(e.target.value) })} />
-            </label>
-            <label className="text-xs text-gray-500">
-              группа <input className={`${inputCls} w-28`} value={m.group} onChange={(e) => patchModifier(idx, { group: e.target.value })} />
-            </label>
-            <input className={`${inputCls} flex-1 min-w-[160px]`} placeholder="Описание (info)" value={m.description} onChange={(e) => patchModifier(idx, { description: e.target.value })} />
-            <button className={`${btnCls} bg-red-50 text-red-600 hover:bg-red-100`} onClick={() => removeAt('modifiers', idx)}>
-              Удалить
-            </button>
+          />
+        </SectionCard>
+
+        {/* Мастера */}
+        <SectionCard
+          title="Мастера"
+          badge={ed.masterIds.size}
+          hint="Кто выполняет услугу. Junior-мастер автоматически даёт −20 % от итоговой цены."
+        >
+          <div className="flex flex-wrap gap-2.5 content-start">
+            {masters.map((m) => {
+              const on = ed.masterIds.has(m.documentId)
+              return (
+                <span
+                  key={m.documentId}
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full cursor-pointer select-none text-[13.5px] font-bold border transition-all duration-150"
+                  style={
+                    on
+                      ? { background: '#fce7f0', borderColor: '#f0a8c8', color: '#b81b60' }
+                      : { background: '#fff', borderColor: '#e5e1de', color: '#8b857f' }
+                  }
+                  onClick={() => toggleMaster(m.documentId)}
+                >
+                  <span
+                    className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] flex-none transition-all duration-150"
+                    style={on ? { background: '#e71e6e', color: '#fff' } : { background: '#efecea', color: '#efecea' }}
+                  >
+                    ✓
+                  </span>
+                  {m.name}
+                  {m.tier === 'junior' && (
+                    <span className="text-[9.5px] font-bold tracking-[0.05em] uppercase bg-white border border-[#f0a8c8] text-[#b81b60] rounded px-[5px] py-px">
+                      junior
+                    </span>
+                  )}
+                </span>
+              )
+            })}
           </div>
-        ))}
-      </div>
+        </SectionCard>
 
-      {/* Мастера */}
-      <div className="mb-5">
-        <h4 className="text-sm font-bold text-gray-800 mb-2">Мастера услуги</h4>
-        <div className="flex flex-wrap gap-3">
-          {masters.map((m) => (
-            <label key={m.documentId} className="flex items-center gap-2 text-sm text-gray-700 border border-gray-200 rounded-md px-3 py-1.5">
-              <input type="checkbox" checked={ed.masterIds.has(m.documentId)} onChange={() => toggleMaster(m.documentId)} />
-              {m.name}
-              {m.tier === 'junior' && (
-                <span className="text-[10px] font-semibold text-primary bg-pink-50 border border-pink-200 rounded px-1">junior</span>
-              )}
-            </label>
-          ))}
+        {/* Sticky-бар сохранения */}
+        <div className="fixed left-0 right-0 bottom-0 z-30 bg-[rgba(255,255,255,0.94)] backdrop-blur-[8px] border-t border-[#eae5e1]">
+          <div className="max-w-[1024px] mx-auto px-5 py-[13px] box-border flex items-center justify-between gap-4">
+            <span
+              className={`text-[12.5px] font-medium truncate ${notice.startsWith('⚠') ? 'text-[#d61f61] font-semibold' : 'text-[#98928c]'}`}
+            >
+              {notice || 'Правки видны на сайте сразу после сохранения.'}
+            </span>
+            <div className="flex gap-2.5 flex-none">
+              <button type="button" className={btnNeutralCls} onClick={() => setEditor(null)}>
+                ← к списку
+              </button>
+              <button
+                type="button"
+                className={`${btnPinkCls} px-7 py-[9px]`}
+                disabled={saving}
+                onClick={handleSave}
+              >
+                {saving ? 'Сохраняю…' : 'Сохранить'}
+              </button>
+            </div>
+          </div>
         </div>
-        <p className="text-xs text-gray-400 mt-1">
-          Junior-мастер автоматически даёт −20 % от итоговой цены (считает движок).
-        </p>
-      </div>
+      </>
+    )
+  }
 
-      {notice && <p className="text-sm mb-3">{notice}</p>}
-
-      <button
-        className={`${btnCls} bg-primary text-white hover:opacity-90 px-6 py-2 text-sm ${saving ? 'opacity-60' : ''}`}
-        disabled={saving}
-        onClick={handleSave}
-      >
-        {saving ? 'Сохраняю…' : 'Сохранить'}
-      </button>
-    </div>
-  )
+  // ── список каталога ──
 
   const renderList = () => (
     <>
-      {categories.map((cat) => (
-        <div key={cat} className="bg-white rounded-lg shadow mb-4 overflow-hidden">
-          <div className="px-4 py-2.5 bg-blue-gray-50 font-bold text-sm text-gray-800">{cat}</div>
-          <table className="w-full text-left table-auto">
-            <tbody>
-              {services
-                .filter((s) => (s.category || 'Без категории') === cat)
-                .map((s) => {
+      {/* Шапка списка */}
+      <div className={`${cardCls} px-6 py-[18px] mb-4 flex items-center justify-between gap-4 flex-wrap`}>
+        <div>
+          <div className={kickerCls}>Rezervace · онлайн-запись</div>
+          <h1 className="m-0 flex items-center gap-2.5 text-[22px] leading-[1.2] font-extrabold text-[#161615]">
+            Каталог услуг {services.length > 0 && <CountBadge n={services.length} big />}
+          </h1>
+        </div>
+        <div className="flex gap-2.5">
+          <button type="button" className={btnNeutralCls} onClick={load} disabled={loading}>
+            Обновить
+          </button>
+          <button type="button" className={`${btnPinkCls} px-[22px] py-[9px]`} onClick={() => openEditor(null)}>
+            ＋ Услуга
+          </button>
+        </div>
+      </div>
+
+      {notice && <p className="text-[12.5px] font-medium text-[#98928c] mb-3">{notice}</p>}
+
+      {categories.map((cat) => {
+        const items = services.filter((s) => (s.category || 'Без категории') === cat)
+        return (
+          <div key={cat} className={`${cardCls} pt-[18px] px-6 pb-2.5 mb-3.5`}>
+            <div className="flex items-center gap-2.5 pb-3">
+              <h2 className="m-0 text-[15px] font-extrabold text-[#161615]">{cat}</h2>
+              <CountBadge n={items.length} />
+            </div>
+            <div className="overflow-x-auto">
+              <div className="min-w-[700px]">
+                <div
+                  className="grid gap-3 items-center pb-[7px] border-b border-[#eee9e6]"
+                  style={{ gridTemplateColumns: LIST_GRID }}
+                >
+                  <span className={colHeadCls}>Услуга</span>
+                  <span className={colHeadCls}>Цена</span>
+                  <span className={colHeadCls}>Время</span>
+                  <span className={colHeadCls}>Опции</span>
+                  <span className={colHeadCls}>Мастера</span>
+                  <span />
+                </div>
+                {items.map((s, i) => {
                   const ms = mastersOfService(s)
                   return (
-                    <tr key={s.documentId} className="border-t border-gray-100 hover:bg-gray-50">
-                      <td className="px-4 py-2.5 text-sm text-gray-800">
-                        <span className="font-semibold">{s.title}</span>
+                    <div
+                      key={s.documentId}
+                      className={`grid gap-3 items-center py-[11px] px-2 -mx-2 rounded-lg transition-colors hover:bg-[#faf8f7] ${i > 0 ? 'border-t border-[#f2efec]' : ''}`}
+                      style={{ gridTemplateColumns: LIST_GRID }}
+                    >
+                      <span className="text-[14px] font-bold text-[#161615]">
+                        {s.title}
                         {!s.active && (
-                          <span className="ml-2 text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded px-1">выключена</span>
+                          <span className="ml-2 align-middle text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-px whitespace-nowrap">
+                            выключена
+                          </span>
                         )}
                         {s.active && !s.onlineBookable && (
-                          <span className="ml-2 text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded px-1">без онлайн-записи</span>
+                          <span className="ml-2 align-middle text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-px whitespace-nowrap">
+                            без онлайн-записи
+                          </span>
                         )}
-                      </td>
-                      <td className="px-2 py-2.5 text-sm text-gray-600 whitespace-nowrap">{s.price} Kč</td>
-                      <td className="px-2 py-2.5 text-sm text-gray-600 whitespace-nowrap">{s.durationMin} мин</td>
-                      <td className="px-2 py-2.5 text-xs text-gray-500 whitespace-nowrap">
-                        {s.variants.length > 0 && `вар.: ${s.variants.length}`}
-                        {s.variants.length > 0 && s.modifiers.length > 0 && ' · '}
-                        {s.modifiers.length > 0 && `доп.: ${s.modifiers.length}`}
-                      </td>
-                      <td className="px-2 py-2.5 text-xs text-gray-500">
-                        {ms.length ? ms.map((m) => m.name.split(' ')[0]).join(', ') : <span className="text-red-500">нет мастеров</span>}
-                      </td>
-                      <td className="px-4 py-2.5 text-right">
-                        <button className={`${btnCls} bg-gray-100 text-gray-700 hover:bg-gray-200`} onClick={() => openEditor(s)}>
+                      </span>
+                      <span className="text-[14px] font-bold text-[#161615] whitespace-nowrap">{s.price} Kč</span>
+                      <span className="text-[13px] font-semibold text-[#8b857f] whitespace-nowrap">
+                        {s.durationMin} мин
+                      </span>
+                      <span className="flex gap-[5px] flex-wrap">
+                        {s.variants.length > 0 && (
+                          <span className="text-[11px] font-bold text-[#6f6a66] bg-[#f6f4f2] rounded-full px-[9px] py-[3px] whitespace-nowrap">
+                            вар. {s.variants.length}
+                          </span>
+                        )}
+                        {s.modifiers.length > 0 && (
+                          <span className="text-[11px] font-bold text-[#6f6a66] bg-[#f6f4f2] rounded-full px-[9px] py-[3px] whitespace-nowrap">
+                            доп. {s.modifiers.length}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-[12.5px] font-semibold text-[#8b857f] leading-[1.45]">
+                        {ms.length ? (
+                          ms.map((m) => m.name.split(' ')[0]).join(', ')
+                        ) : (
+                          <span className="text-red-500">нет мастеров</span>
+                        )}
+                      </span>
+                      <span className="text-right">
+                        <button
+                          type="button"
+                          className="inline-block px-3.5 py-[7px] rounded-lg border border-[#e7e2de] bg-white text-[#4c4844] text-[12.5px] font-bold whitespace-nowrap transition-all duration-150 cursor-pointer hover:border-[#e71e6e] hover:text-[#e71e6e]"
+                          onClick={() => openEditor(s)}
+                        >
                           Редактировать
                         </button>
-                      </td>
-                    </tr>
+                      </span>
+                    </div>
                   )
                 })}
-            </tbody>
-          </table>
-        </div>
-      ))}
+              </div>
+            </div>
+          </div>
+        )
+      })}
     </>
   )
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-1">
-        <h2 className="text-xl md:text-2xl font-bold text-gray-800">Каталог услуг (rezervace)</h2>
-        <div className="flex gap-2">
-          <button className={`${btnCls} bg-gray-100 text-gray-700 hover:bg-gray-200`} onClick={load} disabled={loading}>
-            Обновить
-          </button>
-          <button className={`${btnCls} bg-primary text-white hover:opacity-90`} onClick={() => openEditor(null)}>
-            + Услуга
-          </button>
-        </div>
-      </div>
-      <p className="text-sm text-gray-500 mb-5">
-        Собственный каталог движка бронирования. Правки сразу видны на сайте (/book) — цены, варианты,
-        дополнения и назначение мастеров считаются отсюда, Noona не участвует.
-      </p>
-
-      {notice && !editor && <p className="text-sm mb-3">{notice}</p>}
-      {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
+    <div
+      className={`max-w-[1024px] mx-auto box-border px-5 pt-6 text-[#161615] ${editor ? 'pb-[120px]' : 'pb-[60px]'}`}
+    >
+      {error && <p className="text-[12.5px] font-semibold text-red-600 mb-3">{error}</p>}
       {loading ? (
-        <div className="text-gray-500">Загрузка…</div>
+        <div className="text-[13px] font-medium text-[#98928c]">Загрузка…</div>
       ) : editor ? (
         renderEditor(editor)
       ) : (

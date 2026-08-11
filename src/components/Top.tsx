@@ -1,7 +1,6 @@
 import { Container } from './Container'
 import { LogoutButton } from './LogoutButton'
 import LogoWrap from './LogoWrap'
-import { useLocation } from 'react-router-dom'
 import { GlobalNav } from '../pages/global/components/GlobalNav'
 import Button from './Button'
 
@@ -12,11 +11,10 @@ export const Top = ({
   title: string
   admin?: boolean
 }) => {
-  const location = useLocation()
   const userRole = localStorage.getItem('userRole')
-  const isGlobalPage = location.pathname.startsWith('/global') ||
-                       location.pathname === '/voucher-confirmation' ||
-                       location.pathname === '/email-campaign'
+  // owner и administrator ходят по модулям через меню GlobalNav (реестр src/moduleAccess.ts);
+  // у мастера меню нет — только кнопка «Kalendář»
+  const hasNav = admin && (userRole === 'owner' || userRole === 'administrator')
 
   return (
     <section
@@ -28,13 +26,9 @@ export const Top = ({
           <div className="flex justify-between items-center py-6">
             <LogoWrap />
             <div className="flex items-center gap-4">
-              {/* Календарь: administrator — полный, master — свой read-only (owner ходит через GlobalNav) */}
-              {admin && (userRole === 'administrator' || userRole === 'master') && (
+              {/* Мастер: свой read-only календарь по кнопке (меню у него нет) */}
+              {admin && userRole === 'master' && (
                 <Button text={'Kalendář'} id={'calendar-button'} to={'/calendar'} small />
-              )}
-              {/* Дубли клиентов: администраторы разбирают дубли сами (owner — через GlobalNav) */}
-              {admin && userRole === 'administrator' && (
-                <Button text={'Duplicity'} id={'client-duplicates-button'} to={'/global/client-duplicates'} small />
               )}
               {admin && <LogoutButton />}
             </div>
@@ -44,7 +38,7 @@ export const Top = ({
 
       <div className="flex-1 flex items-end">
         <Container size={'xl'}>
-          <div className={`pb-10 md:pb-15 ${!isGlobalPage || userRole !== 'owner' ? 'max-w-[650px]' : 'w-full'}`}>
+          <div className={`pb-10 md:pb-15 ${hasNav ? 'w-full' : 'max-w-[650px]'}`}>
             <h1
               id={'top-title'}
               className={`text-md2 lg:text-top pb-4 uppercase font-bold`}
@@ -52,7 +46,7 @@ export const Top = ({
               {title}
             </h1>
 
-            {admin && isGlobalPage && userRole === 'owner' && <GlobalNav />}
+            {hasNav && <GlobalNav />}
           </div>
         </Container>
       </div>

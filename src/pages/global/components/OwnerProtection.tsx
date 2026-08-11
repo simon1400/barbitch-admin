@@ -1,29 +1,29 @@
 import { useAppContext } from '../../../context/AppContext'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { rolesForPathname } from '../../../moduleAccess'
 
-interface OwnerProtectionProps {
-  children: React.ReactNode
-  // Пустить и администраторов (по умолчанию — только владелец)
-  allowAdministrator?: boolean
-}
-
-export const OwnerProtection = ({ children, allowAdministrator = false }: OwnerProtectionProps) => {
+// Внутристраничный гейт доступа. Разрешённые роли берутся из ЕДИНОГО реестра
+// src/moduleAccess.ts по текущему pathname; страница вне реестра = только владелец.
+// Открыть модуль другой роли = поправить roles в реестре (этот компонент не трогать).
+export const OwnerProtection = ({ children }: { children: React.ReactNode }) => {
   const { userRole } = useAppContext()
   const navigate = useNavigate()
+  const location = useLocation()
   const [isChecking, setIsChecking] = useState(true)
 
   useEffect(() => {
-    // Проверяем роль из localStorage
+    // Проверяем роль из localStorage против реестра модулей
     const storedRole = localStorage.getItem('userRole')
-    const allowed = storedRole === 'owner' || (allowAdministrator && storedRole === 'administrator')
+    const allowedRoles = rolesForPathname(location.pathname)
+    const allowed = !!storedRole && (allowedRoles as string[]).includes(storedRole)
 
     if (!allowed) {
       navigate('/')
     } else {
       setIsChecking(false)
     }
-  }, [userRole, navigate, allowAdministrator])
+  }, [userRole, navigate, location.pathname])
 
   if (isChecking) {
     return (

@@ -1,46 +1,35 @@
 import { Link, useLocation } from 'react-router-dom'
+import type { UserRole } from '../../../types/admin'
+import { modulesForRole } from '../../../moduleAccess'
 
-interface NavItem {
-  path: string
-  label: string
-}
-
-const navItems: NavItem[] = [
-  { path: '/global', label: 'Главная' },
-  { path: '/calendar', label: 'Календарь' },
-  { path: '/global/analytics', label: 'Аналитика' },
-  { path: '/global/team', label: 'Команда' },
-  { path: '/global/expenses', label: 'Затраты' },
-  { path: '/voucher-confirmation', label: 'Potvrzení voucheru' },
-  { path: '/email-campaign', label: 'Email kampaň' },
-  { path: '/global/catalog', label: 'Каталог услуг' },
-  { path: '/global/shift-close', label: 'Uzavření směny' },
-  { path: '/global/loyalty', label: 'Лояльность' },
-  { path: '/global/client-duplicates', label: 'Дубли клиентов' },
-  { path: '/global/blog-ai', label: 'Blog AI' },
-  { path: '/global/reviews', label: 'Google Reviews' },
-  { path: '/global/error-logs', label: 'Error Logs' },
-]
-
+// Меню модулей в шапке. Показывается owner И administrator (у мастера меню нет).
+// Список пунктов = ЕДИНЫЙ реестр src/moduleAccess.ts, отфильтрованный по роли;
+// «Главная» у каждой роли своя (owner → /global, administrator → /administrator-cabinet).
 export const GlobalNav = () => {
   const location = useLocation()
+  const role = localStorage.getItem('userRole') as UserRole | null
 
-  // Parent routes with sub-route tabs — highlight on any matching /path/* (e.g. /global/analytics/overview)
-  const parentRoutes = ['/global/analytics', '/global/team']
-  const isActive = (path: string) =>
-    parentRoutes.includes(path)
-      ? location.pathname.startsWith(path)
-      : location.pathname === path
+  if (role !== 'owner' && role !== 'administrator') return null
+
+  const home = role === 'owner' ? '/global' : '/administrator-cabinet'
+  const modules = modulesForRole(role)
+  const items = [{ path: home, label: 'Главная', hasTabs: false }, ...modules]
+
+  // Модули с вложенными URL-табами подсвечиваются по startsWith (например /global/analytics/overview)
+  const isActive = (path: string, hasTabs?: boolean) =>
+    hasTabs ? location.pathname.startsWith(path) : location.pathname === path
 
   return (
     <nav className="mt-4 -mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0">
-      <div className="grid grid-rows-3 grid-flow-col auto-cols-max gap-1.5 md:flex md:flex-wrap md:w-auto">
-        {navItems.map((item) => (
+      <div
+        className={`${items.length > 6 ? 'grid grid-rows-3 grid-flow-col auto-cols-max' : 'flex flex-wrap'} gap-1.5 md:flex md:flex-wrap md:w-auto`}
+      >
+        {items.map((item) => (
           <Link
             key={item.path}
             to={item.path}
             className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors whitespace-nowrap ${
-              isActive(item.path)
+              isActive(item.path, item.hasTabs)
                 ? 'bg-white text-primary'
                 : 'bg-white/20 text-white hover:bg-white/30'
             }`}
