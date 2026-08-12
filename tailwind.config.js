@@ -267,6 +267,7 @@ export default {
         // Tailwind тогда генерит на тот же класс ещё и shadow-COLOR утилиту, она идёт
         // позже в CSS и затирает саму тень (`--tw-shadow: var(--tw-shadow-colored)`).
         panel: `0 1px 2px ${alpha(palette.ink, 0.04)}`, //  карточка-секция
+        'panel-lg': `0 8px 30px ${alpha(palette.ink, 0.08)}`, // карточка логина
         pop: `0 10px 28px ${alpha(palette.ink, 0.14)}`, //  дропдаун/поповер
         'brand-sm': `0 3px 10px ${alpha(palette.brand, 0.25)}`, //  розовая кнопка
         'brand-pill': `0 3px 10px ${alpha(palette.brand, 0.28)}`, // активная пилюля шапки
@@ -340,10 +341,22 @@ export default {
             height: '0',
           },
         },
+        // Логин: тряска карточки при ошибке входа + появление плашки ошибки.
+        shake: {
+          '0%,100%': { transform: 'translateX(0)' },
+          '20%,60%': { transform: 'translateX(-5px)' },
+          '40%,80%': { transform: 'translateX(5px)' },
+        },
+        'fade-up': {
+          from: { opacity: '0', transform: 'translateY(6px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        shake: 'shake 0.35s ease',
+        'fade-up': 'fade-up 0.25s ease',
       },
     },
   },
