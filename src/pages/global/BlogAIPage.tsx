@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Container } from '../../components/Container';
+import { h1Cls, kickerCls, pageShellCls } from '../../ui/kit';
 import { OwnerProtection } from './components/OwnerProtection';
 import { PlanGenerator } from './components/blogAi/PlanGenerator';
 import { PlanCard } from './components/blogAi/PlanCard';
@@ -30,38 +30,33 @@ export default function BlogAIPage() {
 
   return (
     <OwnerProtection>
-      <section className="pb-20 min-h-screen">
-        <Container size="lg">
-          <div className="mt-8 mb-6">
-            <h1 className="text-md md:text-lg font-bold text-gray-800">Blog AI</h1>
-          </div>
+      <div className={pageShellCls}>
+        <div className={kickerCls}>Barbitch Admin</div>
+        <h1 className={h1Cls}>Blog AI</h1>
 
-          <PlanGenerator onGenerated={loadPlans} />
+        <PlanGenerator onGenerated={loadPlans} />
 
-          <div className="mt-6">
-            {loading ? (
-              <div className="flex justify-center py-10">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
-              </div>
-            ) : plans.length > 0 ? (
-              <div className="space-y-6">
-                {plans.map((plan) => (
-                  <PlanCard
-                    key={plan.documentId}
-                    plan={plan}
-                    strapiUrl={strapiUrl}
-                    onUpdate={loadPlans}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-10 text-gray-400">
-                <p className="text-sm">Zatím žádné plány. Vytvořte první obsahový plán výše.</p>
-              </div>
-            )}
+        {loading ? (
+          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+            Načítání…
           </div>
-        </Container>
-      </section>
+        ) : plans.length > 0 ? (
+          <div className="grid gap-3.5">
+            {plans.map((plan) => (
+              <PlanCard
+                key={plan.documentId}
+                plan={plan}
+                strapiUrl={strapiUrl}
+                onUpdate={loadPlans}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+            Zatím žádné plány. Vytvořte první obsahový plán výše.
+          </div>
+        )}
+      </div>
     </OwnerProtection>
   );
 }

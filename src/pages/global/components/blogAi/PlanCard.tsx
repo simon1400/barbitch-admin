@@ -34,13 +34,13 @@ export function PlanCard({ plan, strapiUrl, onUpdate }: PlanCardProps) {
       {/* Plan header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <h2 className="text-md md:text-md font-bold text-gray-800">
+          <h2 className="m-0 text-[15px] font-extrabold text-[#161615]">
             {MONTH_NAMES[plan.month]} {plan.year}
           </h2>
           <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${status.bg} ${status.color}`}>
             {status.label}
           </span>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-[#8b857f]">
             {proposed > 0 && `${proposed} ke schválení`}
             {approved > 0 && ` · ${approved} schváleno`}
             {generated > 0 && ` · ${generated} vygenerováno`}
@@ -50,7 +50,7 @@ export function PlanCard({ plan, strapiUrl, onUpdate }: PlanCardProps) {
         <button
           onClick={handleDelete}
           disabled={deleting}
-          className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
+          className="text-xs text-[#c53030] hover:text-[#c53030] disabled:opacity-50"
         >
           {deleting ? '...' : 'Smazat'}
         </button>
@@ -71,7 +71,7 @@ export function PlanCard({ plan, strapiUrl, onUpdate }: PlanCardProps) {
             ))}
         </div>
       ) : (
-        <p className="text-sm text-gray-400">Žádná témata v tomto plánu.</p>
+        <p className="text-sm text-[#a39e99]">Žádná témata v tomto plánu.</p>
       )}
     </div>
   );

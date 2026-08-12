@@ -5,6 +5,8 @@
 // Используется на главной владельца и во вкладке «Зарплаты» — один компонент, чтобы
 // поведение не разъезжалось.
 
+import { btnNeutralCls, mutedCls } from '../../../ui/kit'
+
 const formatAgo = (ts: number): string => {
   if (!ts) return ''
   const sec = Math.floor((Date.now() - ts) / 1000)
@@ -24,16 +26,16 @@ export const RefreshControl = ({
   loading: boolean
   refresh: () => void
 }) => (
-  <div className="flex items-center gap-2">
+  <div className="flex items-center gap-3">
     {cachedAt > 0 && (
-      <span className="text-xs text-gray-400 whitespace-nowrap">{formatAgo(cachedAt)}</span>
+      <span className={`${mutedCls} whitespace-nowrap`}>{formatAgo(cachedAt)}</span>
     )}
     <button
       type="button"
       onClick={refresh}
       disabled={loading}
       title="Пересчитать месяц заново (минуя кэш)"
-      className="px-3 py-2 rounded-lg text-sm font-semibold border bg-white text-gray-700 border-gray-300 shadow-sm hover:bg-gray-50 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+      className={btnNeutralCls}
     >
       {loading ? 'Обновление…' : 'Обновить'}
     </button>

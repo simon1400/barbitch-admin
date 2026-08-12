@@ -1,4 +1,6 @@
-export const LogoIcon = ({ className }: { className: string }) => {
+// dotFill — цвет фирменной точки (Path_4); не задан → наследует общий fill
+// (вотермарка календаря красит всё лого одним цветом — там проп не передаётся)
+export const LogoIcon = ({ className, dotFill }: { className: string; dotFill?: string }) => {
   return (
     <svg className={className} xmlns={'http://www.w3.org/2000/svg'} viewBox={'0 0 290.673 34.5'}>
       <g id={'Group_184'} data-name={'Group 184'} transform={'translate(-580 -35.75)'}>
@@ -33,6 +35,7 @@ export const LogoIcon = ({ className }: { className: string }) => {
             'M499.694,105.3c0-3.407,2.483-5.89,6.237-5.89,3.811,0,6.294,2.483,6.294,5.89,0,3.349-2.483,5.89-6.294,5.89-3.754,0-6.237-2.541-6.237-5.89'
           }
           transform={'translate(194.512 -40.938)'}
+          fill={dotFill}
         />
         <path
           id={'Path_5'}

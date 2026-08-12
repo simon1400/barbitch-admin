@@ -50,6 +50,7 @@ export const blockStateItems = (
     {
       title: 'Оборот',
       value: `${globalFlow.toLocaleString()} Kč`,
+      tone: 'accent' as const,
     },
     {
       title: 'Результат за месяц',
@@ -117,6 +118,7 @@ export const blockReservationsItems = (
   {
     title: 'Резервации все',
     value: clientsAll,
+    tone: 'accent' as const,
   },
   {
     title: 'Реалз. / Все Платные',

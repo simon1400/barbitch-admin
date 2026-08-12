@@ -36,26 +36,26 @@ export default function VouchersTab() {
     load()
   }, [load])
 
-  if (loading) return <div className="text-gray-500 py-8 text-center">Načítání…</div>
-  if (error || !data) return <div className="text-red-600 py-8 text-center">{error}</div>
+  if (loading) return <div className="text-[#8b857f] py-8 text-center">Načítání…</div>
+  if (error || !data) return <div className="text-[#c53030] py-8 text-center">{error}</div>
 
   return (
     <>
       <div className="flex gap-4 flex-wrap mb-6">
         <div className="bg-white rounded-lg shadow-sm px-4 py-3">
-          <div className="text-xs text-gray-400">Продано (оплачено) всего</div>
-          <div className="text-2xl font-bold text-blue-gray-900">{data.paidTotalCount}</div>
-          <div className="text-xs text-gray-400 mt-1">{fmtMoney(data.paidTotalSum)}</div>
+          <div className="text-xs text-[#a39e99]">Продано (оплачено) всего</div>
+          <div className="text-2xl font-bold text-[#161615]">{data.paidTotalCount}</div>
+          <div className="text-xs text-[#a39e99] mt-1">{fmtMoney(data.paidTotalSum)}</div>
         </div>
         <div className="bg-white rounded-lg shadow-sm px-4 py-3">
-          <div className="text-xs text-gray-400">Реализовано</div>
-          <div className="text-2xl font-bold text-green-600">{data.realizedTotalCount}</div>
-          <div className="text-xs text-gray-400 mt-1">{fmtMoney(data.realizedTotalSum)}</div>
+          <div className="text-xs text-[#a39e99]">Реализовано</div>
+          <div className="text-2xl font-bold text-[#1d7a3f]">{data.realizedTotalCount}</div>
+          <div className="text-xs text-[#a39e99] mt-1">{fmtMoney(data.realizedTotalSum)}</div>
         </div>
         <div className="bg-white rounded-lg shadow-sm px-4 py-3">
-          <div className="text-xs text-gray-400">Висит (оплачен, не использован)</div>
-          <div className="text-2xl font-bold text-primary">{data.outstandingCount}</div>
-          <div className="text-xs text-gray-400 mt-1">
+          <div className="text-xs text-[#a39e99]">Висит (оплачен, не использован)</div>
+          <div className="text-2xl font-bold text-[#e71e6e]">{data.outstandingCount}</div>
+          <div className="text-xs text-[#a39e99] mt-1">
             обязательство {fmtMoney(data.outstandingSum)}
           </div>
         </div>
@@ -63,7 +63,7 @@ export default function VouchersTab() {
 
       <StatSection title="По месяцам (последние 12)" id="vouchers-monthly" defaultOpen>
         <TableWrapper>
-          <table className="w-full text-left table-auto min-w-max">
+          <table className="w-full text-left min-w-[620px]">
             <thead>
               <tr>
                 <Cell title="Месяц" asHeader />
@@ -76,13 +76,13 @@ export default function VouchersTab() {
             </thead>
             <tbody>
               {data.byMonth.map((m) => (
-                <tr key={m.month} className="hover:bg-gray-50 transition-colors">
+                <tr key={m.month} className="hover:bg-[#faf8f7] transition-colors">
                   <Cell title={m.label} className="font-medium" />
                   <Cell title={m.orderedCount ? String(m.orderedCount) : '—'} />
                   <Cell title={m.paidCount ? String(m.paidCount) : '—'} />
                   <Cell
                     title={m.paidSum ? fmtMoney(m.paidSum) : '—'}
-                    className={m.paidSum ? 'text-primary' : ''}
+                    className={m.paidSum ? 'text-[#e71e6e]' : ''}
                   />
                   <Cell title={m.realizedCount ? String(m.realizedCount) : '—'} />
                   <Cell title={m.realizedSum ? fmtMoney(m.realizedSum) : '—'} />
@@ -98,10 +98,10 @@ export default function VouchersTab() {
         id="vouchers-outstanding"
       >
         {data.outstanding.length === 0 ? (
-          <div className="text-gray-500 py-8 text-center">Все оплаченные ваучеры использованы.</div>
+          <div className="text-[#8b857f] py-8 text-center">Все оплаченные ваучеры использованы.</div>
         ) : (
           <TableWrapper>
-            <table className="w-full text-left table-auto min-w-max">
+            <table className="w-full text-left min-w-[620px]">
               <thead>
                 <tr>
                   <Cell title="Ваучер" asHeader />
@@ -116,15 +116,15 @@ export default function VouchersTab() {
                 {data.outstanding.map((v) => {
                   const age = v.datePay ? ageDays(v.datePay) : 0
                   return (
-                    <tr key={v.documentId || v.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={v.documentId || v.id} className="hover:bg-[#faf8f7] transition-colors">
                       <Cell title={v.idVoucher} className="font-mono text-xs" />
                       <Cell title={v.name} className="font-medium" />
                       <Cell title={v.forWhom || '—'} />
-                      <Cell title={fmtMoney(v.sum)} className="text-primary" />
+                      <Cell title={fmtMoney(v.sum)} className="text-[#e71e6e]" />
                       <Cell title={fmtDate(v.datePay)} />
                       <Cell
                         title={`${age} дн.`}
-                        className={age > 300 ? 'text-red-600 font-semibold' : ''}
+                        className={age > 300 ? 'text-[#c53030] font-semibold' : ''}
                       />
                     </tr>
                   )

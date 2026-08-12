@@ -2,18 +2,19 @@ import { useState, useEffect, useCallback } from 'react'
 import { Cell } from '../../../dashboard/components/Cell'
 import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
+import { hintCls } from '../../../../ui/kit'
 import { getRetention, type RetentionResult, type RetentionRow } from '../fetch/retention'
 
 const pctBadge = (pct: number | null): string => {
-  if (pct === null) return 'bg-gray-100 text-gray-400'
-  if (pct >= 50) return 'bg-green-100 text-green-700'
-  if (pct >= 30) return 'bg-amber-100 text-amber-700'
-  return 'bg-red-100 text-red-700'
+  if (pct === null) return 'text-[#a39e99] bg-[#f6f4f2]'
+  if (pct >= 50) return 'text-[#1d7a3f] bg-[#e8f6ee]'
+  if (pct >= 30) return 'text-[#b0862a] bg-[#fbf3e2]'
+  return 'text-[#c53030] bg-[#fdecec]'
 }
 
 const PctChip = ({ w }: { w: { eligible: number; returned: number; pct: number | null } }) => (
   <span
-    className={`px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${pctBadge(w.pct)}`}
+    className={`inline-block text-[11px] font-bold rounded-md px-[7px] py-0.5 whitespace-nowrap ${pctBadge(w.pct)}`}
     title={`вернулись ${w.returned} из ${w.eligible}`}
   >
     {w.pct === null ? '—' : `${w.pct} % · ${w.returned}`}
@@ -44,7 +45,7 @@ export default function RetentionTab() {
   return (
     <>
       <StatSection title="Возвращаемость новых клиентов по мастерам" id="retention" defaultOpen>
-        <div className="w-full text-left text-xs text-gray-500 mb-4 space-y-1">
+        <div className={`w-full text-left mb-4 space-y-1 ${hintCls}`}>
           <p>
             <b>Как читать:</b> «Новых клиентов» — сколько человек пришли в салон{' '}
             <b>впервые в жизни</b> именно к этому мастеру. Дальше — какой % из них записался на
@@ -56,21 +57,25 @@ export default function RetentionTab() {
             записались снова в течение трёх месяцев. «К тому же мастеру» — вернулись именно к ней,
             а не к коллеге. Чем выше %, тем лучше мастер удерживает новичков.
           </p>
-          <p className="text-gray-400">
+          <p className="text-[#a39e99]">
             Учитываются только клиенты, у которых окно уже закрыто (первый визит был достаточно
             давно) — поэтому числа в колонках могут чуть отличаться. Показаны только активные
             мастера; «Весь салон» — по всей истории, включая бывших.
           </p>
         </div>
         {loading ? (
-          <div className="text-gray-500 py-8 text-center">Načítání…</div>
+          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+            Načítání…
+          </div>
         ) : error ? (
-          <div className="text-red-600 py-8 text-center">{error}</div>
+          <div className="py-12 text-center text-[13px] font-semibold text-[#d61f61]">{error}</div>
         ) : !data || data.rows.length === 0 ? (
-          <div className="text-gray-500 py-8 text-center">Недостаточно данных.</div>
+          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+            Недостаточно данных.
+          </div>
         ) : (
           <TableWrapper>
-            <table className="w-full text-left table-auto min-w-max">
+            <table className="w-full text-left">
               <thead>
                 <tr>
                   <Cell title="Мастер" asHeader />
@@ -83,36 +88,39 @@ export default function RetentionTab() {
               </thead>
               <tbody>
                 {data.rows.map((r: RetentionRow) => (
-                  <tr key={r.employeeId} className="hover:bg-gray-50 transition-colors">
-                    <Cell title={r.name} className="font-medium" />
+                  <tr key={r.employeeId} className="hover:bg-[#faf8f7] transition-colors">
+                    <Cell title={r.name} className="font-bold text-[#161615]" />
                     <Cell title={String(r.newClients)} />
-                    <td className="p-4 border-b border-blue-gray-50">
+                    <td className="px-3 py-[10px] border-b border-[#f2efec]">
                       <PctChip w={r.r30} />
                     </td>
-                    <td className="p-4 border-b border-blue-gray-50">
+                    <td className="px-3 py-[10px] border-b border-[#f2efec]">
                       <PctChip w={r.r60} />
                     </td>
-                    <td className="p-4 border-b border-blue-gray-50">
+                    <td className="px-3 py-[10px] border-b border-[#f2efec]">
                       <PctChip w={r.r90} />
                     </td>
-                    <td className="p-4 border-b border-blue-gray-50">
+                    <td className="px-3 py-[10px] border-b border-[#f2efec]">
                       <PctChip w={r.same90} />
                     </td>
                   </tr>
                 ))}
-                <tr className="bg-gray-50 font-bold">
-                  <Cell title={data.total.name} className="font-bold" />
-                  <Cell title={String(data.total.newClients)} className="font-bold" />
-                  <td className="p-4 border-b border-blue-gray-50">
+                <tr className="bg-[#faf9f8]">
+                  <Cell title={data.total.name} className="font-extrabold text-[#161615]" />
+                  <Cell
+                    title={String(data.total.newClients)}
+                    className="font-extrabold text-[#161615]"
+                  />
+                  <td className="px-3 py-[10px] border-b border-[#f2efec]">
                     <PctChip w={data.total.r30} />
                   </td>
-                  <td className="p-4 border-b border-blue-gray-50">
+                  <td className="px-3 py-[10px] border-b border-[#f2efec]">
                     <PctChip w={data.total.r60} />
                   </td>
-                  <td className="p-4 border-b border-blue-gray-50">
+                  <td className="px-3 py-[10px] border-b border-[#f2efec]">
                     <PctChip w={data.total.r90} />
                   </td>
-                  <td className="p-4 border-b border-blue-gray-50">
+                  <td className="px-3 py-[10px] border-b border-[#f2efec]">
                     <PctChip w={data.total.same90} />
                   </td>
                 </tr>

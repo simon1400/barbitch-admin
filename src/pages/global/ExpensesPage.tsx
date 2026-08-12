@@ -1,5 +1,5 @@
-import { Container } from '../../components/Container'
 import { useState, useEffect, useMemo } from 'react'
+import { h1Cls, kickerCls, pageShellCls, toolbarCardCls } from '../../ui/kit'
 import { Select } from '../dashboard/components/Select'
 import { OwnerProtection } from './components/OwnerProtection'
 import { StatSection } from './components/StatSection'
@@ -52,73 +52,76 @@ const ExpensesPage = () => {
 
   return (
     <OwnerProtection>
-      <section className={'pb-20 min-h-screen'}>
-        <Container size={'lg'}>
-          <div className={'py-6 flex justify-between items-center sticky top-0 z-40'}>
-            <Select month={month} setMonth={setMonth} year={year} setYear={setYear} />
-          </div>
+      <div className={pageShellCls}>
+        <div className={kickerCls}>Barbitch Admin</div>
+        <h1 className={h1Cls}>Затраты</h1>
 
-          <div className="mb-6">
-            <h2 className="text-3xl font-bold text-gray-800">Затраты</h2>
-          </div>
+        <div className={toolbarCardCls}>
+          <Select month={month} setMonth={setMonth} year={year} setYear={setYear} />
+        </div>
 
-          {/* График затрат */}
-          {!isLoading && expenses.length > 0 && (
-            <div className="mb-8">
-              <ExpensesBarChart data={chartData} title={'Затраты по категориям'} />
+        {/* График затрат */}
+        {!isLoading && expenses.length > 0 && (
+          <div className={'mb-3.5'}>
+            <ExpensesBarChart data={chartData} title={'Затраты по категориям'} />
+          </div>
+        )}
+
+        <StatSection
+          title={'Таблица затрат'}
+          id={'expenses'}
+          count={expenses.length}
+          defaultOpen
+        >
+          {isLoading ? (
+            <div className={'py-12 text-center text-[13px] font-semibold text-[#a39e99]'}>
+              Загрузка...
             </div>
-          )}
-
-          <StatSection title={'Таблица затрат'} id={'expenses'} defaultOpen>
-            {isLoading ? (
-              <div className="text-center py-10">
-                <p className="text-gray-500">Загрузка...</p>
-              </div>
-            ) : expenses.length === 0 ? (
-              <div className="text-center py-10">
-                <p className="text-gray-500">Нет данных за выбранный период</p>
-              </div>
-            ) : (
-              <TableWrapper
-                totalSum={`Всего: ${totalSum.toLocaleString()} Kč`}
-                totalLabel={'Общая сумма'}
-                additionalInfo={`Без DPH: ${totalNoDph.toLocaleString()} Kč`}
-              >
-                <table className={'w-full text-left table-auto min-w-max'}>
-                  <thead>
-                    <tr>
-                      <Cell title={'Дата'} asHeader />
-                      <Cell title={'Название'} asHeader />
-                      <Cell title={'Комментарий'} asHeader />
-                      <Cell title={'Сумма'} asHeader />
-                      <Cell title={'Без DPH'} asHeader />
+          ) : expenses.length === 0 ? (
+            <div className={'py-12 text-center text-[13px] font-semibold text-[#a39e99]'}>
+              Нет данных за выбранный период
+            </div>
+          ) : (
+            <TableWrapper
+              totalSum={`Всего: ${totalSum.toLocaleString()} Kč`}
+              totalLabel={'Общая сумма'}
+              additionalInfo={`Без DPH: ${totalNoDph.toLocaleString()} Kč`}
+            >
+              <table className={'w-full text-left min-w-[620px]'}>
+                <thead>
+                  <tr>
+                    <Cell title={'Дата'} asHeader />
+                    <Cell title={'Название'} asHeader />
+                    <Cell title={'Комментарий'} asHeader />
+                    <Cell title={'Сумма'} asHeader className={'text-right'} />
+                    <Cell title={'Без DPH'} asHeader className={'text-right'} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenses.map((expense) => (
+                    <tr key={expense.id} className={'hover:bg-[#faf8f7] transition-colors'}>
+                      <Cell title={new Date(expense.date).toLocaleDateString('cs-CZ')} />
+                      <Cell
+                        title={expense.name}
+                        className={'text-[14px] font-bold text-[#161615]'}
+                      />
+                      <Cell title={expense.comment || '-'} className={'text-[#8b857f]'} />
+                      <Cell
+                        title={`${expense.sum.toLocaleString()} Kč`}
+                        className={'text-right text-[14px] font-extrabold text-[#b81b60]'}
+                      />
+                      <Cell
+                        title={expense.noDph ? `${expense.noDph.toLocaleString()} Kč` : '-'}
+                        className={'text-right text-[#8b857f]'}
+                      />
                     </tr>
-                  </thead>
-                  <tbody>
-                    {expenses.map((expense) => (
-                      <tr key={expense.id} className={'hover:bg-gray-50 transition-colors'}>
-                        <Cell
-                          title={new Date(expense.date).toLocaleDateString('cs-CZ')}
-                        />
-                        <Cell title={expense.name} className={'font-medium'} />
-                        <Cell title={expense.comment || '-'} className={'text-gray-600'} />
-                        <Cell
-                          title={`${expense.sum.toLocaleString()} Kč`}
-                          className={'font-semibold text-primary'}
-                        />
-                        <Cell
-                          title={expense.noDph ? `${expense.noDph.toLocaleString()} Kč` : '-'}
-                          className={'text-gray-600'}
-                        />
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </TableWrapper>
-            )}
-          </StatSection>
-        </Container>
-      </section>
+                  ))}
+                </tbody>
+              </table>
+            </TableWrapper>
+          )}
+        </StatSection>
+      </div>
     </OwnerProtection>
   )
 }

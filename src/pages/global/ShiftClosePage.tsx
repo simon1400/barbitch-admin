@@ -1,5 +1,13 @@
 import { useState } from 'react'
-import { Container } from '../../components/Container'
+import {
+  btnPinkCls,
+  h1Cls,
+  inputBaseCls,
+  kickerCls,
+  labelCls,
+  pageShellCls,
+  toolbarCardCls,
+} from '../../ui/kit'
 import { OwnerProtection } from './components/OwnerProtection'
 import { StatSection } from './components/StatSection'
 import {
@@ -212,127 +220,134 @@ export default function ShiftClosePage() {
   }
 
   const overallStyles: Record<OverallLevel, { bg: string; icon: string }> = {
-    ok: { bg: 'bg-green-50 border-green-200', icon: '✅' },
-    warn: { bg: 'bg-yellow-50 border-yellow-200', icon: '⚠️' },
-    error: { bg: 'bg-red-50 border-red-200', icon: '🟥' },
+    ok: { bg: 'bg-[#e8f6ee] border-[#bfe4cd]', icon: '✅' },
+    warn: { bg: 'bg-[#fbf3e2] border-[#ecd9b5]', icon: '⚠️' },
+    error: { bg: 'bg-[#fdecec] border-[#f3c1c1]', icon: '🟥' },
   }
 
   return (
     <OwnerProtection>
-      <section className="pb-20 min-h-screen">
-        <Container size="lg">
-          {/* Header + date picker */}
-          <div className="mt-8 mb-6">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800 mb-4">
-              Uzavření směny
-            </h1>
-            <div className="flex flex-wrap items-end gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">Datum</label>
-                <DatePicker
-                  selected={selectedDate}
-                  onChange={(date: Date | null) => date && setSelectedDate(date)}
-                  dateFormat="dd.MM.yyyy"
-                  className="border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                  maxDate={new Date()}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleCheck}
-                disabled={loading}
-                className="px-6 py-2.5 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Kontroluji...' : 'Zkontrolovat'}
-              </button>
+      <div className={pageShellCls}>
+        <div className={kickerCls}>Barbitch Admin</div>
+        <h1 className={h1Cls}>Uzavření směny</h1>
+
+        {/* Тулбар: дата смены + запуск проверки */}
+        <div className={toolbarCardCls}>
+          <div className="flex items-end gap-3 flex-wrap">
+            <div>
+              <label className={labelCls}>Datum</label>
+              <DatePicker
+                selected={selectedDate}
+                onChange={(date: Date | null) => date && setSelectedDate(date)}
+                dateFormat="dd.MM.yyyy"
+                className={`${inputBaseCls} rounded-lg px-3 py-[9px] text-[14px] w-[140px]`}
+                maxDate={new Date()}
+              />
             </div>
+            <button type="button" onClick={handleCheck} disabled={loading} className={btnPinkCls}>
+              {loading ? 'Kontroluji...' : 'Zkontrolovat'}
+            </button>
           </div>
+        </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-6">
-              {error}
-            </div>
-          )}
+        {error && (
+          <div className="rounded-lg bg-[#fdecec] text-[#c53030] text-[13px] font-semibold px-4 py-2.5 mb-3.5">
+            {error}
+          </div>
+        )}
 
-          {loading && (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
-            </div>
-          )}
+        {loading && (
+          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+            Kontroluji…
+          </div>
+        )}
 
-          {result && !loading && (
-            <>
-              {/* Overall status */}
-              {overall && (
-                <div className={`rounded-xl p-5 mb-6 border ${overallStyles[overall].bg}`}>
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{overallStyles[overall].icon}</span>
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-800">{overallMessages[overall]}</p>
-                      <p className="text-sm text-gray-600">Datum: {result.date}</p>
-                      {(() => {
-                        const fc = result.serviceProvided.flagCounts
-                        const visible = VERIFY_FLAGS.filter(
-                          (f) => f !== 'ok' && f !== 'sleva' && fc[f] > 0,
-                        )
-                        const hasUnverified = result.serviceProvided.unverified > 0
-                        if (visible.length === 0 && !hasUnverified) return null
-                        return (
-                          <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-700">
-                            {visible.map((f) => (
-                              <span key={f}>
-                                {FLAG_META[f].emoji} {FLAG_META[f].label}: <b>{fc[f]}</b>
-                              </span>
-                            ))}
-                            {hasUnverified && (
-                              <span>Neověřeno: <b>{result.serviceProvided.unverified}</b></span>
-                            )}
-                          </div>
-                        )
-                      })()}
-                    </div>
+        {result && !loading && (
+          <>
+            {/* Overall status */}
+            {overall && (
+              <div className={`rounded-xl px-5 py-4 mb-3.5 border ${overallStyles[overall].bg}`}>
+                <div className="flex items-start gap-3">
+                  <span className="text-[20px] leading-none mt-0.5">
+                    {overallStyles[overall].icon}
+                  </span>
+                  <div className="flex-1">
+                    <p className="m-0 text-[14px] font-extrabold text-[#161615]">
+                      {overallMessages[overall]}
+                    </p>
+                    <p className="m-0 mt-0.5 text-[12.5px] font-semibold text-[#a39e99]">
+                      Datum: {result.date}
+                    </p>
+                    {(() => {
+                      const fc = result.serviceProvided.flagCounts
+                      const visible = VERIFY_FLAGS.filter(
+                        (f) => f !== 'ok' && f !== 'sleva' && fc[f] > 0,
+                      )
+                      const hasUnverified = result.serviceProvided.unverified > 0
+                      if (visible.length === 0 && !hasUnverified) return null
+                      return (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {visible.map((f) => (
+                            <span
+                              key={f}
+                              className="text-[11px] font-bold rounded-md px-[7px] py-0.5 bg-white text-[#4c4844]"
+                            >
+                              {FLAG_META[f].emoji} {FLAG_META[f].label}: {fc[f]}
+                            </span>
+                          ))}
+                          {hasUnverified && (
+                            <span className="text-[11px] font-bold rounded-md px-[7px] py-0.5 bg-white text-[#4c4844]">
+                              Neověřeno: {result.serviceProvided.unverified}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              <ComparisonCard result={result} />
+            <ComparisonCard result={result} />
 
-              <StatSection title="Kontrola záznamů" id="checks" defaultOpen>
-                <div className="grid gap-4">
-                  <CashCard data={result.cash} />
-                  {/* Отдельная таблица «Rezervace v kalendáři» убрана: записи закрываются
-                      прямо в календаре → услуга/čas/cena брони видны в тултипе чипа ⇄,
-                      а брони БЕЗ записи показывает ComparisonCard («Pouze v kalendáři»). */}
-                  <ServiceProvidedCard data={result.serviceProvided} calendarBookings={result.calendar.events} />
-                  <WorkTimeCard data={result.workTime} />
-                  <PayrollCard data={result.payroll} />
-                </div>
-              </StatSection>
+            <StatSection title="Kontrola záznamů" id="checks" defaultOpen>
+              <div className="grid gap-3.5">
+                <CashCard data={result.cash} />
+                {/* Отдельная таблица «Rezervace v kalendáři» убрана: записи закрываются
+                    прямо в календаре → услуга/čas/cena брони видны в тултипе чипа ⇄,
+                    а брони БЕЗ записи показывает ComparisonCard («Pouze v kalendáři»). */}
+                <ServiceProvidedCard
+                  data={result.serviceProvided}
+                  calendarBookings={result.calendar.events}
+                />
+                <WorkTimeCard data={result.workTime} />
+                <PayrollCard data={result.payroll} />
+              </div>
+            </StatSection>
 
-              <PublishSection
-                cardSum={cardSum}
-                setCardSum={setCardSum}
-                extraIncome={extraIncome}
-                setExtraIncome={setExtraIncome}
-                publishing={publishing}
-                published={published}
-                publishError={publishError}
-                publishFailures={publishFailures}
-                profitDelta={profitDelta}
-                onPublish={handlePublishShift}
-                reverting={reverting}
-                revertResult={revertResult}
-                revertError={revertError}
-                onRevert={handleRevert}
-                previewing={previewing}
-                previewDelta={previewDelta}
-                previewError={previewError}
-                onPreview={handlePreview}
-              />
-            </>
-          )}
-        </Container>
-      </section>
+            <PublishSection
+              cardSum={cardSum}
+              setCardSum={setCardSum}
+              extraIncome={extraIncome}
+              setExtraIncome={setExtraIncome}
+              publishing={publishing}
+              published={published}
+              publishError={publishError}
+              publishFailures={publishFailures}
+              profitDelta={profitDelta}
+              onPublish={handlePublishShift}
+              reverting={reverting}
+              revertResult={revertResult}
+              revertError={revertError}
+              onRevert={handleRevert}
+              previewing={previewing}
+              previewDelta={previewDelta}
+              previewError={previewError}
+              onPreview={handlePreview}
+            />
+          </>
+        )}
+      </div>
     </OwnerProtection>
   )
 }

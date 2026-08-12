@@ -36,10 +36,10 @@ const ChartTooltip = ({
   if (!active || !payload?.length) return null
   const row = payload[0].payload
   return (
-    <div className={'bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-md'}>
-      <div className={'text-xs font-semibold text-blue-gray-900 mb-1'}>{label}</div>
-      <div className={'text-xs font-medium text-primary'}>{fmtMoney(row.revenue)}</div>
-      <div className={'text-xss text-gray-500'}>{row.visits} визитов</div>
+    <div className={'bg-white border border-[#eee9e6] rounded-[10px] px-3 py-2 shadow-[0_10px_28px_rgba(22,22,21,0.14)]'}>
+      <div className={'text-[12px] font-extrabold text-[#161615] mb-1'}>{label}</div>
+      <div className={'text-[12px] font-bold text-[#e71e6e]'}>{fmtMoney(row.revenue)}</div>
+      <div className={'text-[11px] font-semibold text-[#8b857f]'}>{row.visits} визитов</div>
     </div>
   )
 }
@@ -47,23 +47,23 @@ const ChartTooltip = ({
 export const RevenueBarChart = ({ data, title }: Props) => (
   <div className={'w-full'}>
     {title && (
-      <h3 className={'text-sm11 md:text-sm1 font-semibold mb-4 text-primary opacity-80'}>
+      <h3 className={'m-0 mb-3.5 text-[15px] font-extrabold text-[#161615]'}>
         {title}
       </h3>
     )}
-    <div className={'bg-white p-4 pl-0 rounded-xl shadow-md'}>
+    <div className={'bg-white border border-[#eee9e6] rounded-xl shadow-[0_1px_2px_rgba(22,22,21,0.04)] p-4 pl-0'}>
       <ResponsiveContainer width={'100%'} height={340}>
         <LineChart data={data}>
-          <CartesianGrid stroke={'#e0e0e0'} strokeDasharray={'3 3'} />
+          <CartesianGrid stroke={'#f2efec'} strokeDasharray={'4 4'} />
           <XAxis
             dataKey={'label'}
-            tick={{ fontSize: 12 }}
+            tick={{ fontSize: 11, fontWeight: 600, fill: '#a39e99' }}
             angle={-45}
             textAnchor={'end'}
             height={70}
           />
           <YAxis
-            tick={{ fontSize: 12 }}
+            tick={{ fontSize: 11, fontWeight: 600, fill: '#a39e99' }}
             tickFormatter={(v: number) => `${Math.round(v / 1000)}k`}
           />
           <Tooltip content={<ChartTooltip />} />

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Container } from '../../components/Container'
+import { h1Cls, hintCls, kickerCls, pageShellCls } from '../../ui/kit'
 import { OwnerProtection } from './components/OwnerProtection'
 import type { ClientErrorLog, ErrorFilter } from './fetch/errorLogs'
 import {
@@ -17,10 +17,10 @@ const SOURCE_LABELS: Record<ClientErrorLog['source'], string> = {
 }
 
 const SOURCE_COLORS: Record<ClientErrorLog['source'], string> = {
-  'window-error': 'bg-red-100 text-red-700',
-  'unhandled-rejection': 'bg-orange-100 text-orange-700',
+  'window-error': 'bg-red-100 text-[#c53030]',
+  'unhandled-rejection': 'bg-orange-100 text-[#b0862a]',
   'react-error': 'bg-purple-100 text-purple-700',
-  manual: 'bg-gray-100 text-gray-700',
+  manual: 'bg-[#f2efec] text-[#4c4844]',
 }
 
 function formatDate(s: string | null): string {
@@ -121,26 +121,26 @@ export default function ErrorLogsPage() {
 
   return (
     <OwnerProtection>
-      <section className="pb-20 min-h-screen">
-        <Container size="lg">
-          <div className="mt-8 mb-6">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800">Client Error Logs</h1>
-            <p className="text-sm text-gray-500 mt-1">
+      <div className={pageShellCls}>
+          <div className={kickerCls}>Barbitch Admin</div>
+          <h1 className={h1Cls}>Error Logs</h1>
+          <div className="mb-3.5">
+            <p className={`m-0 ${hintCls}`}>
               Chyby z prohlížečů návštěvníků (window.onerror + unhandled promise + React errors).
               Stejné chyby jsou seskupené podle hashe (message + stack).
             </p>
           </div>
 
           <div className="mb-6 flex flex-wrap items-center gap-3">
-            <div className="flex gap-1.5 bg-gray-100 rounded-lg p-1">
+            <div className="flex gap-1.5 bg-[#f2efec] rounded-lg p-1">
               {(['unresolved', 'all', 'resolved'] as ErrorFilter[]).map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 rounded-md text-xss font-semibold transition-colors ${
+                  className={`px-3 py-1.5 rounded-md text-[12.5px] font-semibold transition-colors ${
                     filter === f
-                      ? 'bg-white text-primary shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-white text-[#e71e6e] shadow-sm'
+                      : 'text-[#6f6a66] hover:text-[#161615]'
                   }`}
                 >
                   {f === 'unresolved' ? 'Nevyřešené' : f === 'resolved' ? 'Vyřešené' : 'Vše'}
@@ -149,29 +149,29 @@ export default function ErrorLogsPage() {
             </div>
             <button
               onClick={load}
-              className="px-3 py-1.5 bg-white border border-gray-300 rounded-md text-xss font-semibold text-gray-700 hover:bg-gray-50"
+              className="px-3 py-1.5 bg-white border border-[#e7e2de] rounded-md text-[12.5px] font-semibold text-[#4c4844] hover:bg-[#faf8f7]"
             >
               Obnovit
             </button>
             <button
               onClick={handleDeleteResolved}
-              className="px-3 py-1.5 bg-white border border-red-200 rounded-md text-xss font-semibold text-red-600 hover:bg-red-50"
+              className="px-3 py-1.5 bg-white border border-[#f3c1c1] rounded-md text-[12.5px] font-semibold text-[#c53030] hover:bg-[#fdecec]"
             >
               Smazat vyřešené
             </button>
-            <span className="text-xss text-gray-500 ml-auto">
+            <span className="text-[12.5px] text-[#8b857f] ml-auto">
               {counts.unresolved} nevyřešené · {counts.resolved} vyřešené · {counts.all} celkem
             </span>
           </div>
 
           {actionMsg && (
-            <div className="mb-4 p-3 rounded-lg text-xss bg-blue-50 text-blue-700">{actionMsg}</div>
+            <div className="mb-4 p-3 rounded-lg text-[12.5px] bg-[#e7effa] text-[#2563ac]">{actionMsg}</div>
           )}
 
           {loading ? (
-            <div className="text-gray-500">Loading...</div>
+            <div className="text-[#8b857f]">Loading...</div>
           ) : logs.length === 0 ? (
-            <div className="text-gray-500 bg-white rounded-lg p-8 text-center border">
+            <div className="text-[#8b857f] bg-white rounded-lg p-8 text-center border">
               {filter === 'unresolved'
                 ? 'Žádné nevyřešené chyby. 🎉'
                 : 'Žádné záznamy.'}
@@ -189,11 +189,11 @@ export default function ErrorLogsPage() {
                   >
                     <button
                       onClick={() => toggleExpand(log.documentId)}
-                      className="w-full text-left p-4 flex items-start gap-3 hover:bg-gray-50"
+                      className="w-full text-left p-4 flex items-start gap-3 hover:bg-[#faf8f7]"
                     >
                       <span
                         className={`mt-0.5 inline-block w-2 h-2 rounded-full flex-shrink-0 ${
-                          log.resolved ? 'bg-green-500' : 'bg-red-500'
+                          log.resolved ? 'bg-[#e8f6ee]0' : 'bg-[#fdecec]0'
                         }`}
                       />
                       <div className="flex-1 min-w-0">
@@ -204,36 +204,36 @@ export default function ErrorLogsPage() {
                             {SOURCE_LABELS[log.source]}
                           </span>
                           {log.environment === 'development' && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-yellow-100 text-yellow-700">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-yellow-100 text-[#b0862a]">
                               dev
                             </span>
                           )}
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-700">
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#f2efec] text-[#4c4844]">
                             ×{log.count}
                           </span>
-                          <span className="text-[11px] text-gray-400">
+                          <span className="text-[11px] text-[#a39e99]">
                             {getRelativeTime(log.lastSeen)}
                           </span>
                         </div>
-                        <div className="text-xss font-mono text-gray-800 truncate">
+                        <div className="text-[12.5px] font-mono text-[#161615] truncate">
                           {log.message}
                         </div>
                         {log.url && (
-                          <div className="text-[11px] text-gray-400 truncate mt-0.5">
+                          <div className="text-[11px] text-[#a39e99] truncate mt-0.5">
                             {log.url}
                           </div>
                         )}
                       </div>
-                      <span className="text-gray-400 text-xss flex-shrink-0">
+                      <span className="text-[#a39e99] text-[12.5px] flex-shrink-0">
                         {isOpen ? '▲' : '▼'}
                       </span>
                     </button>
 
                     {isOpen && (
-                      <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
+                      <div className="px-4 pb-4 border-t border-[#f2efec] pt-3 space-y-3">
                         {log.stack && (
                           <div>
-                            <div className="text-[11px] font-semibold text-gray-500 mb-1">
+                            <div className="text-[11px] font-semibold text-[#8b857f] mb-1">
                               Stack trace
                             </div>
                             <pre className="text-[11px] font-mono bg-gray-900 text-gray-100 p-3 rounded overflow-x-auto whitespace-pre-wrap break-words">
@@ -243,43 +243,43 @@ export default function ErrorLogsPage() {
                         )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
                           <div>
-                            <span className="font-semibold text-gray-500">First seen:</span>{' '}
-                            <span className="text-gray-700">{formatDate(log.firstSeen)}</span>
+                            <span className="font-semibold text-[#8b857f]">First seen:</span>{' '}
+                            <span className="text-[#4c4844]">{formatDate(log.firstSeen)}</span>
                           </div>
                           <div>
-                            <span className="font-semibold text-gray-500">Last seen:</span>{' '}
-                            <span className="text-gray-700">{formatDate(log.lastSeen)}</span>
+                            <span className="font-semibold text-[#8b857f]">Last seen:</span>{' '}
+                            <span className="text-[#4c4844]">{formatDate(log.lastSeen)}</span>
                           </div>
                           {log.userAgent && (
                             <div className="md:col-span-2">
-                              <span className="font-semibold text-gray-500">User Agent:</span>{' '}
-                              <span className="text-gray-700 break-all">{log.userAgent}</span>
+                              <span className="font-semibold text-[#8b857f]">User Agent:</span>{' '}
+                              <span className="text-[#4c4844] break-all">{log.userAgent}</span>
                             </div>
                           )}
                           {log.sessionId && (
                             <div className="md:col-span-2">
-                              <span className="font-semibold text-gray-500">Session:</span>{' '}
-                              <span className="text-gray-700 font-mono">{log.sessionId}</span>
+                              <span className="font-semibold text-[#8b857f]">Session:</span>{' '}
+                              <span className="text-[#4c4844] font-mono">{log.sessionId}</span>
                             </div>
                           )}
-                          <div className="md:col-span-2 text-[10px] text-gray-400">
+                          <div className="md:col-span-2 text-[10px] text-[#a39e99]">
                             Hash: {log.errorHash}
                           </div>
                         </div>
                         <div className="flex gap-2 pt-2">
                           <button
                             onClick={() => handleToggleResolved(log)}
-                            className={`px-3 py-1.5 rounded-md text-xss font-semibold ${
+                            className={`px-3 py-1.5 rounded-md text-[12.5px] font-semibold ${
                               log.resolved
-                                ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                                : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                ? 'bg-yellow-100 text-[#b0862a] hover:bg-yellow-200'
+                                : 'bg-green-100 text-[#1d7a3f] hover:bg-green-200'
                             }`}
                           >
                             {log.resolved ? 'Označit jako nevyřešené' : 'Označit jako vyřešené'}
                           </button>
                           <button
                             onClick={() => handleDelete(log)}
-                            className="px-3 py-1.5 rounded-md text-xss font-semibold bg-red-50 text-red-600 hover:bg-red-100"
+                            className="px-3 py-1.5 rounded-md text-[12.5px] font-semibold bg-[#fdecec] text-[#c53030] hover:bg-red-100"
                           >
                             Smazat
                           </button>
@@ -291,8 +291,7 @@ export default function ErrorLogsPage() {
               })}
             </div>
           )}
-        </Container>
-      </section>
+      </div>
     </OwnerProtection>
   )
 }

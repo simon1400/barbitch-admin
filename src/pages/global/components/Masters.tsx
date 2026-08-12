@@ -1,6 +1,7 @@
 import type { IFilteredData } from '../../dashboard/fetch/allWorks'
 
 import { findCommonZeroKeys } from '../../../utils/findCommonZeroKeys'
+import { NAME_CELL, NEG_CELL, NUM_CELL, RESULT_CELL } from '../../../ui/kit'
 
 import { Cell } from '../../dashboard/components/Cell'
 
@@ -35,23 +36,25 @@ export const Masters = ({
       totalLabel={'Общая сумма'}
       additionalInfo={totalExcess > 0 ? `Общее превышение: ${totalExcess.toLocaleString()} Kč` : undefined}
     >
-      <table className={'w-full text-left table-auto min-w-max'}>
+      <table className={'w-full text-left min-w-[720px]'}>
         <thead>
           <tr>
             <Cell title={'Имя'} asHeader />
-            <Cell title={'Кл.'} asHeader />
-            <Cell title={'Зарб.'} asHeader />
-            {!emptyKeys.has('sumTip') && <Cell title={'Чай'} asHeader />}
-            {!emptyKeys.has('penalty') && <Cell title={'Штр.'} asHeader />}
-            {!emptyKeys.has('extraProfit') && <Cell title={'Доп.'} asHeader />}
-            {!emptyKeys.has('payrolls') && <Cell title={'Спис.'} asHeader />}
-            <Cell title={'Результат'} asHeader />
+            <Cell title={'Кл.'} asHeader className={'text-right'} />
+            <Cell title={'Зарб.'} asHeader className={'text-right'} />
+            {!emptyKeys.has('sumTip') && <Cell title={'Чай'} asHeader className={'text-right'} />}
+            {!emptyKeys.has('penalty') && <Cell title={'Штр.'} asHeader className={'text-right'} />}
+            {!emptyKeys.has('extraProfit') && <Cell title={'Доп.'} asHeader className={'text-right'} />}
+            {!emptyKeys.has('payrolls') && <Cell title={'Спис.'} asHeader className={'text-right'} />}
+            <Cell title={'Результат'} asHeader className={'text-right'} />
 
-            {!emptyKeys.has('advance') && <Cell title={'Аванс'} asHeader />}
-            {!emptyKeys.has('salaries') && <Cell title={'ЗП.'} asHeader />}
-            {totalExcess > 0 && <Cell title={'Превышение'} asHeader />}
-            {(!emptyKeys.has('advance') || !emptyKeys.has('salaries')) && <Cell title={'Осталось'} asHeader />}
-            {!emptyKeys.has('taxes') && <Cell title={'Налоги'} asHeader />}
+            {!emptyKeys.has('advance') && <Cell title={'Аванс'} asHeader className={'text-right'} />}
+            {!emptyKeys.has('salaries') && <Cell title={'ЗП.'} asHeader className={'text-right'} />}
+            {totalExcess > 0 && <Cell title={'Превышение'} asHeader className={'text-right'} />}
+            {(!emptyKeys.has('advance') || !emptyKeys.has('salaries')) && (
+              <Cell title={'Осталось'} asHeader className={'text-right'} />
+            )}
+            {!emptyKeys.has('taxes') && <Cell title={'Налоги'} asHeader className={'text-right'} />}
           </tr>
         </thead>
         <tbody>
@@ -65,51 +68,66 @@ export const Masters = ({
             const splitName = item.name.split(' ')
 
             return (
-              <tr key={item.name} className={'hover:bg-gray-50 transition-colors'}>
+              <tr key={item.name} className={'hover:bg-[#faf8f7] transition-colors'}>
                 <Cell
                   title={`${splitName[0][0]}. ${splitName[1]}`}
-                  className="cursor-pointer"
+                  className={NAME_CELL}
                   onClick={() => navigator.clipboard.writeText(item.name)}
                 />
-                <Cell title={`${item.countClient}`} />
-                <Cell title={`${item.sum.toLocaleString()}`} />
+                <Cell title={`${item.countClient}`} className={NUM_CELL} />
+                <Cell title={`${item.sum.toLocaleString()}`} className={NUM_CELL} />
                 {!emptyKeys.has('sumTip') && (
-                  <Cell title={item.sumTip ? `${item.sumTip.toLocaleString()}` : ''} />
+                  <Cell
+                    title={item.sumTip ? `${item.sumTip.toLocaleString()}` : ''}
+                    className={NUM_CELL}
+                  />
                 )}
                 {!emptyKeys.has('penalty') && (
-                  <Cell title={item.penalty ? `-${item.penalty.toLocaleString()}` : ''} />
+                  <Cell
+                    title={item.penalty ? `-${item.penalty.toLocaleString()}` : ''}
+                    className={NEG_CELL}
+                  />
                 )}
                 {!emptyKeys.has('extraProfit') && (
-                  <Cell title={item.extraProfit ? `${item.extraProfit.toLocaleString()}` : ''} />
+                  <Cell
+                    title={item.extraProfit ? `${item.extraProfit.toLocaleString()}` : ''}
+                    className={NUM_CELL}
+                  />
                 )}
                 {!emptyKeys.has('payrolls') && (
-                  <Cell title={item.payrolls ? `-${item.payrolls.toLocaleString()}` : ''} />
+                  <Cell
+                    title={item.payrolls ? `-${item.payrolls.toLocaleString()}` : ''}
+                    className={NEG_CELL}
+                  />
                 )}
-                <Cell
-                  className={'text-primary font-semibold'}
-                  title={`${result.toLocaleString()}`}
-                />
-                
+                <Cell className={RESULT_CELL} title={`${result.toLocaleString()}`} />
+
                 {!emptyKeys.has('advance') && (
-                  <Cell title={item.advance ? `-${item.advance.toLocaleString()}` : ''} />
+                  <Cell
+                    title={item.advance ? `-${item.advance.toLocaleString()}` : ''}
+                    className={NEG_CELL}
+                  />
                 )}
                 {!emptyKeys.has('salaries') && (
-                  <Cell title={item.salaries ? `-${item.salaries.toLocaleString()}` : ''} />
+                  <Cell
+                    title={item.salaries ? `-${item.salaries.toLocaleString()}` : ''}
+                    className={NEG_CELL}
+                  />
                 )}
                 {totalExcess > 0 && (
                   <Cell
-                    className={excess > 0 ? 'text-orange-600 font-semibold' : ''}
+                    className={excess > 0 ? `${NUM_CELL} text-[#b0862a] font-bold` : NUM_CELL}
                     title={excess > 0 ? `+${excess.toLocaleString()}` : '-'}
                   />
                 )}
                 {(!emptyKeys.has('advance') || !emptyKeys.has('salaries')) && (
-                  <Cell
-                    className={'text-primary font-semibold'}
-                    title={`${remaining.toLocaleString()}`}
-                  />
+                  <Cell className={RESULT_CELL} title={`${remaining.toLocaleString()}`} />
                 )}
                 {!emptyKeys.has('taxes') && (
-                  <Cell title={item.taxes ? `${item.taxes.toLocaleString()}` : ''} />
+                  <Cell
+                    title={item.taxes ? `${item.taxes.toLocaleString()}` : ''}
+                    className={NUM_CELL}
+                  />
                 )}
               </tr>
             )

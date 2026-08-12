@@ -55,14 +55,14 @@ export const ProceduresTable = ({ data, totalCount, totalRevenue, loading }: Pro
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#e71e6e]"></div>
       </div>
     )
   }
 
   if (data.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-500">
+      <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
         Нет данных за выбранный период
       </div>
     )
@@ -79,38 +79,38 @@ export const ProceduresTable = ({ data, totalCount, totalRevenue, loading }: Pro
           названия переносится по словам, числовые колонки ужимаются по контенту
           (w-px + nowrap), а min-w нужен только чтобы таблица не схлопывалась на
           узком телефоне. */}
-      <table className="w-full text-left table-auto min-w-[560px]">
+      <table className="w-full text-left min-w-[560px]">
         <thead>
           <tr>
             <th
-              className="p-4 border-b border-blue-gray-100 bg-blue-gray-50 cursor-pointer hover:bg-blue-gray-100 transition-colors"
+              className="px-3 py-[7px] text-left border-b border-[#eee9e6] cursor-pointer select-none"
               onClick={() => handleSort('name')}
             >
-              <p className="flex items-center gap-2 font-sans text-sm font-normal text-blue-gray-900 opacity-70">
+              <p className="flex items-center gap-2 text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#b3ada7] whitespace-nowrap">
                 Название процедуры
-                <span className="text-xs">{getSortIcon('name')}</span>
+                <span className="text-[10px]">{getSortIcon('name')}</span>
               </p>
             </th>
             <th
-              className="w-px whitespace-nowrap p-4 border-b border-blue-gray-100 bg-blue-gray-50 cursor-pointer hover:bg-blue-gray-100 transition-colors"
+              className="w-px whitespace-nowrap px-3 py-[7px] text-left border-b border-[#eee9e6] cursor-pointer select-none"
               onClick={() => handleSort('count')}
             >
-              <p className="flex items-center gap-2 font-sans text-sm font-normal text-blue-gray-900 opacity-70">
+              <p className="flex items-center gap-2 text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#b3ada7] whitespace-nowrap">
                 Количество
-                <span className="text-xs">{getSortIcon('count')}</span>
+                <span className="text-[10px]">{getSortIcon('count')}</span>
               </p>
             </th>
             <th
-              className="w-px whitespace-nowrap p-4 border-b border-blue-gray-100 bg-blue-gray-50 cursor-pointer hover:bg-blue-gray-100 transition-colors"
+              className="w-px whitespace-nowrap px-3 py-[7px] text-left border-b border-[#eee9e6] cursor-pointer select-none"
               onClick={() => handleSort('totalRevenue')}
             >
-              <p className="flex items-center gap-2 font-sans text-sm font-normal text-blue-gray-900 opacity-70">
+              <p className="flex items-center gap-2 text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#b3ada7] whitespace-nowrap">
                 Общая выручка
-                <span className="text-xs">{getSortIcon('totalRevenue')}</span>
+                <span className="text-[10px]">{getSortIcon('totalRevenue')}</span>
               </p>
             </th>
-            <th className="w-px whitespace-nowrap p-4 border-b border-blue-gray-100 bg-blue-gray-50">
-              <p className="font-sans text-sm font-normal text-blue-gray-900 opacity-70">
+            <th className="w-px whitespace-nowrap px-3 py-[7px] text-left border-b border-[#eee9e6]">
+              <p className="text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#b3ada7] whitespace-nowrap">
                 Ср. чек
               </p>
             </th>
@@ -121,11 +121,11 @@ export const ProceduresTable = ({ data, totalCount, totalRevenue, loading }: Pro
             const averageCheck = item.count > 0 ? Math.round(item.totalRevenue / item.count) : 0
 
             return (
-              <tr key={`${item.name}-${index}`} className="hover:bg-gray-50 transition-colors">
+              <tr key={`${item.name}-${index}`} className="hover:bg-[#faf8f7] transition-colors">
                 <Cell className="break-words" title={item.name} />
                 <Cell className="whitespace-nowrap" title={item.count.toLocaleString()} />
                 <Cell
-                  className="whitespace-nowrap text-primary font-semibold"
+                  className="whitespace-nowrap text-[#b81b60] font-extrabold"
                   title={`${item.totalRevenue.toLocaleString()} Kč`}
                 />
                 <Cell className="whitespace-nowrap" title={`${averageCheck.toLocaleString()} Kč`} />

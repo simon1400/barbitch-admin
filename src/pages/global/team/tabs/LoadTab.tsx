@@ -4,6 +4,16 @@ import { Cell } from '../../../dashboard/components/Cell'
 import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
 import {
+  badgeNegCls,
+  badgePosCls,
+  btnNeutralCls,
+  cardCls,
+  hintCls,
+  iconBtnCls,
+  pillCls,
+  toolbarCardCls,
+} from '../../../../ui/kit'
+import {
   getMasterLoad,
   getMasterLoadRange,
   dateToStr,
@@ -12,17 +22,15 @@ import {
   type MasterLoadRow,
 } from '../fetch/masterLoad'
 
-const pctBadge = (pct: number | null): string => {
-  if (pct === null) return 'bg-gray-100 text-gray-400'
-  if (pct >= 75) return 'bg-green-100 text-green-700'
-  if (pct >= 45) return 'bg-amber-100 text-amber-700'
-  return 'bg-red-100 text-red-700'
+const pctBadgeCls = (pct: number | null): string => {
+  if (pct === null) return 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-[#a39e99] bg-[#f6f4f2]'
+  if (pct >= 75) return badgePosCls
+  if (pct >= 45) return 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-[#b0862a] bg-[#fbf3e2]'
+  return badgeNegCls
 }
 
 const PctChip = ({ pct }: { pct: number | null }) => (
-  <span className={`px-2 py-0.5 rounded text-xs font-semibold ${pctBadge(pct)}`}>
-    {pct === null ? '—' : `${pct} %`}
-  </span>
+  <span className={`whitespace-nowrap ${pctBadgeCls(pct)}`}>{pct === null ? '—' : `${pct} %`}</span>
 )
 
 const fmtDate = (d: string) => {
@@ -97,15 +105,7 @@ export default function LoadTab() {
   const colSpan = showPast ? 7 : 6
 
   const modeBtn = (m: Mode, label: string) => (
-    <button
-      type="button"
-      onClick={() => setMode(m)}
-      className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
-        mode === m
-          ? 'bg-primary text-white border-primary shadow-sm'
-          : 'bg-white text-gray-700 border-gray-300 shadow-sm hover:bg-gray-50'
-      }`}
-    >
+    <button type="button" onClick={() => setMode(m)} className={pillCls(mode === m)}>
       {label}
     </button>
   )
@@ -114,9 +114,9 @@ export default function LoadTab() {
 
   return (
     <>
-      <div className="mb-6 flex justify-between items-center gap-3 flex-wrap sticky top-0 z-40">
+      <div className={toolbarCardCls}>
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex gap-2">
+          <div className="flex gap-1.5">
             {modeBtn('month', 'Месяц')}
             {modeBtn('week', 'Неделя')}
           </div>
@@ -127,18 +127,18 @@ export default function LoadTab() {
               <button
                 type="button"
                 onClick={() => setWeekStart(addDays(weekStart, -7))}
-                className="px-3 py-2 rounded-lg border border-gray-300 bg-white shadow-sm hover:bg-gray-50 text-sm"
+                className={`${iconBtnCls} text-[16px]`}
                 aria-label="Предыдущая неделя"
               >
                 ‹
               </button>
-              <span className="text-sm font-semibold text-gray-800 min-w-[170px] text-center">
+              <span className="text-[13px] font-bold text-[#4c4844] whitespace-nowrap min-w-[150px] text-center">
                 {fmtShort(weekStart)} – {fmtShort(weekEnd)}.{weekEnd.getFullYear()}
               </span>
               <button
                 type="button"
                 onClick={() => setWeekStart(addDays(weekStart, 7))}
-                className="px-3 py-2 rounded-lg border border-gray-300 bg-white shadow-sm hover:bg-gray-50 text-sm"
+                className={`${iconBtnCls} text-[16px]`}
                 aria-label="Следующая неделя"
               >
                 ›
@@ -147,7 +147,7 @@ export default function LoadTab() {
                 <button
                   type="button"
                   onClick={() => setWeekStart(startOfWeek(new Date()))}
-                  className="px-3 py-2 rounded-lg border border-gray-300 bg-white shadow-sm hover:bg-gray-50 text-xs text-gray-600"
+                  className={btnNeutralCls}
                 >
                   Текущая
                 </button>
@@ -155,7 +155,7 @@ export default function LoadTab() {
             </div>
           )}
         </div>
-        <span className="text-xs text-gray-400">
+        <span className={hintCls}>
           Капацита = часы салона − блоки «Nepracovní doba» в календаре · Занято = брони (кроме
           отменённых)
         </span>
@@ -163,14 +163,16 @@ export default function LoadTab() {
 
       <StatSection title="Загрузка мастеров по слотам" id="master-load" defaultOpen>
         {loading ? (
-          <div className="text-gray-500 py-8 text-center">Načítání…</div>
+          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">Načítání…</div>
         ) : error ? (
-          <div className="text-red-600 py-8 text-center">{error}</div>
+          <div className="py-12 text-center text-[13px] font-semibold text-[#d61f61]">{error}</div>
         ) : !data || data.rows.length === 0 ? (
-          <div className="text-gray-500 py-8 text-center">Нет данных за выбранный период.</div>
+          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+            Нет данных за выбранный период.
+          </div>
         ) : (
           <TableWrapper>
-            <table className="w-full text-left table-auto min-w-max">
+            <table className="w-full text-left">
               <thead>
                 <tr>
                   <Cell title="Мастер" asHeader />
@@ -195,17 +197,17 @@ export default function LoadTab() {
                     }
                   />
                 ))}
-                <tr className="bg-gray-50 font-bold">
+                <tr className="bg-[#faf9f8] font-bold">
                   <Cell title="Итого" className="font-bold" />
                   <Cell title={String(data.totals.workingDays)} className="font-bold" />
                   <Cell title={fmtHours(data.totals.capacityMin)} className="font-bold" />
                   <Cell title={fmtHours(data.totals.bookedMin)} className="font-bold" />
                   <Cell title={String(data.totals.bookings)} className="font-bold" />
-                  <td className="p-4 border-b border-blue-gray-50">
+                  <td className="p-4 border-b border-[#f2efec]">
                     <PctChip pct={data.totals.pct} />
                   </td>
                   {showPast && (
-                    <td className="p-4 border-b border-blue-gray-50">
+                    <td className="p-4 border-b border-[#f2efec]">
                       <PctChip pct={data.totals.pastPct} />
                     </td>
                   )}
@@ -234,10 +236,10 @@ function LoadRow({
 }) {
   return (
     <>
-      <tr className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={onToggle}>
-        <td className="p-4 border-b border-blue-gray-50">
-          <span className="flex items-center gap-2 font-medium text-blue-gray-900">
-            <span className="text-primary">{expanded ? '−' : '+'}</span>
+      <tr className="hover:bg-[#faf8f7] transition-colors cursor-pointer" onClick={onToggle}>
+        <td className="p-4 border-b border-[#f2efec]">
+          <span className="flex items-center gap-2 text-[13.5px] font-bold text-[#161615]">
+            <span className="text-[#e71e6e]">{expanded ? '−' : '+'}</span>
             {row.name}
           </span>
         </td>
@@ -245,21 +247,21 @@ function LoadRow({
         <Cell title={fmtHours(row.capacityMin)} />
         <Cell title={fmtHours(row.bookedMin)} />
         <Cell title={String(row.bookings)} />
-        <td className="p-4 border-b border-blue-gray-50">
+        <td className="p-4 border-b border-[#f2efec]">
           <PctChip pct={row.pct} />
         </td>
         {showPast && (
-          <td className="p-4 border-b border-blue-gray-50">
+          <td className="p-4 border-b border-[#f2efec]">
             <PctChip pct={row.pastPct} />
           </td>
         )}
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={colSpan} className="p-0 border-b border-blue-gray-50 bg-gray-50">
+          <td colSpan={colSpan} className="p-0 border-b border-[#f2efec] bg-[#faf9f8]">
             <div className="p-4">
-              <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
-                <table className="w-full text-left table-auto min-w-max">
+              <div className={`${cardCls} overflow-x-auto`}>
+                <table className="w-full text-left">
                   <thead>
                     <tr>
                       <Cell title="День" asHeader />
@@ -272,18 +274,20 @@ function LoadRow({
                   </thead>
                   <tbody>
                     {row.days.map((d) => (
-                      <tr key={d.date} className="hover:bg-gray-50 transition-colors">
-                        <td className="p-4 border-b border-blue-gray-50">
-                          <span className="block font-sans text-sm font-medium text-blue-gray-900">
+                      <tr key={d.date} className="hover:bg-[#faf8f7] transition-colors">
+                        <td className="p-4 border-b border-[#f2efec]">
+                          <span className="block text-[13.5px] font-bold text-[#161615]">
                             {fmtDate(d.date)}{' '}
-                            <span className="text-xs text-gray-400">{dowOf(d.date)}</span>
+                            <span className="text-[11px] font-semibold text-[#a39e99]">
+                              {dowOf(d.date)}
+                            </span>
                           </span>
                         </td>
                         <Cell title={fmtHours(d.capacityMin)} />
                         <Cell title={d.blockedMin > 0 ? fmtHours(d.blockedMin) : '—'} />
                         <Cell title={fmtHours(d.bookedMin)} />
                         <Cell title={String(d.bookings)} />
-                        <td className="p-4 border-b border-blue-gray-50">
+                        <td className="p-4 border-b border-[#f2efec]">
                           <PctChip pct={d.pct} />
                         </td>
                       </tr>

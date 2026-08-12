@@ -4,6 +4,7 @@ import { Select } from '../../../dashboard/components/Select'
 import { StatSection } from '../../components/StatSection'
 import { ProceduresTable } from '../../components/ProceduresTable'
 import { useProceduresData } from '../../hooks/useProceduresData'
+import { toolbarCardCls } from '../../../../ui/kit'
 
 export default function ProceduresTab() {
   const [month, setMonth] = useState<number>(new Date().getMonth())
@@ -12,7 +13,7 @@ export default function ProceduresTab() {
 
   return (
     <>
-      <div className="mb-6 flex justify-between items-center sticky top-0 z-40">
+      <div className={toolbarCardCls}>
         <Select month={month} setMonth={setMonth} year={year} setYear={setYear} />
       </div>
 

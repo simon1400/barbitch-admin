@@ -1,9 +1,22 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Cell } from '../../../dashboard/components/Cell'
 import { RevenueBarChart } from '../components/RevenueBarChart'
-import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
 import { getForecast, type ForecastData } from '../fetch/forecast'
+import {
+  badgeNegCls,
+  badgePosCls,
+  btnNeutralCls,
+  cardCls,
+  cardPadCls,
+  cardTitleCls,
+  hintCls,
+  mutedCls,
+  pillCls,
+  tileCls,
+  tileLabelCls,
+  tileSubCls,
+} from '../../../../ui/kit'
 
 const fmtMoney = (n: number) => `${n.toLocaleString('cs-CZ')} Kč`
 
@@ -14,9 +27,7 @@ const growthPct = (cur: number, base: number): number | null =>
 const PctBadge = ({ pct, title }: { pct: number; title?: string }) => (
   <span
     title={title}
-    className={`px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap cursor-default ${
-      pct >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-    }`}
+    className={`whitespace-nowrap cursor-default ${pct >= 0 ? badgePosCls : badgeNegCls}`}
   >
     {pct >= 0 ? `+${pct} %` : `${pct} %`}
   </span>
@@ -32,10 +43,7 @@ const GrowthBadge = ({ cur, base, title }: { cur: number; base: number; title?: 
   if (p === null) return null
   if (p >= 200) {
     return (
-      <span
-        title={title}
-        className="px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap cursor-default bg-green-100 text-green-700"
-      >
+      <span title={title} className={`whitespace-nowrap cursor-default ${badgePosCls}`}>
         {fmtFactor(cur, base)}
       </span>
     )
@@ -67,8 +75,10 @@ export default function ForecastTab() {
     load()
   }, [load])
 
-  if (loading) return <div className="text-gray-500 py-8 text-center">Načítání…</div>
-  if (error || !data) return <div className="text-red-600 py-8 text-center">{error}</div>
+  if (loading)
+    return <div className='py-12 text-center text-[13px] font-semibold text-[#a39e99]'>Načítání…</div>
+  if (error || !data)
+    return <div className='py-12 text-center text-[13px] font-semibold text-[#d61f61]'>{error}</div>
 
   const tempo = growthPct(data.actualToDate, data.prevMonthToSameDay)
   // прогнозы сравниваются с ИТОГОМ прошлого месяца (оба — оценка целого месяца;
@@ -96,150 +106,151 @@ export default function ForecastTab() {
 
   return (
     <>
-      <StatSection title={`Прогноз — ${data.monthLabel}`} id="forecast" defaultOpen>
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <p className="text-xs text-gray-400">
-            Суммы = цены броней (без скидок/допродаж) — оценка темпа, не касса.
-          </p>
-          <button
-            onClick={() => load(true)}
-            className="text-xs text-primary hover:underline whitespace-nowrap"
-          >
-            ↻ Обновить
-          </button>
+      {/* Верхняя строка: дисклеймер + обновить */}
+      <div className='flex items-center justify-between gap-3 mb-3 flex-wrap'>
+        <span className={mutedCls}>
+          Суммы = цены броней (без скидок/допродаж) — оценка темпа, не касса.
+        </span>
+        <button onClick={() => load(true)} className={btnNeutralCls}>
+          ↻ Обновить
+        </button>
+      </div>
+
+      {/* Герой-карточка: формула прогноза */}
+      <div className={cardPadCls}>
+        <div className='flex items-center justify-between gap-3 mb-2'>
+          <span className='text-[13px] font-bold text-[#4c4844]'>
+            День {data.daysPassed} из {data.daysTotal}
+          </span>
+          <span className={mutedCls}>{monthProgress} % месяца прошло</span>
         </div>
-        {/* Герой-блок: формула прогноза */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-4">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-semibold text-gray-500">
-              День {data.daysPassed} из {data.daysTotal}
+        <div className='h-2 rounded-full bg-[#f2efec] overflow-hidden mb-5'>
+          <div
+            className='h-full rounded-full bg-gradient-to-r from-[#e71e6e] to-[#ff759e]'
+            style={{ width: `${monthProgress}%` }}
+          />
+        </div>
+
+        <div className='grid grid-cols-1 md:grid-cols-[1fr_20px_1fr_20px_1.2fr] gap-3 items-center'>
+          <div>
+            <div className={tileLabelCls}>Уже заработано (факт)</div>
+            <div className='text-[22px] font-extrabold text-[#161615]'>
+              {fmtMoney(data.actualToDate)}
+            </div>
+            <div className={tileSubCls}>{data.visitsToDate} визитов с 1-го числа</div>
+          </div>
+          <span className='text-[18px] font-bold text-[#c4bfba] text-center'>＋</span>
+          <div>
+            <div className={tileLabelCls}>Забронировано до конца</div>
+            <div className='text-[22px] font-extrabold text-[#161615]'>
+              {fmtMoney(data.futureBooked)}
+            </div>
+            <div className={tileSubCls}>{data.futureVisits} активных броней</div>
+          </div>
+          <span className='text-[18px] font-bold text-[#c4bfba] text-center'>＝</span>
+          <div className='bg-[#fce7f0] border border-[#f0a8c8] rounded-[10px] px-4 py-[13px]'>
+            <div className='text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#b81b60] mb-[5px]'>
+              Прогноз минимум
+            </div>
+            <div className='flex items-center gap-2 flex-wrap'>
+              <span className='text-[22px] font-extrabold text-[#b81b60] whitespace-nowrap'>
+                {fmtMoney(data.forecastBooked)}
+              </span>
+              {bookedVsPrev !== null && <PctBadge pct={bookedVsPrev} title={vsPrevTitle} />}
+            </div>
+            <div className='text-[11.5px] font-semibold text-[#c76d97] mt-[3px]'>
+              если новых записей не будет · % к итогу прошлого месяца
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Вторичные показатели */}
+      <div className='grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3.5'>
+        <div className={`${cardCls} px-5 py-4`}>
+          <div className={tileLabelCls}>Прогноз по темпу записей</div>
+          <div className='flex items-center gap-2 flex-wrap'>
+            <span className='text-[20px] font-extrabold text-[#161615] whitespace-nowrap'>
+              {fmtMoney(data.forecastRunRate)}
             </span>
-            <span className="text-xs text-gray-400">{monthProgress} % месяца прошло</span>
+            {runRateVsPrev !== null && <PctBadge pct={runRateVsPrev} title={vsPrevTitle} />}
           </div>
-          <div className="w-full h-2 bg-gray-100 rounded-full mb-6">
-            <div
-              className="h-2 bg-primary rounded-full"
-              style={{ width: `${monthProgress}%` }}
-            />
-          </div>
-
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex-1 min-w-[150px]">
-              <div className="text-xs text-gray-400 mb-1">Уже заработано (факт)</div>
-              <div className="text-2xl font-bold text-blue-gray-900">
-                {fmtMoney(data.actualToDate)}
-              </div>
-              <div className="text-xs text-gray-400">{data.visitsToDate} визитов с 1-го числа</div>
-            </div>
-            <div className="text-2xl text-gray-300 font-light">+</div>
-            <div className="flex-1 min-w-[150px]">
-              <div className="text-xs text-gray-400 mb-1">Забронировано до конца</div>
-              <div className="text-2xl font-bold text-blue-gray-900">
-                {fmtMoney(data.futureBooked)}
-              </div>
-              <div className="text-xs text-gray-400">{data.futureVisits} активных броней</div>
-            </div>
-            <div className="text-2xl text-gray-300 font-light">=</div>
-            <div className="flex-1 min-w-[180px] bg-pink-50 border-2 border-primary rounded-lg p-3">
-              <div className="text-xs text-primary font-semibold mb-1">Прогноз минимум</div>
-              <div className="text-3xl font-bold text-primary flex items-center gap-2 flex-wrap">
-                <span className="whitespace-nowrap">{fmtMoney(data.forecastBooked)}</span>
-                {bookedVsPrev !== null && <PctBadge pct={bookedVsPrev} title={vsPrevTitle} />}
-              </div>
-              <div className="text-xs text-gray-400">
-                если новых записей не будет · % к итогу прошлого месяца
-              </div>
-            </div>
+          <div className={tileSubCls}>
+            если визиты идут тем же темпом: факт ÷ {data.daysPassed} дн × {data.daysTotal} дн
           </div>
         </div>
-
-        {/* Ровная сетка вторичных показателей */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="text-xs text-gray-400 mb-1">Прогноз по темпу записей</div>
-            <div className="text-2xl font-bold text-blue-gray-900 flex items-center gap-2">
-              <span className="whitespace-nowrap">{fmtMoney(data.forecastRunRate)}</span>
-              {runRateVsPrev !== null && <PctBadge pct={runRateVsPrev} title={vsPrevTitle} />}
-            </div>
-            <div className="text-xs text-gray-400 mt-1">
-              если визиты идут тем же темпом: факт ÷ {data.daysPassed} дн × {data.daysTotal} дн
-            </div>
+        <div className={`${cardCls} px-5 py-4`}>
+          <div className={tileLabelCls}>Прошлый месяц на эту же дату</div>
+          <div className='flex items-center gap-2 flex-wrap'>
+            <span className='text-[20px] font-extrabold text-[#161615] whitespace-nowrap'>
+              {fmtMoney(data.prevMonthToSameDay)}
+            </span>
+            {tempo !== null && (
+              <PctBadge
+                pct={tempo}
+                title={`наш факт ${fmtMoney(data.actualToDate)} против ${fmtMoney(data.prevMonthToSameDay)} к ${data.daysPassed}-му дню прошлого месяца`}
+              />
+            )}
           </div>
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="text-xs text-gray-400 mb-1">Прошлый месяц на эту же дату</div>
-            <div className="text-2xl font-bold text-blue-gray-900 flex items-center gap-2">
-              <span className="whitespace-nowrap">{fmtMoney(data.prevMonthToSameDay)}</span>
-              {tempo !== null && (
-                <PctBadge
-                  pct={tempo}
-                  title={`наш факт ${fmtMoney(data.actualToDate)} против ${fmtMoney(data.prevMonthToSameDay)} к ${data.daysPassed}-му дню прошлого месяца`}
-                />
-              )}
-            </div>
-            <div className="text-xs text-gray-400 mt-1">
-              к {data.daysPassed}-му дню · зелёный % = идём быстрее прошлого месяца
-            </div>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="text-xs text-gray-400 mb-1">Прошлый месяц (итог)</div>
-            <div className="text-2xl font-bold text-blue-gray-900">
-              {fmtMoney(data.prevMonthTotal)}
-            </div>
-            <div className="text-xs text-gray-400 mt-1">вся выручка по броням за месяц</div>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="text-xs text-gray-400 mb-1">Затраты месяца</div>
-            <div className="text-2xl font-bold text-blue-gray-900">
-              {fmtMoney(data.expensesMonth)}
-            </div>
-            <div className="text-xs text-gray-400 mt-1">из коллекции «Затраты» (текущий месяц)</div>
+          <div className={tileSubCls}>
+            к {data.daysPassed}-му дню · зелёный % = идём быстрее прошлого месяца
           </div>
         </div>
-      </StatSection>
+        <div className={`${cardCls} px-5 py-4`}>
+          <div className={tileLabelCls}>Прошлый месяц (итог)</div>
+          <div className='text-[20px] font-extrabold text-[#161615]'>
+            {fmtMoney(data.prevMonthTotal)}
+          </div>
+          <div className={tileSubCls}>вся выручка по броням за месяц</div>
+        </div>
+        <div className={`${cardCls} px-5 py-4`}>
+          <div className={tileLabelCls}>Затраты месяца</div>
+          <div className='text-[20px] font-extrabold text-[#161615]'>
+            {fmtMoney(data.expensesMonth)}
+          </div>
+          <div className={tileSubCls}>из коллекции «Затраты» (текущий месяц)</div>
+        </div>
+      </div>
 
-      <StatSection title="Динамика за период" id="forecast-history">
-        {/* Выбор периода: срез общей истории полных месяцев */}
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          {PERIOD_PRESETS.map((n) => (
-            <button
-              key={n}
-              onClick={() => setPeriodN(n)}
-              disabled={history.length < n}
-              title={history.length < n ? `данных только за ${history.length} мес` : undefined}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                periodN === n
-                  ? 'bg-primary text-white border-primary'
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed'
-              }`}
-            >
-              {n} мес
+      {/* Динамика за период */}
+      <div className={cardPadCls}>
+        <div className='flex items-center justify-between gap-3 flex-wrap mb-1'>
+          <h2 className={cardTitleCls}>Динамика за период</h2>
+          <div className='flex gap-1 flex-wrap'>
+            {PERIOD_PRESETS.map((n) => (
+              <button
+                key={n}
+                onClick={() => setPeriodN(n)}
+                disabled={history.length < n}
+                title={history.length < n ? `данных только за ${history.length} мес` : undefined}
+                className={`${pillCls(periodN === n)} disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                {n} мес
+              </button>
+            ))}
+            <button onClick={() => setPeriodN('all')} className={pillCls(periodN === 'all')}>
+              Всё время ({history.length} мес)
             </button>
-          ))}
-          <button
-            onClick={() => setPeriodN('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-              periodN === 'all'
-                ? 'bg-primary text-white border-primary'
-                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Всё время ({history.length} мес)
-          </button>
+          </div>
         </div>
-        <p className="text-xs text-gray-400 mb-4">
+        <div className='text-[12px] font-semibold text-[#a39e99] mb-4'>
           {periodLabel} · только полные месяцы (текущий не входит)
-        </p>
+        </div>
 
         {period.length === 0 ? (
-          <div className="text-gray-500 py-8 text-center">Нет данных за период</div>
+          <div className='py-12 text-center text-[13px] font-semibold text-[#a39e99]'>
+            Нет данных за период
+          </div>
         ) : (
           <>
             {/* Сводка прироста за период */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                <div className="text-xs text-gray-400 mb-1">Выручка за период</div>
-                <div className="text-2xl font-bold text-blue-gray-900 flex items-center gap-2 flex-wrap">
-                  <span className="whitespace-nowrap">{fmtMoney(periodRevenue)}</span>
+            <div className='grid grid-cols-2 lg:grid-cols-4 gap-2.5 mb-[18px]'>
+              <div className={tileCls}>
+                <div className={tileLabelCls}>Выручка за период</div>
+                <div className='flex items-center gap-[7px] flex-wrap'>
+                  <span className='text-[19px] font-extrabold text-[#161615] whitespace-nowrap'>
+                    {fmtMoney(periodRevenue)}
+                  </span>
                   {hasPrevPeriod && (
                     <GrowthBadge
                       cur={periodRevenue}
@@ -248,16 +259,16 @@ export default function ForecastTab() {
                     />
                   )}
                 </div>
-                <div className="text-xs text-gray-400 mt-1">
+                <div className={tileSubCls}>
                   {hasPrevPeriod
                     ? `пред. ${periodN} мес: ${fmtMoney(prevRevenue)}`
                     : 'сравнить не с чем — не хватает истории'}
                 </div>
               </div>
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                <div className="text-xs text-gray-400 mb-1">Визитов за период</div>
-                <div className="text-2xl font-bold text-blue-gray-900 flex items-center gap-2 flex-wrap">
-                  <span>{periodVisits}</span>
+              <div className={tileCls}>
+                <div className={tileLabelCls}>Визитов за период</div>
+                <div className='flex items-center gap-[7px] flex-wrap'>
+                  <span className='text-[19px] font-extrabold text-[#161615]'>{periodVisits}</span>
                   {hasPrevPeriod && (
                     <GrowthBadge
                       cur={periodVisits}
@@ -266,19 +277,19 @@ export default function ForecastTab() {
                     />
                   )}
                 </div>
-                <div className="text-xs text-gray-400 mt-1">
+                <div className={tileSubCls}>
                   в среднем {Math.round(periodVisits / period.length)} в месяц
                 </div>
               </div>
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                <div className="text-xs text-gray-400 mb-1">Прирост за период</div>
+              <div className={tileCls}>
+                <div className={tileLabelCls}>Прирост за период</div>
                 <div
-                  className={`text-2xl font-bold ${
+                  className={`text-[19px] font-extrabold ${
                     periodGrowth === null
-                      ? 'text-blue-gray-900'
+                      ? 'text-[#161615]'
                       : periodGrowth >= 0
-                        ? 'text-green-600'
-                        : 'text-red-600'
+                        ? 'text-[#1d7a3f]'
+                        : 'text-[#c53030]'
                   }`}
                 >
                   {periodGrowth === null
@@ -287,37 +298,37 @@ export default function ForecastTab() {
                       ? fmtFactor(last.revenue, first.revenue)
                       : `${periodGrowth >= 0 ? '+' : ''}${periodGrowth} %`}
                 </div>
-                <div className="text-xs text-gray-400 mt-1">
+                <div className={tileSubCls}>
                   {periodGrowth !== null && periodGrowth >= 200
                     ? `месячная выручка: ${first?.label} → ${last?.label} (во столько раз больше)`
                     : `${first?.label} → ${last?.label} (по месячной выручке)`}
                 </div>
               </div>
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                <div className="text-xs text-gray-400 mb-1">Средний месяц</div>
-                <div className="text-2xl font-bold text-blue-gray-900">
+              <div className={tileCls}>
+                <div className={tileLabelCls}>Средний месяц</div>
+                <div className='text-[19px] font-extrabold text-[#161615]'>
                   {fmtMoney(avgMonthRevenue)}
                 </div>
-                <div className="text-xs text-gray-400 mt-1">выручка ÷ {period.length} мес</div>
+                <div className={tileSubCls}>выручка ÷ {period.length} мес</div>
               </div>
             </div>
 
-            <div className="mb-2">
+            <div className='mb-2'>
               <RevenueBarChart data={period} />
             </div>
-            <p className="text-xs text-gray-400 mb-6">
+            <p className={`m-0 mb-6 ${hintCls}`}>
               Линия — выручка по броням; визиты видны при наведении и в таблице ниже.
             </p>
 
             <TableWrapper>
-              <table className="w-full text-left table-auto min-w-max">
+              <table className='w-full text-left min-w-[560px]'>
                 <thead>
                   <tr>
-                    <Cell title="Месяц" asHeader />
-                    <Cell title="Визитов" asHeader />
-                    <Cell title="Выручка по броням" asHeader />
-                    <Cell title="К пред. месяцу" asHeader />
-                    <Cell title="К началу периода" asHeader />
+                    <Cell title='Месяц' asHeader />
+                    <Cell title='Визитов' asHeader />
+                    <Cell title='Выручка по броням' asHeader />
+                    <Cell title='К пред. месяцу' asHeader />
+                    <Cell title='К началу периода' asHeader />
                   </tr>
                 </thead>
                 <tbody>
@@ -326,15 +337,15 @@ export default function ForecastTab() {
                     const histIdx = history.length - period.length + i
                     const prevRow = histIdx > 0 ? history[histIdx - 1] : null
                     return (
-                      <tr key={h.month} className="hover:bg-gray-50 transition-colors">
-                        <Cell title={h.label} className="font-medium" />
+                      <tr key={h.month} className='hover:bg-[#faf8f7] transition-colors'>
+                        <Cell title={h.label} className='font-bold text-[#161615]' />
                         <Cell title={String(h.visits)} />
-                        <td className="p-4 border-b border-blue-gray-50">
-                          <span className="font-sans text-sm font-medium text-primary whitespace-nowrap">
+                        <td className='p-4 border-b border-[#f2efec]'>
+                          <span className='text-[13.5px] font-bold text-[#b81b60] whitespace-nowrap'>
                             {fmtMoney(h.revenue)}
                           </span>
                         </td>
-                        <td className="p-4 border-b border-blue-gray-50">
+                        <td className='p-4 border-b border-[#f2efec]'>
                           {prevRow && prevRow.revenue > 0 ? (
                             <GrowthBadge
                               cur={h.revenue}
@@ -342,10 +353,10 @@ export default function ForecastTab() {
                               title={`${prevRow.label}: ${fmtMoney(prevRow.revenue)}`}
                             />
                           ) : (
-                            <span className="text-gray-300">—</span>
+                            <span className='text-[#c4bfba]'>—</span>
                           )}
                         </td>
-                        <td className="p-4 border-b border-blue-gray-50">
+                        <td className='p-4 border-b border-[#f2efec]'>
                           {i > 0 && first && first.revenue > 0 ? (
                             <GrowthBadge
                               cur={h.revenue}
@@ -353,27 +364,27 @@ export default function ForecastTab() {
                               title={`против ${first.label}: ${fmtMoney(first.revenue)}`}
                             />
                           ) : (
-                            <span className="text-gray-300">—</span>
+                            <span className='text-[#c4bfba]'>—</span>
                           )}
                         </td>
                       </tr>
                     )
                   })}
-                  <tr className="bg-gray-50 font-bold">
-                    <Cell title="Итого" className="font-bold" />
-                    <Cell title={String(periodVisits)} className="font-bold" />
-                    <td className="p-4 border-b border-blue-gray-50">
-                      <span className="font-sans text-sm font-bold text-primary whitespace-nowrap">
+                  <tr className='bg-[#faf9f8]'>
+                    <Cell title='Итого' className='font-bold text-[#161615]' />
+                    <Cell title={String(periodVisits)} className='font-bold' />
+                    <td className='p-4 border-b border-[#f2efec]'>
+                      <span className='text-[14px] font-extrabold text-[#b81b60] whitespace-nowrap'>
                         {fmtMoney(periodRevenue)}
                       </span>
                     </td>
-                    <td className="p-4 border-b border-blue-gray-50" />
-                    <td className="p-4 border-b border-blue-gray-50" />
+                    <td className='p-4 border-b border-[#f2efec]' />
+                    <td className='p-4 border-b border-[#f2efec]' />
                   </tr>
                 </tbody>
               </table>
             </TableWrapper>
-            <p className="text-xs text-gray-400 mt-3">
+            <p className={`m-0 mt-3 ${hintCls}`}>
               «К пред. месяцу» — изменение против предыдущего месяца. «К началу периода» — против
               первого месяца периода ({first?.label}); ×N = во столько раз месяц больше.
               {periodN === 'all' &&
@@ -381,7 +392,7 @@ export default function ForecastTab() {
             </p>
           </>
         )}
-      </StatSection>
+      </div>
     </>
   )
 }

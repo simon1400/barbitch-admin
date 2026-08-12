@@ -39,9 +39,9 @@ const Card = ({
   accent?: string
 }) => (
   <div className={'bg-white rounded-lg shadow-sm px-4 py-3 min-w-[150px]'}>
-    <div className={'text-xs text-gray-400'}>{label}</div>
-    <div className={`text-2xl font-bold ${accent || 'text-blue-gray-900'}`}>{value}</div>
-    {hint && <div className={'text-xs text-gray-400 mt-1'}>{hint}</div>}
+    <div className={'text-xs text-[#a39e99]'}>{label}</div>
+    <div className={`text-2xl font-bold ${accent || 'text-[#161615]'}`}>{value}</div>
+    {hint && <div className={'text-xs text-[#a39e99] mt-1'}>{hint}</div>}
   </div>
 )
 
@@ -51,16 +51,16 @@ const DayBars = ({ days }: { days: ComebackDay[] }) => {
     <div className={'bg-white rounded-xl shadow-md p-4 flex flex-col gap-2'}>
       {days.map((d) => (
         <div key={d.day} className={'flex items-center gap-3'}>
-          <span className={'text-xs text-gray-500 w-20 shrink-0'}>{fmtDay(d.day)}</span>
-          <div className={'flex-1 bg-gray-100 rounded h-5 overflow-hidden'}>
+          <span className={'text-xs text-[#8b857f] w-20 shrink-0'}>{fmtDay(d.day)}</span>
+          <div className={'flex-1 bg-[#f2efec] rounded h-5 overflow-hidden'}>
             <div
-              // literal hex: у primary нет alpha-канала → bg-primary/70 не рендерится (гоча s103)
+              // literal hex: у primary нет alpha-канала → bg-[#e71e6e]/70 не рендерится (гоча s103)
               className={'h-full bg-[#e71e6ecc] rounded'}
               style={{ width: `${Math.round((d.sent / max) * 100)}%` }}
             />
           </div>
-          <span className={'text-xs font-semibold text-blue-gray-900 w-8 text-right'}>{d.sent}</span>
-          <span className={'text-xs text-green-600 w-20 text-right'}>
+          <span className={'text-xs font-semibold text-[#161615] w-8 text-right'}>{d.sent}</span>
+          <span className={'text-xs text-[#1d7a3f] w-20 text-right'}>
             {d.converted ? `+${d.converted} зап.` : ''}
           </span>
         </div>
@@ -79,7 +79,7 @@ const SendsTable = ({
   onOptOut: (c: { documentId: string; name: string }) => void
 }) => (
   <TableWrapper additionalInfo={`Показано ${rows.length} писем`}>
-    <table className={'w-full text-left table-auto min-w-max'}>
+    <table className={'w-full text-left min-w-[620px]'}>
       <thead>
         <tr>
           <Cell title={'Письмо'} asHeader />
@@ -93,31 +93,31 @@ const SendsTable = ({
       </thead>
       <tbody>
         {rows.map((r) => (
-          <tr key={r.documentId} className={'hover:bg-gray-50'}>
+          <tr key={r.documentId} className={'hover:bg-[#faf8f7]'}>
             <Cell title={fmtDayTime(r.sentAt)} />
             <Cell title={r.clientName || '—'} />
-            <Cell title={r.email || '—'} className={'text-gray-600'} />
+            <Cell title={r.email || '—'} className={'text-[#6f6a66]'} />
             <Cell title={fmtDay(r.lastVisitDate)} />
-            <Cell title={r.serviceTitle || '—'} className={'text-gray-600'} />
-            <td className={'p-4 border-b border-blue-gray-50'}>
+            <Cell title={r.serviceTitle || '—'} className={'text-[#6f6a66]'} />
+            <td className={'p-4 border-b border-[#f2efec]'}>
               {r.bookedDate ? (
-                <span className={'text-sm font-semibold text-green-600'}>
+                <span className={'text-sm font-semibold text-[#1d7a3f]'}>
                   ✓ записалась на {fmtDay(r.bookedDate)}
                 </span>
               ) : (
-                <span className={'text-sm text-gray-400'}>—</span>
+                <span className={'text-sm text-[#a39e99]'}>—</span>
               )}
             </td>
-            <td className={'p-4 border-b border-blue-gray-50'}>
+            <td className={'p-4 border-b border-[#f2efec]'}>
               {r.optedOut ? (
-                <span className={'text-xs font-semibold text-amber-600'}>отписана</span>
+                <span className={'text-xs font-semibold text-[#b0862a]'}>отписана</span>
               ) : (
                 <button
                   type={'button'}
                   disabled={busyId === r.clientDocId}
                   onClick={() => onOptOut({ documentId: r.clientDocId, name: r.clientName || '' })}
                   className={
-                    'text-xs px-2 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-50'
+                    'text-xs px-2 py-1 rounded border border-[#e7e2de] text-[#6f6a66] hover:bg-[#f2efec] disabled:opacity-50'
                   }
                 >
                   {busyId === r.clientDocId ? '…' : 'Отписать'}
@@ -141,7 +141,7 @@ const OptOutTable = ({
   onReturn: (c: ClientBrief) => void
 }) => (
   <TableWrapper additionalInfo={`Отписано: ${list.length}`}>
-    <table className={'w-full text-left table-auto min-w-max'}>
+    <table className={'w-full text-left min-w-[620px]'}>
       <thead>
         <tr>
           <Cell title={'Клиент'} asHeader />
@@ -152,17 +152,17 @@ const OptOutTable = ({
       </thead>
       <tbody>
         {list.map((c) => (
-          <tr key={c.documentId} className={'hover:bg-gray-50'}>
+          <tr key={c.documentId} className={'hover:bg-[#faf8f7]'}>
             <Cell title={c.name} />
-            <Cell title={c.email || '—'} className={'text-gray-600'} />
-            <Cell title={c.phone || '—'} className={'text-gray-600'} />
-            <td className={'p-4 border-b border-blue-gray-50'}>
+            <Cell title={c.email || '—'} className={'text-[#6f6a66]'} />
+            <Cell title={c.phone || '—'} className={'text-[#6f6a66]'} />
+            <td className={'p-4 border-b border-[#f2efec]'}>
               <button
                 type={'button'}
                 disabled={busyId === c.documentId}
                 onClick={() => onReturn(c)}
                 className={
-                  'text-xs px-2 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-50'
+                  'text-xs px-2 py-1 rounded border border-[#e7e2de] text-[#6f6a66] hover:bg-[#f2efec] disabled:opacity-50'
                 }
               >
                 {busyId === c.documentId ? '…' : 'Вернуть рассылку'}
@@ -248,8 +248,8 @@ export default function ComebackTab() {
     }
   }
 
-  if (loading && !data) return <div className={'text-gray-500 py-8 text-center'}>Načítání…</div>
-  if (error && !data) return <div className={'text-red-600 py-8 text-center'}>{error}</div>
+  if (loading && !data) return <div className={'text-[#8b857f] py-8 text-center'}>Načítání…</div>
+  if (error && !data) return <div className={'text-[#c53030] py-8 text-center'}>{error}</div>
   if (!data) return null
 
   const t = data.totals
@@ -257,7 +257,7 @@ export default function ComebackTab() {
   return (
     <>
       <div className={'flex items-center justify-between flex-wrap gap-3 mb-4'}>
-        <p className={'text-sm text-gray-500 max-w-3xl'}>
+        <p className={'text-sm text-[#8b857f] max-w-3xl'}>
           Автоматическое письмо «Čas na další návštěvu» уходит клиенту через ~25 дней после
           последнего визита (крон в 11:00). Одно письмо на визит, кулдаун 20 дней, дневной лимит.
           Клиент, ответивший «NEZASÍLAT», добавляется сюда в отписки — сервер проверяет этот флаг
@@ -268,7 +268,7 @@ export default function ComebackTab() {
           onClick={() => load(true)}
           disabled={loading}
           className={
-            'px-3 py-2 rounded-lg text-sm font-semibold border border-gray-300 bg-white shadow-sm hover:bg-gray-50 disabled:opacity-50'
+            'px-3 py-2 rounded-lg text-sm font-semibold border border-[#e7e2de] bg-white shadow-sm hover:bg-[#faf8f7] disabled:opacity-50'
           }
         >
           {loading ? 'Обновление…' : '↻ Обновить'}
@@ -276,7 +276,7 @@ export default function ComebackTab() {
       </div>
 
       {flash && (
-        <div className={'mb-4 p-3 rounded-lg bg-green-50 text-green-700 text-sm'}>{flash}</div>
+        <div className={'mb-4 p-3 rounded-lg bg-[#e8f6ee] text-[#1d7a3f] text-sm'}>{flash}</div>
       )}
 
       <div className={'flex gap-4 flex-wrap mb-6'}>
@@ -286,16 +286,16 @@ export default function ComebackTab() {
           label={'Записались после письма'}
           value={String(t.converted)}
           hint={`${t.convRate}% получателей`}
-          accent={'text-green-600'}
+          accent={'text-[#1d7a3f]'}
         />
-        <Card label={'Отписок (NEZASÍLAT)'} value={String(t.optOut)} accent={'text-amber-600'} />
+        <Card label={'Отписок (NEZASÍLAT)'} value={String(t.optOut)} accent={'text-[#b0862a]'} />
       </div>
 
       <StatSection title={'Отправки по дням'} id={'comeback-days'}>
         {data.byDay.length ? (
           <DayBars days={[...data.byDay].reverse()} />
         ) : (
-          <p className={'text-sm text-gray-400'}>Пока ни одного письма</p>
+          <p className={'text-sm text-[#a39e99]'}>Пока ни одного письма</p>
         )}
       </StatSection>
 
@@ -309,7 +309,7 @@ export default function ComebackTab() {
               setLimit(PAGE)
             }}
             placeholder={'Поиск: имя, e-mail, услуга'}
-            className={'w-full md:w-80 px-3 py-2 border border-gray-300 rounded-lg text-sm'}
+            className={'w-full md:w-80 px-3 py-2 border border-[#e7e2de] rounded-lg text-sm'}
           />
         </div>
         <SendsTable
@@ -322,13 +322,13 @@ export default function ComebackTab() {
             type={'button'}
             onClick={() => setLimit(limit + PAGE)}
             className={
-              'mt-3 px-3 py-2 rounded-lg text-sm font-semibold border border-gray-300 bg-white shadow-sm hover:bg-gray-50'
+              'mt-3 px-3 py-2 rounded-lg text-sm font-semibold border border-[#e7e2de] bg-white shadow-sm hover:bg-[#faf8f7]'
             }
           >
             Показать ещё ({filtered.length - limit})
           </button>
         )}
-        <p className={'mt-3 text-xs text-gray-400'}>
+        <p className={'mt-3 text-xs text-[#a39e99]'}>
           «Записалась» = у клиента появилась активная бронь, созданная после письма. Атрибуция
           приблизительная — считается любая новая бронь, независимо от канала.
         </p>
@@ -336,7 +336,7 @@ export default function ComebackTab() {
 
       <StatSection title={'Отписки от напоминаний (NEZASÍLAT)'} id={'comeback-optout'}>
         <div className={'bg-white rounded-xl shadow-md p-4 mb-4'}>
-          <p className={'text-sm text-gray-600 mb-2'}>
+          <p className={'text-sm text-[#6f6a66] mb-2'}>
             Пришёл ответ «NEZASÍLAT» — найди клиента по e-mail (или имени) и отпиши.
           </p>
           <div className={'flex gap-2 flex-wrap'}>
@@ -348,14 +348,14 @@ export default function ComebackTab() {
                 if (e.key === 'Enter' && optQuery.trim().length >= 3) runSearch()
               }}
               placeholder={'napr. helena.hrabalova2006@seznam.cz'}
-              className={'flex-1 min-w-[260px] px-3 py-2 border border-gray-300 rounded-lg text-sm'}
+              className={'flex-1 min-w-[260px] px-3 py-2 border border-[#e7e2de] rounded-lg text-sm'}
             />
             <button
               type={'button'}
               onClick={runSearch}
               disabled={searching || optQuery.trim().length < 3}
               className={
-                'px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-white shadow-sm disabled:opacity-50'
+                'px-4 py-2 rounded-lg text-sm font-semibold bg-[#e71e6e] text-white shadow-sm disabled:opacity-50'
               }
             >
               {searching ? 'Поиск…' : 'Найти'}
@@ -363,7 +363,7 @@ export default function ComebackTab() {
           </div>
 
           {candidates && candidates.length === 0 && (
-            <p className={'mt-3 text-sm text-red-600'}>
+            <p className={'mt-3 text-sm text-[#c53030]'}>
               Клиент с таким e-mail не найден. Проверь написание — адрес должен совпадать с тем, что
               записан в карточке клиента.
             </p>
@@ -374,21 +374,21 @@ export default function ComebackTab() {
               {candidates.map((c) => (
                 <div
                   key={c.documentId}
-                  className={'flex items-center justify-between gap-3 p-2 rounded border border-gray-200'}
+                  className={'flex items-center justify-between gap-3 p-2 rounded border border-[#eee9e6]'}
                 >
                   <div className={'text-sm'}>
-                    <span className={'font-semibold text-blue-gray-900'}>{c.name}</span>
-                    <span className={'text-gray-500'}> · {c.email || 'без e-mail'}</span>
+                    <span className={'font-semibold text-[#161615]'}>{c.name}</span>
+                    <span className={'text-[#8b857f]'}> · {c.email || 'без e-mail'}</span>
                   </div>
                   {c.reminderOptOut ? (
-                    <span className={'text-xs font-semibold text-amber-600'}>уже отписан(а)</span>
+                    <span className={'text-xs font-semibold text-[#b0862a]'}>уже отписан(а)</span>
                   ) : (
                     <button
                       type={'button'}
                       disabled={busyId === c.documentId}
                       onClick={() => applyOptOut(c.documentId, c.name, true)}
                       className={
-                        'text-xs px-3 py-1.5 rounded border border-amber-400 text-amber-700 hover:bg-amber-50 disabled:opacity-50'
+                        'text-xs px-3 py-1.5 rounded border border-amber-400 text-[#b0862a] hover:bg-[#fbf3e2] disabled:opacity-50'
                       }
                     >
                       {busyId === c.documentId ? '…' : 'Отписать'}
@@ -407,7 +407,7 @@ export default function ComebackTab() {
             onReturn={(c) => applyOptOut(c.documentId, c.name, false)}
           />
         ) : (
-          <p className={'text-sm text-gray-400'}>Отписок пока нет</p>
+          <p className={'text-sm text-[#a39e99]'}>Отписок пока нет</p>
         )}
       </StatSection>
     </>

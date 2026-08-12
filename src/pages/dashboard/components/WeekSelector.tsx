@@ -1,5 +1,7 @@
 import { useState } from 'react'
 
+import { iconBtnCls } from '../../../ui/kit'
+
 interface WeekSelectorProps {
   onWeekChange: (startDate: Date, endDate: Date) => void
   currentWeekRange: { firstDay: Date; lastDay: Date }
@@ -48,7 +50,7 @@ export const WeekSelector = ({ onWeekChange, currentWeekRange }: WeekSelectorPro
         <button
           onClick={handlePreviousWeek}
           className={
-            'bg-white border border-accent text-sm hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 px-4 py-2 rounded transition-colors'
+            iconBtnCls
           }
           aria-label={'Předchozí týden'}
         >
@@ -68,7 +70,7 @@ export const WeekSelector = ({ onWeekChange, currentWeekRange }: WeekSelectorPro
         </button>
 
         <div>
-          <p className={'text-sm text-gray-500'}>
+          <p className={'text-[13px] font-bold text-[#4c4844] whitespace-nowrap'}>
             {currentWeekRange.firstDay.toLocaleDateString('cs-CZ', { timeZone: 'UTC' })} -{' '}
             {currentWeekRange.lastDay.toLocaleDateString('cs-CZ', { timeZone: 'UTC' })}
           </p>
@@ -77,7 +79,7 @@ export const WeekSelector = ({ onWeekChange, currentWeekRange }: WeekSelectorPro
         <button
           onClick={handleNextWeek}
           className={
-            'bg-white border border-accent text-sm hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 px-4 py-2 rounded transition-colors'
+            iconBtnCls
           }
           aria-label={'Následující týden'}
         >

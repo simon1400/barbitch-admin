@@ -1,5 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Container } from '../../components/Container'
+import {
+  btnPinkCls,
+  cardCls,
+  h1Cls,
+  hintCls,
+  kickerCls,
+  mutedCls,
+  pageShellCls,
+  toolbarCardCls,
+} from '../../ui/kit'
 import { OwnerProtection } from './components/OwnerProtection'
 import type { GoogleReview } from './fetch/reviewSync'
 import { fetchGoogleReviews, syncReviews, deleteReview } from './fetch/reviewSync'
@@ -52,79 +61,85 @@ export default function ReviewSyncPage() {
 
   return (
     <OwnerProtection>
-      <section className="pb-20 min-h-screen">
-        <Container size="lg">
-          <div className="mt-8 mb-6">
-            <h1 className="text-xl md:text-2xl font-bold text-gray-800">Google Reviews</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Synchronize reviews from Google Places API. Reviews are stored in Strapi and shown on the website.
-            </p>
+      <div className={pageShellCls}>
+        <div className={kickerCls}>Barbitch Admin</div>
+        <h1 className={h1Cls}>Google Reviews</h1>
+
+        <div className={toolbarCardCls}>
+          <button onClick={handleSync} disabled={syncing} className={btnPinkCls}>
+            {syncing ? 'Syncing...' : 'Sync from Google'}
+          </button>
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className={mutedCls}>{reviews.length} reviews total</span>
+            <span className={`${hintCls} max-w-[380px]`}>
+              Synchronize reviews from Google Places API. Reviews are stored in Strapi and
+              shown on the website.
+            </span>
           </div>
+        </div>
 
-          <div className="mb-6 flex items-center gap-4">
-            <button
-              onClick={handleSync}
-              disabled={syncing}
-              className="px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              {syncing ? 'Syncing...' : 'Sync from Google'}
-            </button>
-            <span className="text-sm text-gray-500">{reviews.length} reviews total</span>
+        {syncResult && (
+          <div
+            className={`mb-3.5 rounded-lg px-4 py-2.5 text-[13px] font-semibold ${
+              syncResult.startsWith('Error')
+                ? 'bg-[#fdecec] text-[#c53030]'
+                : 'bg-[#e8f6ee] text-[#1d7a3f]'
+            }`}
+          >
+            {syncResult}
           </div>
+        )}
 
-          {syncResult && (
-            <div
-              className={`mb-6 p-4 rounded-lg text-sm ${
-                syncResult.startsWith('Error') ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'
-              }`}
-            >
-              {syncResult}
-            </div>
-          )}
-
-          {loading ? (
-            <div className="text-gray-500">Loading...</div>
-          ) : reviews.length === 0 ? (
-            <div className="text-gray-500">No reviews yet. Click "Sync from Google" to fetch them.</div>
-          ) : (
-            <div className="grid gap-4">
-              {reviews.map((review) => (
-                <div key={review.documentId} className="bg-white rounded-lg p-5 shadow-sm border flex gap-4">
-                  {review.reviewerPhoto && (
-                    <img
-                      src={review.reviewerPhoto}
-                      alt={review.reviewerName}
-                      className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="font-semibold text-gray-800">{review.reviewerName}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-yellow-500">
-                          {'★'.repeat(review.rating)}
-                          {'☆'.repeat(5 - review.rating)}
-                        </span>
-                        <button
-                          onClick={() => handleDelete(review.documentId)}
-                          className="text-xs text-red-400 hover:text-red-600 ml-2"
-                          title="Delete review"
-                        >
-                          ✕
-                        </button>
-                      </div>
+        {loading ? (
+          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+            Loading...
+          </div>
+        ) : reviews.length === 0 ? (
+          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+            No reviews yet. Click "Sync from Google" to fetch them.
+          </div>
+        ) : (
+          <div className="grid gap-2.5">
+            {reviews.map((review) => (
+              <div key={review.documentId} className={`${cardCls} px-5 py-4 flex gap-4`}>
+                {review.reviewerPhoto && (
+                  <img
+                    src={review.reviewerPhoto}
+                    alt={review.reviewerName}
+                    className="w-11 h-11 rounded-full object-cover flex-shrink-0"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-[14px] font-bold text-[#161615]">
+                      {review.reviewerName}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] text-[#e8b021]">
+                        {'★'.repeat(review.rating)}
+                        {'☆'.repeat(5 - review.rating)}
+                      </span>
+                      <button
+                        onClick={() => handleDelete(review.documentId)}
+                        className="w-7 h-7 rounded-[7px] text-[#c2bcb6] text-[12px] transition-colors hover:bg-[#fdecf2] hover:text-[#d61f61]"
+                        title="Delete review"
+                      >
+                        ✕
+                      </button>
                     </div>
-                    {review.reviewDate && (
-                      <p className="text-xs text-gray-400 mb-1">{review.reviewDate}</p>
-                    )}
-                    <p className="text-sm text-gray-600 line-clamp-2">{review.comment}</p>
                   </div>
+                  {review.reviewDate && (
+                    <p className={`m-0 mb-1 ${mutedCls}`}>{review.reviewDate}</p>
+                  )}
+                  <p className="m-0 text-[13px] leading-[1.55] font-medium text-[#4c4844] line-clamp-2">
+                    {review.comment}
+                  </p>
                 </div>
-              ))}
-            </div>
-          )}
-        </Container>
-      </section>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </OwnerProtection>
   )
 }

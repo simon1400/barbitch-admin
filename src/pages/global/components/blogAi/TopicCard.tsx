@@ -60,23 +60,23 @@ export function TopicCard({ topic, strapiUrl, onUpdate }: TopicCardProps) {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+    <div className="bg-white rounded-xl border border-[#eee9e6] p-5 shadow-sm">
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-2">
-        <h3 className="font-bold text-gray-800 text-sm leading-snug">{topic.title}</h3>
+        <h3 className="font-bold text-[#161615] text-sm leading-snug">{topic.title}</h3>
         <span className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${status.bg} ${status.color}`}>
           {status.label}
         </span>
       </div>
 
       {/* Description */}
-      <p className="text-xss font-normal text-gray-500 leading-relaxed mb-3">{topic.description}</p>
+      <p className="text-[12.5px] leading-[1.55] font-medium text-[#98928c] mb-3">{topic.description}</p>
 
       {/* Keywords */}
       {topic.keywords?.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-3">
           {topic.keywords.map((kw, i) => (
-            <span key={i} className="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[10px] rounded">
+            <span key={i} className="px-1.5 py-0.5 bg-[#f2efec] text-[#8b857f] text-[10px] rounded">
               {kw}
             </span>
           ))}
@@ -84,14 +84,14 @@ export function TopicCard({ topic, strapiUrl, onUpdate }: TopicCardProps) {
       )}
 
       {/* Meta */}
-      <div className="text-[11px] text-gray-400 mb-3">
-        {topic.scheduledDate && <span className={'block mb-2'}>Date: <span className={'inline-block px-1.5 py-0.5 bg-green-100 text-gray-500 rounded'}>{formatDate(topic.scheduledDate)}</span></span>}
+      <div className="text-[11px] text-[#a39e99] mb-3">
+        {topic.scheduledDate && <span className={'block mb-2'}>Date: <span className={'inline-block px-1.5 py-0.5 bg-green-100 text-[#8b857f] rounded'}>{formatDate(topic.scheduledDate)}</span></span>}
         <span className={'block mb-2'}>Slug:  <span className={'font-bold text-yellow-800'}>/{topic.targetSlug}</span></span>
         {topic.internalLinks?.length > 0 && (
           <div className={'flex gap-3'}>
             <span>Links:</span>
             <div>
-              {topic.internalLinks.map(item => <div className={'mb-1'}><span className={'inline-block px-1.5 py-0.5 bg-blue-100 text-gray-500 rounded'}>{item}</span></div>)}
+              {topic.internalLinks.map(item => <div className={'mb-1'}><span className={'inline-block px-1.5 py-0.5 bg-[#e7effa] text-[#8b857f] rounded'}>{item}</span></div>)}
             </div>
           </div>
         )}
@@ -99,7 +99,7 @@ export function TopicCard({ topic, strapiUrl, onUpdate }: TopicCardProps) {
 
       {/* Error */}
       {error && (
-        <p className="text-xs text-red-600 mb-2">{error}</p>
+        <p className="text-xs text-[#c53030] mb-2">{error}</p>
       )}
 
       {/* Actions */}
@@ -116,7 +116,7 @@ export function TopicCard({ topic, strapiUrl, onUpdate }: TopicCardProps) {
             <button
               onClick={handleReject}
               disabled={loading}
-              className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 disabled:opacity-50"
+              className="px-3 py-1.5 bg-[#f2efec] text-[#6f6a66] text-xs font-medium rounded-lg hover:bg-gray-200 disabled:opacity-50"
             >
               Zamítnout
             </button>

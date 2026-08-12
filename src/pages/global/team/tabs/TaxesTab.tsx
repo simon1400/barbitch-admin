@@ -1,6 +1,20 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Select } from '../../../dashboard/components/Select'
-import { StatSection } from '../../components/StatSection'
+import {
+  cardPadCls,
+  cardTitleCls,
+  countBadgeCls,
+  btnPinkCls,
+  btnNeutralCls,
+  chipCls,
+  hintCls,
+  inputBaseCls,
+  inputCls,
+  labelCls,
+  mutedCls,
+  selectCls,
+  toolbarCardCls,
+} from '../../../../ui/kit'
 import {
   DEFAULT_PARAMS_2026,
   computeEmployee,
@@ -48,11 +62,14 @@ const num = (s: string): number => {
 
 const kc = (n: number): string => `${Math.round(n).toLocaleString('cs-CZ')} Kč`
 
-const inputCls =
-  'w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none'
-// ⚠️ Кастомная шкала admin: text-base = 26px/45px, text-xl = 71px. Для сумм и
-// подписей берём literal-размеры, чтобы ячейки не раздувались.
-const labelCls = 'block text-[11px] font-bold text-gray-500 uppercase tracking-wide leading-tight mb-1'
+// Инпут формы во всю ширину (кит + w-full)
+const fieldCls = `${inputCls} w-full`
+// Подпись плитки результата / строк сверки (без нижнего отступа)
+const tileLabCls = 'text-[10px] font-bold tracking-[0.06em] uppercase text-[#8b857f]'
+// Кружок-галка внутри чипа-тогла
+const chipCheckCls = (on: boolean): string =>
+  'inline-flex items-center justify-center w-[15px] h-[15px] rounded-full text-[9px] shrink-0 ' +
+  (on ? 'bg-[#e71e6e] text-white' : 'bg-[#efecea] text-[#efecea]')
 
 const CONTRACT_LABEL: Record<ContractType, string> = {
   hpp: 'HPP',
@@ -173,9 +190,9 @@ export default function TaxesTab() {
   )
 
   const checks = [
-    { key: 'h', label: 'Zdravotní pojišťovna', calc: totals.health, paid: paidHealth, set: setPaidHealth, tone: 'text-blue-700' },
-    { key: 's', label: 'Sociální (ČSSZ)', calc: totals.social, paid: paidSocial, set: setPaidSocial, tone: 'text-amber-700' },
-    { key: 't', label: 'Finanční úřad (daň)', calc: totals.tax, paid: paidTax, set: setPaidTax, tone: 'text-red-700' },
+    { key: 'h', label: 'Zdravotní pojišťovna', calc: totals.health, paid: paidHealth, set: setPaidHealth, tone: 'text-[#2563ac]' },
+    { key: 's', label: 'Sociální (ČSSZ)', calc: totals.social, paid: paidSocial, set: setPaidSocial, tone: 'text-[#b0862a]' },
+    { key: 't', label: 'Finanční úřad (daň)', calc: totals.tax, paid: paidTax, set: setPaidTax, tone: 'text-[#c53030]' },
   ]
 
   return (
@@ -187,52 +204,45 @@ export default function TaxesTab() {
         ))}
       </datalist>
 
-      <div className="mb-6 flex justify-between items-center gap-3 flex-wrap">
+      <div className={toolbarCardCls}>
         <Select month={month} setMonth={setMonth} year={year} setYear={setYear} />
-        <span className="text-xs text-gray-400">
+        <span className={mutedCls}>
           Pracovních dnů v měsíci: <b>{fondDays}</b> · данные нигде не сохраняются
         </span>
       </div>
 
-      <StatSection title="Сотрудники за месяц" id="tax-employees" defaultOpen>
-        <div className="mb-4 flex gap-2 flex-wrap">
-          <button
-            onClick={() => setRows((p) => [...p, newRow()])}
-            className="px-3 py-2 rounded-lg text-sm font-semibold bg-primary text-white hover:opacity-90"
-          >
-            + Сотрудник
-          </button>
-          <button
-            onClick={prefill}
-            disabled={loadingTimeOff}
-            className="px-3 py-2 rounded-lg text-sm font-semibold bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
-          >
-            {loadingTimeOff ? 'Načítám…' : 'Подставить команду + дни отсутствия'}
-          </button>
-          <button
-            onClick={() => setRows([newRow()])}
-            className="px-3 py-2 rounded-lg text-sm font-semibold bg-white border border-gray-300 hover:bg-gray-50"
-          >
-            Очистить
-          </button>
+      <div className={cardPadCls}>
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-3.5">
+          <h2 className={`${cardTitleCls} flex items-center gap-2`}>
+            Сотрудники за месяц <span className={countBadgeCls}>{results.length}</span>
+          </h2>
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => setRows((p) => [...p, newRow()])} className={btnPinkCls}>
+              ＋ Сотрудник
+            </button>
+            <button onClick={prefill} disabled={loadingTimeOff} className={btnNeutralCls}>
+              {loadingTimeOff ? 'Načítám…' : 'Подставить команду + дни отсутствия'}
+            </button>
+            <button onClick={() => setRows([newRow()])} className={btnNeutralCls}>
+              Очистить
+            </button>
+          </div>
         </div>
 
-        <div className="space-y-4">
-          {results.map(({ row, res }) => (
-            <EmployeeCard
-              key={row.id}
-              row={row}
-              res={res}
-              people={people}
-              onPatch={(p) => patch(row.id, p)}
-              onRemove={() => setRows((prev) => prev.filter((r) => r.id !== row.id))}
-            />
-          ))}
-        </div>
+        {results.map(({ row, res }) => (
+          <EmployeeCard
+            key={row.id}
+            row={row}
+            res={res}
+            people={people}
+            onPatch={(p) => patch(row.id, p)}
+            onRemove={() => setRows((prev) => prev.filter((r) => r.id !== row.id))}
+          />
+        ))}
 
         {/* Итог по всем сотрудникам — те же ячейки, что в карточке */}
-        <div className="mt-6 rounded-xl border-2 border-gray-300 bg-gray-50 p-4">
-          <div className="mb-3 text-sm font-bold text-gray-700">
+        <div className="bg-[#faf9f8] rounded-[10px] px-4 py-3.5">
+          <div className="mb-2.5 text-[12.5px] font-extrabold text-[#4c4844]">
             Итого за месяц · {results.filter((r) => r.res.gross > 0).length} сотр.
           </div>
           <ResultGrid
@@ -241,146 +251,155 @@ export default function TaxesTab() {
             social={totals.social}
             tax={totals.tax}
             cost={totals.cost}
-            big
+            plain
           />
           <OdvodyBox res={totals} totalLabel="Odvody celkem za všechny zaměstnance" />
         </div>
-      </StatSection>
+      </div>
 
-      <StatSection title="Сверка с фактическими платежами" id="tax-reconcile" defaultOpen>
-        <p className="text-sm text-gray-500 mb-4">
-          Введи, сколько реально ушло со счёта за месяц. Разница показывает расхождение расчёта по
-          закону с тем, что заплатила бухгалтерия (переплата / недоплата / другой месяц).
-        </p>
+      <div className={cardPadCls}>
+        <div className="grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] gap-x-7 gap-y-[18px]">
+          <div>
+            <h2 className={cardTitleCls + ' mb-1.5'}>Сверка с платежами</h2>
+            <p className={'m-0 ' + hintCls}>
+              Введи, сколько реально ушло со счёта за месяц — разница покажет расхождение с
+              расчётом по закону.
+            </p>
+          </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {checks.map((c) => {
-            const paid = num(c.paid)
-            const diff = paid - c.calc
-            const has = paid > 0
-            return (
-              <div key={c.key} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                <div className={`text-sm font-bold mb-3 ${c.tone}`}>{c.label}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {checks.map((c) => {
+              const paid = num(c.paid)
+              const diff = paid - c.calc
+              const has = paid > 0
+              return (
+                <div key={c.key} className="bg-[#faf9f8] rounded-[10px] px-4 py-3.5">
+                  <div className={`text-[13px] font-extrabold ${c.tone}`}>{c.label}</div>
 
-                <div className="flex items-baseline justify-between mb-3">
-                  <span className={labelCls + ' mb-0'}>По расчёту</span>
-                  <span className="text-[15px] font-bold text-blue-gray-900">{kc(c.calc)}</span>
-                </div>
+                  <div className="flex items-baseline justify-between mt-2.5 mb-3">
+                    <span className={tileLabCls}>По расчёту</span>
+                    <span className="text-[14px] font-extrabold text-[#161615]">{kc(c.calc)}</span>
+                  </div>
 
-                <label className="block mb-3">
-                  <span className={labelCls}>Заплачено фактически</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={c.paid}
-                    onChange={(e) => c.set(e.target.value)}
-                    placeholder="0"
-                    className={inputCls}
-                  />
-                </label>
+                  <label className="block mb-3">
+                    <span className={`block ${tileLabCls} mb-[5px]`}>Заплачено фактически</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={c.paid}
+                      onChange={(e) => c.set(e.target.value)}
+                      placeholder="0"
+                      className="w-full box-border bg-white border border-[#e7e2de] rounded-lg px-[11px] py-2 text-[14px] font-semibold text-[#161615] transition-all duration-150 placeholder:text-[#b6b0aa] placeholder:font-medium focus:outline-none focus:border-[#e71e6e] focus:shadow-[0_0_0_3px_rgba(231,30,110,0.1)]"
+                    />
+                  </label>
 
-                <div
-                  className={`rounded-lg px-3 py-2 text-sm font-bold text-center ${
-                    !has
-                      ? 'bg-gray-50 text-gray-400'
+                  <div
+                    className={`rounded-md px-2 py-1 text-[12px] font-bold text-center ${
+                      !has
+                        ? 'bg-[#f2efec] text-[#a39e99]'
+                        : diff === 0
+                          ? 'bg-[#e8f6ee] text-[#1d7a3f]'
+                          : 'bg-[#fdecec] text-[#c53030]'
+                    }`}
+                  >
+                    {!has
+                      ? 'zadej částku'
                       : diff === 0
-                        ? 'bg-green-50 text-green-700'
-                        : 'bg-red-50 text-red-700'
-                  }`}
-                >
-                  {!has
-                    ? 'zadej částku'
-                    : diff === 0
-                      ? '✓ sedí přesně'
-                      : `rozdíl ${diff > 0 ? '+' : ''}${kc(diff)}`}
+                        ? '✓ sedí přesně'
+                        : `rozdíl ${diff > 0 ? '+' : ''}${kc(diff)}`}
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
-      </StatSection>
+      </div>
 
-      <StatSection title="Параметры года (2026)" id="tax-params">
-        <p className="text-sm text-gray-500 mb-4">
-          Значения по состоянию на 2026 год. При смене законов поправь здесь — расчёт пересчитается
-          сразу.
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <ParamInput
-            label="Minimální mzda"
-            value={params.minWage}
-            onChange={(v) => setParams({ ...params, minWage: v })}
-          />
-          <ParamInput
-            label="Limit DPP (rozhodná částka)"
-            value={params.dppThreshold}
-            onChange={(v) => setParams({ ...params, dppThreshold: v })}
-          />
-          <ParamInput
-            label="Sleva na poplatníka"
-            value={params.slevaPoplatnik}
-            onChange={(v) => setParams({ ...params, slevaPoplatnik: v })}
-          />
-          <ParamInput
-            label="Hranice 23 % daně (měsíčně)"
-            value={params.taxHighFrom}
-            onChange={(v) => setParams({ ...params, taxHighFrom: v })}
-          />
-          <ParamInput
-            label="Sociální — zaměstnanec %"
-            value={params.socialEmployee * 100}
-            step={0.1}
-            onChange={(v) => setParams({ ...params, socialEmployee: v / 100 })}
-          />
-          <ParamInput
-            label="Sociální — firma %"
-            value={params.socialEmployer * 100}
-            step={0.1}
-            onChange={(v) => setParams({ ...params, socialEmployer: v / 100 })}
-          />
-          <ParamInput
-            label="Zdravotní — zaměstnanec %"
-            value={params.healthEmployee * 100}
-            step={0.1}
-            onChange={(v) => setParams({ ...params, healthEmployee: v / 100 })}
-          />
-          <ParamInput
-            label="Zdravotní — firma %"
-            value={params.healthEmployer * 100}
-            step={0.1}
-            onChange={(v) => setParams({ ...params, healthEmployer: v / 100 })}
-          />
-          <ParamInput
-            label="Délka směny (hod)"
-            value={params.hoursPerDay}
-            step={0.5}
-            onChange={(v) => setParams({ ...params, hoursPerDay: v })}
-          />
+      <div className={cardPadCls}>
+        <div className="grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] gap-x-7 gap-y-[18px]">
+          <div>
+            <h2 className={cardTitleCls + ' mb-1.5'}>Параметры года (2026)</h2>
+            <p className={'m-0 ' + hintCls}>
+              При смене законов поправь здесь — расчёт пересчитается сразу.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <ParamInput
+              label="Minimální mzda"
+              value={params.minWage}
+              onChange={(v) => setParams({ ...params, minWage: v })}
+            />
+            <ParamInput
+              label="Limit DPP (rozhodná částka)"
+              value={params.dppThreshold}
+              onChange={(v) => setParams({ ...params, dppThreshold: v })}
+            />
+            <ParamInput
+              label="Sleva na poplatníka"
+              value={params.slevaPoplatnik}
+              onChange={(v) => setParams({ ...params, slevaPoplatnik: v })}
+            />
+            <ParamInput
+              label="Hranice 23 % daně (měsíčně)"
+              value={params.taxHighFrom}
+              onChange={(v) => setParams({ ...params, taxHighFrom: v })}
+            />
+            <ParamInput
+              label="Sociální — zaměstnanec %"
+              value={params.socialEmployee * 100}
+              step={0.1}
+              onChange={(v) => setParams({ ...params, socialEmployee: v / 100 })}
+            />
+            <ParamInput
+              label="Sociální — firma %"
+              value={params.socialEmployer * 100}
+              step={0.1}
+              onChange={(v) => setParams({ ...params, socialEmployer: v / 100 })}
+            />
+            <ParamInput
+              label="Zdravotní — zaměstnanec %"
+              value={params.healthEmployee * 100}
+              step={0.1}
+              onChange={(v) => setParams({ ...params, healthEmployee: v / 100 })}
+            />
+            <ParamInput
+              label="Zdravotní — firma %"
+              value={params.healthEmployer * 100}
+              step={0.1}
+              onChange={(v) => setParams({ ...params, healthEmployer: v / 100 })}
+            />
+            <ParamInput
+              label="Délka směny (hod)"
+              value={params.hoursPerDay}
+              step={0.5}
+              onChange={(v) => setParams({ ...params, hoursPerDay: v })}
+            />
+          </div>
         </div>
-      </StatSection>
+      </div>
     </>
   )
 }
 
 // Ячейка результата: подпись сверху, сумма снизу. Сетка из таких ячеек
 // заменяет широкие колонки таблицы — на телефоне складывается в 2 колонки.
+// plain — без плитки-подложки (для блока «Итого», он сам на #faf9f8).
 function StatBox({
   label,
   value,
-  tone = 'text-blue-gray-900',
-  big,
+  tone = 'text-[#4c4844]',
+  plain,
 }: {
   label: string
   value: string
   tone?: string
-  big?: boolean
+  plain?: boolean
 }) {
   return (
-    <div className="rounded-lg bg-gray-50 px-3 py-2">
-      <div className={labelCls + ' mb-0.5'}>{label}</div>
-      <div className={`${big ? 'text-[19px]' : 'text-[15px]'} font-bold leading-snug ${tone}`}>
-        {value}
-      </div>
+    <div className={plain ? '' : 'bg-[#faf9f8] rounded-lg px-3 py-2.5'}>
+      <div className={`${tileLabCls} mb-1`}>{label}</div>
+      <div className={`text-[15px] font-extrabold leading-snug ${tone}`}>{value}</div>
     </div>
   )
 }
@@ -398,16 +417,16 @@ function OdvodyBox({
   if (!res.odvodyTotal) return null
 
   return (
-    <div className="mt-3 rounded-lg border border-[#e71e6e40] bg-[#e71e6e0d] px-3 py-2.5">
+    <div className="mt-3 bg-[#fce7f0] border border-[#f0a8c8] rounded-lg px-3 py-2.5">
       <div className="flex items-baseline justify-between gap-3 flex-wrap">
-        <span className={labelCls + ' mb-0'}>{totalLabel}</span>
-        <span className="text-[19px] font-bold text-primary leading-none">
+        <span className={`${tileLabCls} text-[#b81b60]`}>{totalLabel}</span>
+        <span className="text-[19px] font-extrabold text-[#b81b60] leading-none">
           {kc(res.odvodyTotal)}
         </span>
       </div>
-      <div className="mt-1.5 text-xs text-gray-600">
-        z toho platí salon navíc <b>{kc(res.employerShare)}</b> · sráženo ze mzdy zaměstnance{' '}
-        <b>{kc(res.employeeShare)}</b>
+      <div className="mt-1.5 text-[12px] font-medium text-[#8b857f]">
+        z toho platí salon navíc <b className="text-[#b81b60]">{kc(res.employerShare)}</b> · sráženo
+        ze mzdy zaměstnance <b className="text-[#b81b60]">{kc(res.employeeShare)}</b>
       </div>
     </div>
   )
@@ -419,36 +438,36 @@ function ResultGrid({
   social,
   tax,
   cost,
-  big,
+  plain,
 }: {
   gross: number
   health: number
   social: number
   tax: number
   cost: number
-  big?: boolean
+  plain?: boolean
 }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-      <StatBox label="Hrubá mzda" value={gross ? kc(gross) : '—'} big={big} />
+    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <StatBox label="Hrubá mzda" value={gross ? kc(gross) : '—'} plain={plain} />
       <StatBox
         label="Zdravotní"
         value={health ? kc(health) : '—'}
-        tone="text-blue-700"
-        big={big}
+        tone="text-[#2563ac]"
+        plain={plain}
       />
       <StatBox
         label="Sociální"
         value={social ? kc(social) : '—'}
-        tone="text-amber-700"
-        big={big}
+        tone="text-[#b0862a]"
+        plain={plain}
       />
-      <StatBox label="Daň (FÚ)" value={tax ? kc(tax) : '—'} tone="text-red-700" big={big} />
+      <StatBox label="Daň (FÚ)" value={tax ? kc(tax) : '—'} tone="text-[#c53030]" plain={plain} />
       <StatBox
         label="Náklad firmy"
         value={cost ? kc(cost) : '—'}
-        tone="text-primary"
-        big={big}
+        tone="text-[#b81b60]"
+        plain={plain}
       />
     </div>
   )
@@ -467,13 +486,15 @@ function ParamInput({
 }) {
   return (
     <label className="block">
-      <span className={labelCls}>{label}</span>
+      <span className="block text-[10.5px] font-bold tracking-[0.05em] uppercase text-[#8b857f] mb-1.5">
+        {label}
+      </span>
       <input
         type="number"
         step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value) || 0)}
-        className={inputCls}
+        className={`${inputBaseCls} w-full rounded-lg px-3 py-[9px] text-[14px]`}
       />
     </label>
   )
@@ -502,10 +523,10 @@ function NumField({
           value={value}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
-          className={`${inputCls} ${suffix ? 'pr-10' : ''}`}
+          className={`${fieldCls} ${suffix ? 'pr-10' : ''}`}
         />
         {suffix && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+          <span className="absolute right-[11px] top-1/2 -translate-y-1/2 text-[12px] font-bold text-[#aaa49e] pointer-events-none">
             {suffix}
           </span>
         )}
@@ -530,10 +551,10 @@ function EmployeeCard({
   const isOsvc = row.contract === 'osvc'
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="border border-[#f2efec] rounded-[10px] p-4 mb-3">
       {/* Шапка: имя + тип смлувы + удалить */}
-      <div className="flex items-end gap-3 flex-wrap mb-3">
-        <label className="block flex-1 min-w-[180px]">
+      <div className="grid grid-cols-[minmax(200px,1fr)_130px_34px] gap-2.5 items-end mb-3">
+        <label className="block min-w-0">
           <span className={labelCls}>Сотрудник</span>
           <input
             list="tax-personals"
@@ -544,16 +565,16 @@ function EmployeeCard({
               onPatch(p ? { name, contract: p.typeWork === 'dpp' ? 'dpp' : 'hpp' } : { name })
             }}
             placeholder="Jméno"
-            className={inputCls}
+            className={fieldCls}
           />
         </label>
 
-        <label className="block w-28">
-          <span className={labelCls}>Смлува</span>
+        <label className="block">
+          <span className={labelCls}>Smlouva</span>
           <select
             value={row.contract}
             onChange={(e) => onPatch({ contract: e.target.value as ContractType })}
-            className={inputCls}
+            className={`${selectCls} w-full`}
           >
             {(['hpp', 'dpp', 'osvc'] as ContractType[]).map((c) => (
               <option key={c} value={c}>
@@ -565,7 +586,7 @@ function EmployeeCard({
 
         <button
           onClick={onRemove}
-          className="h-[38px] px-3 rounded-lg border border-gray-300 text-gray-400 hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+          className="w-[34px] h-[38px] rounded-lg border-0 bg-transparent text-[15px] text-[#c2bcb6] transition-colors hover:bg-[#fdecf2] hover:text-[#d61f61]"
           title="Smazat zaměstnance"
         >
           ✕
@@ -573,7 +594,7 @@ function EmployeeCard({
       </div>
 
       {/* Ввод: čistá + дни отсутствия */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
         <NumField
           label={isOsvc ? 'Fakturováno' : 'Čistá (na ruku)'}
           value={row.net}
@@ -601,48 +622,47 @@ function EmployeeCard({
         />
       </div>
 
-      {/* Галки-модификаторы расчёта */}
-      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5">
+      {/* Чипы-модификаторы расчёта */}
+      <div className="mt-3 flex gap-2 flex-wrap">
         {isOsvc ? (
-          <span className="text-xs text-gray-400">faktura — salon neodvádí nic</span>
+          <span className="text-[12px] font-semibold text-[#a39e99]">
+            faktura — salon neodvádí nic
+          </span>
         ) : (
           <>
-            <label className="flex items-center gap-1.5 text-xs text-gray-600">
-              <input
-                type="checkbox"
-                checked={row.prohlaseni}
-                onChange={(e) => onPatch({ prohlaseni: e.target.checked })}
-                className="accent-primary"
-              />
+            <button
+              type="button"
+              onClick={() => onPatch({ prohlaseni: !row.prohlaseni })}
+              className={chipCls(row.prohlaseni)}
+            >
+              <span className={chipCheckCls(row.prohlaseni)}>✓</span>
               podepsané prohlášení (sleva)
-            </label>
+            </button>
             {row.contract === 'hpp' && (
-              <label className="flex items-center gap-1.5 text-xs text-gray-600">
-                <input
-                  type="checkbox"
-                  checked={row.healthMinimum}
-                  onChange={(e) => onPatch({ healthMinimum: e.target.checked })}
-                  className="accent-primary"
-                />
+              <button
+                type="button"
+                onClick={() => onPatch({ healthMinimum: !row.healthMinimum })}
+                className={chipCls(row.healthMinimum)}
+              >
+                <span className={chipCheckCls(row.healthMinimum)}>✓</span>
                 doplatek ZP do minima
-              </label>
+              </button>
             )}
             {row.contract === 'dpp' && (
-              <label className="flex items-center gap-1.5 text-xs text-gray-600">
-                <input
-                  type="checkbox"
-                  checked={row.dppAboveLimit}
-                  onChange={(e) => onPatch({ dppAboveLimit: e.target.checked })}
-                  className="accent-primary"
-                />
+              <button
+                type="button"
+                onClick={() => onPatch({ dppAboveLimit: !row.dppAboveLimit })}
+                className={chipCls(row.dppAboveLimit)}
+              >
+                <span className={chipCheckCls(row.dppAboveLimit)}>✓</span>
                 nad limitem (s odvody)
-              </label>
+              </button>
             )}
           </>
         )}
       </div>
 
-      <div className="my-3 border-t border-gray-100" />
+      <div className="my-3 border-t border-[#f2efec]" />
 
       {/* Результат расчёта */}
       <ResultGrid
@@ -656,22 +676,30 @@ function EmployeeCard({
       <OdvodyBox res={res} />
 
       {(res.warnings.length > 0 || res.sickCompensation > 0 || res.healthDoplatek > 0) && (
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-          {res.sickCompensation > 0 && (
-            <span className="text-gray-600">
-              Náhrada za nemoc <b>{kc(res.sickCompensation)}</b> (bez odvodů)
-            </span>
+        <div className="mt-3 space-y-1.5">
+          {(res.sickCompensation > 0 || res.healthDoplatek > 0 || res.taxWithheld) && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] font-semibold text-[#8b857f]">
+              {res.sickCompensation > 0 && (
+                <span>
+                  Náhrada za nemoc <b className="text-[#4c4844]">{kc(res.sickCompensation)}</b>{' '}
+                  (bez odvodů)
+                </span>
+              )}
+              {res.healthDoplatek > 0 && (
+                <span>
+                  z toho doplatek ZP <b className="text-[#4c4844]">{kc(res.healthDoplatek)}</b>
+                </span>
+              )}
+              {res.taxWithheld && <span>srážková daň 15 %</span>}
+            </div>
           )}
-          {res.healthDoplatek > 0 && (
-            <span className="text-gray-600">
-              z toho doplatek ZP <b>{kc(res.healthDoplatek)}</b>
-            </span>
-          )}
-          {res.taxWithheld && <span className="text-gray-600">srážková daň 15 %</span>}
           {res.warnings.map((w) => (
-            <span key={w} className="text-amber-700">
+            <div
+              key={w}
+              className="rounded-lg bg-[#fbf3e2] text-[#b0862a] text-[12px] font-semibold px-3 py-2"
+            >
               ⚠ {w}
-            </span>
+            </div>
           ))}
         </div>
       )}

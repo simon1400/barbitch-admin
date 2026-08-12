@@ -95,8 +95,8 @@ const formatDelta = (delta: number | null): string => {
 const OFFER_MATCH_META: Record<OfferMatchStatus, { symbol: string; chipCls: string }> = {
   match: { symbol: '✓', chipCls: 'bg-green-100 text-green-800' },
   mismatch: { symbol: '✗', chipCls: 'bg-red-100 text-red-800' },
-  missing: { symbol: '?', chipCls: 'bg-gray-100 text-gray-600' },
-  'no-offer': { symbol: '—', chipCls: 'bg-amber-100 text-amber-800' },
+  missing: { symbol: '?', chipCls: 'bg-[#f2efec] text-[#6f6a66]' },
+  'no-offer': { symbol: '—', chipCls: 'bg-[#fbf3e2] text-amber-800' },
 }
 
 const offerMatchTitle = (m: OfferMatch): string => {
@@ -143,7 +143,7 @@ const CalendarGlyph = () => (
 )
 
 const OfferMatchChip = ({ match }: { match: OfferMatch | undefined }) => {
-  if (!match) return <span className="text-gray-400">—</span>
+  if (!match) return <span className="text-[#a39e99]">—</span>
   // Запись закрыта прямо из календаря → сравнивать нечего (услуга взята из самой
   // брони). Зелёная «галка сверки» тут вводила бы в заблуждение — показываем
   // нейтральную иконку календаря; услуга/čas/cena — в тултипе при наведении.
@@ -172,7 +172,7 @@ const OfferMatchChip = ({ match }: { match: OfferMatch | undefined }) => {
 // Icon-only chip — the voucher code (+ name / sum) shows in the tooltip on hover.
 const VoucherChip = ({ voucher }: { voucher: any }) => {
   if (!voucher || (voucher.documentId == null && voucher.id == null)) {
-    return <span className="text-gray-400">—</span>
+    return <span className="text-[#a39e99]">—</span>
   }
   const title = [
     voucher.name,
@@ -229,7 +229,7 @@ export const ServiceProvidedCard = ({
     >
       <div className="flex flex-wrap gap-2 mt-1">
         {visibleCounters.length === 0 && data.unverified === 0 && (
-          <span className="text-sm text-gray-500">Žádné záznamy</span>
+          <span className="text-sm text-[#8b857f]">Žádné záznamy</span>
         )}
         {visibleCounters.map((f) => {
           const meta = FLAG_META[f]
@@ -244,14 +244,14 @@ export const ServiceProvidedCard = ({
           )
         })}
         {data.unverified > 0 && (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-[#f2efec] text-[#4c4844]">
             <span className="w-2 h-2 rounded-full bg-gray-400" />
             Neověřeno: {data.unverified}
           </span>
         )}
         {mismatchCount > 0 && (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
-            <span className="w-2 h-2 rounded-full bg-red-500" />
+            <span className="w-2 h-2 rounded-full bg-[#fdecec]0" />
             Služba se liší od kalendáře: {mismatchCount}
           </span>
         )}
@@ -266,11 +266,11 @@ export const ServiceProvidedCard = ({
         <div className="mt-3 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-gray-500 border-b">
+              <tr className="text-left text-[#8b857f] border-b">
                 <th className="pb-2 pr-3">Klient</th>
                 <th className="pb-2 pr-3">Mistr</th>
                 <th className="pb-2 pr-3" title="Služba (offer / rezervace) vs kalendář">
-                  <span className="inline-flex items-center text-gray-500">
+                  <span className="inline-flex items-center text-[#8b857f]">
                     <CompareIcon />
                   </span>
                 </th>
@@ -278,7 +278,7 @@ export const ServiceProvidedCard = ({
                 <th className="pb-2 pr-3">Tip</th>
                 <th className="pb-2 pr-3">Cash</th>
                 <th className="pb-2 pr-3" title="Voucher">
-                  <span className="inline-flex items-center text-gray-500">
+                  <span className="inline-flex items-center text-[#8b857f]">
                     <TicketIcon />
                   </span>
                 </th>
@@ -290,7 +290,7 @@ export const ServiceProvidedCard = ({
               {sortByClientName(data.items, 'clientName').map((item: any, i: number) => {
                 const flags = getItemFlags(item)
                 return (
-                  <tr key={i} className="border-b border-gray-100">
+                  <tr key={i} className="border-b border-[#f2efec]">
                     <td className="py-2 pr-3">
                       <span className="inline-flex items-center">
                         {item.clientName}
@@ -311,7 +311,7 @@ export const ServiceProvidedCard = ({
                     </td>
                     <td className="py-2 pr-3">
                       {flags.length === 0 ? (
-                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-[#f2efec] text-[#6f6a66]">
                           N/A
                         </span>
                       ) : (
@@ -327,7 +327,7 @@ export const ServiceProvidedCard = ({
                           target="_blank"
                           rel="noopener noreferrer"
                           title="Otevřít ve Strapi"
-                          className="inline-flex items-center justify-center w-7 h-7 rounded text-gray-400 hover:text-primary hover:bg-gray-100 transition-colors"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded text-[#a39e99] hover:text-[#e71e6e] hover:bg-[#f2efec] transition-colors"
                         >
                           <ExternalLinkIcon />
                         </a>
@@ -338,7 +338,7 @@ export const ServiceProvidedCard = ({
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-gray-300 font-semibold text-gray-800">
+              <tr className="border-t-2 border-[#e7e2de] font-semibold text-[#161615]">
                 <td className="pt-2 pr-3" colSpan={3}>Celkem</td>
                 <td className="pt-2 pr-3">
                   {Number(

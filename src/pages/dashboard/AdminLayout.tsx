@@ -4,7 +4,7 @@ import { Container } from '../../components/Container'
 import { useAppContext } from '../../context/AppContext'
 import { useOnMountUnsafe } from '../../hooks/useOnMountUnsafe'
 import { useNavigate } from 'react-router-dom'
-import { Top } from '../../components/Top'
+import { AdminHeader } from '../../components/AdminHeader'
 
 import './styles.scss'
 
@@ -49,7 +49,7 @@ export default function AdminLayout({
 
   return (
     <div id={'layout-admin-page'}>
-      <Top title={adminName} admin />
+      <AdminHeader userName={adminName} />
       <Container size={'xl'}>
         <div className={'md:flex'}>
           <main className={'w-full'}>{children}</main>

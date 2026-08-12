@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Container } from '../../components/Container'
-import Button from '../../components/Button'
+import { hintCls, kickerCls, pageShellCls } from '../../ui/kit'
 const clientUrl = import.meta.env.VITE_CLIENT_URL;
 
 // Example emails list for bulk
@@ -132,26 +131,21 @@ const EmailCampaignPage = () => {
   }
 
   return (
-    <section className="pb-20 min-h-screen">
-      <Container size="lg">
-        <div className="py-8">
-          {/* Navigation */}
-          <div className="mb-6">
-            <Button text="Zpět na Global" to="/global" />
-          </div>
+    <div className={pageShellCls}>
+        <div>
+          <div className={kickerCls}>Barbitch Admin</div>
+          <h1 className="m-0 mb-1.5 text-[24px] leading-[1.2] font-extrabold text-[#161615]">
+            Email kampaň
+          </h1>
+          <p className={`m-0 mb-[18px] ${hintCls}`}>
+            Odeslat marketingové emaily zákazníkům s personalizací nebo hromadně
+          </p>
 
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Email kampaň</h1>
-            <p className="text-gray-600">
-              Odeslat marketingové emaily zákazníkům s personalizací nebo hromadně
-            </p>
-          </div>
-
-          <div className="bg-white shadow-md rounded-xl p-8 max-w-4xl">
+          <div className="bg-white border border-[#eee9e6] rounded-xl shadow-[0_1px_2px_rgba(22,22,21,0.04)] px-6 py-[22px] max-w-4xl">
             <form onSubmit={handleSendEmails} className="space-y-6">
               {/* Mode Selection */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                <label className="block text-sm font-semibold text-[#4c4844] mb-3">
                   Režim odeslání
                 </label>
                 <div className="flex gap-4">
@@ -164,7 +158,7 @@ const EmailCampaignPage = () => {
                       onChange={(e) => setMode(e.target.value as CampaignMode)}
                       className="w-4 h-4 text-pink-600 focus:ring-pink-500"
                     />
-                    <span className="ml-2 text-gray-700">Personalizované emaily (s proměnnými)</span>
+                    <span className="ml-2 text-[#4c4844]">Personalizované emaily (s proměnnými)</span>
                   </label>
                   <label className="flex items-center cursor-pointer">
                     <input
@@ -175,38 +169,38 @@ const EmailCampaignPage = () => {
                       onChange={(e) => setMode(e.target.value as CampaignMode)}
                       className="w-4 h-4 text-pink-600 focus:ring-pink-500"
                     />
-                    <span className="ml-2 text-gray-700">Hromadné (bez personalizace)</span>
+                    <span className="ml-2 text-[#4c4844]">Hromadné (bez personalizace)</span>
                   </label>
                 </div>
               </div>
 
-              <div className="border-t border-gray-200 pt-6"></div>
+              <div className="border-t border-[#eee9e6] pt-6"></div>
 
               {/* Template Selection */}
               <div>
-                <label htmlFor="template" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email šablona <span className="text-red-500">*</span>
+                <label htmlFor="template" className="block text-sm font-semibold text-[#4c4844] mb-2">
+                  Email šablona <span className="text-[#c53030]">*</span>
                 </label>
                 <select
                   id="template"
                   value={template}
                   onChange={(e) => setTemplate(e.target.value)}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-[#e7e2de] rounded-lg text-[#161615] focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
                 >
                   {Object.entries(templates).map(([key, config]) => (
                     <option key={key} value={key}>{config.name}</option>
                   ))}
                 </select>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-[#8b857f] mt-1">
                   Vyberte email šablonu pro kampaň
                 </p>
               </div>
 
               {/* Subject */}
               <div>
-                <label htmlFor="subject" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Předmět emailu <span className="text-red-500">*</span>
+                <label htmlFor="subject" className="block text-sm font-semibold text-[#4c4844] mb-2">
+                  Předmět emailu <span className="text-[#c53030]">*</span>
                 </label>
                 <input
                   type="text"
@@ -214,10 +208,10 @@ const EmailCampaignPage = () => {
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-[#e7e2de] rounded-lg text-[#161615] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
                   placeholder="Všechno nejlepší k narozeninám!"
                 />
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-[#8b857f] mt-1">
                   Automaticky vyplněno ze šablony, můžete upravit
                 </p>
               </div>
@@ -225,8 +219,8 @@ const EmailCampaignPage = () => {
               {/* Recipients - Personalized Mode */}
               {mode === 'personalized' && (
                 <div>
-                  <label htmlFor="recipientsJson" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Příjemci (JSON) <span className="text-red-500">*</span>
+                  <label htmlFor="recipientsJson" className="block text-sm font-semibold text-[#4c4844] mb-2">
+                    Příjemci (JSON) <span className="text-[#c53030]">*</span>
                   </label>
                   <textarea
                     id="recipientsJson"
@@ -234,18 +228,18 @@ const EmailCampaignPage = () => {
                     onChange={(e) => setRecipientsJson(e.target.value)}
                     required
                     rows={12}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all font-mono text-sm"
+                    className="w-full px-4 py-3 border border-[#e7e2de] rounded-lg text-[#161615] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all font-mono text-sm"
                     placeholder={currentTemplate.exampleJson}
                   />
                   <details className="mt-2">
-                    <summary className="text-sm text-gray-600 cursor-pointer hover:text-gray-800">
+                    <summary className="text-sm text-[#6f6a66] cursor-pointer hover:text-[#161615]">
                       Zobrazit příklad JSON formátu
                     </summary>
-                    <pre className="mt-2 p-3 bg-gray-100 rounded text-xs overflow-x-auto">
+                    <pre className="mt-2 p-3 bg-[#f2efec] rounded text-xs overflow-x-auto">
 {currentTemplate.exampleJson}
                     </pre>
                   </details>
-                  <p className="text-sm text-gray-500 mt-2">
+                  <p className="text-sm text-[#8b857f] mt-2">
                     Pro šablonu "{currentTemplate.name}" používejte proměnné: <strong>{currentTemplate.variables.join(', ')}</strong>
                   </p>
                 </div>
@@ -254,8 +248,8 @@ const EmailCampaignPage = () => {
               {/* Recipients - Bulk Mode */}
               {mode === 'bulk' && (
                 <div>
-                  <label htmlFor="bulkEmails" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Email adresy (jeden na řádek) <span className="text-red-500">*</span>
+                  <label htmlFor="bulkEmails" className="block text-sm font-semibold text-[#4c4844] mb-2">
+                    Email adresy (jeden na řádek) <span className="text-[#c53030]">*</span>
                   </label>
                   <textarea
                     id="bulkEmails"
@@ -263,10 +257,10 @@ const EmailCampaignPage = () => {
                     onChange={(e) => setBulkEmails(e.target.value)}
                     required
                     rows={10}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all font-mono text-sm"
+                    className="w-full px-4 py-3 border border-[#e7e2de] rounded-lg text-[#161615] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all font-mono text-sm"
                     placeholder={exampleBulkEmails}
                   />
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-[#8b857f] mt-1">
                     Zadejte email adresy, každá na nový řádek
                   </p>
                 </div>
@@ -277,8 +271,8 @@ const EmailCampaignPage = () => {
                 <div
                   className={`p-4 rounded-lg border ${
                     message.type === 'success'
-                      ? 'bg-green-50 border-green-200 text-green-800'
-                      : 'bg-red-50 border-red-200 text-red-800'
+                      ? 'bg-[#e8f6ee] border-[#bfe4cd] text-green-800'
+                      : 'bg-[#fdecec] border-[#f3c1c1] text-red-800'
                   }`}
                 >
                   <div className="flex flex-col">
@@ -302,7 +296,7 @@ const EmailCampaignPage = () => {
 
                 <a
                   href="/global"
-                  className="px-8 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors shadow-md"
+                  className="px-8 py-3 bg-gray-200 text-[#4c4844] font-semibold rounded-lg hover:bg-gray-300 transition-colors shadow-md"
                 >
                   Zrušit
                 </a>
@@ -310,8 +304,7 @@ const EmailCampaignPage = () => {
             </form>
           </div>
         </div>
-      </Container>
-    </section>
+    </div>
   )
 }
 

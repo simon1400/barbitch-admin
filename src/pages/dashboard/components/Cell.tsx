@@ -1,5 +1,8 @@
 import React from 'react'
 
+// Ячейка таблиц админки в новом стиле (s165): заголовки — uppercase 10.5px #b3ada7,
+// данные — 13.5px/600 #4c4844. className прокидывается для выравнивания/акцентов.
+
 export const Cell = React.memo(
   ({
     title,
@@ -13,14 +16,25 @@ export const Cell = React.memo(
     onClick?: () => void
   }) =>
     asHeader ? (
-      <th className={`p-4 border-b border-blue-gray-100 bg-blue-gray-50 ${className}`}>
-        <p className={'block font-sans text-sm font-normal text-blue-gray-900 opacity-70'}>
+      <th className={`px-3 py-[7px] text-left border-b border-[#eee9e6] ${className}`}>
+        <p
+          className={
+            'block text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#b3ada7] whitespace-nowrap'
+          }
+        >
           {title}
         </p>
       </th>
     ) : (
-      <td className={`p-4 border-b border-blue-gray-50 ${onClick ? 'group' : ''}`} onClick={onClick}>
-        <span className={`block font-sans text-sm font-medium text-blue-gray-900 ${className} ${onClick ? 'group-hover:text-primary' : ''}`}>{title}</span>
+      <td
+        className={`px-3 py-[10px] border-b border-[#f2efec] ${onClick ? 'group cursor-pointer' : ''}`}
+        onClick={onClick}
+      >
+        <span
+          className={`block text-[13.5px] font-semibold text-[#4c4844] ${className} ${onClick ? 'group-hover:text-[#e71e6e]' : ''}`}
+        >
+          {title}
+        </span>
       </td>
     ),
 )

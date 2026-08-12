@@ -6,7 +6,23 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { Container } from '../../components/Container'
+import {
+  btnDangerCls,
+  btnNeutralCls,
+  btnPinkCls,
+  cardPadCls,
+  hintCls,
+  inputCls,
+  kickerCls,
+  mutedCls,
+  pageShellCls,
+  pillCls,
+  rowInputCls,
+  tileCls,
+  tileLabelCls,
+  tileValueCls,
+  tileValueNegCls,
+} from '../../ui/kit'
 import { OwnerProtection } from './components/OwnerProtection'
 import type { ClientPatch, DedupeGroupsResponse, DupClient, DupGroup, MergeLogEntry } from './fetch/clientDedupe'
 import {
@@ -29,6 +45,15 @@ const fmtDay = (s: string | null) =>
   s ? new Date(s).toLocaleDateString('cs-CZ', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : 'Неизвестная ошибка')
+
+// чипы-бейджи (11px/700)
+const chipInfoCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-[#6f6a66] bg-[#f6f4f2]'
+const chipWarnCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-[#b0862a] bg-[#fbf3e2]'
+const chipDangerCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-[#c53030] bg-[#fdecec]'
+const chipPosCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-[#1d7a3f] bg-[#e8f6ee]'
+
+const flashOkCls = 'rounded-lg bg-[#e8f6ee] text-[#1d7a3f] text-[13px] font-semibold px-4 py-2.5'
+const flashErrCls = 'rounded-lg bg-[#fdecec] text-[#c53030] text-[13px] font-semibold px-4 py-2.5'
 
 // ── строка клиента внутри группы ──
 
@@ -82,23 +107,22 @@ function ClientRow({
     }
   }
 
-  const inputCls =
-    'w-full rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-primary focus:outline-none'
-
   return (
     <div
-      className={`rounded-lg border p-3 ${
-        isPrimary ? 'border-primary bg-pink-50' : 'border-gray-200 bg-white'
+      className={`px-3 py-2.5 ${
+        isPrimary
+          ? 'rounded-lg border border-[#f5d3e2] bg-[#fdf5f8]'
+          : 'border-t border-[#f2efec] first:border-t-0'
       }`}
     >
       <div className={'flex flex-wrap items-start gap-3'}>
         {/* выбор главной / чекбокс слияния */}
         <div className={'flex flex-col items-center gap-2 pt-1'}>
-          <label className={'flex cursor-pointer items-center gap-1 text-[11px] text-gray-500'} title={'Главная карточка — в неё сольются остальные'}>
+          <label className={'flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-[#8b857f]'} title={'Главная карточка — в неё сольются остальные'}>
             <input type={'radio'} checked={isPrimary} onChange={onPrimary} className={'accent-[#e71e6e]'} />
             главная
           </label>
-          <label className={'flex cursor-pointer items-center gap-1 text-[11px] text-gray-500'} title={'Слить эту карточку в главную'}>
+          <label className={'flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-[#8b857f]'} title={'Слить эту карточку в главную'}>
             <input
               type={'checkbox'}
               checked={checked}
@@ -113,47 +137,43 @@ function ClientRow({
         <div className={'min-w-0 flex-1'}>
           {editing ? (
             <div className={'grid gap-2 sm:grid-cols-3'}>
-              <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder={'Jméno'} />
-              <input className={inputCls} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={'Telefon'} />
-              <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder={'E-mail'} />
+              <input className={rowInputCls + ' w-full'} value={name} onChange={(e) => setName(e.target.value)} placeholder={'Jméno'} />
+              <input className={rowInputCls + ' w-full'} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={'Telefon'} />
+              <input className={rowInputCls + ' w-full'} value={email} onChange={(e) => setEmail(e.target.value)} placeholder={'E-mail'} />
             </div>
           ) : (
             <>
               <div className={'flex flex-wrap items-center gap-2'}>
-                <span className={'font-semibold text-gray-900'}>{c.name}</span>
+                <span className={'text-[14px] font-bold text-[#161615]'}>{c.name}</span>
                 {c.blacklisted && (
-                  <span className={'rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-semibold text-red-700'}>⛔ blacklist</span>
+                  <span className={chipDangerCls}>⛔ blacklist</span>
                 )}
                 {c.emailVerifiedAt && (
-                  <span className={'rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700'} title={'Зарегистрирована в кабинете'}>кабинет</span>
+                  <span className={chipPosCls} title={'Зарегистрирована в кабинете'}>кабинет</span>
                 )}
-                <span className={'text-[11px] text-gray-400'}>id={c.id} · {c.source || '—'}</span>
+                <span className={'text-[11px] font-medium text-[#b3ada7]'}>id={c.id} · {c.source || '—'}</span>
               </div>
-              <div className={'mt-0.5 text-sm text-gray-600'}>
+              <div className={'mt-0.5 text-[13px] font-semibold text-[#6f6a66]'}>
                 {c.phone || '— телефон —'} · {c.email || '— e-mail —'}
               </div>
             </>
           )}
-          <div className={'mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500'}>
-            <span>броней: <b className={'text-gray-800'}>{c.bookings}</b></span>
+          <div className={'mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-[12px] font-medium text-[#8b857f]'}>
+            <span>броней: <b className={'font-bold text-[#4c4844]'}>{c.bookings}</b></span>
             <span>посл. визит: {fmtDay(c.lastVisit)}</span>
             {c.futureActive > 0 && (
-              <span className={'font-semibold text-amber-600'}>будущих активных: {c.futureActive}</span>
+              <span className={'font-bold text-[#b0862a]'}>будущих активных: {c.futureActive}</span>
             )}
             {c.loyaltyTx > 0 && <span>лояльность: {c.loyaltyTx} tx</span>}
             {c.redemptions > 0 && <span>награды: {c.redemptions}</span>}
           </div>
-          {err && <div className={'mt-1 text-xs text-red-600'}>{err}</div>}
+          {err && <div className={'mt-1 text-[12px] font-semibold text-[#c53030]'}>{err}</div>}
         </div>
 
         <div className={'flex shrink-0 gap-1.5'}>
           {editing ? (
             <>
-              <button
-                onClick={save}
-                disabled={saving}
-                className={'rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-white disabled:opacity-50'}
-              >
+              <button onClick={save} disabled={saving} className={btnPinkCls}>
                 {saving ? 'Ukládám…' : 'Uložit'}
               </button>
               <button
@@ -164,7 +184,7 @@ function ClientRow({
                   setEmail(c.email || '')
                   setErr(null)
                 }}
-                className={'rounded-lg border border-gray-300 px-3 py-1 text-xs text-gray-600'}
+                className={btnNeutralCls}
               >
                 Zrušit
               </button>
@@ -172,7 +192,7 @@ function ClientRow({
           ) : (
             <button
               onClick={() => setEditing(true)}
-              className={'rounded-lg border border-pink-300 bg-white px-3 py-1 text-xs font-semibold text-primary shadow-sm hover:bg-pink-50'}
+              className={btnNeutralCls}
               title={'Изменить имя/телефон/e-mail. Имя обновится и в бронях календаря.'}
             >
               Upravit
@@ -255,30 +275,30 @@ function GroupCard({
   const anyBl = group.clients.some((c) => c.blacklisted)
 
   return (
-    <div className={'rounded-xl border border-gray-200 bg-white p-4 shadow-sm'}>
+    <div className={cardPadCls}>
       <div className={'mb-3 flex flex-wrap items-center gap-2'}>
-        <span className={'text-base font-bold text-gray-900'}>{group.clients[0]?.name}</span>
-        <span className={'rounded bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600'}>
+        <span className={'text-[15px] font-extrabold text-[#161615]'}>{group.clients[0]?.name}</span>
+        <span className={chipInfoCls}>
           {group.clients.length} записи · совпало: {group.matchedOn.map((m) => REASON_LABEL[m]).join(' + ') || '—'}
         </span>
         {group.tier === 'weak' && (
-          <span className={'rounded bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700'} title={'Совпадает только имя — контакты разные. Может быть два разных человека!'}>
+          <span className={chipWarnCls} title={'Совпадает только имя — контакты разные. Может быть два разных человека!'}>
             проверить вручную
           </span>
         )}
         {group.blacklistConflict && (
-          <span className={'rounded bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700'} title={'Часть карточек в блэклисте, часть нет — клиент может бронировать через незаблокированную'}>
+          <span className={chipDangerCls} title={'Часть карточек в блэклисте, часть нет — клиент может бронировать через незаблокированную'}>
             ⚠ дыра в blacklistu
           </span>
         )}
         {group.futureActive > 0 && (
-          <span className={'rounded bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700'}>
+          <span className={chipWarnCls}>
             будущие брони: {group.futureActive}
           </span>
         )}
       </div>
 
-      <div className={'flex flex-col gap-2'}>
+      <div className={'flex flex-col'}>
         {group.clients.map((c) => (
           <ClientRow
             key={c.documentId}
@@ -307,16 +327,12 @@ function GroupCard({
         ))}
       </div>
 
-      {err && <div className={'mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700'}>{err}</div>}
-      {done && !err && <div className={'mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700'}>{done}</div>}
+      {err && <div className={'mt-2 ' + flashErrCls}>{err}</div>}
+      {done && !err && <div className={'mt-2 ' + flashOkCls}>{done}</div>}
 
-      <div className={'mt-3 flex flex-wrap items-center gap-2'}>
+      <div className={'mt-4 flex flex-wrap items-center gap-2'}>
         {isIgnoredTab ? (
-          <button
-            onClick={doUnignore}
-            disabled={busy !== null}
-            className={'rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50'}
-          >
+          <button onClick={doUnignore} disabled={busy !== null} className={btnNeutralCls}>
             {busy === 'unignore' ? '…' : '↩ Вернуть в список'}
           </button>
         ) : (
@@ -324,7 +340,7 @@ function GroupCard({
             <button
               onClick={doMerge}
               disabled={busy !== null || mergeList.length === 0}
-              className={'rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-50'}
+              className={btnPinkCls}
               title={'Брони/лояльность/награды выбранных переедут на главную, дубли удалятся, имя обновится в календаре'}
             >
               {busy === 'merge' ? 'Sloučuji…' : `Слить выбранные (${mergeList.length}) → главная`}
@@ -332,14 +348,14 @@ function GroupCard({
             <button
               onClick={() => doBlacklist(!anyBl)}
               disabled={busy !== null}
-              className={'rounded-lg border border-red-300 bg-white px-4 py-1.5 text-sm font-semibold text-red-600 shadow-sm hover:bg-red-50 disabled:opacity-50'}
+              className={anyBl ? btnNeutralCls : btnDangerCls}
             >
               {busy === 'bl' ? '…' : anyBl ? '⛔ Снять blacklist со всех' : '⛔ Blacklist всем'}
             </button>
             <button
               onClick={doIgnore}
               disabled={busy !== null}
-              className={'ml-auto rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm text-gray-600 shadow-sm hover:bg-gray-50 disabled:opacity-50'}
+              className={btnNeutralCls + ' ml-auto'}
               title={'Это разные люди (семья/общий телефон) — скрыть группу из списка'}
             >
               {busy === 'ignore' ? '…' : 'Не дубли — скрыть'}
@@ -358,20 +374,19 @@ function Pagination({ page, total, onPage }: { page: number; total: number; onPa
   if (pageCount <= 1) return null
   const from = (page - 1) * PAGE_SIZE + 1
   const to = Math.min(page * PAGE_SIZE, total)
-  const btn = 'px-3 py-1 rounded-lg border border-gray-300 bg-white shadow-sm text-sm disabled:opacity-40'
   return (
-    <div className={'mt-4 flex items-center justify-between text-sm'}>
-      <span className={'text-gray-500'}>
+    <div className={'mt-4 flex items-center justify-between'}>
+      <span className={mutedCls}>
         {from}–{to} из {total} групп
       </span>
       <div className={'flex items-center gap-2'}>
-        <button className={btn} disabled={page <= 1} onClick={() => onPage(page - 1)}>
+        <button className={btnNeutralCls} disabled={page <= 1} onClick={() => onPage(page - 1)}>
           ← Назад
         </button>
-        <span className={'text-gray-600'}>
+        <span className={'text-[13px] font-semibold text-[#6f6a66]'}>
           {page} / {pageCount}
         </span>
-        <button className={btn} disabled={page >= pageCount} onClick={() => onPage(page + 1)}>
+        <button className={btnNeutralCls} disabled={page >= pageCount} onClick={() => onPage(page + 1)}>
           Дальше →
         </button>
       </div>
@@ -395,23 +410,32 @@ function HistorySection() {
 
   return (
     <div className={'mt-8'}>
-      <button onClick={() => setOpen((v) => !v)} className={'text-sm font-semibold text-gray-500 hover:text-primary'}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={'text-[13px] font-bold text-[#8b857f] transition-colors hover:text-[#e71e6e]'}
+      >
         {open ? '▾' : '▸'} История операций
       </button>
       {open && (
-        <div className={'mt-2 flex flex-col gap-1.5'}>
-          {logs === null && <p className={'text-sm text-gray-400'}>Загрузка…</p>}
-          {logs?.length === 0 && <p className={'text-sm text-gray-400'}>Пока пусто</p>}
-          {logs?.map((l) => (
-            <div key={l.documentId} className={'rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm'}>
-              <span className={'font-semibold text-gray-800'}>
+        <div className={cardPadCls + ' mt-2.5'}>
+          {logs === null && <p className={'m-0 text-[12.5px] font-semibold text-[#a39e99]'}>Загрузка…</p>}
+          {logs?.length === 0 && <p className={'m-0 text-[12.5px] font-semibold text-[#a39e99]'}>Пока пусто</p>}
+          {logs?.map((l, i) => (
+            <div
+              key={l.documentId}
+              className={
+                'py-2 text-[12.5px] font-semibold text-[#6f6a66]' +
+                (i > 0 ? ' border-t border-[#f2efec]' : '')
+              }
+            >
+              <span className={'font-bold text-[#4c4844]'}>
                 {l.action === 'merge' ? 'Слияние' : 'Правка/blacklist'}
               </span>
-              {l.primaryName && <span className={'text-gray-700'}> · {l.primaryName}</span>}
+              {l.primaryName && <span> · {l.primaryName}</span>}
               {l.action === 'merge' && Array.isArray(l.mergedDocIds) && (
-                <span className={'text-gray-500'}> · слито карточек: {l.mergedDocIds.length}</span>
+                <span className={'text-[#98928c]'}> · слито карточек: {l.mergedDocIds.length}</span>
               )}
-              <span className={'float-right text-xs text-gray-400'}>
+              <span className={'float-right text-[11px] font-semibold text-[#b3ada7]'}>
                 {new Date(l.createdAt).toLocaleString('cs-CZ')} · {l.actorName || '—'}
               </span>
             </div>
@@ -484,102 +508,100 @@ const ClientDuplicatesPage = () => {
 
   const s = data?.stats
   const tabBtn = (t: Tab, label: string, count?: number) => (
-    <button
-      onClick={() => setTab(t)}
-      className={`rounded-lg px-3 py-1.5 text-sm font-semibold shadow-sm ${
-        tab === t ? 'bg-primary text-white' : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-      }`}
-    >
+    <button onClick={() => setTab(t)} className={pillCls(tab === t)}>
       {label}
       {count !== undefined && count > 0 && (
-        <span className={`ml-1.5 rounded-full px-1.5 text-xs ${tab === t ? 'bg-white/25' : 'bg-gray-100 text-gray-500'}`}>{count}</span>
+        <span
+          className={`ml-1.5 rounded-full px-1.5 text-[11px] ${
+            tab === t ? 'bg-white/25' : 'bg-[#e9e6e3] text-[#8b857f]'
+          }`}
+        >
+          {count}
+        </span>
       )}
     </button>
   )
 
   return (
     <OwnerProtection>
-      <Container size={'lg'}>
-        <div className={'py-6'}>
-          <div className={'mb-1 flex flex-wrap items-center justify-between gap-3'}>
-            <h2 className={'text-2xl font-bold text-gray-900'}>Дубли клиентов</h2>
-            <button
-              onClick={() => void load()}
-              disabled={loading}
-              className={'rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50'}
-            >
-              {loading ? 'Načítám…' : '↻ Обновить'}
-            </button>
-          </div>
-          <p className={'mb-4 text-sm text-gray-500'}>
-            Слияние переносит брони, лояльность и награды на главную карточку и удаляет дубли; имя
-            клиента обновляется во всех бронях календаря. Действие необратимо.
-          </p>
+      <div className={pageShellCls}>
+        <div className={kickerCls}>Barbitch Admin</div>
+        <div className={'mb-2 flex flex-wrap items-center justify-between gap-3'}>
+          <h1 className={'m-0 text-[24px] leading-[1.2] font-extrabold text-[#161615]'}>Дубли клиентов</h1>
+          <button onClick={() => void load()} disabled={loading} className={btnNeutralCls}>
+            {loading ? 'Načítám…' : '↻ Обновить'}
+          </button>
+        </div>
+        <p className={'mb-4 ' + hintCls}>
+          Слияние переносит брони, лояльность и награды на главную карточку и удаляет дубли; имя
+          клиента обновляется во всех бронях календаря. Действие необратимо.
+        </p>
 
-          {s && (
-            <div className={'mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4'}>
-              {[
-                { label: 'Групп дублей', value: s.strongGroups + s.weakGroups },
-                { label: 'Лишних карточек', value: s.extraRecords },
-                { label: 'Дыры в blacklistu', value: s.blacklistConflicts, warn: s.blacklistConflicts > 0 },
-                { label: 'С будущими бронями', value: s.withFutureBookings },
-              ].map((card) => (
-                <div key={card.label} className={`rounded-xl border p-3 shadow-sm ${card.warn ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'}`}>
-                  <div className={`text-xl font-bold ${card.warn ? 'text-red-600' : 'text-gray-900'}`}>{card.value}</div>
-                  <div className={'text-xs text-gray-500'}>{card.label}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className={'mb-4 flex flex-wrap items-center gap-2'}>
-            {tabBtn('strong', 'Надёжные', data?.stats.strongGroups)}
-            {tabBtn('weak', 'Вероятные', data?.stats.weakGroups)}
-            {tabBtn('conflicts', '⚠ Blacklist', data?.stats.blacklistConflicts)}
-            {tabBtn('ignored', 'Скрытые', data?.stats.ignoredGroups)}
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={'Поиск: имя / e-mail / телефон'}
-              className={'ml-auto w-64 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-primary focus:outline-none'}
-            />
-          </div>
-
-          {tab === 'strong' && (
-            <p className={'mb-3 text-xs text-gray-500'}>Записи связаны общим e-mail или телефоном — почти наверняка один человек.</p>
-          )}
-          {tab === 'weak' && (
-            <p className={'mb-3 text-xs text-amber-600'}>
-              Совпадает только полное имя, контакты разные. Может быть два РАЗНЫХ человека — сливайте только если уверены; иначе «Не дубли — скрыть».
-            </p>
-          )}
-
-          {error && (
-            <div className={'mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700'}>
-              {error}
-              <button onClick={() => void load()} className={'ml-3 font-semibold underline'}>Zkusit znovu</button>
-            </div>
-          )}
-
-          {loading && !data && <p className={'py-10 text-center text-gray-400'}>Hledám duplicity… (pár sekund)</p>}
-
-          {!loading && data && groups.length === 0 && (
-            <p className={'py-10 text-center text-gray-400'}>
-              {search ? 'Ничего не найдено' : tab === 'ignored' ? 'Скрытых групп нет' : '🎉 Дублей нет'}
-            </p>
-          )}
-
-          <div className={'flex flex-col gap-4'}>
-            {pageGroups.map((g) => (
-              <GroupCard key={g.key} group={g} isIgnoredTab={tab === 'ignored'} onChanged={() => void load()} />
+        {s && (
+          <div className={'mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4'}>
+            {[
+              { label: 'Групп дублей', value: s.strongGroups + s.weakGroups },
+              { label: 'Лишних карточек', value: s.extraRecords },
+              { label: 'Дыры в blacklistu', value: s.blacklistConflicts, warn: s.blacklistConflicts > 0 },
+              { label: 'С будущими бронями', value: s.withFutureBookings },
+            ].map((card) => (
+              <div key={card.label} className={tileCls}>
+                <div className={tileLabelCls}>{card.label}</div>
+                <div className={card.warn ? tileValueNegCls : tileValueCls}>{card.value}</div>
+              </div>
             ))}
           </div>
+        )}
 
-          <Pagination page={safePage} total={groups.length} onPage={gotoPage} />
-
-          <HistorySection />
+        <div className={'mb-4 flex flex-wrap items-center gap-2'}>
+          {tabBtn('strong', 'Надёжные', data?.stats.strongGroups)}
+          {tabBtn('weak', 'Вероятные', data?.stats.weakGroups)}
+          {tabBtn('conflicts', '⚠ Blacklist', data?.stats.blacklistConflicts)}
+          {tabBtn('ignored', 'Скрытые', data?.stats.ignoredGroups)}
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={'Поиск: имя / e-mail / телефон'}
+            className={inputCls + ' ml-auto w-64'}
+          />
         </div>
-      </Container>
+
+        {tab === 'strong' && (
+          <p className={'mb-3 ' + hintCls}>Записи связаны общим e-mail или телефоном — почти наверняка один человек.</p>
+        )}
+        {tab === 'weak' && (
+          <p className={'mb-3 text-[12.5px] leading-[1.55] font-semibold text-[#b0862a]'}>
+            Совпадает только полное имя, контакты разные. Может быть два РАЗНЫХ человека — сливайте только если уверены; иначе «Не дубли — скрыть».
+          </p>
+        )}
+
+        {error && (
+          <div className={'mb-4 ' + flashErrCls}>
+            {error}
+            <button onClick={() => void load()} className={'ml-3 font-bold underline'}>Zkusit znovu</button>
+          </div>
+        )}
+
+        {loading && !data && (
+          <p className={'py-12 text-center text-[13px] font-semibold text-[#a39e99]'}>Hledám duplicity… (pár sekund)</p>
+        )}
+
+        {!loading && data && groups.length === 0 && (
+          <p className={'py-12 text-center text-[13px] font-semibold text-[#a39e99]'}>
+            {search ? 'Ничего не найдено' : tab === 'ignored' ? 'Скрытых групп нет' : '🎉 Дублей нет'}
+          </p>
+        )}
+
+        <div className={'flex flex-col'}>
+          {pageGroups.map((g) => (
+            <GroupCard key={g.key} group={g} isIgnoredTab={tab === 'ignored'} onChanged={() => void load()} />
+          ))}
+        </div>
+
+        <Pagination page={safePage} total={groups.length} onPage={gotoPage} />
+
+        <HistorySection />
+      </div>
     </OwnerProtection>
   )
 }

@@ -17,7 +17,7 @@ export const ExpensesCategoryChart = ({ data, title }: Props) => {
   return (
     <div className={'w-full'}>
       {title && (
-        <h3 className={'text-sm11 md:text-sm1 font-semibold mb-4 text-primary opacity-80'}>
+        <h3 className={'m-0 mb-3.5 text-[15px] font-extrabold text-[#161615]'}>
           {title}
         </h3>
       )}

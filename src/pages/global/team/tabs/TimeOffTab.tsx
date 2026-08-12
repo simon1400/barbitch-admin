@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Select } from '../../../dashboard/components/Select'
 import { Cell } from '../../../dashboard/components/Cell'
+import { mutedCls, toolbarCardCls } from '../../../../ui/kit'
 import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
 import {
@@ -14,9 +15,9 @@ import {
 } from '../fetch/timeOff'
 
 const TYPE_BADGE: Record<TimeOffType, string> = {
-  sick: 'bg-red-100 text-red-700',
-  vacation: 'bg-blue-100 text-blue-700',
-  personal: 'bg-amber-100 text-amber-700',
+  sick: 'bg-[#fbf3e2] text-[#b0862a]',
+  vacation: 'bg-[#e7effa] text-[#2563ac]',
+  personal: 'bg-[#fbf3e2] text-[#b0862a]',
 }
 
 const fmtDate = (d: string) => {
@@ -60,28 +61,37 @@ export default function TimeOffTab() {
 
   return (
     <>
-      <div className="mb-6 flex justify-between items-center gap-3 flex-wrap sticky top-0 z-40">
+      <div className={toolbarCardCls}>
         <Select month={month} setMonth={setMonth} year={year} setYear={setYear} />
-        <span className="text-xs text-gray-400">
+        <span className={mutedCls}>
           Počítají se kalendářní dny včetně víkendů (od–do včetně)
         </span>
       </div>
 
-      <StatSection title="Сводка по сотрудникам" id="timeoff-summary" defaultOpen>
+      <StatSection
+        title="Сводка по сотрудникам"
+        id="timeoff-summary"
+        count={summaries.length}
+        defaultOpen
+      >
         {loading ? (
-          <div className="text-gray-500 py-8 text-center">Načítání…</div>
+          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+            Načítání…
+          </div>
         ) : summaries.length === 0 ? (
-          <div className="text-gray-500 py-8 text-center">За выбранный месяц записей нет.</div>
+          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+            За выбранный месяц записей нет.
+          </div>
         ) : (
           <TableWrapper>
-            <table className="w-full text-left table-auto min-w-max">
+            <table className="w-full text-left min-w-[560px]">
               <thead>
                 <tr>
                   <Cell title="Сотрудник" asHeader />
-                  <Cell title="Больничный" asHeader />
-                  <Cell title="Отпуск" asHeader />
-                  <Cell title="Личный" asHeader />
-                  <Cell title="Всего дней" asHeader />
+                  <Cell title="Больничный" asHeader className="text-right" />
+                  <Cell title="Отпуск" asHeader className="text-right" />
+                  <Cell title="Личный" asHeader className="text-right" />
+                  <Cell title="Всего дней" asHeader className="text-right" />
                 </tr>
               </thead>
               <tbody>
@@ -97,12 +107,24 @@ export default function TimeOffTab() {
                     }
                   />
                 ))}
-                <tr className="bg-gray-50 font-bold">
-                  <Cell title="Итого" className="font-bold" />
-                  <Cell title={String(totals.sick)} className="font-bold text-red-700" />
-                  <Cell title={String(totals.vacation)} className="font-bold text-blue-700" />
-                  <Cell title={String(totals.personal)} className="font-bold text-amber-700" />
-                  <Cell title={String(totals.total)} className="font-bold text-primary" />
+                <tr className="bg-[#faf9f8]">
+                  <Cell title="Итого" className="text-[13px] font-extrabold text-[#4c4844]" />
+                  <Cell
+                    title={String(totals.sick)}
+                    className="text-right font-bold text-[#b0862a]"
+                  />
+                  <Cell
+                    title={String(totals.vacation)}
+                    className="text-right font-bold text-[#2563ac]"
+                  />
+                  <Cell
+                    title={String(totals.personal)}
+                    className="text-right font-bold text-[#b0862a]"
+                  />
+                  <Cell
+                    title={String(totals.total)}
+                    className="text-right text-[14px] font-extrabold text-[#b81b60]"
+                  />
                 </tr>
               </tbody>
             </table>
@@ -128,46 +150,67 @@ function SummaryRow({
 }) {
   return (
     <>
-      <tr className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={onToggle}>
-        <td className="p-4 border-b border-blue-gray-50">
-          <span className="flex items-center gap-2 font-medium text-blue-gray-900">
-            <span className="text-primary">{expanded ? '−' : '+'}</span>
+      <tr
+        className="hover:bg-[#faf8f7] transition-colors cursor-pointer"
+        onClick={onToggle}
+      >
+        <td className="px-3 py-[10px] border-b border-[#f2efec]">
+          <span className="flex items-center gap-2 text-[14px] font-bold text-[#161615]">
+            <span className="w-[18px] h-[18px] rounded-md bg-[#fce7f0] text-[#b81b60] text-[12px] font-extrabold inline-flex items-center justify-center shrink-0">
+              {expanded ? '−' : '+'}
+            </span>
             {summary.name}
-            <span className="text-xs text-gray-400">({summary.records.length})</span>
+            <span className="text-[11px] font-bold text-[#a39e99]">
+              ({summary.records.length})
+            </span>
           </span>
         </td>
-        <Cell title={summary.sick ? String(summary.sick) : '—'} />
-        <Cell title={summary.vacation ? String(summary.vacation) : '—'} />
-        <Cell title={summary.personal ? String(summary.personal) : '—'} />
-        <Cell title={String(summary.total)} className="font-semibold text-primary" />
+        <Cell
+          title={summary.sick ? String(summary.sick) : '—'}
+          className={`text-right ${summary.sick ? 'text-[#b0862a] font-bold' : 'text-[#c4bfba]'}`}
+        />
+        <Cell
+          title={summary.vacation ? String(summary.vacation) : '—'}
+          className={`text-right ${summary.vacation ? 'text-[#2563ac] font-bold' : 'text-[#c4bfba]'}`}
+        />
+        <Cell
+          title={summary.personal ? String(summary.personal) : '—'}
+          className={`text-right ${summary.personal ? 'text-[#b0862a] font-bold' : 'text-[#c4bfba]'}`}
+        />
+        <Cell
+          title={String(summary.total)}
+          className="text-right text-[14px] font-extrabold text-[#b81b60]"
+        />
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={5} className="p-0 border-b border-blue-gray-50 bg-gray-50">
+          <td colSpan={5} className="p-0 border-b border-[#f2efec] bg-[#faf9f8]">
             <div className="p-4 space-y-2">
               {summary.records.map((rec) => (
                 <div
                   key={rec.documentId}
-                  className="flex items-center gap-3 flex-wrap bg-white rounded-lg p-3 shadow-sm"
+                  className="flex items-center gap-3 flex-wrap bg-white border border-[#eee9e6] rounded-lg px-3 py-2.5"
                 >
                   <span
-                    className={`px-2 py-0.5 rounded text-xs font-semibold ${TYPE_BADGE[rec.type]}`}
+                    className={`px-[7px] py-0.5 rounded-md text-[11px] font-bold ${TYPE_BADGE[rec.type]}`}
                   >
                     {TYPE_LABELS[rec.type]}
                   </span>
-                  <span className="text-sm text-gray-700">
+                  <span className="text-[12.5px] font-semibold text-[#4c4844]">
                     {fmtDate(rec.startDate)} — {fmtDate(rec.endDate)}
                   </span>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-[12px] font-semibold text-[#8b857f]">
                     {daysInMonth(rec, month, year)} дн. в этом месяце
                   </span>
                   <span
-                    className={`text-xs font-medium ${rec.paid ? 'text-green-600' : 'text-gray-400'}`}
+                    className={`text-[12px] font-bold ${rec.paid ? 'text-[#1d7a3f]' : 'text-[#a39e99]'}`}
                   >
                     {rec.paid ? 'Оплачивается' : 'Без оплаты'}
                   </span>
                   {rec.comment && (
-                    <span className="text-xs text-gray-500 italic">{rec.comment}</span>
+                    <span className="text-[12px] font-medium text-[#8b857f] italic">
+                      {rec.comment}
+                    </span>
                   )}
                 </div>
               ))}

@@ -149,12 +149,12 @@ export default function SleepingTab() {
     <>
       <div className="mb-6 flex justify-between items-center gap-3 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
-          <label className="flex items-center gap-2 text-sm text-gray-700">
+          <label className="flex items-center gap-2 text-sm text-[#4c4844]">
             Не были более
             <select
               value={minDays}
               onChange={(e) => setMinDays(Number(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2 bg-white shadow-sm text-sm"
+              className="border border-[#e7e2de] rounded-lg px-3 py-2 bg-white shadow-sm text-sm"
             >
               {DAY_OPTIONS.map((d) => (
                 <option key={d} value={d}>
@@ -163,12 +163,12 @@ export default function SleepingTab() {
               ))}
             </select>
           </label>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
+          <label className="flex items-center gap-2 text-sm text-[#4c4844]">
             но менее
             <select
               value={maxDays}
               onChange={(e) => setMaxDays(Number(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2 bg-white shadow-sm text-sm"
+              className="border border-[#e7e2de] rounded-lg px-3 py-2 bg-white shadow-sm text-sm"
             >
               {MAX_DAY_OPTIONS.map((d) => (
                 <option key={d} value={d}>
@@ -177,12 +177,12 @@ export default function SleepingTab() {
               ))}
             </select>
           </label>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
+          <label className="flex items-center gap-2 text-sm text-[#4c4844]">
             Мин. визитов
             <select
               value={minVisits}
               onChange={(e) => setMinVisits(Number(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2 bg-white shadow-sm text-sm"
+              className="border border-[#e7e2de] rounded-lg px-3 py-2 bg-white shadow-sm text-sm"
             >
               {VISIT_OPTIONS.map((v) => (
                 <option key={v} value={v}>
@@ -192,20 +192,20 @@ export default function SleepingTab() {
             </select>
           </label>
         </div>
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-[#a39e99]">
           Клиенты без будущей брони · деньги = сумма цен состоявшихся визитов
         </span>
       </div>
 
       {campaigns.length > 0 && (
         <StatSection title="Результаты кампаний" id="campaign-results" defaultOpen>
-          <p className="text-xs text-gray-400 mb-4">
+          <p className="text-xs text-[#a39e99] mb-4">
             «Записались» = у получателя появилась активная бронь с датой ПОСЛЕ отправки письма
             (на момент отправки будущих броней не было — значит запись пришла после кампании).
             No-show не считается.
           </p>
           <TableWrapper>
-            <table className="w-full text-left table-auto min-w-max">
+            <table className="w-full text-left min-w-[620px]">
               <thead>
                 <tr>
                   <Cell title="Отправлено" asHeader />
@@ -236,32 +236,32 @@ export default function SleepingTab() {
 
       <StatSection title="Спящие клиенты" id="sleeping-clients" defaultOpen>
         {loading ? (
-          <div className="text-gray-500 py-8 text-center">Načítání…</div>
+          <div className="text-[#8b857f] py-8 text-center">Načítání…</div>
         ) : error ? (
-          <div className="text-red-600 py-8 text-center">{error}</div>
+          <div className="text-[#c53030] py-8 text-center">{error}</div>
         ) : (
           <>
             <div className="flex gap-4 flex-wrap mb-4">
               <div className="bg-white rounded-lg shadow-sm px-4 py-3">
-                <div className="text-xs text-gray-400">Спящих клиентов</div>
-                <div className="text-2xl font-bold text-primary">{rows.length}</div>
+                <div className="text-xs text-[#a39e99]">Спящих клиентов</div>
+                <div className="text-2xl font-bold text-[#e71e6e]">{rows.length}</div>
               </div>
               <div className="bg-white rounded-lg shadow-sm px-4 py-3">
-                <div className="text-xs text-gray-400">Принесли всего</div>
-                <div className="text-2xl font-bold text-blue-gray-900">
+                <div className="text-xs text-[#a39e99]">Принесли всего</div>
+                <div className="text-2xl font-bold text-[#161615]">
                   {fmtMoney(totalSpent)} Kč
                 </div>
               </div>
               <div className="bg-white rounded-lg shadow-sm px-4 py-3">
-                <div className="text-xs text-gray-400">С телефоном</div>
-                <div className="text-2xl font-bold text-blue-gray-900">{phones.length}</div>
+                <div className="text-xs text-[#a39e99]">С телефоном</div>
+                <div className="text-2xl font-bold text-[#161615]">{phones.length}</div>
               </div>
               <div className="flex items-center gap-2 ml-auto flex-wrap">
                 <button
                   type="button"
                   onClick={() => setModalOpen(true)}
                   disabled={selectedRecipients.length === 0}
-                  className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold shadow-sm hover:opacity-90 disabled:opacity-40"
+                  className="px-4 py-2 rounded-lg bg-[#e71e6e] text-white text-sm font-semibold shadow-sm hover:opacity-90 disabled:opacity-40"
                 >
                   Отправить email ({selectedRecipients.length})
                 </button>
@@ -269,7 +269,7 @@ export default function SleepingTab() {
                   type="button"
                   onClick={copyPhones}
                   disabled={!phones.length}
-                  className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-semibold shadow-sm hover:bg-gray-50 disabled:opacity-40"
+                  className="px-4 py-2 rounded-lg border border-[#e7e2de] bg-white text-sm font-semibold shadow-sm hover:bg-[#faf8f7] disabled:opacity-40"
                 >
                   {copied ? 'Скопировано ✓' : 'Копировать телефоны'}
                 </button>
@@ -277,7 +277,7 @@ export default function SleepingTab() {
                   type="button"
                   onClick={downloadCsv}
                   disabled={!rows.length}
-                  className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-semibold shadow-sm hover:bg-gray-50 disabled:opacity-40"
+                  className="px-4 py-2 rounded-lg border border-[#e7e2de] bg-white text-sm font-semibold shadow-sm hover:bg-[#faf8f7] disabled:opacity-40"
                 >
                   Экспорт CSV
                 </button>
@@ -285,15 +285,15 @@ export default function SleepingTab() {
             </div>
 
             {rows.length === 0 ? (
-              <div className="text-gray-500 py-8 text-center">
+              <div className="text-[#8b857f] py-8 text-center">
                 По выбранным фильтрам спящих клиентов нет.
               </div>
             ) : (
               <TableWrapper>
-                <table className="w-full text-left table-auto min-w-max">
+                <table className="w-full text-left min-w-[620px]">
                   <thead>
                     <tr>
-                      <th className="p-4 border-b border-blue-gray-100 bg-blue-gray-50 w-10">
+                      <th className="p-4 border-b border-[#eee9e6] bg-[#faf9f8] w-10">
                         <input
                           type="checkbox"
                           checked={allEmailableChecked}
@@ -317,11 +317,11 @@ export default function SleepingTab() {
                       return (
                         <tr
                           key={r.customerId}
-                          className={`hover:bg-gray-50 transition-colors ${
+                          className={`hover:bg-[#faf8f7] transition-colors ${
                             visibleSelected.has(r.customerId) ? 'bg-pink-50/50' : ''
                           }`}
                         >
-                          <td className="p-4 border-b border-blue-gray-50">
+                          <td className="p-4 border-b border-[#f2efec]">
                             <input
                               type="checkbox"
                               checked={visibleSelected.has(r.customerId)}
@@ -331,26 +331,26 @@ export default function SleepingTab() {
                               title={r.email ? r.email : 'Нет email'}
                             />
                           </td>
-                          <td className="p-4 border-b border-blue-gray-50">
-                            <span className="block font-sans text-sm font-medium text-blue-gray-900">
+                          <td className="p-4 border-b border-[#f2efec]">
+                            <span className="block font-sans text-sm font-medium text-[#161615]">
                               {r.name}
                             </span>
-                            {r.email && <span className="text-xs text-gray-400">{r.email}</span>}
+                            {r.email && <span className="text-xs text-[#a39e99]">{r.email}</span>}
                           </td>
                           <Cell title={r.phone || '—'} />
                           <Cell title={String(r.visits)} />
-                          <td className="p-4 border-b border-blue-gray-50">
-                            <span className="block font-sans text-sm font-medium text-blue-gray-900">
+                          <td className="p-4 border-b border-[#f2efec]">
+                            <span className="block font-sans text-sm font-medium text-[#161615]">
                               {fmtDate(r.lastVisit)}{' '}
-                              <span className="text-xs text-gray-400">({r.daysSince} дн.)</span>
+                              <span className="text-xs text-[#a39e99]">({r.daysSince} дн.)</span>
                             </span>
                           </td>
                           <Cell title={r.lastMaster || '—'} />
-                          <Cell title={`${fmtMoney(r.spent)} Kč`} className="text-primary" />
-                          <td className="p-4 border-b border-blue-gray-50">
+                          <Cell title={`${fmtMoney(r.spent)} Kč`} className="text-[#e71e6e]" />
+                          <td className="p-4 border-b border-[#f2efec]">
                             {sent ? (
                               <span
-                                className="px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700 whitespace-nowrap"
+                                className="px-2 py-0.5 rounded text-xs font-semibold bg-[#e7effa] text-[#2563ac] whitespace-nowrap"
                                 title={`Шаблон: ${sent.template}`}
                               >
                                 {fmtDateTime(sent.lastSentAt)} ({daysSinceIso(sent.lastSentAt)} дн.)
@@ -401,22 +401,22 @@ function CampaignRow({
     CAMPAIGN_TEMPLATES.find((t) => t.key === log.template)?.name ?? log.template
   return (
     <>
-      <tr className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={onToggle}>
-        <td className="p-4 border-b border-blue-gray-50">
-          <span className="flex items-center gap-2 font-sans text-sm font-medium text-blue-gray-900">
-            <span className="text-primary">{expanded ? '−' : '+'}</span>
+      <tr className="hover:bg-[#faf8f7] transition-colors cursor-pointer" onClick={onToggle}>
+        <td className="p-4 border-b border-[#f2efec]">
+          <span className="flex items-center gap-2 font-sans text-sm font-medium text-[#161615]">
+            <span className="text-[#e71e6e]">{expanded ? '−' : '+'}</span>
             {fmtDateTime(log.createdAt)}
-            <span className="text-xs text-gray-400">({daysSinceIso(log.createdAt)} дн.)</span>
+            <span className="text-xs text-[#a39e99]">({daysSinceIso(log.createdAt)} дн.)</span>
           </span>
         </td>
-        <td className="p-4 border-b border-blue-gray-50">
-          <span className="block font-sans text-sm font-medium text-blue-gray-900">
+        <td className="p-4 border-b border-[#f2efec]">
+          <span className="block font-sans text-sm font-medium text-[#161615]">
             {templateName}
           </span>
         </td>
-        <td className="p-4 border-b border-blue-gray-50">
+        <td className="p-4 border-b border-[#f2efec]">
           {log.filters ? (
-            <span className="inline-flex flex-col gap-0.5 px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-600 leading-tight whitespace-nowrap">
+            <span className="inline-flex flex-col gap-0.5 px-2 py-1 rounded text-xs font-semibold bg-[#f2efec] text-[#6f6a66] leading-tight whitespace-nowrap">
               {formatFilterParts(log.filters).map((part) => (
                 <span key={part}>{part}</span>
               ))}
@@ -426,10 +426,10 @@ function CampaignRow({
           )}
         </td>
         <Cell title={String(log.recipients.length)} />
-        <td className="p-4 border-b border-blue-gray-50">
+        <td className="p-4 border-b border-[#f2efec]">
           <span
             className={`px-2 py-0.5 rounded text-xs font-semibold ${
-              converted.length > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
+              converted.length > 0 ? 'bg-green-100 text-[#1d7a3f]' : 'bg-[#f2efec] text-[#a39e99]'
             }`}
           >
             {converted.length} ({pct} %)
@@ -438,13 +438,13 @@ function CampaignRow({
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={5} className="p-0 border-b border-blue-gray-50 bg-gray-50">
+          <td colSpan={5} className="p-0 border-b border-[#f2efec] bg-[#faf9f8]">
             <div className="p-4">
               {converted.length === 0 ? (
-                <div className="text-sm text-gray-500">Пока никто не записался.</div>
+                <div className="text-sm text-[#8b857f]">Пока никто не записался.</div>
               ) : (
                 <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
-                  <table className="w-full text-left table-auto min-w-max">
+                  <table className="w-full text-left min-w-[620px]">
                     <thead>
                       <tr>
                         <Cell title="Клиент" asHeader />
@@ -458,28 +458,28 @@ function CampaignRow({
                     </thead>
                     <tbody>
                       {converted.map((c) => (
-                        <tr key={c.customerId} className="hover:bg-gray-50 transition-colors">
+                        <tr key={c.customerId} className="hover:bg-[#faf8f7] transition-colors">
                           <Cell title={c.name} className="font-medium" />
                           <Cell title={c.email || '—'} />
                           <Cell title={String(c.visits)} />
-                          <td className="p-4 border-b border-blue-gray-50">
+                          <td className="p-4 border-b border-[#f2efec]">
                             {c.lastVisit ? (
-                              <span className="block font-sans text-sm font-medium text-blue-gray-900">
+                              <span className="block font-sans text-sm font-medium text-[#161615]">
                                 {fmtDate(c.lastVisit)}{' '}
-                                <span className="text-xs text-gray-400">({c.daysSince} дн.)</span>
+                                <span className="text-xs text-[#a39e99]">({c.daysSince} дн.)</span>
                               </span>
                             ) : (
                               <span className="text-xs text-gray-300">—</span>
                             )}
                           </td>
-                          <Cell title={`${fmtMoney(c.spent)} Kč`} className="text-primary" />
+                          <Cell title={`${fmtMoney(c.spent)} Kč`} className="text-[#e71e6e]" />
                           <Cell title={fmtDate(c.bookingDate)} />
-                          <td className="p-4 border-b border-blue-gray-50">
+                          <td className="p-4 border-b border-[#f2efec]">
                             <span
                               className={`px-2 py-0.5 rounded text-xs font-semibold ${
                                 c.attended
-                                  ? 'bg-green-100 text-green-700'
-                                  : 'bg-blue-100 text-blue-700'
+                                  ? 'bg-green-100 text-[#1d7a3f]'
+                                  : 'bg-[#e7effa] text-[#2563ac]'
                               }`}
                             >
                               {c.attended ? 'уже была' : 'записана'}
@@ -579,36 +579,36 @@ function SendModal({
         className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-2xl font-bold text-blue-gray-900 mb-4">Отправка email-кампании</h3>
+        <h3 className="text-2xl font-bold text-[#161615] mb-4">Отправка email-кампании</h3>
 
         {result ? (
           <>
             <div
               className={`p-4 rounded-lg border mb-4 ${
                 result.failed === 0
-                  ? 'bg-green-50 border-green-200 text-green-800'
-                  : 'bg-amber-50 border-amber-200 text-amber-800'
+                  ? 'bg-[#e8f6ee] border-[#bfe4cd] text-green-800'
+                  : 'bg-[#fbf3e2] border-amber-200 text-amber-800'
               }`}
             >
               Отправлено {result.successful} из {result.total}
               {result.failed > 0 && ` · не дошло: ${result.failed}`}
             </div>
-            {sendError && <div className="text-sm text-red-600 mb-4">{sendError}</div>}
+            {sendError && <div className="text-sm text-[#c53030] mb-4">{sendError}</div>}
             <button
               type="button"
               onClick={onSent}
-              className="px-6 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold shadow-sm hover:opacity-90"
+              className="px-6 py-2.5 rounded-lg bg-[#e71e6e] text-white text-sm font-semibold shadow-sm hover:opacity-90"
             >
               Готово
             </button>
           </>
         ) : (
           <>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Шаблон</label>
+            <label className="block text-sm font-semibold text-[#4c4844] mb-1">Шаблон</label>
             <select
               value={templateKey}
               onChange={(e) => onTemplateChange(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 bg-white shadow-sm text-sm mb-4"
+              className="w-full border border-[#e7e2de] rounded-lg px-3 py-2.5 bg-white shadow-sm text-sm mb-4"
             >
               {CAMPAIGN_TEMPLATES.map((t) => (
                 <option key={t.key} value={t.key}>
@@ -617,35 +617,35 @@ function SendModal({
               ))}
             </select>
 
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-[#4c4844] mb-1">
               Предмет письма
             </label>
             <input
               type="text"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 shadow-sm text-sm mb-4"
+              className="w-full border border-[#e7e2de] rounded-lg px-3 py-2.5 shadow-sm text-sm mb-4"
             />
 
             {(template?.extras ?? []).map((v) => (
               <div key={v.key}>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">{v.label}</label>
+                <label className="block text-sm font-semibold text-[#4c4844] mb-1">{v.label}</label>
                 <input
                   type="text"
                   value={extras[v.key] ?? ''}
                   onChange={(e) => setExtras({ ...extras, [v.key]: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 shadow-sm text-sm mb-4"
+                  className="w-full border border-[#e7e2de] rounded-lg px-3 py-2.5 shadow-sm text-sm mb-4"
                 />
               </div>
             ))}
 
-            <label className="block text-sm font-semibold text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-[#4c4844] mb-1">
               Не слать, если уже писали за последние
             </label>
             <select
               value={skipRecentDays}
               onChange={(e) => setSkipRecentDays(Number(e.target.value))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 bg-white shadow-sm text-sm mb-4"
+              className="w-full border border-[#e7e2de] rounded-lg px-3 py-2.5 bg-white shadow-sm text-sm mb-4"
             >
               {SKIP_RECENT_OPTIONS.map((d) => (
                 <option key={d} value={d}>
@@ -654,20 +654,20 @@ function SendModal({
               ))}
             </select>
 
-            <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 mb-4">
+            <div className="bg-[#faf9f8] rounded-lg p-3 text-sm text-[#4c4844] mb-4">
               <div>
                 Выбрано: <b>{recipients.length}</b>
               </div>
               {skipped.length > 0 && (
-                <div className="text-amber-700">
+                <div className="text-[#b0862a]">
                   Пропущено (недавно писали): <b>{skipped.length}</b>
                 </div>
               )}
               <div>
-                К отправке: <b className="text-primary">{toSend.length}</b>
+                К отправке: <b className="text-[#e71e6e]">{toSend.length}</b>
               </div>
               {toSend.length > 0 && (
-                <div className="text-xs text-gray-400 mt-2 break-words">
+                <div className="text-xs text-[#a39e99] mt-2 break-words">
                   {toSend
                     .slice(0, 8)
                     .map((r) => r.email)
@@ -677,14 +677,14 @@ function SendModal({
               )}
             </div>
 
-            {sendError && <div className="text-sm text-red-600 mb-4">{sendError}</div>}
+            {sendError && <div className="text-sm text-[#c53030] mb-4">{sendError}</div>}
 
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={handleSend}
                 disabled={sending || toSend.length === 0}
-                className="px-6 py-2.5 rounded-lg bg-primary text-white text-sm font-semibold shadow-sm hover:opacity-90 disabled:opacity-40"
+                className="px-6 py-2.5 rounded-lg bg-[#e71e6e] text-white text-sm font-semibold shadow-sm hover:opacity-90 disabled:opacity-40"
               >
                 {sending ? 'Отправка…' : `Отправить (${toSend.length})`}
               </button>
@@ -692,7 +692,7 @@ function SendModal({
                 type="button"
                 onClick={onClose}
                 disabled={sending}
-                className="px-6 py-2.5 rounded-lg border border-gray-300 bg-white text-sm font-semibold shadow-sm hover:bg-gray-50"
+                className="px-6 py-2.5 rounded-lg border border-[#e7e2de] bg-white text-sm font-semibold shadow-sm hover:bg-[#faf8f7]"
               >
                 Отмена
               </button>

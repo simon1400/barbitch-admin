@@ -1,3 +1,4 @@
+import { iconBtnCls, selectCls } from '../../../ui/kit'
 import { monthLabels } from '../data'
 
 export const Select = ({
@@ -42,7 +43,7 @@ export const Select = ({
       <button
         onClick={handlePreviousMonth}
         className={
-          'bg-white border border-accent text-sm hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 px-3 py-2.5 rounded transition-colors shrink-0'
+          iconBtnCls
         }
         aria-label={'Předchozí měsíc'}
       >
@@ -65,7 +66,7 @@ export const Select = ({
         value={month}
         onChange={(e) => setMonth(Number(e.target.value))}
         className={
-          'bg-white border border-accent text-sm focus:ring-blue-500 focus:border-blue-500 block w-[120px] sm:w-[160px] p-2.5'
+          `${selectCls} block w-[120px] sm:w-[150px]`
         }
       >
         {monthLabels.map((label, idx) => (
@@ -80,7 +81,7 @@ export const Select = ({
           value={year}
           onChange={(e) => setYear(Number(e.target.value))}
           className={
-            'bg-white border border-accent text-sm focus:ring-blue-500 focus:border-blue-500 block w-[80px] sm:w-[100px] p-2.5'
+            `${selectCls} block w-[80px] sm:w-[92px]`
           }
         >
           {years.map((y) => (
@@ -93,7 +94,7 @@ export const Select = ({
       <button
         onClick={handleNextMonth}
         className={
-          'bg-white border border-accent text-sm hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 px-3 py-2.5 rounded transition-colors shrink-0'
+          iconBtnCls
         }
         aria-label={'Následující měsíc'}
       >
