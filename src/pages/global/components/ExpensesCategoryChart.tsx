@@ -52,7 +52,7 @@ export const ExpensesCategoryChart = ({ data, title }: Props) => {
         </ResponsiveContainer>
 
         {/* Таблица с деталями категорий */}
-        <div className="mt-6 overflow-x-auto">
+        <div className="mt-6 overflow-x-auto [&_tr>*:first-child]:pl-0 [&_tr>*:last-child]:pr-0">
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>

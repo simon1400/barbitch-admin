@@ -27,6 +27,12 @@ export const IconDownload = ({ className = 'h-4 w-4' }: IconProps) => (
   </svg>
 )
 
+export const IconChevronDown = ({ className = 'h-4 w-4' }: IconProps) => (
+  <svg viewBox="0 0 24 24" className={className} {...svgProps}>
+    <path d="M6 9l6 6 6-6" />
+  </svg>
+)
+
 export const IconBell = ({ className = 'h-4 w-4' }: IconProps) => (
   <svg viewBox="0 0 24 24" className={className} {...svgProps}>
     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />

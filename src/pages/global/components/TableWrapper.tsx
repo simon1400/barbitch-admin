@@ -12,7 +12,14 @@ interface TableWrapperProps {
 export const TableWrapper = ({ children, totalSum, totalLabel, additionalInfo }: TableWrapperProps) => {
   return (
     <div className={'w-full'}>
-      <div className={'relative w-full overflow-x-auto'}>{children}</div>
+      {/* Крайние колонки без внешних отступов — таблица прижата к краям карточки */}
+      <div
+        className={
+          'relative w-full overflow-x-auto [&_tr>*:first-child]:pl-0 [&_tr>*:last-child]:pr-0'
+        }
+      >
+        {children}
+      </div>
 
       {totalSum && (
         <div className={'flex justify-between items-center pt-3 mt-1'}>

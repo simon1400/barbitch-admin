@@ -39,7 +39,7 @@ import { BookingDrawer } from './BookingDrawer'
 import { InstallAppButton } from './InstallAppButton'
 import { NotificationButton } from './NotificationButton'
 import { useCoarsePointer } from './useMediaQuery'
-import { IconArrowLeft, IconHistory, IconMoon, IconSearch, IconSun } from './icons'
+import { IconArrowLeft, IconChevronDown, IconHistory, IconMoon, IconSearch, IconSun } from './icons'
 import { fmtHM, fmtTime, mondayOf, shiftDate, todayStr, type Mode } from './utils'
 import {
   AuditLogModal,
@@ -592,7 +592,7 @@ export default function CalendarPage() {
           </button>
           {/* master листает неделями — вместо пикера конкретной даты подпись недели */}
           {isMaster ? (
-            <span className="hidden whitespace-nowrap text-sm font-semibold text-gray-800 sm:block">
+            <span className="hidden whitespace-nowrap text-sm font-semibold text-gray-800 dark:text-gray-300 sm:block">
               {weekLabelCs(date)}
             </span>
           ) : (
@@ -600,7 +600,7 @@ export default function CalendarPage() {
             // Пн–Вс («13.–19. 7.»); нативный пикер — невидимым инпутом поверх
             // (тап/клик открывает календарь; выбор даты в недельном виде = переход
             // на её неделю)
-            <div className="relative hidden sm:block">
+            <div className="relative hidden overflow-hidden sm:block">
               <span
                 className={`${tbInput} flex min-h-[34px] items-center whitespace-nowrap px-3 py-1 text-sm font-semibold`}
               >
@@ -744,14 +744,17 @@ export default function CalendarPage() {
       {/* Мобила: селектор мастера недельного вида — тулбар сверху скрыт, а без
           селектора из чужой недели нельзя вернуться к «Všichni mistři» */}
       {mode === 'week' && !isMaster && (
-        <div className="mb-2 shrink-0 sm:hidden">
+        <div className="relative mb-1.5 mt-1 shrink-0 px-2 sm:hidden">
+          {/* appearance-none обязателен: нативная отрисовка select на телефоне
+              подмешивает свою светлую подложку/рамку поверх тёмной темы. Стрелка —
+              своя (нативная пропадает вместе с appearance) */}
           <select
             value={weekEmpId}
             onChange={(e) => {
               if (e.target.value === '__all__') setMode('day')
               else setWeekEmpId(e.target.value)
             }}
-            className={`${tbInput} min-h-11 w-full px-2 py-1.5 font-semibold`}
+            className="min-h-11 w-full appearance-none rounded-lg border border-gray-200 bg-white px-3 pr-9 text-sm font-semibold text-gray-800 shadow-sm outline-none dark:border-[#3f3f3d] dark:bg-[#2a2a28] dark:text-gray-200 dark:shadow-none dark:[color-scheme:dark]"
           >
             <option value="__all__">← Všichni mistři (denní)</option>
             {employees.map((emp) => (
@@ -760,6 +763,9 @@ export default function CalendarPage() {
               </option>
             ))}
           </select>
+          <span className="pointer-events-none absolute inset-y-0 right-5 flex items-center text-gray-500 dark:text-gray-400">
+            <IconChevronDown />
+          </span>
         </div>
       )}
 
@@ -810,7 +816,7 @@ export default function CalendarPage() {
 
         {/* Зум грида +/− (слева внизу) — на любом тач-устройстве (телефон/планшет) */}
         {coarse && (
-          <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] left-3 z-40 flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-[#3f3f3d] dark:bg-[#2a2a28] sm:bottom-4">
+          <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] left-3 z-40 flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-[#3f3f3d] dark:bg-[#2a2a28] sm:bottom-4">
             <button
               type="button"
               onClick={() => changeZoom(1)}
@@ -839,7 +845,7 @@ export default function CalendarPage() {
             type="button"
             onClick={() => openNewBooking()}
             aria-label="Nová rezervace"
-            className="absolute bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] right-3 z-40 flex h-12 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-bold text-white shadow-lg active:brightness-90 sm:hidden"
+            className="absolute bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] right-3 z-40 flex h-12 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-bold text-white shadow-lg active:brightness-90 sm:hidden"
           >
             {/* ⚠️ НЕ text-xl — в admin-конфиге это 71px (гоча s42) */}
             <span className="text-[20px] leading-none">+</span> Rezervace
@@ -850,7 +856,7 @@ export default function CalendarPage() {
             Upozornění / ⋯ — весь бывший верхний тулбар у большого пальца. Тап по дате
             открывает нативный пикер (невидимый input поверх лейбла). Низ грида
             подгоняется к верхнему краю этой панели (fit-масштаб в CalendarGrid). */}
-        <div className="absolute inset-x-1 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-40 flex items-center gap-1 rounded-2xl border border-gray-200 bg-white px-1 py-1 shadow-lg dark:border-[#333331] dark:bg-[#1f1f1e] sm:hidden">
+        <div className="absolute inset-x-2 bottom-[calc(env(safe-area-inset-bottom)+1.25rem)] z-40 flex items-center gap-1 rounded-2xl border border-gray-200 bg-white px-1 py-1 shadow-lg dark:border-[#333331] dark:bg-[#1f1f1e] sm:hidden">
           <button
             type="button"
             onClick={goHome}
@@ -867,11 +873,13 @@ export default function CalendarPage() {
               type="button"
               onClick={() => setDate(shiftDate(date, mode === 'week' ? -7 : -1))}
               aria-label="Předchozí"
-              className={`${mbBtn} w-10 text-[22px]`}
+              className={`${mbBtn} relative z-10 w-10 text-[22px]`}
             >
               ‹
             </button>
-            <div className="relative min-w-0">
+            {/* overflow-hidden + z-10 у стрелок: нативный date-инпут имеет собственную
+                минимальную ширину и вылезал за пилюлю, перехватывая тапы по ‹ › */}
+            <div className="relative min-w-0 overflow-hidden">
               {/* в недельном виде (и у мастера — он всегда week) показываем диапазон Пн–Вс */}
               <span className="block truncate px-0.5 text-center text-sm font-semibold text-gray-800 dark:text-gray-300">
                 {mode === 'week' ? weekLabelShortCs(date) : dateLabelShortCs(date)}
@@ -899,7 +907,7 @@ export default function CalendarPage() {
               type="button"
               onClick={() => setDate(shiftDate(date, mode === 'week' ? 7 : 1))}
               aria-label="Další"
-              className={`${mbBtn} w-10 text-[22px]`}
+              className={`${mbBtn} relative z-10 w-10 text-[22px]`}
             >
               ›
             </button>

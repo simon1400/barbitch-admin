@@ -22,7 +22,7 @@ const PX_PER_MIN = 1.0 // высота минуты; 60 мин = 60px (комп�
 // (низ грида у нижней панели), zoomFactor умножается поверх. Эта константа — только
 // фолбэк до первого замера контейнера.
 const PX_PER_MIN_NARROW = 1.0
-const MOBILE_BOTTOM_PAD = 64 // = pb-16 контента грида (клиренс нижней панели управления)
+const MOBILE_BOTTOM_PAD = 80 // = pb-20 контента грида (клиренс нижней панели управления)
 const HEADER_H = 44 // высота шапки колонок
 const AXIS_W = 56 // ширина оси времени
 const SNAP_MIN = 30 // сетка клика/переноса — шаг резервации везде полчаса
@@ -269,7 +269,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
       className="h-full snap-x snap-proximity overflow-auto overscroll-contain bg-white shadow-sm dark:bg-[#1c1c1b]"
     >
       {/* pb на мобиле: нижняя пилюля даты не перекрывает последние слоты */}
-      <div className="relative flex pb-16 sm:pb-0" style={{ minWidth: AXIS_W + columns.length * colW }}>
+      <div className="relative flex pb-20 sm:pb-0" style={{ minWidth: AXIS_W + columns.length * colW }}>
         {/* Вотермарка-лого по центру временно́й области грида (под шапкой): скроллится
             вместе с контентом, клики проходят сквозь; z-0 — ниже карточек (z-10),
             hover-подсветки (z-5) и sticky-оси/шапок (z-40/30) */}
@@ -324,8 +324,10 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                   кружок-аватар с инициалом (как в Noona; недельные колонки = дни, без него).
                   Клик по имени активного мастера → недельный вид этого мастера. */}
               {(() => {
+                // колонка-день недельного вида (id = дата) vs колонка-мастер
+                const isDayCol = /^\d{4}-/.test(col.id)
                 // кликабельно только для реальных активных мастеров (не бывшие, не дни)
-                const clickable = Boolean(onSelectMaster) && !col.id.startsWith('orphan:') && !/^\d{4}-/.test(col.id)
+                const clickable = Boolean(onSelectMaster) && !col.id.startsWith('orphan:') && !isDayCol
                 const HeaderTag = clickable ? 'button' : 'div'
                 return (
                   <HeaderTag
@@ -339,8 +341,9 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                   >
                     {/* Аватарки/кружки мастеров убраны — в календаре лишние.
                         Junior-мастера различимы по фиолетовым карточкам броней. */}
+                    {/* колонка-день показывает и число («Po 17.8.»), у мастера — только имя */}
                     <span className="truncate text-sm font-semibold text-gray-800 dark:text-gray-300">
-                      {col.name.split(' ')[0]}
+                      {isDayCol ? col.name : col.name.split(' ')[0]}
                     </span>
                     {col.id.startsWith('orphan:') && (
                       <span className="rounded bg-gray-100 px-1 text-[10px] text-gray-500 dark:bg-[#2c2c2a] dark:text-gray-400">

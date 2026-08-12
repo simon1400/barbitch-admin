@@ -121,6 +121,10 @@ interface Payment {
   type: 'advance' | 'salary' | 'bonus'
 }
 
+/** Дата без года — таблицы всегда показывают один выбранный месяц. */
+const fmtDayMonth = (iso: string): string =>
+  new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })
+
 const AdministratorCabinetPage = () => {
   const [data, setData] = useState<AdministratorData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -486,13 +490,14 @@ const AdministratorCabinetPage = () => {
               <tbody>
                 {paginatedWorkTimes.map((wt) => (
                   <tr key={wt.id} className={'hover:bg-surface-hover transition-colors'}>
-                    <Cell title={new Date(wt.date).toLocaleDateString('ru-RU')} />
+                    <Cell title={fmtDayMonth(wt.date)} />
                     <Cell
+                      className={'whitespace-nowrap'}
                       title={
                         wt.startTime && wt.endTime ? `${wt.startTime}–${wt.endTime}` : '-'
                       }
                     />
-                    <Cell title={`${Number(wt.sum).toLocaleString()} hod`} />
+                    <Cell className={'whitespace-nowrap'} title={`${Number(wt.sum).toLocaleString()} hod`} />
                     <Cell
                       title={
                         wt.comment
@@ -616,7 +621,7 @@ const AdministratorCabinetPage = () => {
                 <tbody>
                   {filteredData.payrolls.map((payroll) => (
                     <tr key={payroll.id} className={'hover:bg-surface-hover transition-colors'}>
-                      <Cell title={new Date(payroll.date).toLocaleDateString('ru-RU')} />
+                      <Cell title={fmtDayMonth(payroll.date)} />
                       <Cell
                         title={`-${Number(payroll.sum).toLocaleString()} Kč`}
                         className={'text-warn font-semibold'}

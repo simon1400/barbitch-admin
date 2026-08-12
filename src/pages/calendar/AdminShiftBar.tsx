@@ -9,11 +9,13 @@ import { mondayOf, shiftDate, todayStr } from './utils'
 const WD_SHORT = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So']
 const wdOf = (d: string): string => WD_SHORT[new Date(`${d}T12:00:00`).getDay()]
 
+// flex-wrap обязателен: на телефоне «Admin:» + 7 чипов недели в одну строку не влезают
+// и раньше распирали страницу по горизонтали (весь календарь уезжал вбок)
 const barCls =
-  'flex items-center justify-center gap-x-2 gap-y-1 border-b border-gray-200 bg-white px-2 py-1.5 text-[13px] dark:border-[#2e2e2c] dark:bg-[#161615] md:px-4'
+  'flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-b border-gray-200 bg-white px-2 py-1.5 text-[13px] dark:border-[#2e2e2c] dark:bg-[#161615] md:px-4'
 
 const Label = () => (
-  <span className="flex items-center gap-1 font-semibold text-gray-500 dark:text-gray-400">
+  <span className="flex shrink-0 items-center gap-1 font-semibold text-gray-500 dark:text-gray-400">
     Admin:
   </span>
 )
@@ -54,7 +56,7 @@ export const AdminShiftBar = ({
         return (
           <span
             key={d}
-            className={`rounded px-1.5 py-0.5 ${
+            className={`shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 ${
               d === today
                 ? 'bg-pink-50 ring-1 ring-pink-200 dark:bg-[#3a2430] dark:ring-[#6b2a45]'
                 : 'bg-gray-50 dark:bg-[#252523]'

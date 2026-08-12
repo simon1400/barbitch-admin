@@ -124,12 +124,15 @@ export const gridRowCls = (idx: number): string =>
 /**
  * Классы ячеек денежных таблиц (Cell прокидывает className на span).
  * NAME — имя сотрудника, NUM — числовая колонка, NEG — отрицательная сумма,
- * RESULT — итоговая колонка «Результат».
+ * RESULT — итоговая колонка «Результат»: шрифт и цвет как у итоговой суммы под
+ * таблицей (жирный + бренд), размер остаётся как у остальных данных.
+ * Важно: цвет через important — базовый цвет текста в Cell идёт позже в собранном
+ * CSS и без important перебивал бы бренд-цвет.
  */
 export const NAME_CELL = 'text-[14px] font-bold text-ink cursor-pointer'
 export const NUM_CELL = 'text-right'
 export const NEG_CELL = 'text-right text-neg'
-export const RESULT_CELL = 'text-right text-[14px] font-extrabold text-brand-dark'
+export const RESULT_CELL = 'text-right !text-brand-dark'
 
 /** Итоговая строка под таблицей. */
 export const totalRowCls = 'flex justify-between items-center pt-3 mt-1'
