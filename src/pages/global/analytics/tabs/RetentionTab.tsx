@@ -6,10 +6,10 @@ import { hintCls } from '../../../../ui/kit'
 import { getRetention, type RetentionResult, type RetentionRow } from '../fetch/retention'
 
 const pctBadge = (pct: number | null): string => {
-  if (pct === null) return 'text-[#a39e99] bg-[#f6f4f2]'
-  if (pct >= 50) return 'text-[#1d7a3f] bg-[#e8f6ee]'
-  if (pct >= 30) return 'text-[#b0862a] bg-[#fbf3e2]'
-  return 'text-[#c53030] bg-[#fdecec]'
+  if (pct === null) return 'text-ink-faint bg-surface-input'
+  if (pct >= 50) return 'text-pos bg-pos-bg'
+  if (pct >= 30) return 'text-warn bg-warn-bg'
+  return 'text-neg bg-neg-bg'
 }
 
 const PctChip = ({ w }: { w: { eligible: number; returned: number; pct: number | null } }) => (
@@ -57,20 +57,20 @@ export default function RetentionTab() {
             записались снова в течение трёх месяцев. «К тому же мастеру» — вернулись именно к ней,
             а не к коллеге. Чем выше %, тем лучше мастер удерживает новичков.
           </p>
-          <p className="text-[#a39e99]">
+          <p className="text-ink-faint">
             Учитываются только клиенты, у которых окно уже закрыто (первый визит был достаточно
             давно) — поэтому числа в колонках могут чуть отличаться. Показаны только активные
             мастера; «Весь салон» — по всей истории, включая бывших.
           </p>
         </div>
         {loading ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+          <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">
             Načítání…
           </div>
         ) : error ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#d61f61]">{error}</div>
+          <div className="py-12 text-center text-[13px] font-semibold text-brand-alert">{error}</div>
         ) : !data || data.rows.length === 0 ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+          <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">
             Недостаточно данных.
           </div>
         ) : (
@@ -88,39 +88,39 @@ export default function RetentionTab() {
               </thead>
               <tbody>
                 {data.rows.map((r: RetentionRow) => (
-                  <tr key={r.employeeId} className="hover:bg-[#faf8f7] transition-colors">
-                    <Cell title={r.name} className="font-bold text-[#161615]" />
+                  <tr key={r.employeeId} className="hover:bg-surface-hover transition-colors">
+                    <Cell title={r.name} className="font-bold text-ink" />
                     <Cell title={String(r.newClients)} />
-                    <td className="px-3 py-[10px] border-b border-[#f2efec]">
+                    <td className="px-3 py-[10px] border-b border-line-soft">
                       <PctChip w={r.r30} />
                     </td>
-                    <td className="px-3 py-[10px] border-b border-[#f2efec]">
+                    <td className="px-3 py-[10px] border-b border-line-soft">
                       <PctChip w={r.r60} />
                     </td>
-                    <td className="px-3 py-[10px] border-b border-[#f2efec]">
+                    <td className="px-3 py-[10px] border-b border-line-soft">
                       <PctChip w={r.r90} />
                     </td>
-                    <td className="px-3 py-[10px] border-b border-[#f2efec]">
+                    <td className="px-3 py-[10px] border-b border-line-soft">
                       <PctChip w={r.same90} />
                     </td>
                   </tr>
                 ))}
-                <tr className="bg-[#faf9f8]">
-                  <Cell title={data.total.name} className="font-extrabold text-[#161615]" />
+                <tr className="bg-surface-tile">
+                  <Cell title={data.total.name} className="font-extrabold text-ink" />
                   <Cell
                     title={String(data.total.newClients)}
-                    className="font-extrabold text-[#161615]"
+                    className="font-extrabold text-ink"
                   />
-                  <td className="px-3 py-[10px] border-b border-[#f2efec]">
+                  <td className="px-3 py-[10px] border-b border-line-soft">
                     <PctChip w={data.total.r30} />
                   </td>
-                  <td className="px-3 py-[10px] border-b border-[#f2efec]">
+                  <td className="px-3 py-[10px] border-b border-line-soft">
                     <PctChip w={data.total.r60} />
                   </td>
-                  <td className="px-3 py-[10px] border-b border-[#f2efec]">
+                  <td className="px-3 py-[10px] border-b border-line-soft">
                     <PctChip w={data.total.r90} />
                   </td>
-                  <td className="px-3 py-[10px] border-b border-[#f2efec]">
+                  <td className="px-3 py-[10px] border-b border-line-soft">
                     <PctChip w={data.total.same90} />
                   </td>
                 </tr>

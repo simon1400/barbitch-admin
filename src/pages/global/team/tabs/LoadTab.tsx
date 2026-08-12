@@ -23,9 +23,9 @@ import {
 } from '../fetch/masterLoad'
 
 const pctBadgeCls = (pct: number | null): string => {
-  if (pct === null) return 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-[#a39e99] bg-[#f6f4f2]'
+  if (pct === null) return 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-ink-faint bg-surface-input'
   if (pct >= 75) return badgePosCls
-  if (pct >= 45) return 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-[#b0862a] bg-[#fbf3e2]'
+  if (pct >= 45) return 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-warn bg-warn-bg'
   return badgeNegCls
 }
 
@@ -132,7 +132,7 @@ export default function LoadTab() {
               >
                 ‹
               </button>
-              <span className="text-[13px] font-bold text-[#4c4844] whitespace-nowrap min-w-[150px] text-center">
+              <span className="text-[13px] font-bold text-ink-body whitespace-nowrap min-w-[150px] text-center">
                 {fmtShort(weekStart)} – {fmtShort(weekEnd)}.{weekEnd.getFullYear()}
               </span>
               <button
@@ -163,11 +163,11 @@ export default function LoadTab() {
 
       <StatSection title="Загрузка мастеров по слотам" id="master-load" defaultOpen>
         {loading ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">Načítání…</div>
+          <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">Načítání…</div>
         ) : error ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#d61f61]">{error}</div>
+          <div className="py-12 text-center text-[13px] font-semibold text-brand-alert">{error}</div>
         ) : !data || data.rows.length === 0 ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+          <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">
             Нет данных за выбранный период.
           </div>
         ) : (
@@ -197,17 +197,17 @@ export default function LoadTab() {
                     }
                   />
                 ))}
-                <tr className="bg-[#faf9f8] font-bold">
+                <tr className="bg-surface-tile font-bold">
                   <Cell title="Итого" className="font-bold" />
                   <Cell title={String(data.totals.workingDays)} className="font-bold" />
                   <Cell title={fmtHours(data.totals.capacityMin)} className="font-bold" />
                   <Cell title={fmtHours(data.totals.bookedMin)} className="font-bold" />
                   <Cell title={String(data.totals.bookings)} className="font-bold" />
-                  <td className="p-4 border-b border-[#f2efec]">
+                  <td className="p-4 border-b border-line-soft">
                     <PctChip pct={data.totals.pct} />
                   </td>
                   {showPast && (
-                    <td className="p-4 border-b border-[#f2efec]">
+                    <td className="p-4 border-b border-line-soft">
                       <PctChip pct={data.totals.pastPct} />
                     </td>
                   )}
@@ -236,10 +236,10 @@ function LoadRow({
 }) {
   return (
     <>
-      <tr className="hover:bg-[#faf8f7] transition-colors cursor-pointer" onClick={onToggle}>
-        <td className="p-4 border-b border-[#f2efec]">
-          <span className="flex items-center gap-2 text-[13.5px] font-bold text-[#161615]">
-            <span className="text-[#e71e6e]">{expanded ? '−' : '+'}</span>
+      <tr className="hover:bg-surface-hover transition-colors cursor-pointer" onClick={onToggle}>
+        <td className="p-4 border-b border-line-soft">
+          <span className="flex items-center gap-2 text-[13.5px] font-bold text-ink">
+            <span className="text-brand">{expanded ? '−' : '+'}</span>
             {row.name}
           </span>
         </td>
@@ -247,18 +247,18 @@ function LoadRow({
         <Cell title={fmtHours(row.capacityMin)} />
         <Cell title={fmtHours(row.bookedMin)} />
         <Cell title={String(row.bookings)} />
-        <td className="p-4 border-b border-[#f2efec]">
+        <td className="p-4 border-b border-line-soft">
           <PctChip pct={row.pct} />
         </td>
         {showPast && (
-          <td className="p-4 border-b border-[#f2efec]">
+          <td className="p-4 border-b border-line-soft">
             <PctChip pct={row.pastPct} />
           </td>
         )}
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={colSpan} className="p-0 border-b border-[#f2efec] bg-[#faf9f8]">
+          <td colSpan={colSpan} className="p-0 border-b border-line-soft bg-surface-tile">
             <div className="p-4">
               <div className={`${cardCls} overflow-x-auto`}>
                 <table className="w-full text-left">
@@ -274,11 +274,11 @@ function LoadRow({
                   </thead>
                   <tbody>
                     {row.days.map((d) => (
-                      <tr key={d.date} className="hover:bg-[#faf8f7] transition-colors">
-                        <td className="p-4 border-b border-[#f2efec]">
-                          <span className="block text-[13.5px] font-bold text-[#161615]">
+                      <tr key={d.date} className="hover:bg-surface-hover transition-colors">
+                        <td className="p-4 border-b border-line-soft">
+                          <span className="block text-[13.5px] font-bold text-ink">
                             {fmtDate(d.date)}{' '}
-                            <span className="text-[11px] font-semibold text-[#a39e99]">
+                            <span className="text-[11px] font-semibold text-ink-faint">
                               {dowOf(d.date)}
                             </span>
                           </span>
@@ -287,7 +287,7 @@ function LoadRow({
                         <Cell title={d.blockedMin > 0 ? fmtHours(d.blockedMin) : '—'} />
                         <Cell title={fmtHours(d.bookedMin)} />
                         <Cell title={String(d.bookings)} />
-                        <td className="p-4 border-b border-[#f2efec]">
+                        <td className="p-4 border-b border-line-soft">
                           <PctChip pct={d.pct} />
                         </td>
                       </tr>

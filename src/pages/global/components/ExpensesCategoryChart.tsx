@@ -1,5 +1,6 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import type { CategorizedExpense } from '../utils/categorizeExpenses'
+import { CHART } from '../../../ui/chartColors'
 
 interface Props {
   data: CategorizedExpense[]
@@ -17,7 +18,7 @@ export const ExpensesCategoryChart = ({ data, title }: Props) => {
   return (
     <div className={'w-full'}>
       {title && (
-        <h3 className={'m-0 mb-3.5 text-[15px] font-extrabold text-[#161615]'}>
+        <h3 className={'m-0 mb-3.5 text-[15px] font-extrabold text-ink'}>
           {title}
         </h3>
       )}
@@ -42,7 +43,7 @@ export const ExpensesCategoryChart = ({ data, title }: Props) => {
               formatter={(value: number) => `${value.toLocaleString()} Kč`}
               contentStyle={{
                 backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                border: '1px solid #ddd',
+                border: `1px solid ${CHART.border}`,
                 borderRadius: '8px',
               }}
             />

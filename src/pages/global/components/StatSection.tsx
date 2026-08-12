@@ -28,14 +28,14 @@ export const StatSection = ({
         className={'flex justify-between items-center cursor-pointer select-none'}
         onClick={() => setIsOpen(!isOpen)}
       >
-        <h2 className={'m-0 flex items-center gap-2 text-[15px] font-extrabold text-[#161615]'}>
+        <h2 className={'m-0 flex items-center gap-2 text-[15px] font-extrabold text-ink'}>
           {title}
           {count !== undefined && <span className={countBadgeCls}>{count}</span>}
         </h2>
         <button
           type={'button'}
           className={
-            'w-7 h-7 rounded-[7px] border-0 bg-transparent text-[15px] font-bold text-[#a39e99] transition-colors hover:bg-[#f6f4f2] hover:text-[#161615]'
+            'w-7 h-7 rounded-[7px] border-0 bg-transparent text-[15px] font-bold text-ink-faint transition-colors hover:bg-surface-input hover:text-ink'
           }
           aria-label={isOpen ? 'Свернуть' : 'Развернуть'}
         >

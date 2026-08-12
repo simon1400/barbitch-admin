@@ -72,17 +72,17 @@ function Pagination({
   if (pageCount <= 1) return null
   const from = (page - 1) * PAGE_SIZE + 1
   const to = Math.min(page * PAGE_SIZE, total)
-  const btn = 'px-3 py-1 rounded-lg border border-[#e7e2de] bg-white shadow-sm disabled:opacity-40'
+  const btn = 'px-3 py-1 rounded-lg border border-line-btn bg-white shadow-sm disabled:opacity-40'
   return (
     <div className={'flex items-center justify-between mt-3 text-sm'}>
-      <span className={'text-[#8b857f]'}>
+      <span className={'text-ink-soft'}>
         {from}–{to} из {total}
       </span>
       <div className={'flex items-center gap-2'}>
         <button type={'button'} disabled={page <= 1} onClick={() => onPage(page - 1)} className={btn}>
           ←
         </button>
-        <span className={'text-[#6f6a66]'}>
+        <span className={'text-ink-muted'}>
           {page} / {pageCount}
         </span>
         <button
@@ -165,7 +165,7 @@ function ManualAdjustment({ cardYear, onDone }: { cardYear: number; onDone: () =
       <div className={'flex flex-col gap-2 md:flex-row md:items-start'}>
         <div className={'relative md:w-72'}>
           <input
-            className={'w-full border border-[#e7e2de] rounded-lg px-3 py-2 text-sm'}
+            className={'w-full border border-line-btn rounded-lg px-3 py-2 text-sm'}
             placeholder={'Клиент: имя / e-mail / телефон'}
             value={selected ? selected.name : query}
             onChange={(e) => onQuery(e.target.value)}
@@ -173,7 +173,7 @@ function ManualAdjustment({ cardYear, onDone }: { cardYear: number; onDone: () =
           {!selected && hits.length > 0 && (
             <div
               className={
-                'absolute z-10 mt-1 w-full bg-white border border-[#eee9e6] rounded-lg shadow-lg max-h-64 overflow-auto'
+                'absolute z-10 mt-1 w-full bg-white border border-line rounded-lg shadow-lg max-h-64 overflow-auto'
               }
             >
               {hits.map((h) => (
@@ -187,20 +187,20 @@ function ManualAdjustment({ cardYear, onDone }: { cardYear: number; onDone: () =
                   }}
                 >
                   <span className={'font-medium'}>{h.name}</span>
-                  <span className={'text-[#8b857f]'}> · {h.email || h.phone || '—'}</span>
+                  <span className={'text-ink-soft'}> · {h.email || h.phone || '—'}</span>
                 </button>
               ))}
             </div>
           )}
         </div>
         <input
-          className={'border border-[#e7e2de] rounded-lg px-3 py-2 text-sm md:w-32'}
+          className={'border border-line-btn rounded-lg px-3 py-2 text-sm md:w-32'}
           placeholder={'±Kč (напр. -500)'}
           value={delta}
           onChange={(e) => setDelta(e.target.value.replace(/[^\d-]/g, ''))}
         />
         <input
-          className={'border border-[#e7e2de] rounded-lg px-3 py-2 text-sm flex-1'}
+          className={'border border-line-btn rounded-lg px-3 py-2 text-sm flex-1'}
           placeholder={'Комментарий (обязателен)'}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
@@ -210,14 +210,14 @@ function ManualAdjustment({ cardYear, onDone }: { cardYear: number; onDone: () =
           disabled={busy || !selected || !Number(delta) || !comment.trim()}
           onClick={submit}
           className={
-            'px-4 py-2 rounded-lg text-sm font-medium text-white bg-[#e71e6e] disabled:opacity-40'
+            'px-4 py-2 rounded-lg text-sm font-medium text-white bg-brand disabled:opacity-40'
           }
         >
           {busy ? 'Записываю…' : 'Записать'}
         </button>
       </div>
-      {msg && <p className={'mt-2 text-sm text-[#4c4844]'}>{msg}</p>}
-      <p className={'mt-2 text-xs text-[#8b857f]'}>
+      {msg && <p className={'mt-2 text-sm text-ink-body'}>{msg}</p>}
+      <p className={'mt-2 text-xs text-ink-soft'}>
         Создаёт транзакцию reason=manual за {cardYear} год; пересечение порога сразу создаёт награду.
       </p>
     </div>
@@ -239,9 +239,9 @@ function StatTile({
 }) {
   return (
     <div className={'bg-white shadow-md rounded-xl p-4 flex flex-col gap-1'}>
-      <span className={'text-xs text-[#8b857f]'}>{label}</span>
+      <span className={'text-xs text-ink-soft'}>{label}</span>
       <span className={'text-2xl font-bold'}>{value}</span>
-      {sub && <span className={'text-xs text-[#a39e99]'}>{sub}</span>}
+      {sub && <span className={'text-xs text-ink-faint'}>{sub}</span>}
     </div>
   )
 }
@@ -272,7 +272,7 @@ function MetricsSection({
     <div className={'mb-8'}>
       <h3 className={'text-2xl font-bold mb-3'}>Метрики программы ({metrics.cardYear})</h3>
 
-      <p className={'text-sm font-semibold text-[#6f6a66] mb-2'}>Охват</p>
+      <p className={'text-sm font-semibold text-ink-muted mb-2'}>Охват</p>
       <div className={'grid grid-cols-2 md:grid-cols-4 gap-3 mb-5'}>
         <StatTile label={'Клиентов в базе'} value={clientTotal.toLocaleString('cs-CZ')} />
         <StatTile
@@ -292,7 +292,7 @@ function MetricsSection({
         />
       </div>
 
-      <p className={'text-sm font-semibold text-[#6f6a66] mb-2'}>Скидки (стоимость программы)</p>
+      <p className={'text-sm font-semibold text-ink-muted mb-2'}>Скидки (стоимость программы)</p>
       <div className={'grid grid-cols-2 md:grid-cols-4 gap-3 mb-5'}>
         <StatTile
           label={'Применено скидок'}
@@ -310,7 +310,7 @@ function MetricsSection({
 
       {tiers.length > 0 && (
         <>
-          <p className={'text-sm font-semibold text-[#6f6a66] mb-2'}>По ступеням</p>
+          <p className={'text-sm font-semibold text-ink-muted mb-2'}>По ступеням</p>
           <TableWrapper>
             <table className={'w-full text-left min-w-[620px]'}>
               <thead>
@@ -325,13 +325,13 @@ function MetricsSection({
               </thead>
               <tbody>
                 {tiers.map((t) => (
-                  <tr key={`${t.thresholdKc}-${t.title}`} className={'hover:bg-[#faf8f7]'}>
+                  <tr key={`${t.thresholdKc}-${t.title}`} className={'hover:bg-surface-hover'}>
                     <Cell title={t.title} />
                     <Cell title={String(t.thresholdKc)} />
                     <Cell title={String(t.available)} />
                     <Cell title={String(t.used)} className={'font-medium'} />
-                    <Cell title={String(t.expired)} className={'text-[#a39e99]'} />
-                    <Cell title={fmtKc(t.discountUsedKc)} className={'text-[#e71e6e]'} />
+                    <Cell title={String(t.expired)} className={'text-ink-faint'} />
+                    <Cell title={fmtKc(t.discountUsedKc)} className={'text-brand'} />
                   </tr>
                 ))}
               </tbody>
@@ -340,7 +340,7 @@ function MetricsSection({
         </>
       )}
 
-      <p className={'mt-3 text-xs text-[#8b857f]'}>
+      <p className={'mt-3 text-xs text-ink-soft'}>
         ⚠️ Числа описывают <b>охват и стоимость</b> программы, а не её причинный эффект: нет чистой
         контрольной группы (участники vs нет), поэтому сравнивать удержание/чек напрямую нельзя —
         разница может объясняться тем, что активные клиенты и так лояльнее.
@@ -383,25 +383,25 @@ function RewardsSection({ rewards, onChanged }: { rewards: Reward[]; onChanged: 
           </thead>
           <tbody>
             {rewards.map((r) => (
-              <tr key={r.documentId} className={'hover:bg-[#faf8f7]'}>
+              <tr key={r.documentId} className={'hover:bg-surface-hover'}>
                 <Cell title={r.title} className={!r.active ? 'line-through opacity-50' : ''} />
                 <Cell title={String(r.thresholdKc)} />
-                <Cell title={DISCOUNT_LABEL(r)} className={'text-[#e71e6e]'} />
-                <td className={'p-4 border-b border-[#f2efec]'}>
+                <Cell title={DISCOUNT_LABEL(r)} className={'text-brand'} />
+                <td className={'p-4 border-b border-line-soft'}>
                   <button
                     type={'button'}
                     disabled={busy}
-                    className={`text-sm px-2 py-1 rounded-lg border ${r.active ? 'border-emerald-300 text-emerald-700' : 'border-[#e7e2de] text-[#8b857f]'}`}
+                    className={`text-sm px-2 py-1 rounded-lg border ${r.active ? 'border-emerald-300 text-emerald-700' : 'border-line-btn text-ink-soft'}`}
                     onClick={() => save(() => updateReward(r.documentId, { active: !r.active }))}
                   >
                     {r.active ? 'ANO' : 'NE'}
                   </button>
                 </td>
-                <td className={'p-4 border-b border-[#f2efec]'}>
+                <td className={'p-4 border-b border-line-soft'}>
                   <button
                     type={'button'}
                     disabled={busy}
-                    className={'text-sm text-[#c53030] hover:underline'}
+                    className={'text-sm text-neg hover:underline'}
                     onClick={() => {
                       if (window.confirm(`Удалить награду «${r.title}»?`))
                         void save(() => deleteReward(r.documentId))
@@ -417,19 +417,19 @@ function RewardsSection({ rewards, onChanged }: { rewards: Reward[]; onChanged: 
       </TableWrapper>
       <div className={'mt-3 flex flex-wrap gap-2 items-center'}>
         <input
-          className={'border border-[#e7e2de] rounded-lg px-3 py-2 text-sm w-44'}
+          className={'border border-line-btn rounded-lg px-3 py-2 text-sm w-44'}
           placeholder={'Название'}
           value={draft.title}
           onChange={(e) => setDraft({ ...draft, title: e.target.value })}
         />
         <input
-          className={'border border-[#e7e2de] rounded-lg px-3 py-2 text-sm w-28'}
+          className={'border border-line-btn rounded-lg px-3 py-2 text-sm w-28'}
           placeholder={'Порог Kč'}
           value={draft.thresholdKc || ''}
           onChange={(e) => setDraft({ ...draft, thresholdKc: Number(e.target.value.replace(/\D/g, '')) })}
         />
         <select
-          className={'border border-[#e7e2de] rounded-lg px-2 py-2 text-sm'}
+          className={'border border-line-btn rounded-lg px-2 py-2 text-sm'}
           value={draft.discountType}
           onChange={(e) => setDraft({ ...draft, discountType: e.target.value as Reward['discountType'] })}
         >
@@ -437,7 +437,7 @@ function RewardsSection({ rewards, onChanged }: { rewards: Reward[]; onChanged: 
           <option value={'fixed'}>Kč скидка</option>
         </select>
         <input
-          className={'border border-[#e7e2de] rounded-lg px-3 py-2 text-sm w-28'}
+          className={'border border-line-btn rounded-lg px-3 py-2 text-sm w-28'}
           placeholder={draft.discountType === 'percent' ? '%' : 'Kč'}
           value={draft.discountValue || ''}
           onChange={(e) => setDraft({ ...draft, discountValue: Number(e.target.value.replace(/\D/g, '')) })}
@@ -445,7 +445,7 @@ function RewardsSection({ rewards, onChanged }: { rewards: Reward[]; onChanged: 
         <button
           type={'button'}
           disabled={busy || !draft.title.trim() || !draft.thresholdKc || !draft.discountValue}
-          className={'px-4 py-2 rounded-lg text-sm font-medium text-white bg-[#e71e6e] disabled:opacity-40'}
+          className={'px-4 py-2 rounded-lg text-sm font-medium text-white bg-brand disabled:opacity-40'}
           onClick={() =>
             save(async () => {
               await createReward({ ...draft, order: rewards.length + 1 })
@@ -493,7 +493,7 @@ function CabinetSection({ accounts }: { accounts: CabinetAccount[] }) {
             Заходили: <b>{loggedIn}</b>
           </span>
           <input
-            className={'border border-[#e7e2de] rounded-lg px-3 py-2 text-sm w-56'}
+            className={'border border-line-btn rounded-lg px-3 py-2 text-sm w-56'}
             placeholder={'Поиск: имя / e-mail / телефон'}
             value={query}
             onChange={(e) => {
@@ -505,7 +505,7 @@ function CabinetSection({ accounts }: { accounts: CabinetAccount[] }) {
       </div>
 
       {accounts.length === 0 ? (
-        <p className={'text-sm text-[#8b857f]'}>
+        <p className={'text-sm text-ink-soft'}>
           Пока никто не завёл цифровой аккаунт (не подтвердил e-mail в кабинете).
         </p>
       ) : (
@@ -523,21 +523,21 @@ function CabinetSection({ accounts }: { accounts: CabinetAccount[] }) {
             </thead>
             <tbody>
               {paged.map((a) => (
-                <tr key={a.documentId} className={'hover:bg-[#faf8f7]'}>
-                  <Cell title={a.name} className={'text-[#e71e6e]'} />
-                  <Cell title={a.email || '—'} className={'text-[#6f6a66]'} />
-                  <Cell title={a.phone || '—'} className={'text-[#6f6a66]'} />
+                <tr key={a.documentId} className={'hover:bg-surface-hover'}>
+                  <Cell title={a.name} className={'text-brand'} />
+                  <Cell title={a.email || '—'} className={'text-ink-muted'} />
+                  <Cell title={a.phone || '—'} className={'text-ink-muted'} />
                   <Cell title={fmtDate(a.emailVerifiedAt)} />
-                  <td className={'p-4 border-b border-[#f2efec]'}>
+                  <td className={'p-4 border-b border-line-soft'}>
                     {a.cabinetLastLoginAt ? (
                       <span className={'text-emerald-700'}>{fmtDate(a.cabinetLastLoginAt)}</span>
                     ) : (
-                      <span className={'text-[#a39e99]'}>ещё не входил</span>
+                      <span className={'text-ink-faint'}>ещё не входил</span>
                     )}
                   </td>
                   <Cell
                     title={a.marketingConsent ? '✓' : '—'}
-                    className={a.marketingConsent ? 'text-emerald-600 font-bold' : 'text-[#a39e99]'}
+                    className={a.marketingConsent ? 'text-emerald-600 font-bold' : 'text-ink-faint'}
                   />
                 </tr>
               ))}
@@ -546,7 +546,7 @@ function CabinetSection({ accounts }: { accounts: CabinetAccount[] }) {
         </TableWrapper>
       )}
       <Pagination page={page} total={filtered.length} onPage={setPage} />
-      <p className={'mt-3 text-xs text-[#8b857f]'}>
+      <p className={'mt-3 text-xs text-ink-soft'}>
         «Зарегистрирован» = клиент подтвердил e-mail и завёл цифровой аккаунт. «Последний вход» пуст,
         если аккаунт создан, но в кабинет пока не заходили.
       </p>
@@ -677,7 +677,7 @@ export default function LoyaltyPage() {
           </div>
 
           {error && (
-            <div className={'mb-4 p-3 rounded-lg bg-[#fdecec] text-[#c53030] text-sm'}>
+            <div className={'mb-4 p-3 rounded-lg bg-neg-bg text-neg text-sm'}>
               Ошибка загрузки: {error}
             </div>
           )}
@@ -702,8 +702,8 @@ export default function LoyaltyPage() {
                 onClick={() => setTab(t.id)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                   tab === t.id
-                    ? 'bg-[#e71e6e] text-white shadow-sm'
-                    : 'bg-white border border-[#e7e2de] text-[#4c4844] shadow-sm hover:bg-pink-50'
+                    ? 'bg-brand text-white shadow-sm'
+                    : 'bg-white border border-line-btn text-ink-body shadow-sm hover:bg-pink-50'
                 }`}
               >
                 {t.label}
@@ -727,7 +727,7 @@ export default function LoyaltyPage() {
                 <div className={'mb-3 flex items-center justify-between gap-3 flex-wrap'}>
                   <h3 className={'text-2xl font-bold'}>Активные награды (доступны к погашению)</h3>
                   <input
-                    className={'border border-[#e7e2de] rounded-lg px-3 py-2 text-sm w-64'}
+                    className={'border border-line-btn rounded-lg px-3 py-2 text-sm w-64'}
                     placeholder={'Поиск: имя / e-mail / телефон / код'}
                     value={redSearch}
                     onChange={(e) => {
@@ -737,9 +737,9 @@ export default function LoyaltyPage() {
                   />
                 </div>
                 {redemptions.length === 0 ? (
-                  <p className={'text-sm text-[#8b857f]'}>Нет активных наград.</p>
+                  <p className={'text-sm text-ink-soft'}>Нет активных наград.</p>
                 ) : filteredRedemptions.length === 0 ? (
-                  <p className={'text-sm text-[#8b857f]'}>Ничего не найдено по запросу.</p>
+                  <p className={'text-sm text-ink-soft'}>Ничего не найдено по запросу.</p>
                 ) : (
                   <TableWrapper
                     additionalInfo={`Показано ${filteredRedemptions.length} из ${redemptions.length}`}
@@ -757,30 +757,30 @@ export default function LoyaltyPage() {
                       </thead>
                       <tbody>
                         {pagedRedemptions.map((r) => (
-                          <tr key={r.documentId} className={'hover:bg-[#faf8f7]'}>
+                          <tr key={r.documentId} className={'hover:bg-surface-hover'}>
                             <Cell title={r.client?.name || '—'} />
-                            <td className={'p-4 border-b border-[#f2efec]'}>
+                            <td className={'p-4 border-b border-line-soft'}>
                               {r.client?.email || r.client?.phone ? (
-                                <span className={'block font-sans text-sm text-[#161615]'}>
+                                <span className={'block font-sans text-sm text-ink'}>
                                   {r.client?.email && <span className={'block'}>{r.client.email}</span>}
                                   {r.client?.phone && (
-                                    <span className={'block text-[#8b857f]'}>{r.client.phone}</span>
+                                    <span className={'block text-ink-soft'}>{r.client.phone}</span>
                                   )}
                                 </span>
                               ) : (
-                                <span className={'block font-sans text-sm text-[#a39e99]'}>—</span>
+                                <span className={'block font-sans text-sm text-ink-faint'}>—</span>
                               )}
                             </td>
                             <Cell
                               title={`${r.reward?.title || '—'} (от ${r.reward?.thresholdKc ?? '?'} Kč)`}
                             />
-                            <Cell title={r.code || '—'} className={'font-mono text-[#e71e6e]'} />
+                            <Cell title={r.code || '—'} className={'font-mono text-brand'} />
                             <Cell title={fmtDay(r.expiresAt)} />
-                            <td className={'p-4 border-b border-[#f2efec]'}>
+                            <td className={'p-4 border-b border-line-soft'}>
                               <button
                                 type={'button'}
                                 disabled={busy}
-                                className={'text-sm px-2 py-1 rounded-lg border border-[#e7e2de] hover:bg-pink-50'}
+                                className={'text-sm px-2 py-1 rounded-lg border border-line-btn hover:bg-pink-50'}
                                 onClick={() => void markUsed(r)}
                               >
                                 Отметить использованной
@@ -802,7 +802,7 @@ export default function LoyaltyPage() {
               <div className={'mb-2 flex items-center justify-between'}>
                 <h3 className={'text-2xl font-bold'}>Аккаунты ({cardYear})</h3>
                 <input
-                  className={'border border-[#e7e2de] rounded-lg px-3 py-2 text-sm w-64'}
+                  className={'border border-line-btn rounded-lg px-3 py-2 text-sm w-64'}
                   placeholder={'Поиск: имя / e-mail'}
                   value={search}
                   onChange={(e) => {
@@ -812,7 +812,7 @@ export default function LoyaltyPage() {
                 />
               </div>
               {loading && accounts.length === 0 ? (
-                <p className={'text-sm text-[#8b857f]'}>Загрузка…</p>
+                <p className={'text-sm text-ink-soft'}>Загрузка…</p>
               ) : (
                 <TableWrapper additionalInfo={`Показано ${filtered.length} из ${accounts.length}`}>
                   <table className={'w-full text-left min-w-[620px]'}>
@@ -831,13 +831,13 @@ export default function LoyaltyPage() {
                       {pagedAccounts.map((a) => (
                         <Fragment key={a.clientDocId}>
                           <tr
-                            className={'hover:bg-[#faf8f7] cursor-pointer'}
+                            className={'hover:bg-surface-hover cursor-pointer'}
                             onClick={() =>
                               setExpanded(expanded === a.clientDocId ? null : a.clientDocId)
                             }
                           >
-                            <Cell title={a.name} className={'text-[#e71e6e]'} />
-                            <Cell title={a.email || '—'} className={'text-[#6f6a66]'} />
+                            <Cell title={a.name} className={'text-brand'} />
+                            <Cell title={a.email || '—'} className={'text-ink-muted'} />
                             <Cell title={fmtKc(a.balanceKc)} className={'font-bold'} />
                             <Cell title={'●'.repeat(Math.min(a.stamps, 8)) || '—'} />
                             <Cell title={String(a.visits)} />
@@ -846,23 +846,23 @@ export default function LoyaltyPage() {
                           </tr>
                           {expanded === a.clientDocId && (
                             <tr>
-                              <td colSpan={7} className={'p-4 bg-[#faf9f8] border-b border-[#f2efec]'}>
+                              <td colSpan={7} className={'p-4 bg-surface-tile border-b border-line-soft'}>
                             <div className={'flex flex-col gap-1'}>
                               {a.transactions.map((tx) => (
                                 <div key={tx.documentId} className={'flex gap-3 text-sm'}>
-                                  <span className={'text-[#8b857f] w-36'}>{fmtDate(tx.createdAt)}</span>
+                                  <span className={'text-ink-soft w-36'}>{fmtDate(tx.createdAt)}</span>
                                   <span
-                                    className={`w-20 font-medium ${tx.delta < 0 ? 'text-[#c53030]' : 'text-emerald-600'}`}
+                                    className={`w-20 font-medium ${tx.delta < 0 ? 'text-neg' : 'text-emerald-600'}`}
                                   >
                                     {tx.delta > 0 ? '+' : ''}
                                     {tx.delta} Kč
                                   </span>
-                                  <span className={'w-28 text-[#6f6a66]'}>
+                                  <span className={'w-28 text-ink-muted'}>
                                     {REASON_LABELS[tx.reason] || tx.reason}
                                   </span>
-                                  {tx.comment && <span className={'text-[#6f6a66]'}>{tx.comment}</span>}
+                                  {tx.comment && <span className={'text-ink-muted'}>{tx.comment}</span>}
                                   {tx.createdByName && tx.reason === 'manual' && (
-                                    <span className={'text-[#a39e99]'}>({tx.createdByName})</span>
+                                    <span className={'text-ink-faint'}>({tx.createdByName})</span>
                                   )}
                                 </div>
                               ))}

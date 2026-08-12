@@ -9,8 +9,8 @@ import { TableWrapper } from '../../components/TableWrapper'
 
 const SummaryCard = ({ label, value, accent }: { label: string; value: string; accent?: boolean }) => (
   <div className={'bg-white rounded-xl shadow-md p-4 flex-1 min-w-[140px]'}>
-    <div className={'text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#8b857f] mb-[5px]'}>{label}</div>
-    <div className={`text-[21px] font-extrabold leading-[1.15] ${accent ? 'text-[#b81b60]' : 'text-[#161615]'}`}>{value}</div>
+    <div className={'text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-soft mb-[5px]'}>{label}</div>
+    <div className={`text-[21px] font-extrabold leading-[1.15] ${accent ? 'text-brand-dark' : 'text-ink'}`}>{value}</div>
   </div>
 )
 
@@ -36,17 +36,17 @@ export default function ClientsTab() {
   }, [])
 
   if (loading) {
-    return <div className={'py-12 text-center text-sm text-[#a39e99]'}>Načítání…</div>
+    return <div className={'py-12 text-center text-sm text-ink-faint'}>Načítání…</div>
   }
 
   if (error || !data) {
     return (
       <div className={'py-12 text-center'}>
-        <p className={'text-sm text-[#c53030] mb-4'}>{error ?? 'Нет данных'}</p>
+        <p className={'text-sm text-neg mb-4'}>{error ?? 'Нет данных'}</p>
         <button
           type={'button'}
           onClick={() => load(true)}
-          className={'px-4 py-2 rounded-lg bg-[#e71e6e] text-white text-sm font-semibold'}
+          className={'px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold'}
         >
           Обновить
         </button>
@@ -66,14 +66,14 @@ export default function ClientsTab() {
         <button
           type={'button'}
           onClick={() => load(true)}
-          className={'px-4 py-2 rounded-lg border border-[#e7e2de] bg-white text-sm font-semibold text-[#4c4844] hover:bg-[#faf8f7]'}
+          className={'px-4 py-2 rounded-lg border border-line-btn bg-white text-sm font-semibold text-ink-body hover:bg-surface-hover'}
         >
           Обновить
         </button>
       </div>
 
       <StatSection title={'Новые и повторные клиенты по месяцам'} id={'clients-monthly'} defaultOpen>
-        <p className={'text-[12.5px] leading-[1.55] font-medium text-[#98928c] mb-3.5'}>
+        <p className={'text-[12.5px] leading-[1.55] font-medium text-ink-hint mb-3.5'}>
           По дате визита, уникальные клиенты, отменённые брони исключены. «Новый» — первый
           визит за всю историю пришёлся на этот месяц; «Повторный» — приходил и раньше (2-й и более
           раз).
@@ -114,7 +114,7 @@ export default function ClientsTab() {
                       ? 'bg-red-200 hover:bg-red-300 transition-colors'
                       : r.newPct === minNewPct
                         ? 'bg-green-200 hover:bg-green-300 transition-colors'
-                        : 'hover:bg-[#faf8f7] transition-colors'
+                        : 'hover:bg-surface-hover transition-colors'
                   }
                 >
                   <Cell title={r.label} />
@@ -124,14 +124,14 @@ export default function ClientsTab() {
                   <Cell title={`${r.newPct}%`} />
                 </tr>
               ))}
-              <tr className={'hover:bg-[#faf8f7] transition-colors'}>
-                <Cell title={`${currentRow.label} (идёт)`} className={'text-[#a39e99] italic'} />
-                <Cell title={String(currentRow.total)} className={'text-[#a39e99] italic'} />
-                <Cell title={String(currentRow.newClients)} className={'text-[#a39e99] italic'} />
-                <Cell title={String(currentRow.returning)} className={'text-[#a39e99] italic'} />
-                <Cell title={`${currentRow.newPct}%`} className={'text-[#a39e99] italic'} />
+              <tr className={'hover:bg-surface-hover transition-colors'}>
+                <Cell title={`${currentRow.label} (идёт)`} className={'text-ink-faint italic'} />
+                <Cell title={String(currentRow.total)} className={'text-ink-faint italic'} />
+                <Cell title={String(currentRow.newClients)} className={'text-ink-faint italic'} />
+                <Cell title={String(currentRow.returning)} className={'text-ink-faint italic'} />
+                <Cell title={`${currentRow.newPct}%`} className={'text-ink-faint italic'} />
               </tr>
-              <tr className={'bg-[#faf9f8] font-bold'}>
+              <tr className={'bg-surface-tile font-bold'}>
                 <Cell title={'Итого (6 мес)'} className={'font-bold'} />
                 <Cell title={String(monthlyTotals.total)} className={'font-bold'} />
                 <Cell title={String(monthlyTotals.newClients)} className={'font-bold'} />
@@ -144,7 +144,7 @@ export default function ClientsTab() {
       </StatSection>
 
       <StatSection title={'Загрузка по дням недели'} id={'clients-weekday'} defaultOpen>
-        <p className={'text-[12.5px] leading-[1.55] font-medium text-[#98928c] mb-3.5'}>
+        <p className={'text-[12.5px] leading-[1.55] font-medium text-ink-hint mb-3.5'}>
           За период {weekdayWindowLabel}. «Визиты» — клиент засчитывается один раз в день; «раб. дней»
           — сколько таких дней недели было в периоде.
         </p>
@@ -174,7 +174,7 @@ export default function ClientsTab() {
                       ? 'bg-green-200 hover:bg-green-300 transition-colors'
                       : r.clientsPerDay === minVisitsPerDay
                         ? 'bg-red-200 hover:bg-red-300 transition-colors'
-                        : 'hover:bg-[#faf8f7] transition-colors'
+                        : 'hover:bg-surface-hover transition-colors'
                   }
                 >
                   <Cell title={r.label} />

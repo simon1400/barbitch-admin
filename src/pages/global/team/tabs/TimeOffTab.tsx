@@ -15,9 +15,9 @@ import {
 } from '../fetch/timeOff'
 
 const TYPE_BADGE: Record<TimeOffType, string> = {
-  sick: 'bg-[#fbf3e2] text-[#b0862a]',
-  vacation: 'bg-[#e7effa] text-[#2563ac]',
-  personal: 'bg-[#fbf3e2] text-[#b0862a]',
+  sick: 'bg-warn-bg text-warn',
+  vacation: 'bg-info-bg text-info',
+  personal: 'bg-warn-bg text-warn',
 }
 
 const fmtDate = (d: string) => {
@@ -75,11 +75,11 @@ export default function TimeOffTab() {
         defaultOpen
       >
         {loading ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+          <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">
             Načítání…
           </div>
         ) : summaries.length === 0 ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+          <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">
             За выбранный месяц записей нет.
           </div>
         ) : (
@@ -107,23 +107,23 @@ export default function TimeOffTab() {
                     }
                   />
                 ))}
-                <tr className="bg-[#faf9f8]">
-                  <Cell title="Итого" className="text-[13px] font-extrabold text-[#4c4844]" />
+                <tr className="bg-surface-tile">
+                  <Cell title="Итого" className="text-[13px] font-extrabold text-ink-body" />
                   <Cell
                     title={String(totals.sick)}
-                    className="text-right font-bold text-[#b0862a]"
+                    className="text-right font-bold text-warn"
                   />
                   <Cell
                     title={String(totals.vacation)}
-                    className="text-right font-bold text-[#2563ac]"
+                    className="text-right font-bold text-info"
                   />
                   <Cell
                     title={String(totals.personal)}
-                    className="text-right font-bold text-[#b0862a]"
+                    className="text-right font-bold text-warn"
                   />
                   <Cell
                     title={String(totals.total)}
-                    className="text-right text-[14px] font-extrabold text-[#b81b60]"
+                    className="text-right text-[14px] font-extrabold text-brand-dark"
                   />
                 </tr>
               </tbody>
@@ -151,64 +151,64 @@ function SummaryRow({
   return (
     <>
       <tr
-        className="hover:bg-[#faf8f7] transition-colors cursor-pointer"
+        className="hover:bg-surface-hover transition-colors cursor-pointer"
         onClick={onToggle}
       >
-        <td className="px-3 py-[10px] border-b border-[#f2efec]">
-          <span className="flex items-center gap-2 text-[14px] font-bold text-[#161615]">
-            <span className="w-[18px] h-[18px] rounded-md bg-[#fce7f0] text-[#b81b60] text-[12px] font-extrabold inline-flex items-center justify-center shrink-0">
+        <td className="px-3 py-[10px] border-b border-line-soft">
+          <span className="flex items-center gap-2 text-[14px] font-bold text-ink">
+            <span className="w-[18px] h-[18px] rounded-md bg-brand-tint text-brand-dark text-[12px] font-extrabold inline-flex items-center justify-center shrink-0">
               {expanded ? '−' : '+'}
             </span>
             {summary.name}
-            <span className="text-[11px] font-bold text-[#a39e99]">
+            <span className="text-[11px] font-bold text-ink-faint">
               ({summary.records.length})
             </span>
           </span>
         </td>
         <Cell
           title={summary.sick ? String(summary.sick) : '—'}
-          className={`text-right ${summary.sick ? 'text-[#b0862a] font-bold' : 'text-[#c4bfba]'}`}
+          className={`text-right ${summary.sick ? 'text-warn font-bold' : 'text-ink-disabled'}`}
         />
         <Cell
           title={summary.vacation ? String(summary.vacation) : '—'}
-          className={`text-right ${summary.vacation ? 'text-[#2563ac] font-bold' : 'text-[#c4bfba]'}`}
+          className={`text-right ${summary.vacation ? 'text-info font-bold' : 'text-ink-disabled'}`}
         />
         <Cell
           title={summary.personal ? String(summary.personal) : '—'}
-          className={`text-right ${summary.personal ? 'text-[#b0862a] font-bold' : 'text-[#c4bfba]'}`}
+          className={`text-right ${summary.personal ? 'text-warn font-bold' : 'text-ink-disabled'}`}
         />
         <Cell
           title={String(summary.total)}
-          className="text-right text-[14px] font-extrabold text-[#b81b60]"
+          className="text-right text-[14px] font-extrabold text-brand-dark"
         />
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={5} className="p-0 border-b border-[#f2efec] bg-[#faf9f8]">
+          <td colSpan={5} className="p-0 border-b border-line-soft bg-surface-tile">
             <div className="p-4 space-y-2">
               {summary.records.map((rec) => (
                 <div
                   key={rec.documentId}
-                  className="flex items-center gap-3 flex-wrap bg-white border border-[#eee9e6] rounded-lg px-3 py-2.5"
+                  className="flex items-center gap-3 flex-wrap bg-white border border-line rounded-lg px-3 py-2.5"
                 >
                   <span
                     className={`px-[7px] py-0.5 rounded-md text-[11px] font-bold ${TYPE_BADGE[rec.type]}`}
                   >
                     {TYPE_LABELS[rec.type]}
                   </span>
-                  <span className="text-[12.5px] font-semibold text-[#4c4844]">
+                  <span className="text-[12.5px] font-semibold text-ink-body">
                     {fmtDate(rec.startDate)} — {fmtDate(rec.endDate)}
                   </span>
-                  <span className="text-[12px] font-semibold text-[#8b857f]">
+                  <span className="text-[12px] font-semibold text-ink-soft">
                     {daysInMonth(rec, month, year)} дн. в этом месяце
                   </span>
                   <span
-                    className={`text-[12px] font-bold ${rec.paid ? 'text-[#1d7a3f]' : 'text-[#a39e99]'}`}
+                    className={`text-[12px] font-bold ${rec.paid ? 'text-pos' : 'text-ink-faint'}`}
                   >
                     {rec.paid ? 'Оплачивается' : 'Без оплаты'}
                   </span>
                   {rec.comment && (
-                    <span className="text-[12px] font-medium text-[#8b857f] italic">
+                    <span className="text-[12px] font-medium text-ink-soft italic">
                       {rec.comment}
                     </span>
                   )}

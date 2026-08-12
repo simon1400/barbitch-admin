@@ -11,26 +11,26 @@ export const ComparisonCard = ({ result }: { result: ShiftCheckResult }) => {
       <div
         className={`rounded-xl p-5 border ${
           result.comparison.match
-            ? 'bg-[#e8f6ee] border-[#bfe4cd]'
-            : 'bg-[#fdecec] border-[#f3c1c1]'
+            ? 'bg-pos-bg border-pos-line'
+            : 'bg-neg-bg border-neg-line'
         }`}
       >
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
-            <p className="text-sm text-[#6f6a66]">Kalendář (aktivní)</p>
-            <p className="text-2xl font-bold text-[#161615]">{result.calendar.count}</p>
+            <p className="text-sm text-ink-muted">Kalendář (aktivní)</p>
+            <p className="text-2xl font-bold text-ink">{result.calendar.count}</p>
           </div>
           <div>
-            <p className="text-sm text-[#6f6a66]">Service Provided</p>
-            <p className="text-2xl font-bold text-[#161615]">
+            <p className="text-sm text-ink-muted">Service Provided</p>
+            <p className="text-2xl font-bold text-ink">
               {result.comparison.strapiCount}
             </p>
           </div>
           <div>
-            <p className="text-sm text-[#6f6a66]">Rozdíl</p>
+            <p className="text-sm text-ink-muted">Rozdíl</p>
             <p
               className={`text-2xl font-bold ${
-                result.comparison.match ? 'text-[#1d7a3f]' : 'text-[#c53030]'
+                result.comparison.match ? 'text-pos' : 'text-neg'
               }`}
             >
               {result.comparison.match ? '0' : `±${result.comparison.difference}`}
@@ -41,12 +41,12 @@ export const ComparisonCard = ({ result }: { result: ShiftCheckResult }) => {
         {diff && (
           <div className="mt-4 space-y-3">
             {diff.strapiExtra.length > 0 && (
-              <div className="rounded-lg border border-orange-200 bg-[#fbf3e2] p-4">
+              <div className="rounded-lg border border-orange-200 bg-warn-bg p-4">
                 <p className="text-sm font-semibold text-orange-800 mb-2">
                   Pouze v Strapi (chybí v kalendáři):
                 </p>
                 {diff.strapiExtra.map((item: any, i: number) => (
-                  <div key={i} className="text-sm text-[#b0862a] flex items-center gap-2">
+                  <div key={i} className="text-sm text-warn flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-orange-400" />
                     <span className="font-medium">{item.clientName}</span>
                     <span className="text-orange-500">

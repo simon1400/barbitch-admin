@@ -3,11 +3,12 @@
 // ⚠️ Каталог живой: движок бронирования читает эти записи — правки сразу на сайте.
 // Дизайн — 1:1 по standalone-макетам владельца (s163): «Каталог услуг» + «Форма
 // услуги». Все размеры/отступы/цвета взяты из inline-стилей макета (Montserrat,
-// карточки #fff/#eee9e6/r12, инпуты #f6f4f2 9px 12px, заголовки колонок 10.5px,
+// карточки белые с рамкой line/r12, инпуты на surface-input 9px 12px, заголовки колонок 10.5px,
 // тоглы 36×21, sticky-бар с blur). Кастомная шкала шрифтов admin не используется —
 // только literal px.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { palette } from '../../../ui/palette'
 import type {
   CatalogModifier,
   CatalogServiceFull,
@@ -45,13 +46,13 @@ const EMPTY_PAYLOAD: ServicePayload = {
 
 // ── стили макета (точные значения из standalone-HTML) ──
 
-const cardCls = 'bg-white border border-[#eee9e6] rounded-xl shadow-[0_1px_2px_rgba(22,22,21,0.04)]'
+const cardCls = 'bg-white border border-line rounded-xl shadow-panel'
 
-// инпут формы: bg #f6f4f2, border transparent, focus = белый + розовая рамка + кольцо
+// инпут формы: bg surface-input, border transparent, focus = белый + розовая рамка + кольцо
 const inputBaseCls =
-  'box-border w-full bg-[#f6f4f2] border border-transparent font-semibold text-[#161615] transition-all duration-150 ' +
-  'placeholder:text-[#b6b0aa] placeholder:font-medium ' +
-  'focus:outline-none focus:bg-white focus:border-[#e71e6e] focus:shadow-[0_0_0_3px_rgba(231,30,110,0.1)] ' +
+  'box-border w-full bg-surface-input border border-transparent font-semibold text-ink transition-all duration-150 ' +
+  'placeholder:text-ink-placeholder placeholder:font-medium ' +
+  'focus:outline-none focus:bg-white focus:border-brand focus:shadow-focus ' +
   '[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
 // крупный инпут (Основное): padding 9px 12px, radius 8px, 15px
 const inputCls = `${inputBaseCls} rounded-lg px-3 py-[9px] text-[15px]`
@@ -59,15 +60,15 @@ const inputCls = `${inputBaseCls} rounded-lg px-3 py-[9px] text-[15px]`
 const rowInputCls = `${inputBaseCls} rounded-[7px] px-2.5 py-[7px] text-[14px]`
 
 const labelCls =
-  'block text-[11px] font-bold tracking-[0.07em] uppercase text-[#8b857f] mb-1.5'
-const colHeadCls = 'text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#b3ada7]'
-const kickerCls = 'text-[11px] font-bold tracking-[0.08em] uppercase text-[#a39e99] mb-[3px]'
+  'block text-[11px] font-bold tracking-[0.07em] uppercase text-ink-soft mb-1.5'
+const colHeadCls = 'text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-label'
+const kickerCls = 'text-[11px] font-bold tracking-[0.08em] uppercase text-ink-faint mb-[3px]'
 
 // кнопки макета
 const btnNeutralCls =
-  'px-[18px] py-[9px] rounded-lg border border-[#e7e2de] bg-white text-[#4c4844] text-[14px] font-bold whitespace-nowrap transition-colors hover:border-[#c9c3be]'
+  'px-[18px] py-[9px] rounded-lg border border-line-btn bg-white text-ink-body text-[14px] font-bold whitespace-nowrap transition-colors hover:border-line-btn-hover'
 const btnPinkCls =
-  'rounded-lg border-0 bg-[#e71e6e] text-white text-[14px] font-extrabold whitespace-nowrap shadow-[0_4px_12px_rgba(231,30,110,0.25)] transition-colors hover:bg-[#d11a62] disabled:opacity-60'
+  'rounded-lg border-0 bg-brand text-white text-[14px] font-extrabold whitespace-nowrap shadow-brand-lg transition-colors hover:bg-brand-hover disabled:opacity-60'
 
 // grid-шаблоны (inline style — точные minmax из макета)
 const LIST_GRID = 'minmax(170px,1.6fr) 84px 74px 128px minmax(130px,1fr) 118px'
@@ -78,7 +79,7 @@ const MODIFIER_GRID = '22px minmax(110px,1.4fr) 72px 72px 84px minmax(80px,1fr) 
 
 const CountBadge = ({ n, big }: { n: number; big?: boolean }) => (
   <span
-    className={`text-[11px] font-bold text-[#b81b60] bg-[#fce7f0] rounded-full ${big ? 'px-[9px] py-[3px]' : 'px-2 py-0.5'}`}
+    className={`text-[11px] font-bold text-brand-dark bg-brand-tint rounded-full ${big ? 'px-[9px] py-[3px]' : 'px-2 py-0.5'}`}
   >
     {n}
   </span>
@@ -100,14 +101,14 @@ const Toggle = ({
   >
     <span
       className="relative inline-flex flex-none w-9 h-[21px] rounded-full transition-colors duration-150"
-      style={{ background: checked ? '#e71e6e' : '#d8d3cf' }}
+      style={{ background: checked ? palette.brand : palette['surface-toggle'] }}
     >
       <span
-        className="absolute top-[2.5px] w-4 h-4 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-all duration-150"
+        className="absolute top-[2.5px] w-4 h-4 rounded-full bg-white shadow-knob transition-all duration-150"
         style={{ left: checked ? 17.5 : 2.5 }}
       />
     </span>
-    <span className="text-[13px] font-bold text-[#4c4844]">{label}</span>
+    <span className="text-[13px] font-bold text-ink-body">{label}</span>
   </button>
 )
 
@@ -132,7 +133,7 @@ const SuffixInput = ({
       onChange={(e) => onChange(Number(e.target.value))}
     />
     {suffix && (
-      <span className="pointer-events-none absolute right-[11px] top-1/2 -translate-y-1/2 text-[12px] font-bold text-[#aaa49e]">
+      <span className="pointer-events-none absolute right-[11px] top-1/2 -translate-y-1/2 text-[12px] font-bold text-ink-dim">
         {suffix}
       </span>
     )}
@@ -154,11 +155,11 @@ const SectionCard = ({
   <div className={`${cardCls} px-6 py-[22px] mb-3.5`}>
     <div className="grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] gap-x-7 gap-y-[18px]">
       <div>
-        <h2 className="m-0 mb-1.5 flex items-center gap-2 text-[15px] font-extrabold text-[#161615]">
+        <h2 className="m-0 mb-1.5 flex items-center gap-2 text-[15px] font-extrabold text-ink">
           {title}
           {typeof badge === 'number' && <CountBadge n={badge} />}
         </h2>
-        <p className="m-0 text-[12.5px] leading-[1.55] font-medium text-[#98928c]">{hint}</p>
+        <p className="m-0 text-[12.5px] leading-[1.55] font-medium text-ink-hint">{hint}</p>
       </div>
       <div className="min-w-0">{children}</div>
     </div>
@@ -169,14 +170,14 @@ const MoveArrows = ({ onUp, onDown }: { onUp: () => void; onDown: () => void }) 
   <span className="flex flex-col items-center gap-px">
     <button
       type="button"
-      className="bg-transparent border-0 p-px text-[9px] leading-none text-[#c4bfba] cursor-pointer hover:text-[#161615]"
+      className="bg-transparent border-0 p-px text-[9px] leading-none text-ink-disabled cursor-pointer hover:text-ink"
       onClick={onUp}
     >
       ▲
     </button>
     <button
       type="button"
-      className="bg-transparent border-0 p-px text-[9px] leading-none text-[#c4bfba] cursor-pointer hover:text-[#161615]"
+      className="bg-transparent border-0 p-px text-[9px] leading-none text-ink-disabled cursor-pointer hover:text-ink"
       onClick={onDown}
     >
       ▼
@@ -187,7 +188,7 @@ const MoveArrows = ({ onUp, onDown }: { onUp: () => void; onDown: () => void }) 
 const RemoveBtn = ({ onClick }: { onClick: () => void }) => (
   <button
     type="button"
-    className="w-7 h-7 rounded-[7px] border-0 bg-transparent text-[#c2bcb6] text-[14px] cursor-pointer justify-self-center transition-colors hover:bg-[#fdecf2] hover:text-[#d61f61]"
+    className="w-7 h-7 rounded-[7px] border-0 bg-transparent text-ink-icon text-[14px] cursor-pointer justify-self-center transition-colors hover:bg-brand-wash hover:text-brand-alert"
     title="Удалить"
     onClick={onClick}
   >
@@ -198,7 +199,7 @@ const RemoveBtn = ({ onClick }: { onClick: () => void }) => (
 const AddDashedBtn = ({ label, onClick }: { label: string; onClick: () => void }) => (
   <button
     type="button"
-    className="box-border w-full mt-2.5 py-[9px] rounded-lg border border-dashed border-[#eeb9cd] bg-transparent text-[#e71e6e] text-[13px] font-bold cursor-pointer transition-colors hover:bg-[#fdf2f6]"
+    className="box-border w-full mt-2.5 py-[9px] rounded-lg border border-dashed border-brand-line-dash bg-transparent text-brand text-[13px] font-bold cursor-pointer transition-colors hover:bg-brand-wash-soft"
     onClick={onClick}
   >
     ＋ {label}
@@ -366,7 +367,7 @@ const CatalogPage = () => {
             <button
               type="button"
               title="К списку"
-              className="flex-none w-[38px] h-[38px] rounded-[9px] border border-[#e7e2de] bg-white text-[#6f6a66] text-[17px] cursor-pointer transition-colors hover:border-[#c9c3be] hover:text-[#161615]"
+              className="flex-none w-[38px] h-[38px] rounded-[9px] border border-line-btn bg-white text-ink-muted text-[17px] cursor-pointer transition-colors hover:border-line-btn-hover hover:text-ink"
               onClick={() => setEditor(null)}
             >
               ←
@@ -375,7 +376,7 @@ const CatalogPage = () => {
               <div className={kickerCls}>
                 Каталог услуг{p.category ? ` · ${p.category}` : ''}
               </div>
-              <h1 className="m-0 text-[22px] leading-[1.2] font-extrabold text-[#161615] truncate">
+              <h1 className="m-0 text-[22px] leading-[1.2] font-extrabold text-ink truncate">
                 {p.title || 'Новая услуга'}
               </h1>
             </div>
@@ -443,7 +444,7 @@ const CatalogPage = () => {
             <div>
               <label className={labelCls}>
                 Описание{' '}
-                <span className="normal-case tracking-normal font-semibold text-[#b6b0aa]">
+                <span className="normal-case tracking-normal font-semibold text-ink-placeholder">
                   · info-бейдж на сайте
                 </span>
               </label>
@@ -465,7 +466,7 @@ const CatalogPage = () => {
           <div className="overflow-x-auto">
             <div className="min-w-[478px]">
               <div
-                className="grid gap-2 pb-[7px] border-b border-[#eee9e6]"
+                className="grid gap-2 pb-[7px] border-b border-line"
                 style={{ gridTemplateColumns: VARIANT_GRID }}
               >
                 <span />
@@ -478,7 +479,7 @@ const CatalogPage = () => {
               {p.variants.map((v, idx) => (
                 <div
                   key={idx}
-                  className={`grid gap-2 items-center py-[7px] ${idx > 0 ? 'border-t border-[#f2efec]' : ''}`}
+                  className={`grid gap-2 items-center py-[7px] ${idx > 0 ? 'border-t border-line-soft' : ''}`}
                   style={{ gridTemplateColumns: VARIANT_GRID }}
                 >
                   <MoveArrows onUp={() => moveAt('variants', idx, -1)} onDown={() => moveAt('variants', idx, 1)} />
@@ -530,7 +531,7 @@ const CatalogPage = () => {
           <div className="overflow-x-auto">
             <div className="min-w-[518px]">
               <div
-                className="grid gap-2 pb-[7px] border-b border-[#eee9e6]"
+                className="grid gap-2 pb-[7px] border-b border-line"
                 style={{ gridTemplateColumns: MODIFIER_GRID }}
               >
                 <span />
@@ -544,7 +545,7 @@ const CatalogPage = () => {
               {p.modifiers.map((m, idx) => (
                 <div
                   key={idx}
-                  className={`grid gap-2 items-center py-[7px] ${idx > 0 ? 'border-t border-[#f2efec]' : ''}`}
+                  className={`grid gap-2 items-center py-[7px] ${idx > 0 ? 'border-t border-line-soft' : ''}`}
                   style={{ gridTemplateColumns: MODIFIER_GRID }}
                 >
                   <MoveArrows onUp={() => moveAt('modifiers', idx, -1)} onDown={() => moveAt('modifiers', idx, 1)} />
@@ -611,20 +612,32 @@ const CatalogPage = () => {
                   className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full cursor-pointer select-none text-[13.5px] font-bold border transition-all duration-150"
                   style={
                     on
-                      ? { background: '#fce7f0', borderColor: '#f0a8c8', color: '#b81b60' }
-                      : { background: '#fff', borderColor: '#e5e1de', color: '#8b857f' }
+                      ? {
+                          background: palette['brand-tint'],
+                          borderColor: palette['brand-line'],
+                          color: palette['brand-dark'],
+                        }
+                      : {
+                          background: '#fff',
+                          borderColor: palette['line-chip'],
+                          color: palette['ink-soft'],
+                        }
                   }
                   onClick={() => toggleMaster(m.documentId)}
                 >
                   <span
                     className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] flex-none transition-all duration-150"
-                    style={on ? { background: '#e71e6e', color: '#fff' } : { background: '#efecea', color: '#efecea' }}
+                    style={
+                      on
+                        ? { background: palette.brand, color: '#fff' }
+                        : { background: palette['surface-track'], color: palette['surface-track'] }
+                    }
                   >
                     ✓
                   </span>
                   {m.name}
                   {m.tier === 'junior' && (
-                    <span className="text-[9.5px] font-bold tracking-[0.05em] uppercase bg-white border border-[#f0a8c8] text-[#b81b60] rounded px-[5px] py-px">
+                    <span className="text-[9.5px] font-bold tracking-[0.05em] uppercase bg-white border border-brand-line text-brand-dark rounded px-[5px] py-px">
                       junior
                     </span>
                   )}
@@ -635,10 +648,10 @@ const CatalogPage = () => {
         </SectionCard>
 
         {/* Sticky-бар сохранения */}
-        <div className="fixed left-0 right-0 bottom-0 z-30 bg-[rgba(255,255,255,0.94)] backdrop-blur-[8px] border-t border-[#eae5e1]">
+        <div className="fixed left-0 right-0 bottom-0 z-30 bg-[rgba(255,255,255,0.94)] backdrop-blur-[8px] border-t border-line-header">
           <div className="max-w-[1024px] mx-auto px-5 py-[13px] box-border flex items-center justify-between gap-4">
             <span
-              className={`text-[12.5px] font-medium truncate ${notice.startsWith('⚠') ? 'text-[#d61f61] font-semibold' : 'text-[#98928c]'}`}
+              className={`text-[12.5px] font-medium truncate ${notice.startsWith('⚠') ? 'text-brand-alert font-semibold' : 'text-ink-hint'}`}
             >
               {notice || 'Правки видны на сайте сразу после сохранения.'}
             </span>
@@ -669,7 +682,7 @@ const CatalogPage = () => {
       <div className={`${cardCls} px-6 py-[18px] mb-4 flex items-center justify-between gap-4 flex-wrap`}>
         <div>
           <div className={kickerCls}>Rezervace · онлайн-запись</div>
-          <h1 className="m-0 flex items-center gap-2.5 text-[22px] leading-[1.2] font-extrabold text-[#161615]">
+          <h1 className="m-0 flex items-center gap-2.5 text-[22px] leading-[1.2] font-extrabold text-ink">
             Каталог услуг {services.length > 0 && <CountBadge n={services.length} big />}
           </h1>
         </div>
@@ -683,20 +696,20 @@ const CatalogPage = () => {
         </div>
       </div>
 
-      {notice && <p className="text-[12.5px] font-medium text-[#98928c] mb-3">{notice}</p>}
+      {notice && <p className="text-[12.5px] font-medium text-ink-hint mb-3">{notice}</p>}
 
       {categories.map((cat) => {
         const items = services.filter((s) => (s.category || 'Без категории') === cat)
         return (
           <div key={cat} className={`${cardCls} pt-[18px] px-6 pb-2.5 mb-3.5`}>
             <div className="flex items-center gap-2.5 pb-3">
-              <h2 className="m-0 text-[15px] font-extrabold text-[#161615]">{cat}</h2>
+              <h2 className="m-0 text-[15px] font-extrabold text-ink">{cat}</h2>
               <CountBadge n={items.length} />
             </div>
             <div className="overflow-x-auto">
               <div className="min-w-[700px]">
                 <div
-                  className="grid gap-3 items-center pb-[7px] border-b border-[#eee9e6]"
+                  className="grid gap-3 items-center pb-[7px] border-b border-line"
                   style={{ gridTemplateColumns: LIST_GRID }}
                 >
                   <span className={colHeadCls}>Услуга</span>
@@ -711,10 +724,10 @@ const CatalogPage = () => {
                   return (
                     <div
                       key={s.documentId}
-                      className={`grid gap-3 items-center py-[11px] px-2 -mx-2 rounded-lg transition-colors hover:bg-[#faf8f7] ${i > 0 ? 'border-t border-[#f2efec]' : ''}`}
+                      className={`grid gap-3 items-center py-[11px] px-2 -mx-2 rounded-lg transition-colors hover:bg-surface-hover ${i > 0 ? 'border-t border-line-soft' : ''}`}
                       style={{ gridTemplateColumns: LIST_GRID }}
                     >
-                      <span className="text-[14px] font-bold text-[#161615]">
+                      <span className="text-[14px] font-bold text-ink">
                         {s.title}
                         {!s.active && (
                           <span className="ml-2 align-middle text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-px whitespace-nowrap">
@@ -727,23 +740,23 @@ const CatalogPage = () => {
                           </span>
                         )}
                       </span>
-                      <span className="text-[14px] font-bold text-[#161615] whitespace-nowrap">{s.price} Kč</span>
-                      <span className="text-[13px] font-semibold text-[#8b857f] whitespace-nowrap">
+                      <span className="text-[14px] font-bold text-ink whitespace-nowrap">{s.price} Kč</span>
+                      <span className="text-[13px] font-semibold text-ink-soft whitespace-nowrap">
                         {s.durationMin} мин
                       </span>
                       <span className="flex gap-[5px] flex-wrap">
                         {s.variants.length > 0 && (
-                          <span className="text-[11px] font-bold text-[#6f6a66] bg-[#f6f4f2] rounded-full px-[9px] py-[3px] whitespace-nowrap">
+                          <span className="text-[11px] font-bold text-ink-muted bg-surface-input rounded-full px-[9px] py-[3px] whitespace-nowrap">
                             вар. {s.variants.length}
                           </span>
                         )}
                         {s.modifiers.length > 0 && (
-                          <span className="text-[11px] font-bold text-[#6f6a66] bg-[#f6f4f2] rounded-full px-[9px] py-[3px] whitespace-nowrap">
+                          <span className="text-[11px] font-bold text-ink-muted bg-surface-input rounded-full px-[9px] py-[3px] whitespace-nowrap">
                             доп. {s.modifiers.length}
                           </span>
                         )}
                       </span>
-                      <span className="text-[12.5px] font-semibold text-[#8b857f] leading-[1.45]">
+                      <span className="text-[12.5px] font-semibold text-ink-soft leading-[1.45]">
                         {ms.length ? (
                           ms.map((m) => m.name.split(' ')[0]).join(', ')
                         ) : (
@@ -753,7 +766,7 @@ const CatalogPage = () => {
                       <span className="text-right">
                         <button
                           type="button"
-                          className="inline-block px-3.5 py-[7px] rounded-lg border border-[#e7e2de] bg-white text-[#4c4844] text-[12.5px] font-bold whitespace-nowrap transition-all duration-150 cursor-pointer hover:border-[#e71e6e] hover:text-[#e71e6e]"
+                          className="inline-block px-3.5 py-[7px] rounded-lg border border-line-btn bg-white text-ink-body text-[12.5px] font-bold whitespace-nowrap transition-all duration-150 cursor-pointer hover:border-brand hover:text-brand"
                           onClick={() => openEditor(s)}
                         >
                           Редактировать
@@ -772,11 +785,11 @@ const CatalogPage = () => {
 
   return (
     <div
-      className={`max-w-[1024px] mx-auto box-border px-5 pt-6 text-[#161615] ${editor ? 'pb-[120px]' : 'pb-[60px]'}`}
+      className={`max-w-[1024px] mx-auto box-border px-5 pt-6 text-ink ${editor ? 'pb-[120px]' : 'pb-[60px]'}`}
     >
       {error && <p className="text-[12.5px] font-semibold text-red-600 mb-3">{error}</p>}
       {loading ? (
-        <div className="text-[13px] font-medium text-[#98928c]">Загрузка…</div>
+        <div className="text-[13px] font-medium text-ink-hint">Загрузка…</div>
       ) : editor ? (
         renderEditor(editor)
       ) : (

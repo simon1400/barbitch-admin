@@ -35,7 +35,7 @@ export const CommentPopover = ({ html }: { html: string }) => {
       {open && (
         <span
           role="dialog"
-          className="absolute z-20 left-0 top-full mt-1 w-72 max-w-[80vw] rounded-lg border border-[#eee9e6] bg-white shadow-lg p-3 text-left text-sm text-[#4c4844] font-normal whitespace-normal break-words"
+          className="absolute z-20 left-0 top-full mt-1 w-72 max-w-[80vw] rounded-lg border border-line bg-white shadow-lg p-3 text-left text-sm text-ink-body font-normal whitespace-normal break-words"
         >
           <span
             className="block prose prose-sm max-w-none [&_*]:m-0 [&_p]:my-1"

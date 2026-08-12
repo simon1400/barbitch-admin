@@ -76,9 +76,9 @@ export default function ForecastTab() {
   }, [load])
 
   if (loading)
-    return <div className='py-12 text-center text-[13px] font-semibold text-[#a39e99]'>Načítání…</div>
+    return <div className='py-12 text-center text-[13px] font-semibold text-ink-faint'>Načítání…</div>
   if (error || !data)
-    return <div className='py-12 text-center text-[13px] font-semibold text-[#d61f61]'>{error}</div>
+    return <div className='py-12 text-center text-[13px] font-semibold text-brand-alert'>{error}</div>
 
   const tempo = growthPct(data.actualToDate, data.prevMonthToSameDay)
   // прогнозы сравниваются с ИТОГОМ прошлого месяца (оба — оценка целого месяца;
@@ -119,14 +119,14 @@ export default function ForecastTab() {
       {/* Герой-карточка: формула прогноза */}
       <div className={cardPadCls}>
         <div className='flex items-center justify-between gap-3 mb-2'>
-          <span className='text-[13px] font-bold text-[#4c4844]'>
+          <span className='text-[13px] font-bold text-ink-body'>
             День {data.daysPassed} из {data.daysTotal}
           </span>
           <span className={mutedCls}>{monthProgress} % месяца прошло</span>
         </div>
-        <div className='h-2 rounded-full bg-[#f2efec] overflow-hidden mb-5'>
+        <div className='h-2 rounded-full bg-line-soft overflow-hidden mb-5'>
           <div
-            className='h-full rounded-full bg-gradient-to-r from-[#e71e6e] to-[#ff759e]'
+            className='h-full rounded-full bg-gradient-to-r from-brand to-brand-grad-to'
             style={{ width: `${monthProgress}%` }}
           />
         </div>
@@ -134,31 +134,31 @@ export default function ForecastTab() {
         <div className='grid grid-cols-1 md:grid-cols-[1fr_20px_1fr_20px_1.2fr] gap-3 items-center'>
           <div>
             <div className={tileLabelCls}>Уже заработано (факт)</div>
-            <div className='text-[22px] font-extrabold text-[#161615]'>
+            <div className='text-[22px] font-extrabold text-ink'>
               {fmtMoney(data.actualToDate)}
             </div>
             <div className={tileSubCls}>{data.visitsToDate} визитов с 1-го числа</div>
           </div>
-          <span className='text-[18px] font-bold text-[#c4bfba] text-center'>＋</span>
+          <span className='text-[18px] font-bold text-ink-disabled text-center'>＋</span>
           <div>
             <div className={tileLabelCls}>Забронировано до конца</div>
-            <div className='text-[22px] font-extrabold text-[#161615]'>
+            <div className='text-[22px] font-extrabold text-ink'>
               {fmtMoney(data.futureBooked)}
             </div>
             <div className={tileSubCls}>{data.futureVisits} активных броней</div>
           </div>
-          <span className='text-[18px] font-bold text-[#c4bfba] text-center'>＝</span>
-          <div className='bg-[#fce7f0] border border-[#f0a8c8] rounded-[10px] px-4 py-[13px]'>
-            <div className='text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#b81b60] mb-[5px]'>
+          <span className='text-[18px] font-bold text-ink-disabled text-center'>＝</span>
+          <div className='bg-brand-tint border border-brand-line rounded-[10px] px-4 py-[13px]'>
+            <div className='text-[10.5px] font-bold tracking-[0.06em] uppercase text-brand-dark mb-[5px]'>
               Прогноз минимум
             </div>
             <div className='flex items-center gap-2 flex-wrap'>
-              <span className='text-[22px] font-extrabold text-[#b81b60] whitespace-nowrap'>
+              <span className='text-[22px] font-extrabold text-brand-dark whitespace-nowrap'>
                 {fmtMoney(data.forecastBooked)}
               </span>
               {bookedVsPrev !== null && <PctBadge pct={bookedVsPrev} title={vsPrevTitle} />}
             </div>
-            <div className='text-[11.5px] font-semibold text-[#c76d97] mt-[3px]'>
+            <div className='text-[11.5px] font-semibold text-brand-soft mt-[3px]'>
               если новых записей не будет · % к итогу прошлого месяца
             </div>
           </div>
@@ -170,7 +170,7 @@ export default function ForecastTab() {
         <div className={`${cardCls} px-5 py-4`}>
           <div className={tileLabelCls}>Прогноз по темпу записей</div>
           <div className='flex items-center gap-2 flex-wrap'>
-            <span className='text-[20px] font-extrabold text-[#161615] whitespace-nowrap'>
+            <span className='text-[20px] font-extrabold text-ink whitespace-nowrap'>
               {fmtMoney(data.forecastRunRate)}
             </span>
             {runRateVsPrev !== null && <PctBadge pct={runRateVsPrev} title={vsPrevTitle} />}
@@ -182,7 +182,7 @@ export default function ForecastTab() {
         <div className={`${cardCls} px-5 py-4`}>
           <div className={tileLabelCls}>Прошлый месяц на эту же дату</div>
           <div className='flex items-center gap-2 flex-wrap'>
-            <span className='text-[20px] font-extrabold text-[#161615] whitespace-nowrap'>
+            <span className='text-[20px] font-extrabold text-ink whitespace-nowrap'>
               {fmtMoney(data.prevMonthToSameDay)}
             </span>
             {tempo !== null && (
@@ -198,14 +198,14 @@ export default function ForecastTab() {
         </div>
         <div className={`${cardCls} px-5 py-4`}>
           <div className={tileLabelCls}>Прошлый месяц (итог)</div>
-          <div className='text-[20px] font-extrabold text-[#161615]'>
+          <div className='text-[20px] font-extrabold text-ink'>
             {fmtMoney(data.prevMonthTotal)}
           </div>
           <div className={tileSubCls}>вся выручка по броням за месяц</div>
         </div>
         <div className={`${cardCls} px-5 py-4`}>
           <div className={tileLabelCls}>Затраты месяца</div>
-          <div className='text-[20px] font-extrabold text-[#161615]'>
+          <div className='text-[20px] font-extrabold text-ink'>
             {fmtMoney(data.expensesMonth)}
           </div>
           <div className={tileSubCls}>из коллекции «Затраты» (текущий месяц)</div>
@@ -233,12 +233,12 @@ export default function ForecastTab() {
             </button>
           </div>
         </div>
-        <div className='text-[12px] font-semibold text-[#a39e99] mb-4'>
+        <div className='text-[12px] font-semibold text-ink-faint mb-4'>
           {periodLabel} · только полные месяцы (текущий не входит)
         </div>
 
         {period.length === 0 ? (
-          <div className='py-12 text-center text-[13px] font-semibold text-[#a39e99]'>
+          <div className='py-12 text-center text-[13px] font-semibold text-ink-faint'>
             Нет данных за период
           </div>
         ) : (
@@ -248,7 +248,7 @@ export default function ForecastTab() {
               <div className={tileCls}>
                 <div className={tileLabelCls}>Выручка за период</div>
                 <div className='flex items-center gap-[7px] flex-wrap'>
-                  <span className='text-[19px] font-extrabold text-[#161615] whitespace-nowrap'>
+                  <span className='text-[19px] font-extrabold text-ink whitespace-nowrap'>
                     {fmtMoney(periodRevenue)}
                   </span>
                   {hasPrevPeriod && (
@@ -268,7 +268,7 @@ export default function ForecastTab() {
               <div className={tileCls}>
                 <div className={tileLabelCls}>Визитов за период</div>
                 <div className='flex items-center gap-[7px] flex-wrap'>
-                  <span className='text-[19px] font-extrabold text-[#161615]'>{periodVisits}</span>
+                  <span className='text-[19px] font-extrabold text-ink'>{periodVisits}</span>
                   {hasPrevPeriod && (
                     <GrowthBadge
                       cur={periodVisits}
@@ -286,10 +286,10 @@ export default function ForecastTab() {
                 <div
                   className={`text-[19px] font-extrabold ${
                     periodGrowth === null
-                      ? 'text-[#161615]'
+                      ? 'text-ink'
                       : periodGrowth >= 0
-                        ? 'text-[#1d7a3f]'
-                        : 'text-[#c53030]'
+                        ? 'text-pos'
+                        : 'text-neg'
                   }`}
                 >
                   {periodGrowth === null
@@ -306,7 +306,7 @@ export default function ForecastTab() {
               </div>
               <div className={tileCls}>
                 <div className={tileLabelCls}>Средний месяц</div>
-                <div className='text-[19px] font-extrabold text-[#161615]'>
+                <div className='text-[19px] font-extrabold text-ink'>
                   {fmtMoney(avgMonthRevenue)}
                 </div>
                 <div className={tileSubCls}>выручка ÷ {period.length} мес</div>
@@ -337,15 +337,15 @@ export default function ForecastTab() {
                     const histIdx = history.length - period.length + i
                     const prevRow = histIdx > 0 ? history[histIdx - 1] : null
                     return (
-                      <tr key={h.month} className='hover:bg-[#faf8f7] transition-colors'>
-                        <Cell title={h.label} className='font-bold text-[#161615]' />
+                      <tr key={h.month} className='hover:bg-surface-hover transition-colors'>
+                        <Cell title={h.label} className='font-bold text-ink' />
                         <Cell title={String(h.visits)} />
-                        <td className='p-4 border-b border-[#f2efec]'>
-                          <span className='text-[13.5px] font-bold text-[#b81b60] whitespace-nowrap'>
+                        <td className='p-4 border-b border-line-soft'>
+                          <span className='text-[13.5px] font-bold text-brand-dark whitespace-nowrap'>
                             {fmtMoney(h.revenue)}
                           </span>
                         </td>
-                        <td className='p-4 border-b border-[#f2efec]'>
+                        <td className='p-4 border-b border-line-soft'>
                           {prevRow && prevRow.revenue > 0 ? (
                             <GrowthBadge
                               cur={h.revenue}
@@ -353,10 +353,10 @@ export default function ForecastTab() {
                               title={`${prevRow.label}: ${fmtMoney(prevRow.revenue)}`}
                             />
                           ) : (
-                            <span className='text-[#c4bfba]'>—</span>
+                            <span className='text-ink-disabled'>—</span>
                           )}
                         </td>
-                        <td className='p-4 border-b border-[#f2efec]'>
+                        <td className='p-4 border-b border-line-soft'>
                           {i > 0 && first && first.revenue > 0 ? (
                             <GrowthBadge
                               cur={h.revenue}
@@ -364,22 +364,22 @@ export default function ForecastTab() {
                               title={`против ${first.label}: ${fmtMoney(first.revenue)}`}
                             />
                           ) : (
-                            <span className='text-[#c4bfba]'>—</span>
+                            <span className='text-ink-disabled'>—</span>
                           )}
                         </td>
                       </tr>
                     )
                   })}
-                  <tr className='bg-[#faf9f8]'>
-                    <Cell title='Итого' className='font-bold text-[#161615]' />
+                  <tr className='bg-surface-tile'>
+                    <Cell title='Итого' className='font-bold text-ink' />
                     <Cell title={String(periodVisits)} className='font-bold' />
-                    <td className='p-4 border-b border-[#f2efec]'>
-                      <span className='text-[14px] font-extrabold text-[#b81b60] whitespace-nowrap'>
+                    <td className='p-4 border-b border-line-soft'>
+                      <span className='text-[14px] font-extrabold text-brand-dark whitespace-nowrap'>
                         {fmtMoney(periodRevenue)}
                       </span>
                     </td>
-                    <td className='p-4 border-b border-[#f2efec]' />
-                    <td className='p-4 border-b border-[#f2efec]' />
+                    <td className='p-4 border-b border-line-soft' />
+                    <td className='p-4 border-b border-line-soft' />
                   </tr>
                 </tbody>
               </table>

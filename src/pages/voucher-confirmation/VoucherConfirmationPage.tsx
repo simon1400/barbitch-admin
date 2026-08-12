@@ -139,22 +139,22 @@ const VoucherConfirmationPage = () => {
     <div className={pageShellCls}>
         <div>
           <div className={kickerCls}>Barbitch Admin</div>
-          <h1 className="m-0 mb-1.5 text-[24px] leading-[1.2] font-extrabold text-[#161615]">
+          <h1 className="m-0 mb-1.5 text-[24px] leading-[1.2] font-extrabold text-ink">
             Potvrzení voucheru
           </h1>
           <p className={`m-0 mb-[18px] ${hintCls}`}>
             Odeslat email klientovi s potvrzením, že voucher byl zaplacen a je aktivní
           </p>
 
-          <div className="bg-white border border-[#eee9e6] rounded-xl shadow-[0_1px_2px_rgba(22,22,21,0.04)] px-6 py-[22px] max-w-3xl">
+          <div className="bg-white border border-line rounded-xl shadow-panel px-6 py-[22px] max-w-3xl">
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Voucher Select */}
               <div>
-                <label htmlFor="voucherSelect" className="block text-sm font-semibold text-[#4c4844] mb-2">
+                <label htmlFor="voucherSelect" className="block text-sm font-semibold text-ink-body mb-2">
                   Vybrat voucher ze Strapi
                 </label>
                 {loadingVouchers ? (
-                  <div className="w-full px-4 py-3 border border-[#e7e2de] rounded-lg text-[#8b857f]">
+                  <div className="w-full px-4 py-3 border border-line-btn rounded-lg text-ink-soft">
                     Načítání voucherů...
                   </div>
                 ) : (
@@ -162,7 +162,7 @@ const VoucherConfirmationPage = () => {
                     id="voucherSelect"
                     value={selectedVoucherId}
                     onChange={handleVoucherSelect}
-                    className="w-full px-4 py-3 border border-[#e7e2de] rounded-lg text-[#161615] focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 border border-line-btn rounded-lg text-ink focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
                   >
                     <option value="">-- Vyberte voucher nebo vyplňte ručně --</option>
                     {vouchers.map((voucher) => (
@@ -172,16 +172,16 @@ const VoucherConfirmationPage = () => {
                     ))}
                   </select>
                 )}
-                <p className="text-sm font-normal text-[#8b857f] mt-1">
+                <p className="text-sm font-normal text-ink-soft mt-1">
                   Zobrazeny pouze vouchery bez dateRealized
                 </p>
               </div>
 
-              <div className="border-t border-[#eee9e6] pt-6"></div>
+              <div className="border-t border-line pt-6"></div>
               {/* Email */}
               <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-[#4c4844] mb-2">
-                  Email příjemce <span className="text-[#c53030]">*</span>
+                <label htmlFor="email" className="block text-sm font-semibold text-ink-body mb-2">
+                  Email příjemce <span className="text-neg">*</span>
                 </label>
                 <input
                   type="email"
@@ -190,15 +190,15 @@ const VoucherConfirmationPage = () => {
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 border border-[#e7e2de] rounded-lg text-[#161615] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-line-btn rounded-lg text-ink placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
                   placeholder="example@email.com"
                 />
               </div>
 
               {/* Buyer Name */}
               <div>
-                <label htmlFor="buyerName" className="block text-sm font-semibold text-[#4c4844] mb-2">
-                  Jméno objednatele <span className="text-[#c53030]">*</span>
+                <label htmlFor="buyerName" className="block text-sm font-semibold text-ink-body mb-2">
+                  Jméno objednatele <span className="text-neg">*</span>
                 </label>
                 <input
                   type="text"
@@ -207,15 +207,15 @@ const VoucherConfirmationPage = () => {
                   value={formData.buyerName}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 border border-[#e7e2de] rounded-lg text-[#161615] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-line-btn rounded-lg text-ink placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
                   placeholder="Petra Nováková"
                 />
               </div>
 
               {/* Recipient Name */}
               <div>
-                <label htmlFor="recipientName" className="block text-sm font-semibold text-[#4c4844] mb-2">
-                  Jméno příjemce voucheru <span className="text-[#c53030]">*</span>
+                <label htmlFor="recipientName" className="block text-sm font-semibold text-ink-body mb-2">
+                  Jméno příjemce voucheru <span className="text-neg">*</span>
                 </label>
                 <input
                   type="text"
@@ -224,7 +224,7 @@ const VoucherConfirmationPage = () => {
                   value={formData.recipientName}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-3 border border-[#e7e2de] rounded-lg text-[#161615] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-line-btn rounded-lg text-ink placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
                   placeholder="Jana Dvořáková"
                 />
               </div>
@@ -232,8 +232,8 @@ const VoucherConfirmationPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Voucher ID */}
                 <div>
-                  <label htmlFor="voucherId" className="block text-sm font-semibold text-[#4c4844] mb-2">
-                    ID voucheru <span className="text-[#c53030]">*</span>
+                  <label htmlFor="voucherId" className="block text-sm font-semibold text-ink-body mb-2">
+                    ID voucheru <span className="text-neg">*</span>
                   </label>
                   <input
                     type="text"
@@ -242,15 +242,15 @@ const VoucherConfirmationPage = () => {
                     value={formData.voucherId}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border border-[#e7e2de] rounded-lg text-[#161615] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 border border-line-btn rounded-lg text-ink placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
                     placeholder="12345"
                   />
                 </div>
 
                 {/* Valid Until */}
                 <div>
-                  <label htmlFor="validUntil" className="block text-sm font-semibold text-[#4c4844] mb-2">
-                    Platný do <span className="text-[#c53030]">*</span>
+                  <label htmlFor="validUntil" className="block text-sm font-semibold text-ink-body mb-2">
+                    Platný do <span className="text-neg">*</span>
                   </label>
                   <input
                     type="text"
@@ -259,21 +259,21 @@ const VoucherConfirmationPage = () => {
                     value={formData.validUntil}
                     onChange={handleChange}
                     required
-                    className="w-full px-4 py-3 border border-[#e7e2de] rounded-lg text-[#161615] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 border border-line-btn rounded-lg text-ink placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
                     placeholder="31.12.2025"
                   />
                 </div>
               </div>
 
-              <p className="text-sm text-[#8b857f]">Formát data: DD.MM.YYYY</p>
+              <p className="text-sm text-ink-soft">Formát data: DD.MM.YYYY</p>
 
               {/* Message */}
               {message && (
                 <div
                   className={`p-4 rounded-lg border ${
                     message.type === 'success'
-                      ? 'bg-[#e8f6ee] border-[#bfe4cd] text-green-800'
-                      : 'bg-[#fdecec] border-[#f3c1c1] text-red-800'
+                      ? 'bg-pos-bg border-pos-line text-green-800'
+                      : 'bg-neg-bg border-neg-line text-red-800'
                   }`}
                 >
                   <div className="flex items-center">
@@ -287,14 +287,14 @@ const VoucherConfirmationPage = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-8 py-3 bg-[#e71e6e] text-white font-semibold rounded-lg hover:bg-[#c91a5e] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+                  className="px-8 py-3 bg-brand text-white font-semibold rounded-lg hover:bg-brand-press transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
                 >
                   {loading ? 'Odesílání...' : 'Odeslat email'}
                 </button>
 
                 <a
                   href="/"
-                  className="px-8 py-3 bg-gray-200 text-[#4c4844] font-semibold rounded-lg hover:bg-gray-300 transition-colors shadow-md"
+                  className="px-8 py-3 bg-gray-200 text-ink-body font-semibold rounded-lg hover:bg-gray-300 transition-colors shadow-md"
                 >
                   Zpět
                 </a>

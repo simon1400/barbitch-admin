@@ -82,8 +82,8 @@ export default function ReviewSyncPage() {
           <div
             className={`mb-3.5 rounded-lg px-4 py-2.5 text-[13px] font-semibold ${
               syncResult.startsWith('Error')
-                ? 'bg-[#fdecec] text-[#c53030]'
-                : 'bg-[#e8f6ee] text-[#1d7a3f]'
+                ? 'bg-neg-bg text-neg'
+                : 'bg-pos-bg text-pos'
             }`}
           >
             {syncResult}
@@ -91,11 +91,11 @@ export default function ReviewSyncPage() {
         )}
 
         {loading ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+          <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">
             Loading...
           </div>
         ) : reviews.length === 0 ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+          <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">
             No reviews yet. Click "Sync from Google" to fetch them.
           </div>
         ) : (
@@ -111,17 +111,17 @@ export default function ReviewSyncPage() {
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <span className="text-[14px] font-bold text-[#161615]">
+                    <span className="text-[14px] font-bold text-ink">
                       {review.reviewerName}
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-[13px] text-[#e8b021]">
+                      <span className="text-[13px] text-star">
                         {'★'.repeat(review.rating)}
                         {'☆'.repeat(5 - review.rating)}
                       </span>
                       <button
                         onClick={() => handleDelete(review.documentId)}
-                        className="w-7 h-7 rounded-[7px] text-[#c2bcb6] text-[12px] transition-colors hover:bg-[#fdecf2] hover:text-[#d61f61]"
+                        className="w-7 h-7 rounded-[7px] text-ink-icon text-[12px] transition-colors hover:bg-brand-wash hover:text-brand-alert"
                         title="Delete review"
                       >
                         ✕
@@ -131,7 +131,7 @@ export default function ReviewSyncPage() {
                   {review.reviewDate && (
                     <p className={`m-0 mb-1 ${mutedCls}`}>{review.reviewDate}</p>
                   )}
-                  <p className="m-0 text-[13px] leading-[1.55] font-medium text-[#4c4844] line-clamp-2">
+                  <p className="m-0 text-[13px] leading-[1.55] font-medium text-ink-body line-clamp-2">
                     {review.comment}
                   </p>
                 </div>

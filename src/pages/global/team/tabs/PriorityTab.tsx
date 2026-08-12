@@ -61,16 +61,16 @@ export default function PriorityTab() {
           </div>
 
           <div>
-            <p className="m-0 mb-3 text-[13px] leading-[1.6] font-medium text-[#6f6a66]">
+            <p className="m-0 mb-3 text-[13px] leading-[1.6] font-medium text-ink-muted">
               Při výběru "Kdokoliv" systém automaticky vybere nejméně vytíženého mastera
               (podle počtu rezervací v okolí daného dne). Priorita je ruční "bonus": vyšší
               číslo = master dostává rezervace častěji i při mírně vyšší vytíženosti.
             </p>
 
             {loading ? (
-              <div className="py-8 text-[13px] font-semibold text-[#a39e99]">Načítání...</div>
+              <div className="py-8 text-[13px] font-semibold text-ink-faint">Načítání...</div>
             ) : masters.length === 0 ? (
-              <div className="py-8 text-[13px] font-semibold text-[#a39e99]">
+              <div className="py-8 text-[13px] font-semibold text-ink-faint">
                 Žádní masteři nenalezeni.
               </div>
             ) : (
@@ -78,24 +78,24 @@ export default function PriorityTab() {
                 <div
                   key={master.documentId}
                   className={`flex items-center justify-between gap-3.5 py-[11px] ${
-                    idx > 0 ? 'border-t border-[#f2efec]' : ''
+                    idx > 0 ? 'border-t border-line-soft' : ''
                   } ${saving === master.documentId ? 'animate-pulse' : ''}`}
                 >
                   <div className="min-w-0">
-                    <div className="text-[14px] font-bold text-[#161615]">{master.name}</div>
+                    <div className="text-[14px] font-bold text-ink">{master.name}</div>
                     {master.noonaEmployeeId ? (
-                      <div className="mt-0.5 font-mono text-[11px] text-[#b3ada7]">
+                      <div className="mt-0.5 font-mono text-[11px] text-ink-label">
                         ID: {master.noonaEmployeeId}
                       </div>
                     ) : (
-                      <div className="mt-0.5 text-[11px] font-semibold text-[#c53030]">
+                      <div className="mt-0.5 text-[11px] font-semibold text-neg">
                         Chybí interní ID mistra — mistr se nezobrazí v kalendáři!
                       </div>
                     )}
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#8b857f]">
+                    <span className="text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-soft">
                       Priorita
                     </span>
                     <input
@@ -141,7 +141,7 @@ export default function PriorityTab() {
             'Při stejné efektivní vytíženosti se vybere náhodně',
             'Pokud je na daný čas dostupný pouze jeden master, vybere se automaticky',
           ].map((line) => (
-            <li key={line} className="text-[12.5px] leading-[1.55] font-medium text-[#6f6a66]">
+            <li key={line} className="text-[12.5px] leading-[1.55] font-medium text-ink-muted">
               {line}
             </li>
           ))}

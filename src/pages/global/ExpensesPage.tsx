@@ -74,11 +74,11 @@ const ExpensesPage = () => {
           defaultOpen
         >
           {isLoading ? (
-            <div className={'py-12 text-center text-[13px] font-semibold text-[#a39e99]'}>
+            <div className={'py-12 text-center text-[13px] font-semibold text-ink-faint'}>
               Загрузка...
             </div>
           ) : expenses.length === 0 ? (
-            <div className={'py-12 text-center text-[13px] font-semibold text-[#a39e99]'}>
+            <div className={'py-12 text-center text-[13px] font-semibold text-ink-faint'}>
               Нет данных за выбранный период
             </div>
           ) : (
@@ -99,20 +99,20 @@ const ExpensesPage = () => {
                 </thead>
                 <tbody>
                   {expenses.map((expense) => (
-                    <tr key={expense.id} className={'hover:bg-[#faf8f7] transition-colors'}>
+                    <tr key={expense.id} className={'hover:bg-surface-hover transition-colors'}>
                       <Cell title={new Date(expense.date).toLocaleDateString('cs-CZ')} />
                       <Cell
                         title={expense.name}
-                        className={'text-[14px] font-bold text-[#161615]'}
+                        className={'text-[14px] font-bold text-ink'}
                       />
-                      <Cell title={expense.comment || '-'} className={'text-[#8b857f]'} />
+                      <Cell title={expense.comment || '-'} className={'text-ink-soft'} />
                       <Cell
                         title={`${expense.sum.toLocaleString()} Kč`}
-                        className={'text-right text-[14px] font-extrabold text-[#b81b60]'}
+                        className={'text-right text-[14px] font-extrabold text-brand-dark'}
                       />
                       <Cell
                         title={expense.noDph ? `${expense.noDph.toLocaleString()} Kč` : '-'}
-                        className={'text-right text-[#8b857f]'}
+                        className={'text-right text-ink-soft'}
                       />
                     </tr>
                   ))}

@@ -47,13 +47,13 @@ const fmtDay = (s: string | null) =>
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : 'Неизвестная ошибка')
 
 // чипы-бейджи (11px/700)
-const chipInfoCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-[#6f6a66] bg-[#f6f4f2]'
-const chipWarnCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-[#b0862a] bg-[#fbf3e2]'
-const chipDangerCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-[#c53030] bg-[#fdecec]'
-const chipPosCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-[#1d7a3f] bg-[#e8f6ee]'
+const chipInfoCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-ink-muted bg-surface-input'
+const chipWarnCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-warn bg-warn-bg'
+const chipDangerCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-neg bg-neg-bg'
+const chipPosCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-pos bg-pos-bg'
 
-const flashOkCls = 'rounded-lg bg-[#e8f6ee] text-[#1d7a3f] text-[13px] font-semibold px-4 py-2.5'
-const flashErrCls = 'rounded-lg bg-[#fdecec] text-[#c53030] text-[13px] font-semibold px-4 py-2.5'
+const flashOkCls = 'rounded-lg bg-pos-bg text-pos text-[13px] font-semibold px-4 py-2.5'
+const flashErrCls = 'rounded-lg bg-neg-bg text-neg text-[13px] font-semibold px-4 py-2.5'
 
 // ── строка клиента внутри группы ──
 
@@ -111,24 +111,24 @@ function ClientRow({
     <div
       className={`px-3 py-2.5 ${
         isPrimary
-          ? 'rounded-lg border border-[#f5d3e2] bg-[#fdf5f8]'
-          : 'border-t border-[#f2efec] first:border-t-0'
+          ? 'rounded-lg border border-brand-line-soft bg-brand-card'
+          : 'border-t border-line-soft first:border-t-0'
       }`}
     >
       <div className={'flex flex-wrap items-start gap-3'}>
         {/* выбор главной / чекбокс слияния */}
         <div className={'flex flex-col items-center gap-2 pt-1'}>
-          <label className={'flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-[#8b857f]'} title={'Главная карточка — в неё сольются остальные'}>
-            <input type={'radio'} checked={isPrimary} onChange={onPrimary} className={'accent-[#e71e6e]'} />
+          <label className={'flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-ink-soft'} title={'Главная карточка — в неё сольются остальные'}>
+            <input type={'radio'} checked={isPrimary} onChange={onPrimary} className={'accent-brand'} />
             главная
           </label>
-          <label className={'flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-[#8b857f]'} title={'Слить эту карточку в главную'}>
+          <label className={'flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-ink-soft'} title={'Слить эту карточку в главную'}>
             <input
               type={'checkbox'}
               checked={checked}
               disabled={isPrimary}
               onChange={(e) => onCheck(e.target.checked)}
-              className={'accent-[#e71e6e] disabled:opacity-30'}
+              className={'accent-brand disabled:opacity-30'}
             />
             слить
           </label>
@@ -144,30 +144,30 @@ function ClientRow({
           ) : (
             <>
               <div className={'flex flex-wrap items-center gap-2'}>
-                <span className={'text-[14px] font-bold text-[#161615]'}>{c.name}</span>
+                <span className={'text-[14px] font-bold text-ink'}>{c.name}</span>
                 {c.blacklisted && (
                   <span className={chipDangerCls}>⛔ blacklist</span>
                 )}
                 {c.emailVerifiedAt && (
                   <span className={chipPosCls} title={'Зарегистрирована в кабинете'}>кабинет</span>
                 )}
-                <span className={'text-[11px] font-medium text-[#b3ada7]'}>id={c.id} · {c.source || '—'}</span>
+                <span className={'text-[11px] font-medium text-ink-label'}>id={c.id} · {c.source || '—'}</span>
               </div>
-              <div className={'mt-0.5 text-[13px] font-semibold text-[#6f6a66]'}>
+              <div className={'mt-0.5 text-[13px] font-semibold text-ink-muted'}>
                 {c.phone || '— телефон —'} · {c.email || '— e-mail —'}
               </div>
             </>
           )}
-          <div className={'mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-[12px] font-medium text-[#8b857f]'}>
-            <span>броней: <b className={'font-bold text-[#4c4844]'}>{c.bookings}</b></span>
+          <div className={'mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-[12px] font-medium text-ink-soft'}>
+            <span>броней: <b className={'font-bold text-ink-body'}>{c.bookings}</b></span>
             <span>посл. визит: {fmtDay(c.lastVisit)}</span>
             {c.futureActive > 0 && (
-              <span className={'font-bold text-[#b0862a]'}>будущих активных: {c.futureActive}</span>
+              <span className={'font-bold text-warn'}>будущих активных: {c.futureActive}</span>
             )}
             {c.loyaltyTx > 0 && <span>лояльность: {c.loyaltyTx} tx</span>}
             {c.redemptions > 0 && <span>награды: {c.redemptions}</span>}
           </div>
-          {err && <div className={'mt-1 text-[12px] font-semibold text-[#c53030]'}>{err}</div>}
+          {err && <div className={'mt-1 text-[12px] font-semibold text-neg'}>{err}</div>}
         </div>
 
         <div className={'flex shrink-0 gap-1.5'}>
@@ -277,7 +277,7 @@ function GroupCard({
   return (
     <div className={cardPadCls}>
       <div className={'mb-3 flex flex-wrap items-center gap-2'}>
-        <span className={'text-[15px] font-extrabold text-[#161615]'}>{group.clients[0]?.name}</span>
+        <span className={'text-[15px] font-extrabold text-ink'}>{group.clients[0]?.name}</span>
         <span className={chipInfoCls}>
           {group.clients.length} записи · совпало: {group.matchedOn.map((m) => REASON_LABEL[m]).join(' + ') || '—'}
         </span>
@@ -383,7 +383,7 @@ function Pagination({ page, total, onPage }: { page: number; total: number; onPa
         <button className={btnNeutralCls} disabled={page <= 1} onClick={() => onPage(page - 1)}>
           ← Назад
         </button>
-        <span className={'text-[13px] font-semibold text-[#6f6a66]'}>
+        <span className={'text-[13px] font-semibold text-ink-muted'}>
           {page} / {pageCount}
         </span>
         <button className={btnNeutralCls} disabled={page >= pageCount} onClick={() => onPage(page + 1)}>
@@ -412,30 +412,30 @@ function HistorySection() {
     <div className={'mt-8'}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className={'text-[13px] font-bold text-[#8b857f] transition-colors hover:text-[#e71e6e]'}
+        className={'text-[13px] font-bold text-ink-soft transition-colors hover:text-brand'}
       >
         {open ? '▾' : '▸'} История операций
       </button>
       {open && (
         <div className={cardPadCls + ' mt-2.5'}>
-          {logs === null && <p className={'m-0 text-[12.5px] font-semibold text-[#a39e99]'}>Загрузка…</p>}
-          {logs?.length === 0 && <p className={'m-0 text-[12.5px] font-semibold text-[#a39e99]'}>Пока пусто</p>}
+          {logs === null && <p className={'m-0 text-[12.5px] font-semibold text-ink-faint'}>Загрузка…</p>}
+          {logs?.length === 0 && <p className={'m-0 text-[12.5px] font-semibold text-ink-faint'}>Пока пусто</p>}
           {logs?.map((l, i) => (
             <div
               key={l.documentId}
               className={
-                'py-2 text-[12.5px] font-semibold text-[#6f6a66]' +
-                (i > 0 ? ' border-t border-[#f2efec]' : '')
+                'py-2 text-[12.5px] font-semibold text-ink-muted' +
+                (i > 0 ? ' border-t border-line-soft' : '')
               }
             >
-              <span className={'font-bold text-[#4c4844]'}>
+              <span className={'font-bold text-ink-body'}>
                 {l.action === 'merge' ? 'Слияние' : 'Правка/blacklist'}
               </span>
               {l.primaryName && <span> · {l.primaryName}</span>}
               {l.action === 'merge' && Array.isArray(l.mergedDocIds) && (
-                <span className={'text-[#98928c]'}> · слито карточек: {l.mergedDocIds.length}</span>
+                <span className={'text-ink-hint'}> · слито карточек: {l.mergedDocIds.length}</span>
               )}
-              <span className={'float-right text-[11px] font-semibold text-[#b3ada7]'}>
+              <span className={'float-right text-[11px] font-semibold text-ink-label'}>
                 {new Date(l.createdAt).toLocaleString('cs-CZ')} · {l.actorName || '—'}
               </span>
             </div>
@@ -513,7 +513,7 @@ const ClientDuplicatesPage = () => {
       {count !== undefined && count > 0 && (
         <span
           className={`ml-1.5 rounded-full px-1.5 text-[11px] ${
-            tab === t ? 'bg-white/25' : 'bg-[#e9e6e3] text-[#8b857f]'
+            tab === t ? 'bg-white/25' : 'bg-surface-muted text-ink-soft'
           }`}
         >
           {count}
@@ -527,7 +527,7 @@ const ClientDuplicatesPage = () => {
       <div className={pageShellCls}>
         <div className={kickerCls}>Barbitch Admin</div>
         <div className={'mb-2 flex flex-wrap items-center justify-between gap-3'}>
-          <h1 className={'m-0 text-[24px] leading-[1.2] font-extrabold text-[#161615]'}>Дубли клиентов</h1>
+          <h1 className={'m-0 text-[24px] leading-[1.2] font-extrabold text-ink'}>Дубли клиентов</h1>
           <button onClick={() => void load()} disabled={loading} className={btnNeutralCls}>
             {loading ? 'Načítám…' : '↻ Обновить'}
           </button>
@@ -570,7 +570,7 @@ const ClientDuplicatesPage = () => {
           <p className={'mb-3 ' + hintCls}>Записи связаны общим e-mail или телефоном — почти наверняка один человек.</p>
         )}
         {tab === 'weak' && (
-          <p className={'mb-3 text-[12.5px] leading-[1.55] font-semibold text-[#b0862a]'}>
+          <p className={'mb-3 text-[12.5px] leading-[1.55] font-semibold text-warn'}>
             Совпадает только полное имя, контакты разные. Может быть два РАЗНЫХ человека — сливайте только если уверены; иначе «Не дубли — скрыть».
           </p>
         )}
@@ -583,11 +583,11 @@ const ClientDuplicatesPage = () => {
         )}
 
         {loading && !data && (
-          <p className={'py-12 text-center text-[13px] font-semibold text-[#a39e99]'}>Hledám duplicity… (pár sekund)</p>
+          <p className={'py-12 text-center text-[13px] font-semibold text-ink-faint'}>Hledám duplicity… (pár sekund)</p>
         )}
 
         {!loading && data && groups.length === 0 && (
-          <p className={'py-12 text-center text-[13px] font-semibold text-[#a39e99]'}>
+          <p className={'py-12 text-center text-[13px] font-semibold text-ink-faint'}>
             {search ? 'Ничего не найдено' : tab === 'ignored' ? 'Скрытых групп нет' : '🎉 Дублей нет'}
           </p>
         )}

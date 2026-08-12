@@ -10,17 +10,17 @@ const ProfitDeltaBoxes = ({ delta, preview }: { delta: ShiftDelta; preview: bool
     <>
       <div
         className={`mt-5 rounded-xl border-2 p-5 ${
-          preview ? 'border-indigo-200 bg-indigo-50' : 'border-[#bfe4cd] bg-[#e8f6ee]'
+          preview ? 'border-indigo-200 bg-indigo-50' : 'border-pos-line bg-pos-bg'
         }`}
       >
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-[#6f6a66]">
+            <p className="text-sm text-ink-muted">
               Čistý zisk směny{preview ? ' (náhled — neuloženo)' : ''}
             </p>
             <p
               className={`text-3xl font-bold ${
-                delta.after - delta.before >= 0 ? 'text-[#1d7a3f]' : 'text-[#c53030]'
+                delta.after - delta.before >= 0 ? 'text-pos' : 'text-neg'
               }`}
             >
               {delta.after - delta.before >= 0 ? '+' : ''}
@@ -28,10 +28,10 @@ const ProfitDeltaBoxes = ({ delta, preview }: { delta: ShiftDelta; preview: bool
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-[#8b857f]">Rezultát za měsíc</p>
-            <p className="text-sm text-[#8b857f]">
+            <p className="text-xs text-ink-soft">Rezultát za měsíc</p>
+            <p className="text-sm text-ink-soft">
               {fmt(delta.before)} →{' '}
-              <span className="font-semibold text-[#161615]">{fmt(delta.after)} Kč</span>
+              <span className="font-semibold text-ink">{fmt(delta.after)} Kč</span>
             </p>
           </div>
         </div>
@@ -39,23 +39,23 @@ const ProfitDeltaBoxes = ({ delta, preview }: { delta: ShiftDelta; preview: bool
 
       <div
         className={`mt-4 rounded-xl border-2 p-5 ${
-          ok ? 'border-[#bfe4cd] bg-[#e8f6ee]' : 'border-[#f3c1c1] bg-[#fdecec]'
+          ok ? 'border-pos-line bg-pos-bg' : 'border-neg-line bg-neg-bg'
         }`}
       >
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-[#6f6a66]">Rozdíl proti minulé směně (nedostatek)</p>
-            <p className={`text-3xl font-bold ${ok ? 'text-[#1d7a3f]' : 'text-[#c53030]'}`}>
+            <p className="text-sm text-ink-muted">Rozdíl proti minulé směně (nedostatek)</p>
+            <p className={`text-3xl font-bold ${ok ? 'text-pos' : 'text-neg'}`}>
               {ok ? '✓ Sedí (0 Kč)' : `${shiftDiff > 0 ? '+' : ''}${fmt(shiftDiff)} Kč`}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-[#8b857f]">Celkový rozdíl za měsíc</p>
-            <p className="text-sm text-[#8b857f]">
+            <p className="text-xs text-ink-soft">Celkový rozdíl za měsíc</p>
+            <p className="text-sm text-ink-soft">
               {fmt(delta.diffBefore)} →{' '}
               <span
                 className={`font-semibold ${
-                  delta.diffAfter === 0 ? 'text-[#1d7a3f]' : 'text-[#c53030]'
+                  delta.diffAfter === 0 ? 'text-pos' : 'text-neg'
                 }`}
               >
                 {fmt(delta.diffAfter)} Kč
@@ -122,10 +122,10 @@ export const PublishSection = ({
   onPreview,
 }: PublishSectionProps) => (
   <StatSection title="Uzavření směny" id="card-profit" defaultOpen>
-    <div className="bg-white rounded-xl border border-[#eee9e6] p-5 shadow-sm">
+    <div className="bg-white rounded-xl border border-line p-5 shadow-sm">
       <div className="flex flex-wrap items-end gap-4">
         <div>
-          <label className="block text-sm font-medium text-[#6f6a66] mb-1">
+          <label className="block text-sm font-medium text-ink-muted mb-1">
             Doход na kartu (Kč)
           </label>
           <input
@@ -135,11 +135,11 @@ export const PublishSection = ({
             placeholder="0"
             min="0"
             disabled={published}
-            className="border border-[#e7e2de] rounded-lg px-4 py-2.5 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-[#e71e6e] focus:border-[#e71e6e] disabled:bg-[#f2efec]"
+            className="border border-line-btn rounded-lg px-4 py-2.5 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-line-soft"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#6f6a66] mb-1">
+          <label className="block text-sm font-medium text-ink-muted mb-1">
             Extra příjem (Kč)
           </label>
           <input
@@ -149,7 +149,7 @@ export const PublishSection = ({
             placeholder="0"
             min="0"
             disabled={published}
-            className="border border-[#e7e2de] rounded-lg px-4 py-2.5 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-[#e71e6e] focus:border-[#e71e6e] disabled:bg-[#f2efec]"
+            className="border border-line-btn rounded-lg px-4 py-2.5 text-sm w-40 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-line-soft"
           />
         </div>
         <button
@@ -167,8 +167,8 @@ export const PublishSection = ({
           disabled={publishing || published || !cardSum}
           className={`px-8 py-2.5 font-bold rounded-lg transition-colors text-white ${
             published
-              ? 'bg-[#e8f6ee]0 cursor-default'
-              : 'bg-[#e71e6e] hover:bg-[#d11a62] disabled:opacity-50 disabled:cursor-not-allowed'
+              ? 'bg-pos-bg0 cursor-default'
+              : 'bg-brand hover:bg-brand-hover disabled:opacity-50 disabled:cursor-not-allowed'
           }`}
         >
           {publishing ? 'Publikuji...' : published ? 'Směna uzavřena' : 'Uzavřít směnu'}
@@ -178,22 +178,22 @@ export const PublishSection = ({
           onClick={onRevert}
           disabled={reverting || publishing}
           title="Vrátí všechny publikované záznamy tohoto dne zpět do konceptu (nic nemaže)"
-          className="px-6 py-2.5 font-semibold rounded-lg border-2 border-amber-400 text-[#b0862a] bg-white hover:bg-[#fbf3e2] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-2.5 font-semibold rounded-lg border-2 border-amber-400 text-warn bg-white hover:bg-warn-bg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {reverting ? 'Vracím...' : 'Vrátit uzavření'}
         </button>
       </div>
-      <p className="text-xs text-[#8b857f] mt-2">
+      <p className="text-xs text-ink-soft mt-2">
         „Vrátit uzavření" zruší publikaci záznamů toho dne (vrátí je do konceptu) — data
         zůstanou, nic se nesmaže. Poté je můžete upravit a směnu znovu uzavřít.
       </p>
 
       {revertError && (
-        <p className="text-sm text-[#c53030] font-medium mt-3">{revertError}</p>
+        <p className="text-sm text-neg font-medium mt-3">{revertError}</p>
       )}
 
       {revertResult && (
-        <div className="mt-4 rounded-xl border-2 border-amber-200 bg-[#fbf3e2] p-4">
+        <div className="mt-4 rounded-xl border-2 border-amber-200 bg-warn-bg p-4">
           <p className="text-sm font-semibold text-amber-800 mb-2">
             Uzavření vráceno — záznamy jsou opět koncepty:
           </p>
@@ -220,24 +220,24 @@ export const PublishSection = ({
           {revertResult.errors.length > 0 && (
             <ul className="mt-3 space-y-1">
               {revertResult.errors.map((e, i) => (
-                <li key={i} className="text-xs text-[#c53030] font-mono break-words">
+                <li key={i} className="text-xs text-neg font-mono break-words">
                   {e}
                 </li>
               ))}
             </ul>
           )}
-          <p className="text-xs text-[#6f6a66] mt-3">
+          <p className="text-xs text-ink-muted mt-3">
             Upravte záznamy ve Strapi a klikněte na <b>Zkontrolovat</b> a poté <b>Uzavřít směnu</b>.
           </p>
         </div>
       )}
 
       {publishError && (
-        <p className="text-sm text-[#c53030] font-medium mt-3">{publishError}</p>
+        <p className="text-sm text-neg font-medium mt-3">{publishError}</p>
       )}
 
       {publishFailures.length > 0 && (
-        <div className="mt-4 rounded-xl border-2 border-[#f3c1c1] bg-[#fdecec] p-4">
+        <div className="mt-4 rounded-xl border-2 border-neg-line bg-neg-bg p-4">
           <p className="text-sm font-semibold text-red-800 mb-2">
             Záznamy, které se nepodařilo publikovat ({publishFailures.length}):
           </p>
@@ -245,28 +245,28 @@ export const PublishSection = ({
             {publishFailures.map((f, i) => (
               <li
                 key={i}
-                className="text-sm bg-white border border-[#f3c1c1] rounded-lg p-3"
+                className="text-sm bg-white border border-neg-line rounded-lg p-3"
               >
                 <div className="flex flex-wrap items-baseline gap-x-2">
-                  <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-[#c53030]">
+                  <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-neg">
                     {f.collection}
                   </span>
-                  <span className="font-semibold text-[#161615]">{f.label}</span>
+                  <span className="font-semibold text-ink">{f.label}</span>
                 </div>
-                <p className="text-xs text-[#c53030] mt-1.5 font-mono break-words">
+                <p className="text-xs text-neg mt-1.5 font-mono break-words">
                   {f.message}
                 </p>
               </li>
             ))}
           </ul>
-          <p className="text-xs text-[#6f6a66] mt-3">
+          <p className="text-xs text-ink-muted mt-3">
             Opravte tyto záznamy v Strapi (vyplňte chybějící povinná pole) a klikněte na <b>Uzavřít směnu</b> znovu.
           </p>
         </div>
       )}
 
       {previewError && (
-        <p className="text-sm text-[#c53030] font-medium mt-3">{previewError}</p>
+        <p className="text-sm text-neg font-medium mt-3">{previewError}</p>
       )}
 
       {/* Preview (unsaved) — hidden once the shift is actually closed. */}

@@ -12,7 +12,7 @@ export const BlocksContent = ({
   return (
     <>
       {title && (
-        <h2 className={'m-0 mb-3.5 text-[15px] font-extrabold text-[#161615]'}>{title}</h2>
+        <h2 className={'m-0 mb-3.5 text-[15px] font-extrabold text-ink'}>{title}</h2>
       )}
       <div className={'grid grid-cols-2 md:grid-cols-3 gap-2.5'}>
         {items.map((item) => (

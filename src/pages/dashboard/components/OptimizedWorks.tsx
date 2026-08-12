@@ -18,6 +18,7 @@ import { Cell } from './Cell'
 import { Select } from './Select'
 import { GlobalLineChart } from '../../global/charts/components/GlobalLineChart'
 import { TableWrapper } from '../../global/components/TableWrapper'
+import { CHART } from '../../../ui/chartColors'
 
 const OptimizedWorks = () => {
   const [month, setMonth] = useState<number>(new Date().getMonth())
@@ -105,7 +106,7 @@ const OptimizedWorks = () => {
   if (isLoading) {
     return (
       <div className={pageShellCls}>
-        <div className={'py-12 text-center text-[13px] font-semibold text-[#a39e99]'}>
+        <div className={'py-12 text-center text-[13px] font-semibold text-ink-faint'}>
           {'Načítání dat...'}
         </div>
       </div>
@@ -132,15 +133,15 @@ const OptimizedWorks = () => {
         </div>
 
         {/* Výsledek za měsíc — акцент-карточка (розовый тинт вместо градиента) */}
-        <div className={'bg-[#fce7f0] border border-[#f0a8c8] rounded-xl px-6 py-5 mb-3.5'}>
+        <div className={'bg-brand-tint border border-brand-line rounded-xl px-6 py-5 mb-3.5'}>
           <div
             className={
-              'text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#b81b60] mb-[5px]'
+              'text-[10.5px] font-bold tracking-[0.06em] uppercase text-brand-dark mb-[5px]'
             }
           >
             {'Výsledek za měsíc'}
           </div>
-          <div className={'text-[26px] font-extrabold text-[#b81b60] leading-[1.15]'}>
+          <div className={'text-[26px] font-extrabold text-brand-dark leading-[1.15]'}>
             {result.toLocaleString()} {'Kč'}
           </div>
         </div>
@@ -152,8 +153,8 @@ const OptimizedWorks = () => {
               data={displayChartData}
               title={'Moje rezervace'}
               lines={[
-                { dataKey: 'countPayed', stroke: '#e71e6e', name: 'Rezervace' },
-                { dataKey: 'countCanceled', stroke: '#161615', name: 'Zrušené' },
+                { dataKey: 'countPayed', stroke: CHART.brand, name: 'Rezervace' },
+                { dataKey: 'countCanceled', stroke: CHART.ink, name: 'Zrušené' },
                 { dataKey: 'countNoshow', stroke: 'orange', name: 'Nepřišli' },
               ]}
             />
@@ -163,7 +164,7 @@ const OptimizedWorks = () => {
         {/* Table Section */}
         <div className={cardPadCls}>
           <div className={'flex justify-between flex-col md:flex-row md:items-center gap-3 mb-3.5'}>
-            <h2 className={'m-0 text-[15px] font-extrabold text-[#161615]'}>
+            <h2 className={'m-0 text-[15px] font-extrabold text-ink'}>
               {'Historie prací'}
             </h2>
             <Select month={month} setMonth={setMonth} year={year} setYear={setYear} />
@@ -184,17 +185,17 @@ const OptimizedWorks = () => {
                   </thead>
                   <tbody>
                     {data.offersDone.map((item, idx) => (
-                      <tr key={item.id} className={'hover:bg-[#faf8f7] transition-colors'}>
+                      <tr key={item.id} className={'hover:bg-surface-hover transition-colors'}>
                         <Cell title={`${idx + 1}.`} className={'hidden md:table-cell'} />
                         <Cell title={formatDate(item.date)} />
                         <Cell title={item.clientName} />
                         <Cell
                           title={`${item.staffSalaries} Kč`}
-                          className={'font-semibold text-[#1d7a3f]'}
+                          className={'font-semibold text-pos'}
                         />
                         <Cell
                           title={item.tip?.length ? `${item.tip} Kč` : '—'}
-                          className={item.tip?.length ? 'text-[#e71e6e]' : 'text-[#a39e99]'}
+                          className={item.tip?.length ? 'text-brand' : 'text-ink-faint'}
                         />
                       </tr>
                     ))}
@@ -204,7 +205,7 @@ const OptimizedWorks = () => {
             ) : (
               <div className={'p-12 text-center'}>
                 <svg
-                  className={'w-14 h-14 mx-auto text-[#e0dbd7] mb-3'}
+                  className={'w-14 h-14 mx-auto text-ink-empty mb-3'}
                   fill={'none'}
                   stroke={'currentColor'}
                   viewBox={'0 0 24 24'}
@@ -218,7 +219,7 @@ const OptimizedWorks = () => {
                     }
                   />
                 </svg>
-                <p className={'text-[#8b857f]'}>{'Žádné údaje za vybraný měsíc'}</p>
+                <p className={'text-ink-soft'}>{'Žádné údaje za vybraný měsíc'}</p>
               </div>
             )}
           </div>
@@ -230,11 +231,11 @@ const OptimizedWorks = () => {
                 'pt-3 mt-1 flex flex-col md:flex-row justify-between md:items-center gap-2'
               }
             >
-              <span className={'flex items-center gap-3 text-[13px] font-bold text-[#4c4844]'}>
+              <span className={'flex items-center gap-3 text-[13px] font-bold text-ink-body'}>
                 <span>{'Celkem prací: '}</span>
-                <span className={'text-[18px] font-extrabold text-[#161615]'}>{data.offersDone.length}</span>
+                <span className={'text-[18px] font-extrabold text-ink'}>{data.offersDone.length}</span>
               </span>
-              <span className={'text-[18px] font-extrabold text-[#b81b60]'}>
+              <span className={'text-[18px] font-extrabold text-brand-dark'}>
                 {(salary + tipSum).toLocaleString()} {'Kč'}
               </span>
             </div>
@@ -244,7 +245,7 @@ const OptimizedWorks = () => {
         {/* Přídavný výdělek — расшифровка каждой премии (как у администраторов) */}
         {extraProfits.length > 0 && (
           <div className={cardPadCls}>
-            <h2 className={'m-0 mb-3.5 text-[15px] font-extrabold text-[#161615]'}>{'Přídavný výdělek'}</h2>
+            <h2 className={'m-0 mb-3.5 text-[15px] font-extrabold text-ink'}>{'Přídavný výdělek'}</h2>
             <TableWrapper
               totalSum={`${extraProfit.toLocaleString()} Kč`}
               totalLabel={'Celkem přídavný výdělek'}
@@ -259,11 +260,11 @@ const OptimizedWorks = () => {
                 </thead>
                 <tbody>
                   {extraProfits.map((bonus) => (
-                    <tr key={bonus.id} className={'hover:bg-[#faf8f7] transition-colors'}>
+                    <tr key={bonus.id} className={'hover:bg-surface-hover transition-colors'}>
                       <Cell title={formatDate(bonus.date)} />
                       <Cell
                         title={`+${Number(bonus.sum).toLocaleString()} Kč`}
-                        className={'text-[#1d7a3f] font-semibold'}
+                        className={'text-pos font-semibold'}
                       />
                       <Cell title={bonus.title || '-'} />
                     </tr>

@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { CHART } from '../../../../ui/chartColors'
 
 interface Props {
   data: {
@@ -17,9 +18,9 @@ interface Props {
   title?: string
 }
 
-const MAX_COLOR = '#16a34a' // самый загруженный день — зелёный
-const MIN_COLOR = '#dc2626' // самый слабый день — красный
-const BASE_COLOR = '#e71e6e' // линия и остальные точки — розовый
+const MAX_COLOR = CHART.positive // самый загруженный день — зелёный
+const MIN_COLOR = CHART.negative // самый слабый день — красный
+const BASE_COLOR = CHART.brand // линия и остальные точки — розовый
 
 interface DotProps {
   cx?: number
@@ -44,7 +45,7 @@ export const WeekdayLineChart = ({ data, title }: Props) => {
         cy={cy}
         r={isExtreme ? 6 : 4}
         fill={colorFor(payload.clientsPerDay)}
-        stroke={'#fff'}
+        stroke={CHART.surface}
         strokeWidth={1.5}
       />
     )
@@ -53,26 +54,26 @@ export const WeekdayLineChart = ({ data, title }: Props) => {
   return (
     <div className={'w-full'}>
       {title && (
-        <h3 className={'m-0 mb-3.5 text-[15px] font-extrabold text-[#161615]'}>
+        <h3 className={'m-0 mb-3.5 text-[15px] font-extrabold text-ink'}>
           {title}
         </h3>
       )}
-      <div className={'bg-white border border-[#eee9e6] rounded-xl shadow-[0_1px_2px_rgba(22,22,21,0.04)] p-4 pl-0'}>
+      <div className={'bg-white border border-line rounded-xl shadow-panel p-4 pl-0'}>
         <ResponsiveContainer width={'100%'} height={320}>
           <LineChart data={data}>
-            <CartesianGrid stroke={'#f2efec'} strokeDasharray={'4 4'} />
+            <CartesianGrid stroke={CHART.grid} strokeDasharray={'4 4'} />
             <XAxis
               dataKey={'label'}
-              tick={{ fontSize: 11, fontWeight: 600, fill: '#a39e99' }}
+              tick={{ fontSize: 11, fontWeight: 600, fill: CHART.tick }}
               angle={-45}
               textAnchor={'end'}
               height={80}
             />
-            <YAxis tick={{ fontSize: 11, fontWeight: 600, fill: '#a39e99' }} />
+            <YAxis tick={{ fontSize: 11, fontWeight: 600, fill: CHART.tick }} />
             <Tooltip
               contentStyle={{
                 backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                border: '1px solid #eee9e6',
+                border: `1px solid ${CHART.border}`,
                 borderRadius: '10px',
               fontSize: '12px',
               }}

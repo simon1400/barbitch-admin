@@ -70,7 +70,7 @@ export const WeekSelector = ({ onWeekChange, currentWeekRange }: WeekSelectorPro
         </button>
 
         <div>
-          <p className={'text-[13px] font-bold text-[#4c4844] whitespace-nowrap'}>
+          <p className={'text-[13px] font-bold text-ink-body whitespace-nowrap'}>
             {currentWeekRange.firstDay.toLocaleDateString('cs-CZ', { timeZone: 'UTC' })} -{' '}
             {currentWeekRange.lastDay.toLocaleDateString('cs-CZ', { timeZone: 'UTC' })}
           </p>

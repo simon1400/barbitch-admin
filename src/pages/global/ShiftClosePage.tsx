@@ -220,9 +220,9 @@ export default function ShiftClosePage() {
   }
 
   const overallStyles: Record<OverallLevel, { bg: string; icon: string }> = {
-    ok: { bg: 'bg-[#e8f6ee] border-[#bfe4cd]', icon: '✅' },
-    warn: { bg: 'bg-[#fbf3e2] border-[#ecd9b5]', icon: '⚠️' },
-    error: { bg: 'bg-[#fdecec] border-[#f3c1c1]', icon: '🟥' },
+    ok: { bg: 'bg-pos-bg border-pos-line', icon: '✅' },
+    warn: { bg: 'bg-warn-bg border-warn-line', icon: '⚠️' },
+    error: { bg: 'bg-neg-bg border-neg-line', icon: '🟥' },
   }
 
   return (
@@ -251,13 +251,13 @@ export default function ShiftClosePage() {
         </div>
 
         {error && (
-          <div className="rounded-lg bg-[#fdecec] text-[#c53030] text-[13px] font-semibold px-4 py-2.5 mb-3.5">
+          <div className="rounded-lg bg-neg-bg text-neg text-[13px] font-semibold px-4 py-2.5 mb-3.5">
             {error}
           </div>
         )}
 
         {loading && (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+          <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">
             Kontroluji…
           </div>
         )}
@@ -272,10 +272,10 @@ export default function ShiftClosePage() {
                     {overallStyles[overall].icon}
                   </span>
                   <div className="flex-1">
-                    <p className="m-0 text-[14px] font-extrabold text-[#161615]">
+                    <p className="m-0 text-[14px] font-extrabold text-ink">
                       {overallMessages[overall]}
                     </p>
-                    <p className="m-0 mt-0.5 text-[12.5px] font-semibold text-[#a39e99]">
+                    <p className="m-0 mt-0.5 text-[12.5px] font-semibold text-ink-faint">
                       Datum: {result.date}
                     </p>
                     {(() => {
@@ -290,13 +290,13 @@ export default function ShiftClosePage() {
                           {visible.map((f) => (
                             <span
                               key={f}
-                              className="text-[11px] font-bold rounded-md px-[7px] py-0.5 bg-white text-[#4c4844]"
+                              className="text-[11px] font-bold rounded-md px-[7px] py-0.5 bg-white text-ink-body"
                             >
                               {FLAG_META[f].emoji} {FLAG_META[f].label}: {fc[f]}
                             </span>
                           ))}
                           {hasUnverified && (
-                            <span className="text-[11px] font-bold rounded-md px-[7px] py-0.5 bg-white text-[#4c4844]">
+                            <span className="text-[11px] font-bold rounded-md px-[7px] py-0.5 bg-white text-ink-body">
                               Neověřeno: {result.serviceProvided.unverified}
                             </span>
                           )}

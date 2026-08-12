@@ -4,6 +4,7 @@ import { Select } from '../../../dashboard/components/Select'
 import { useGlobalMonthData } from '../../../dashboard/hooks/useGlobalMonthData'
 import { GlobalLineChart } from '../../charts/components/GlobalLineChart'
 import { StatSection } from '../../components/StatSection'
+import { CHART } from '../../../../ui/chartColors'
 
 export default function ChartsTab() {
   const [month, setMonth] = useState<number>(new Date().getMonth())
@@ -21,15 +22,15 @@ export default function ChartsTab() {
           <GlobalLineChart
             data={data.daysResult}
             title="Услуги"
-            lines={[{ dataKey: 'sum', stroke: '#e71e6e', name: 'Сумма' }]}
+            lines={[{ dataKey: 'sum', stroke: CHART.brand, name: 'Сумма' }]}
           />
 
           <GlobalLineChart
             data={data.dataMetrics}
             title="Записи"
             lines={[
-              { dataKey: 'countPayed', stroke: '#e71e6e', name: 'Резервации' },
-              { dataKey: 'countCanceled', stroke: '#161615', name: 'Отмены' },
+              { dataKey: 'countPayed', stroke: CHART.brand, name: 'Резервации' },
+              { dataKey: 'countCanceled', stroke: CHART.ink, name: 'Отмены' },
               { dataKey: 'countNoshow', stroke: 'orange', name: 'Не пришли' },
             ]}
           />

@@ -65,7 +65,7 @@ export const Administrators = ({
             const splitName = item.name.split(' ')
 
             return (
-              <tr key={item.name} className={'hover:bg-[#faf8f7] transition-colors'}>
+              <tr key={item.name} className={'hover:bg-surface-hover transition-colors'}>
                 <Cell
                   title={`${splitName[0][0]}. ${splitName[1]}`}
                   className={NAME_CELL}
@@ -94,7 +94,7 @@ export const Administrators = ({
                 )}
                 {totalExcess > 0 && (
                   <Cell
-                    className={excess > 0 ? `${NUM_CELL} text-[#b0862a] font-bold` : NUM_CELL}
+                    className={excess > 0 ? `${NUM_CELL} text-warn font-bold` : NUM_CELL}
                     title={excess > 0 ? `+${excess.toLocaleString()}` : '-'}
                   />
                 )}

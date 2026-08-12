@@ -1,7 +1,7 @@
 import React from 'react'
 
-// Ячейка таблиц админки в новом стиле (s165): заголовки — uppercase 10.5px #b3ada7,
-// данные — 13.5px/600 #4c4844. className прокидывается для выравнивания/акцентов.
+// Ячейка таблиц админки в новом стиле (s165): заголовки — uppercase 10.5px ink-label,
+// данные — 13.5px/600 ink-body. className прокидывается для выравнивания/акцентов.
 
 export const Cell = React.memo(
   ({
@@ -16,10 +16,10 @@ export const Cell = React.memo(
     onClick?: () => void
   }) =>
     asHeader ? (
-      <th className={`px-3 py-[7px] text-left border-b border-[#eee9e6] ${className}`}>
+      <th className={`px-3 py-[7px] text-left border-b border-line ${className}`}>
         <p
           className={
-            'block text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#b3ada7] whitespace-nowrap'
+            'block text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-label whitespace-nowrap'
           }
         >
           {title}
@@ -27,11 +27,11 @@ export const Cell = React.memo(
       </th>
     ) : (
       <td
-        className={`px-3 py-[10px] border-b border-[#f2efec] ${onClick ? 'group cursor-pointer' : ''}`}
+        className={`px-3 py-[10px] border-b border-line-soft ${onClick ? 'group cursor-pointer' : ''}`}
         onClick={onClick}
       >
         <span
-          className={`block text-[13.5px] font-semibold text-[#4c4844] ${className} ${onClick ? 'group-hover:text-[#e71e6e]' : ''}`}
+          className={`block text-[13.5px] font-semibold text-ink-body ${className} ${onClick ? 'group-hover:text-brand' : ''}`}
         >
           {title}
         </span>

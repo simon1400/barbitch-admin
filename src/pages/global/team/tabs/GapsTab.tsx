@@ -56,7 +56,7 @@ const fmtDay = (date: string) => {
 }
 
 // Нейтральный серый чип (напр. «нет» / «отправлено»)
-const neutralChipCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-[#8b857f] bg-[#f6f4f2]'
+const neutralChipCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-ink-soft bg-surface-input'
 
 type Mode = 'month' | 'week'
 
@@ -218,7 +218,7 @@ export default function GapsTab() {
               >
                 ‹
               </button>
-              <span className="text-[13px] font-bold text-[#4c4844] whitespace-nowrap min-w-[150px] text-center">
+              <span className="text-[13px] font-bold text-ink-body whitespace-nowrap min-w-[150px] text-center">
                 {fmtShort(weekStart)} – {fmtShort(weekEnd)}.{weekEnd.getFullYear()}
               </span>
               <button
@@ -249,11 +249,11 @@ export default function GapsTab() {
           услугу. Зелёные окна (больше {DEAD_MAX} мин) ещё продаваемы.
         </p>
         {loading ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">Načítání…</div>
+          <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">Načítání…</div>
         ) : error ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#d61f61]">{error}</div>
+          <div className="py-12 text-center text-[13px] font-semibold text-brand-alert">{error}</div>
         ) : rows.length === 0 ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+          <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">
             Нет данных за неделю.
           </div>
         ) : (
@@ -288,7 +288,7 @@ export default function GapsTab() {
         <StatSection title="Результаты дозаписей" id="window-offer-results" defaultOpen={false}>
           <p className={`m-0 mb-4 ${hintCls}`}>
             Отправлено: <b>{results.sent}</b> · записалось:{' '}
-            <b className="text-[#e71e6e]">{results.converted}</b> ({results.pct}%). Конверсия —
+            <b className="text-brand">{results.converted}</b> ({results.pct}%). Конверсия —
             приблизительно (бронь к предложенному мастеру в день предложения или позже); точная
             отметка — в комментарии брони.
           </p>
@@ -305,15 +305,15 @@ export default function GapsTab() {
               </thead>
               <tbody>
                 {results.rows.map((r) => (
-                  <tr key={r.log.documentId} className="hover:bg-[#faf8f7] transition-colors">
-                    <Cell title={r.log.customerName || '—'} className="font-bold text-[#161615]" />
+                  <tr key={r.log.documentId} className="hover:bg-surface-hover transition-colors">
+                    <Cell title={r.log.customerName || '—'} className="font-bold text-ink" />
                     <Cell title={r.log.sentAt ? fmtDay(r.log.sentAt.slice(0, 10)) : '—'} />
                     <Cell
                       title={`${r.log.serviceTitle} · ${r.log.masterName}`}
-                      className="text-[#6f6a66]"
+                      className="text-ink-muted"
                     />
                     <Cell title={r.log.discount || '—'} />
-                    <td className="p-4 border-b border-[#f2efec]">
+                    <td className="p-4 border-b border-line-soft">
                       {r.converted ? (
                         <span className={`whitespace-nowrap ${badgePosCls}`}>
                           записался{r.bookingDate ? ` · ${fmtDay(r.bookingDate)}` : ''}
@@ -332,25 +332,25 @@ export default function GapsTab() {
 
       {fill && (
         <div className="fixed inset-0 z-50 bg-[rgba(22,22,21,0.45)] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-[#eee9e6] shadow-[0_10px_28px_rgba(22,22,21,0.14)] w-full max-w-4xl p-6 max-h-[85vh] overflow-y-auto">
+          <div className="bg-white rounded-xl border border-line shadow-pop w-full max-w-4xl p-6 max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-start mb-3">
               <div>
-                <h3 className="text-[17px] font-extrabold text-[#161615] flex items-center gap-2">
+                <h3 className="text-[17px] font-extrabold text-ink flex items-center gap-2">
                   {isJuniorFill ? 'Дозапись к юниору' : 'Дозапись в окно'}
                   {isJuniorFill && (
-                    <span className="text-[11px] font-bold text-[#7c5cd6] bg-[#efe9fb] rounded-md px-[7px] py-0.5">
+                    <span className="text-[11px] font-bold text-junior bg-junior-bg rounded-md px-[7px] py-0.5">
                       junior −20% в цене
                     </span>
                   )}
                 </h3>
-                <p className="text-[13px] font-semibold text-[#6f6a66] mt-0.5">
+                <p className="text-[13px] font-semibold text-ink-muted mt-0.5">
                   {fill.name} · {fmtDay(fill.date)} · окно {fill.start}–{fill.end}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setFill(null)}
-                className="w-8 h-8 rounded-lg border-0 bg-transparent text-[#a39e99] text-[22px] leading-none hover:bg-[#f6f4f2] hover:text-[#161615] transition-colors inline-flex items-center justify-center shrink-0"
+                className="w-8 h-8 rounded-lg border-0 bg-transparent text-ink-faint text-[22px] leading-none hover:bg-surface-input hover:text-ink transition-colors inline-flex items-center justify-center shrink-0"
                 aria-label="Закрыть"
               >
                 ×
@@ -358,7 +358,7 @@ export default function GapsTab() {
             </div>
 
             <div className="flex items-center gap-3 mb-4 flex-wrap">
-              <label className="flex items-center gap-2 text-[13px] font-bold text-[#4c4844]">
+              <label className="flex items-center gap-2 text-[13px] font-bold text-ink-body">
                 {isJuniorFill ? 'Скидка за дозапись:' : 'Скидка:'}
                 <input
                   type="text"
@@ -368,7 +368,7 @@ export default function GapsTab() {
                 />
               </label>
               {isJuniorFill && (
-                <span className="text-[12px] font-semibold text-[#7c5cd6]">
+                <span className="text-[12px] font-semibold text-junior">
                   −20% уже в цене junior + {discount} за дозапись
                 </span>
               )}
@@ -383,22 +383,22 @@ export default function GapsTab() {
             </div>
 
             {fillResult && (
-              <div className="mb-4 rounded-lg bg-[#e8f6ee] text-[#1d7a3f] text-[13px] font-semibold px-4 py-2.5">
+              <div className="mb-4 rounded-lg bg-pos-bg text-pos text-[13px] font-semibold px-4 py-2.5">
                 Отправлено: {fillResult.successful} из {fillResult.total}
                 {fillResult.failed > 0 && (
-                  <span className="text-[#c53030]"> · ошибок: {fillResult.failed}</span>
+                  <span className="text-neg"> · ошибок: {fillResult.failed}</span>
                 )}
               </div>
             )}
 
             {fillLoading ? (
-              <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">Načítání…</div>
+              <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">Načítání…</div>
             ) : fillCands.length === 0 ? (
-              <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+              <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">
                 Нет клиентов, чья процедура заканчивается прямо перед этим окном.
               </div>
             ) : (
-              <ul className="border border-[#eee9e6] rounded-lg divide-y divide-[#f2efec]">
+              <ul className="border border-line rounded-lg divide-y divide-line-soft">
                 {fillCands.map((c) => (
                   <li
                     key={c.key}
@@ -406,23 +406,23 @@ export default function GapsTab() {
                   >
                     <input
                       type="checkbox"
-                      className="mt-1 accent-[#e71e6e]"
+                      className="mt-1 accent-brand"
                       checked={fillSel.has(c.key) && !c.alreadySent}
                       disabled={c.alreadySent}
                       onChange={() => toggleFill(c.key)}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[13.5px] font-bold text-[#161615]">{c.customerName}</span>
-                        <span className="text-[11.5px] font-semibold text-[#a39e99]">{c.email}</span>
+                        <span className="text-[13.5px] font-bold text-ink">{c.customerName}</span>
+                        <span className="text-[11.5px] font-semibold text-ink-faint">{c.email}</span>
                         {c.alreadySent && <span className={neutralChipCls}>отправлено</span>}
                       </div>
-                      <div className="text-[12px] font-semibold text-[#6f6a66] mt-1">
+                      <div className="text-[12px] font-semibold text-ink-muted mt-1">
                         Её запись: {BUCKET_LABEL[c.anchorBucket]} до {c.anchorEndHHMM} · дозапись в{' '}
                         {c.windowStartHHMM}
                       </div>
                       <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
-                        <span className="text-[12px] font-semibold text-[#8b857f] shrink-0">
+                        <span className="text-[12px] font-semibold text-ink-soft shrink-0">
                           Предложить:
                         </span>
                         <select
@@ -466,10 +466,10 @@ function MasterRow({
 }) {
   return (
     <>
-      <tr className="hover:bg-[#faf8f7] transition-colors cursor-pointer" onClick={onToggle}>
-        <td className="p-4 border-b border-[#f2efec]">
-          <span className="flex items-center gap-2 text-[13.5px] font-bold text-[#161615]">
-            <span className="text-[#e71e6e]">{expanded ? '−' : '+'}</span>
+      <tr className="hover:bg-surface-hover transition-colors cursor-pointer" onClick={onToggle}>
+        <td className="p-4 border-b border-line-soft">
+          <span className="flex items-center gap-2 text-[13.5px] font-bold text-ink">
+            <span className="text-brand">{expanded ? '−' : '+'}</span>
             {row.name}
           </span>
         </td>
@@ -477,16 +477,16 @@ function MasterRow({
         <Cell title={fmtH(row.freeMin)} />
         <Cell
           title={String(row.deadCount)}
-          className={row.deadCount > 0 ? 'text-[#c53030] font-bold' : ''}
+          className={row.deadCount > 0 ? 'text-neg font-bold' : ''}
         />
         <Cell title={row.deadMin ? fmtH(row.deadMin) : '—'} />
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={5} className="p-0 border-b border-[#f2efec] bg-[#faf9f8]">
+          <td colSpan={5} className="p-0 border-b border-line-soft bg-surface-tile">
             <div className="p-4">
               {row.days.length === 0 ? (
-                <div className="text-[13px] font-semibold text-[#a39e99]">
+                <div className="text-[13px] font-semibold text-ink-faint">
                   Нет рабочих дней на этой неделе.
                 </div>
               ) : (
@@ -503,17 +503,17 @@ function MasterRow({
                     </thead>
                     <tbody>
                       {row.days.map((d) => (
-                        <tr key={d.date} className="hover:bg-[#faf8f7] transition-colors">
-                          <Cell title={fmtDay(d.date)} className="font-bold text-[#161615]" />
+                        <tr key={d.date} className="hover:bg-surface-hover transition-colors">
+                          <Cell title={fmtDay(d.date)} className="font-bold text-ink" />
                           <Cell title={fmtH(d.bookedMin)} />
                           <Cell title={d.freeMin ? fmtH(d.freeMin) : '—'} />
                           <Cell
                             title={d.deadCount ? String(d.deadCount) : '—'}
-                            className={d.deadCount ? 'text-[#c53030] font-bold' : ''}
+                            className={d.deadCount ? 'text-neg font-bold' : ''}
                           />
-                          <td className="p-4 border-b border-[#f2efec]">
+                          <td className="p-4 border-b border-line-soft">
                             {d.gaps.length === 0 ? (
-                              <span className="text-[12px] font-bold text-[#1d7a3f]">
+                              <span className="text-[12px] font-bold text-pos">
                                 без окон — день забит
                               </span>
                             ) : (
@@ -527,8 +527,8 @@ function MasterRow({
                                     }
                                     className={`rounded-lg px-2.5 py-1 text-[12px] font-bold hover:opacity-80 transition-opacity border ${
                                       g.dead
-                                        ? 'bg-[#fdecec] text-[#c53030] border-[#f3c1c1]'
-                                        : 'bg-[#e8f6ee] text-[#1d7a3f] border-[#bfe4cd]'
+                                        ? 'bg-neg-bg text-neg border-neg-line'
+                                        : 'bg-pos-bg text-pos border-pos-line'
                                     }`}
                                     title="Найти клиента для дозаписи в это окно"
                                   >

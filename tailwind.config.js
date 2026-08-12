@@ -1,5 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 
+import { alpha, palette } from './src/ui/palette.js'
+
+// ⚠️ primary/accent (var(--primary)/var(--accent)) НЕ удалять: они ещё используются
+// календарём и логином, которые на токены пока не переведены. Семантические токены
+// из palette.js живут рядом; слияние — отдельным заходом.
 const mainPalette = {
   accent: 'var(--accent)',
   primary: 'var(--primary)',
@@ -57,6 +62,7 @@ export default {
           '5': 'hsl(var(--chart-5))',
         },
         ...mainPalette,
+        ...palette,
       },
       fontSize: {
         xss: [
@@ -254,6 +260,19 @@ export default {
         'default-level2': '0 4px 16px #000',
         'default-level3': '0 8px 24px #000',
         'default-level4': '0 24px 40px #000',
+        // Тени редизайна (s166): строятся из палитры, поэтому смена бренд-цвета
+        // перекрашивает и свечение кнопок/фокуса.
+        //
+        // ⚠️ Имя тени НЕ должно совпадать с именем цвета (`brand`, `card`, `line`…):
+        // Tailwind тогда генерит на тот же класс ещё и shadow-COLOR утилиту, она идёт
+        // позже в CSS и затирает саму тень (`--tw-shadow: var(--tw-shadow-colored)`).
+        panel: `0 1px 2px ${alpha(palette.ink, 0.04)}`, //  карточка-секция
+        pop: `0 10px 28px ${alpha(palette.ink, 0.14)}`, //  дропдаун/поповер
+        'brand-sm': `0 3px 10px ${alpha(palette.brand, 0.25)}`, //  розовая кнопка
+        'brand-pill': `0 3px 10px ${alpha(palette.brand, 0.28)}`, // активная пилюля шапки
+        'brand-lg': `0 4px 12px ${alpha(palette.brand, 0.25)}`, //  крупная розовая кнопка
+        focus: `0 0 0 3px ${alpha(palette.brand, 0.1)}`, //  focus-ring инпута
+        knob: '0 1px 2px rgba(0,0,0,0.2)', //                ручка тумблера
       },
       spacing: {
         '0': '0px',

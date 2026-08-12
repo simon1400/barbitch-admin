@@ -1,61 +1,60 @@
+import { EXPENSE_COLORS } from '../../../ui/chartColors'
+
 export interface ExpenseCategory {
   name: string
   keywords: string[]
   color: string
 }
 
-export const expenseCategories: ExpenseCategory[] = [
+// Цвет категории берётся по её порядковому номеру из общей палитры (ui/chartColors),
+// чтобы он не расходился с цветами столбцов графика расходов.
+const categoryDefs: Omit<ExpenseCategory, 'color'>[] = [
   {
     name: 'Маркетинг',
     keywords: ['marketing', 'маркетинг', 'ads', 'meta', 'google', 'реклама', 'instagram', 'facebook'],
-    color: '#e71e6e',
   },
   {
     name: 'Материалы для салона',
     keywords: ['салфетки', 'перчатки', 'материалы', 'расходники', 'bozp', 'топы', 'базы', 'фрезы', 'лампа'],
-    color: '#ff6b9d',
   },
   {
     name: 'Косметика',
     keywords: ['косметика', 'крем', 'маска', 'шампунь', 'бальзам', 'средство'],
-    color: '#c41e3a',
   },
   {
     name: 'Оборудование',
     keywords: ['оборудование', 'техника', 'машина', 'прибор', 'аппарат', 'kamera', 'камера'],
-    color: '#ff1744',
   },
   {
     name: 'Услуги',
     keywords: ['услуги', 'сервис', 'обслуживание', 'ремонт', 'чистка', 'уборка'],
-    color: '#d81b60',
   },
   {
     name: 'Продукты',
     keywords: ['продукты', 'еда', 'напитки', 'кофе', 'чай', 'вода'],
-    color: '#e91e63',
   },
   {
     name: 'Уход за волосами',
     keywords: ['волосы', 'brows', 'брови', 'ресницы', 'окрашивание'],
-    color: '#f06292',
   },
   {
     name: 'Маникюр',
     keywords: ['маникюр', 'naninails', 'гель', 'лак', 'покрытие', 'nail'],
-    color: '#ec407a',
   },
   {
     name: 'Аксессуары',
     keywords: ['аксессуары', 'засоби', 'средства', 'инструменты'],
-    color: '#ad1457',
   },
   {
     name: 'Другое',
     keywords: ['noona', 'ucetni', 'учет', 'бухгалтерия', 'налоги', 'temu', 'ostreni', 'najem', 'аренда'],
-    color: '#880e4f',
   },
 ]
+
+export const expenseCategories: ExpenseCategory[] = categoryDefs.map((c, i) => ({
+  ...c,
+  color: EXPENSE_COLORS[i % EXPENSE_COLORS.length],
+}))
 
 export const categorizeExpense = (name: string): ExpenseCategory => {
   const lowerName = name.toLowerCase()

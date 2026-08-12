@@ -5,6 +5,7 @@ import { modulesForRole, type ModuleDef } from '../moduleAccess'
 import { subnavForPathname } from '../subnav'
 import { logout } from '../services/auth'
 import { LogoIcon } from '../icons/Logo'
+import { CHART } from '../ui/chartColors'
 
 // Новая шапка админки (редизайн s164 по standalone-макету «Шапка и меню»):
 // розовая полоска 3px → белый бар (лого · юзер-чип · Odhlásit se) → главное меню
@@ -29,8 +30,8 @@ const HOME_BY_ROLE: Record<UserRole, string> = {
 const pillCls = (on: boolean) =>
   `px-3.5 py-2 rounded-full text-[13px] font-bold whitespace-nowrap transition-all duration-150 ${
     on
-      ? 'bg-[#e71e6e] text-white shadow-[0_3px_10px_rgba(231,30,110,.28)]'
-      : 'text-[#6f6a66] hover:text-[#161615]'
+      ? 'bg-brand text-white shadow-brand-pill'
+      : 'text-ink-muted hover:text-ink'
   }`
 
 export const AdminHeader = ({ userName }: { userName: string }) => {
@@ -77,33 +78,33 @@ export const AdminHeader = ({ userName }: { userName: string }) => {
 
   return (
     <div className={'sticky top-0 z-40'}>
-      <div className={'h-[3px] bg-gradient-to-r from-[#e71e6e] to-[#ff759e]'} />
+      <div className={'h-[3px] bg-gradient-to-r from-brand to-brand-grad-to'} />
 
-      <header className={'bg-[rgba(255,255,255,.96)] backdrop-blur-md border-b border-[#eae5e1]'}>
+      <header className={'bg-[rgba(255,255,255,.96)] backdrop-blur-md border-b border-line-header'}>
         <div className={'max-w-[1024px] mx-auto px-5'}>
           {/* Ряд 1: лого + юзер */}
           <div className={'flex items-center justify-between gap-4 pt-3.5 pb-2.5'}>
             <Link to={home} aria-label={'Перейти на главную'} className={'flex-none'}>
-              <LogoIcon className={'h-[17px] w-auto fill-[#161615]'} dotFill={'#e71e6e'} />
+              <LogoIcon className={'h-[17px] w-auto fill-ink'} dotFill={CHART.brand} />
             </Link>
 
             <div className={'flex items-center gap-3.5 min-w-0'}>
               <div className={'flex items-center gap-2.5 min-w-0'}>
                 <span
                   className={
-                    'w-[34px] h-[34px] rounded-full bg-gradient-to-br from-[#e71e6e] to-[#ff759e] text-white text-[14px] font-extrabold inline-flex items-center justify-center flex-none'
+                    'w-[34px] h-[34px] rounded-full bg-gradient-to-br from-brand to-brand-grad-to text-white text-[14px] font-extrabold inline-flex items-center justify-center flex-none'
                   }
                 >
                   {initial}
                 </span>
                 <span className={'flex flex-col leading-[1.15] min-w-0'}>
-                  <span className={'text-[13.5px] font-extrabold text-[#161615] truncate'}>
+                  <span className={'text-[13.5px] font-extrabold text-ink truncate'}>
                     {userName}
                   </span>
                   {role && (
                     <span
                       className={
-                        'text-[10.5px] font-bold tracking-[.06em] uppercase text-[#a39e99]'
+                        'text-[10.5px] font-bold tracking-[.06em] uppercase text-ink-faint'
                       }
                     >
                       {role}
@@ -116,7 +117,7 @@ export const AdminHeader = ({ userName }: { userName: string }) => {
                 type={'button'}
                 onClick={doLogout}
                 className={
-                  'px-3.5 py-2 rounded-lg border border-[#e7e2de] hover:border-[#c9c3be] bg-white text-[#4c4844] text-[12.5px] font-bold whitespace-nowrap transition-colors'
+                  'px-3.5 py-2 rounded-lg border border-line-btn hover:border-line-btn-hover bg-white text-ink-body text-[12.5px] font-bold whitespace-nowrap transition-colors'
                 }
               >
                 {'Odhlásit se'}
@@ -147,7 +148,7 @@ export const AdminHeader = ({ userName }: { userName: string }) => {
                   {moreOpen && (
                     <div
                       className={
-                        'absolute top-[calc(100%+8px)] right-0 z-50 min-w-[220px] bg-white border border-[#eee9e6] rounded-[10px] shadow-[0_10px_28px_rgba(22,22,21,.14)] p-1.5'
+                        'absolute top-[calc(100%+8px)] right-0 z-50 min-w-[220px] bg-white border border-line rounded-[10px] shadow-pop p-1.5'
                       }
                     >
                       {moreItems.map((item) => (
@@ -157,8 +158,8 @@ export const AdminHeader = ({ userName }: { userName: string }) => {
                           onClick={() => setMoreOpen(false)}
                           className={`block w-full text-left px-3 py-[9px] rounded-[7px] text-[13px] font-bold transition-colors ${
                             isActive(item)
-                              ? 'bg-[#fce7f0] text-[#b81b60]'
-                              : 'text-[#4c4844] hover:bg-[#faf8f7]'
+                              ? 'bg-brand-tint text-brand-dark'
+                              : 'text-ink-body hover:bg-surface-hover'
                           }`}
                         >
                           {item.label}
@@ -176,7 +177,7 @@ export const AdminHeader = ({ userName }: { userName: string }) => {
       {/* Саб-меню табового модуля */}
       {sub && (
         <div
-          className={'bg-[rgba(251,250,249,.97)] backdrop-blur-md border-b border-[#eae5e1]'}
+          className={'bg-[rgba(251,250,249,.97)] backdrop-blur-md border-b border-line-header'}
         >
           <div className={'max-w-[1024px] mx-auto px-5 flex gap-0.5 flex-wrap'}>
             {sub.tabs.map((t) => (
@@ -186,8 +187,8 @@ export const AdminHeader = ({ userName }: { userName: string }) => {
                 className={({ isActive: on }) =>
                   `px-2.5 py-[11px] text-[12.5px] font-bold whitespace-nowrap transition-colors duration-150 ${
                     on
-                      ? 'text-[#b81b60] shadow-[inset_0_-2px_0_#e71e6e]'
-                      : 'text-[#8b857f] hover:text-[#4c4844]'
+                      ? 'text-brand-dark shadow-[inset_0_-2px_0_theme(colors.brand)]'
+                      : 'text-ink-soft hover:text-ink-body'
                   }`
                 }
               >

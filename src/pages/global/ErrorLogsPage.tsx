@@ -17,10 +17,10 @@ const SOURCE_LABELS: Record<ClientErrorLog['source'], string> = {
 }
 
 const SOURCE_COLORS: Record<ClientErrorLog['source'], string> = {
-  'window-error': 'bg-red-100 text-[#c53030]',
-  'unhandled-rejection': 'bg-orange-100 text-[#b0862a]',
+  'window-error': 'bg-red-100 text-neg',
+  'unhandled-rejection': 'bg-orange-100 text-warn',
   'react-error': 'bg-purple-100 text-purple-700',
-  manual: 'bg-[#f2efec] text-[#4c4844]',
+  manual: 'bg-line-soft text-ink-body',
 }
 
 function formatDate(s: string | null): string {
@@ -132,15 +132,15 @@ export default function ErrorLogsPage() {
           </div>
 
           <div className="mb-6 flex flex-wrap items-center gap-3">
-            <div className="flex gap-1.5 bg-[#f2efec] rounded-lg p-1">
+            <div className="flex gap-1.5 bg-line-soft rounded-lg p-1">
               {(['unresolved', 'all', 'resolved'] as ErrorFilter[]).map((f) => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
                   className={`px-3 py-1.5 rounded-md text-[12.5px] font-semibold transition-colors ${
                     filter === f
-                      ? 'bg-white text-[#e71e6e] shadow-sm'
-                      : 'text-[#6f6a66] hover:text-[#161615]'
+                      ? 'bg-white text-brand shadow-sm'
+                      : 'text-ink-muted hover:text-ink'
                   }`}
                 >
                   {f === 'unresolved' ? 'Nevyřešené' : f === 'resolved' ? 'Vyřešené' : 'Vše'}
@@ -149,29 +149,29 @@ export default function ErrorLogsPage() {
             </div>
             <button
               onClick={load}
-              className="px-3 py-1.5 bg-white border border-[#e7e2de] rounded-md text-[12.5px] font-semibold text-[#4c4844] hover:bg-[#faf8f7]"
+              className="px-3 py-1.5 bg-white border border-line-btn rounded-md text-[12.5px] font-semibold text-ink-body hover:bg-surface-hover"
             >
               Obnovit
             </button>
             <button
               onClick={handleDeleteResolved}
-              className="px-3 py-1.5 bg-white border border-[#f3c1c1] rounded-md text-[12.5px] font-semibold text-[#c53030] hover:bg-[#fdecec]"
+              className="px-3 py-1.5 bg-white border border-neg-line rounded-md text-[12.5px] font-semibold text-neg hover:bg-neg-bg"
             >
               Smazat vyřešené
             </button>
-            <span className="text-[12.5px] text-[#8b857f] ml-auto">
+            <span className="text-[12.5px] text-ink-soft ml-auto">
               {counts.unresolved} nevyřešené · {counts.resolved} vyřešené · {counts.all} celkem
             </span>
           </div>
 
           {actionMsg && (
-            <div className="mb-4 p-3 rounded-lg text-[12.5px] bg-[#e7effa] text-[#2563ac]">{actionMsg}</div>
+            <div className="mb-4 p-3 rounded-lg text-[12.5px] bg-info-bg text-info">{actionMsg}</div>
           )}
 
           {loading ? (
-            <div className="text-[#8b857f]">Loading...</div>
+            <div className="text-ink-soft">Loading...</div>
           ) : logs.length === 0 ? (
-            <div className="text-[#8b857f] bg-white rounded-lg p-8 text-center border">
+            <div className="text-ink-soft bg-white rounded-lg p-8 text-center border">
               {filter === 'unresolved'
                 ? 'Žádné nevyřešené chyby. 🎉'
                 : 'Žádné záznamy.'}
@@ -189,11 +189,11 @@ export default function ErrorLogsPage() {
                   >
                     <button
                       onClick={() => toggleExpand(log.documentId)}
-                      className="w-full text-left p-4 flex items-start gap-3 hover:bg-[#faf8f7]"
+                      className="w-full text-left p-4 flex items-start gap-3 hover:bg-surface-hover"
                     >
                       <span
                         className={`mt-0.5 inline-block w-2 h-2 rounded-full flex-shrink-0 ${
-                          log.resolved ? 'bg-[#e8f6ee]0' : 'bg-[#fdecec]0'
+                          log.resolved ? 'bg-pos-bg0' : 'bg-neg-bg0'
                         }`}
                       />
                       <div className="flex-1 min-w-0">
@@ -204,36 +204,36 @@ export default function ErrorLogsPage() {
                             {SOURCE_LABELS[log.source]}
                           </span>
                           {log.environment === 'development' && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-yellow-100 text-[#b0862a]">
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-yellow-100 text-warn">
                               dev
                             </span>
                           )}
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#f2efec] text-[#4c4844]">
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-line-soft text-ink-body">
                             ×{log.count}
                           </span>
-                          <span className="text-[11px] text-[#a39e99]">
+                          <span className="text-[11px] text-ink-faint">
                             {getRelativeTime(log.lastSeen)}
                           </span>
                         </div>
-                        <div className="text-[12.5px] font-mono text-[#161615] truncate">
+                        <div className="text-[12.5px] font-mono text-ink truncate">
                           {log.message}
                         </div>
                         {log.url && (
-                          <div className="text-[11px] text-[#a39e99] truncate mt-0.5">
+                          <div className="text-[11px] text-ink-faint truncate mt-0.5">
                             {log.url}
                           </div>
                         )}
                       </div>
-                      <span className="text-[#a39e99] text-[12.5px] flex-shrink-0">
+                      <span className="text-ink-faint text-[12.5px] flex-shrink-0">
                         {isOpen ? '▲' : '▼'}
                       </span>
                     </button>
 
                     {isOpen && (
-                      <div className="px-4 pb-4 border-t border-[#f2efec] pt-3 space-y-3">
+                      <div className="px-4 pb-4 border-t border-line-soft pt-3 space-y-3">
                         {log.stack && (
                           <div>
-                            <div className="text-[11px] font-semibold text-[#8b857f] mb-1">
+                            <div className="text-[11px] font-semibold text-ink-soft mb-1">
                               Stack trace
                             </div>
                             <pre className="text-[11px] font-mono bg-gray-900 text-gray-100 p-3 rounded overflow-x-auto whitespace-pre-wrap break-words">
@@ -243,26 +243,26 @@ export default function ErrorLogsPage() {
                         )}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
                           <div>
-                            <span className="font-semibold text-[#8b857f]">First seen:</span>{' '}
-                            <span className="text-[#4c4844]">{formatDate(log.firstSeen)}</span>
+                            <span className="font-semibold text-ink-soft">First seen:</span>{' '}
+                            <span className="text-ink-body">{formatDate(log.firstSeen)}</span>
                           </div>
                           <div>
-                            <span className="font-semibold text-[#8b857f]">Last seen:</span>{' '}
-                            <span className="text-[#4c4844]">{formatDate(log.lastSeen)}</span>
+                            <span className="font-semibold text-ink-soft">Last seen:</span>{' '}
+                            <span className="text-ink-body">{formatDate(log.lastSeen)}</span>
                           </div>
                           {log.userAgent && (
                             <div className="md:col-span-2">
-                              <span className="font-semibold text-[#8b857f]">User Agent:</span>{' '}
-                              <span className="text-[#4c4844] break-all">{log.userAgent}</span>
+                              <span className="font-semibold text-ink-soft">User Agent:</span>{' '}
+                              <span className="text-ink-body break-all">{log.userAgent}</span>
                             </div>
                           )}
                           {log.sessionId && (
                             <div className="md:col-span-2">
-                              <span className="font-semibold text-[#8b857f]">Session:</span>{' '}
-                              <span className="text-[#4c4844] font-mono">{log.sessionId}</span>
+                              <span className="font-semibold text-ink-soft">Session:</span>{' '}
+                              <span className="text-ink-body font-mono">{log.sessionId}</span>
                             </div>
                           )}
-                          <div className="md:col-span-2 text-[10px] text-[#a39e99]">
+                          <div className="md:col-span-2 text-[10px] text-ink-faint">
                             Hash: {log.errorHash}
                           </div>
                         </div>
@@ -271,15 +271,15 @@ export default function ErrorLogsPage() {
                             onClick={() => handleToggleResolved(log)}
                             className={`px-3 py-1.5 rounded-md text-[12.5px] font-semibold ${
                               log.resolved
-                                ? 'bg-yellow-100 text-[#b0862a] hover:bg-yellow-200'
-                                : 'bg-green-100 text-[#1d7a3f] hover:bg-green-200'
+                                ? 'bg-yellow-100 text-warn hover:bg-yellow-200'
+                                : 'bg-green-100 text-pos hover:bg-green-200'
                             }`}
                           >
                             {log.resolved ? 'Označit jako nevyřešené' : 'Označit jako vyřešené'}
                           </button>
                           <button
                             onClick={() => handleDelete(log)}
-                            className="px-3 py-1.5 rounded-md text-[12.5px] font-semibold bg-[#fdecec] text-[#c53030] hover:bg-red-100"
+                            className="px-3 py-1.5 rounded-md text-[12.5px] font-semibold bg-neg-bg text-neg hover:bg-red-100"
                           >
                             Smazat
                           </button>

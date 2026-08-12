@@ -16,10 +16,10 @@ export const TableWrapper = ({ children, totalSum, totalLabel, additionalInfo }:
 
       {totalSum && (
         <div className={'flex justify-between items-center pt-3 mt-1'}>
-          <span className={'text-[13px] font-bold text-[#4c4844]'}>
+          <span className={'text-[13px] font-bold text-ink-body'}>
             {totalLabel || 'Общая сумма'}
           </span>
-          <span className={'text-[18px] font-extrabold text-[#b81b60] whitespace-nowrap'}>
+          <span className={'text-[18px] font-extrabold text-brand-dark whitespace-nowrap'}>
             {totalSum}
           </span>
         </div>
@@ -27,7 +27,7 @@ export const TableWrapper = ({ children, totalSum, totalLabel, additionalInfo }:
 
       {additionalInfo && (
         <div className={'pt-2'}>
-          <span className={'text-[12.5px] font-semibold text-[#a39e99]'}>{additionalInfo}</span>
+          <span className={'text-[12.5px] font-semibold text-ink-faint'}>{additionalInfo}</span>
         </div>
       )}
     </div>

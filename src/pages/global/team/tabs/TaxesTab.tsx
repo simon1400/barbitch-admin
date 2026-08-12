@@ -65,11 +65,11 @@ const kc = (n: number): string => `${Math.round(n).toLocaleString('cs-CZ')} Kč`
 // Инпут формы во всю ширину (кит + w-full)
 const fieldCls = `${inputCls} w-full`
 // Подпись плитки результата / строк сверки (без нижнего отступа)
-const tileLabCls = 'text-[10px] font-bold tracking-[0.06em] uppercase text-[#8b857f]'
+const tileLabCls = 'text-[10px] font-bold tracking-[0.06em] uppercase text-ink-soft'
 // Кружок-галка внутри чипа-тогла
 const chipCheckCls = (on: boolean): string =>
   'inline-flex items-center justify-center w-[15px] h-[15px] rounded-full text-[9px] shrink-0 ' +
-  (on ? 'bg-[#e71e6e] text-white' : 'bg-[#efecea] text-[#efecea]')
+  (on ? 'bg-brand text-white' : 'bg-surface-track text-surface-track')
 
 const CONTRACT_LABEL: Record<ContractType, string> = {
   hpp: 'HPP',
@@ -190,9 +190,9 @@ export default function TaxesTab() {
   )
 
   const checks = [
-    { key: 'h', label: 'Zdravotní pojišťovna', calc: totals.health, paid: paidHealth, set: setPaidHealth, tone: 'text-[#2563ac]' },
-    { key: 's', label: 'Sociální (ČSSZ)', calc: totals.social, paid: paidSocial, set: setPaidSocial, tone: 'text-[#b0862a]' },
-    { key: 't', label: 'Finanční úřad (daň)', calc: totals.tax, paid: paidTax, set: setPaidTax, tone: 'text-[#c53030]' },
+    { key: 'h', label: 'Zdravotní pojišťovna', calc: totals.health, paid: paidHealth, set: setPaidHealth, tone: 'text-info' },
+    { key: 's', label: 'Sociální (ČSSZ)', calc: totals.social, paid: paidSocial, set: setPaidSocial, tone: 'text-warn' },
+    { key: 't', label: 'Finanční úřad (daň)', calc: totals.tax, paid: paidTax, set: setPaidTax, tone: 'text-neg' },
   ]
 
   return (
@@ -241,8 +241,8 @@ export default function TaxesTab() {
         ))}
 
         {/* Итог по всем сотрудникам — те же ячейки, что в карточке */}
-        <div className="bg-[#faf9f8] rounded-[10px] px-4 py-3.5">
-          <div className="mb-2.5 text-[12.5px] font-extrabold text-[#4c4844]">
+        <div className="bg-surface-tile rounded-[10px] px-4 py-3.5">
+          <div className="mb-2.5 text-[12.5px] font-extrabold text-ink-body">
             Итого за месяц · {results.filter((r) => r.res.gross > 0).length} сотр.
           </div>
           <ResultGrid
@@ -273,12 +273,12 @@ export default function TaxesTab() {
               const diff = paid - c.calc
               const has = paid > 0
               return (
-                <div key={c.key} className="bg-[#faf9f8] rounded-[10px] px-4 py-3.5">
+                <div key={c.key} className="bg-surface-tile rounded-[10px] px-4 py-3.5">
                   <div className={`text-[13px] font-extrabold ${c.tone}`}>{c.label}</div>
 
                   <div className="flex items-baseline justify-between mt-2.5 mb-3">
                     <span className={tileLabCls}>По расчёту</span>
-                    <span className="text-[14px] font-extrabold text-[#161615]">{kc(c.calc)}</span>
+                    <span className="text-[14px] font-extrabold text-ink">{kc(c.calc)}</span>
                   </div>
 
                   <label className="block mb-3">
@@ -289,17 +289,17 @@ export default function TaxesTab() {
                       value={c.paid}
                       onChange={(e) => c.set(e.target.value)}
                       placeholder="0"
-                      className="w-full box-border bg-white border border-[#e7e2de] rounded-lg px-[11px] py-2 text-[14px] font-semibold text-[#161615] transition-all duration-150 placeholder:text-[#b6b0aa] placeholder:font-medium focus:outline-none focus:border-[#e71e6e] focus:shadow-[0_0_0_3px_rgba(231,30,110,0.1)]"
+                      className="w-full box-border bg-white border border-line-btn rounded-lg px-[11px] py-2 text-[14px] font-semibold text-ink transition-all duration-150 placeholder:text-ink-placeholder placeholder:font-medium focus:outline-none focus:border-brand focus:shadow-focus"
                     />
                   </label>
 
                   <div
                     className={`rounded-md px-2 py-1 text-[12px] font-bold text-center ${
                       !has
-                        ? 'bg-[#f2efec] text-[#a39e99]'
+                        ? 'bg-line-soft text-ink-faint'
                         : diff === 0
-                          ? 'bg-[#e8f6ee] text-[#1d7a3f]'
-                          : 'bg-[#fdecec] text-[#c53030]'
+                          ? 'bg-pos-bg text-pos'
+                          : 'bg-neg-bg text-neg'
                     }`}
                   >
                     {!has
@@ -384,11 +384,11 @@ export default function TaxesTab() {
 
 // Ячейка результата: подпись сверху, сумма снизу. Сетка из таких ячеек
 // заменяет широкие колонки таблицы — на телефоне складывается в 2 колонки.
-// plain — без плитки-подложки (для блока «Итого», он сам на #faf9f8).
+// plain — без плитки-подложки (для блока «Итого», он сам на surface-tile).
 function StatBox({
   label,
   value,
-  tone = 'text-[#4c4844]',
+  tone = 'text-ink-body',
   plain,
 }: {
   label: string
@@ -397,7 +397,7 @@ function StatBox({
   plain?: boolean
 }) {
   return (
-    <div className={plain ? '' : 'bg-[#faf9f8] rounded-lg px-3 py-2.5'}>
+    <div className={plain ? '' : 'bg-surface-tile rounded-lg px-3 py-2.5'}>
       <div className={`${tileLabCls} mb-1`}>{label}</div>
       <div className={`text-[15px] font-extrabold leading-snug ${tone}`}>{value}</div>
     </div>
@@ -406,7 +406,8 @@ function StatBox({
 
 // Главный ответ на вопрос «сколько я заплатил за человека сверх того, что он
 // получил на руки». Инвариант: odvodyTotal = náklad firmy − čistá.
-// ⚠️ primary с alpha (bg-primary/5) в этом проекте не рендерится — только hex.
+// ⚠️ Старый токен primary с alpha не рендерится (он = var(--primary), без alpha-канала).
+// У новых токенов палитры (brand и др.) суффикс прозрачности работает штатно.
 function OdvodyBox({
   res,
   totalLabel = 'Odvody celkem — mimo čistou mzdu',
@@ -417,16 +418,16 @@ function OdvodyBox({
   if (!res.odvodyTotal) return null
 
   return (
-    <div className="mt-3 bg-[#fce7f0] border border-[#f0a8c8] rounded-lg px-3 py-2.5">
+    <div className="mt-3 bg-brand-tint border border-brand-line rounded-lg px-3 py-2.5">
       <div className="flex items-baseline justify-between gap-3 flex-wrap">
-        <span className={`${tileLabCls} text-[#b81b60]`}>{totalLabel}</span>
-        <span className="text-[19px] font-extrabold text-[#b81b60] leading-none">
+        <span className={`${tileLabCls} text-brand-dark`}>{totalLabel}</span>
+        <span className="text-[19px] font-extrabold text-brand-dark leading-none">
           {kc(res.odvodyTotal)}
         </span>
       </div>
-      <div className="mt-1.5 text-[12px] font-medium text-[#8b857f]">
-        z toho platí salon navíc <b className="text-[#b81b60]">{kc(res.employerShare)}</b> · sráženo
-        ze mzdy zaměstnance <b className="text-[#b81b60]">{kc(res.employeeShare)}</b>
+      <div className="mt-1.5 text-[12px] font-medium text-ink-soft">
+        z toho platí salon navíc <b className="text-brand-dark">{kc(res.employerShare)}</b> · sráženo
+        ze mzdy zaměstnance <b className="text-brand-dark">{kc(res.employeeShare)}</b>
       </div>
     </div>
   )
@@ -453,20 +454,20 @@ function ResultGrid({
       <StatBox
         label="Zdravotní"
         value={health ? kc(health) : '—'}
-        tone="text-[#2563ac]"
+        tone="text-info"
         plain={plain}
       />
       <StatBox
         label="Sociální"
         value={social ? kc(social) : '—'}
-        tone="text-[#b0862a]"
+        tone="text-warn"
         plain={plain}
       />
-      <StatBox label="Daň (FÚ)" value={tax ? kc(tax) : '—'} tone="text-[#c53030]" plain={plain} />
+      <StatBox label="Daň (FÚ)" value={tax ? kc(tax) : '—'} tone="text-neg" plain={plain} />
       <StatBox
         label="Náklad firmy"
         value={cost ? kc(cost) : '—'}
-        tone="text-[#b81b60]"
+        tone="text-brand-dark"
         plain={plain}
       />
     </div>
@@ -486,7 +487,7 @@ function ParamInput({
 }) {
   return (
     <label className="block">
-      <span className="block text-[10.5px] font-bold tracking-[0.05em] uppercase text-[#8b857f] mb-1.5">
+      <span className="block text-[10.5px] font-bold tracking-[0.05em] uppercase text-ink-soft mb-1.5">
         {label}
       </span>
       <input
@@ -526,7 +527,7 @@ function NumField({
           className={`${fieldCls} ${suffix ? 'pr-10' : ''}`}
         />
         {suffix && (
-          <span className="absolute right-[11px] top-1/2 -translate-y-1/2 text-[12px] font-bold text-[#aaa49e] pointer-events-none">
+          <span className="absolute right-[11px] top-1/2 -translate-y-1/2 text-[12px] font-bold text-ink-dim pointer-events-none">
             {suffix}
           </span>
         )}
@@ -551,7 +552,7 @@ function EmployeeCard({
   const isOsvc = row.contract === 'osvc'
 
   return (
-    <div className="border border-[#f2efec] rounded-[10px] p-4 mb-3">
+    <div className="border border-line-soft rounded-[10px] p-4 mb-3">
       {/* Шапка: имя + тип смлувы + удалить */}
       <div className="grid grid-cols-[minmax(200px,1fr)_130px_34px] gap-2.5 items-end mb-3">
         <label className="block min-w-0">
@@ -586,7 +587,7 @@ function EmployeeCard({
 
         <button
           onClick={onRemove}
-          className="w-[34px] h-[38px] rounded-lg border-0 bg-transparent text-[15px] text-[#c2bcb6] transition-colors hover:bg-[#fdecf2] hover:text-[#d61f61]"
+          className="w-[34px] h-[38px] rounded-lg border-0 bg-transparent text-[15px] text-ink-icon transition-colors hover:bg-brand-wash hover:text-brand-alert"
           title="Smazat zaměstnance"
         >
           ✕
@@ -625,7 +626,7 @@ function EmployeeCard({
       {/* Чипы-модификаторы расчёта */}
       <div className="mt-3 flex gap-2 flex-wrap">
         {isOsvc ? (
-          <span className="text-[12px] font-semibold text-[#a39e99]">
+          <span className="text-[12px] font-semibold text-ink-faint">
             faktura — salon neodvádí nic
           </span>
         ) : (
@@ -662,7 +663,7 @@ function EmployeeCard({
         )}
       </div>
 
-      <div className="my-3 border-t border-[#f2efec]" />
+      <div className="my-3 border-t border-line-soft" />
 
       {/* Результат расчёта */}
       <ResultGrid
@@ -678,16 +679,16 @@ function EmployeeCard({
       {(res.warnings.length > 0 || res.sickCompensation > 0 || res.healthDoplatek > 0) && (
         <div className="mt-3 space-y-1.5">
           {(res.sickCompensation > 0 || res.healthDoplatek > 0 || res.taxWithheld) && (
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] font-semibold text-[#8b857f]">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] font-semibold text-ink-soft">
               {res.sickCompensation > 0 && (
                 <span>
-                  Náhrada za nemoc <b className="text-[#4c4844]">{kc(res.sickCompensation)}</b>{' '}
+                  Náhrada za nemoc <b className="text-ink-body">{kc(res.sickCompensation)}</b>{' '}
                   (bez odvodů)
                 </span>
               )}
               {res.healthDoplatek > 0 && (
                 <span>
-                  z toho doplatek ZP <b className="text-[#4c4844]">{kc(res.healthDoplatek)}</b>
+                  z toho doplatek ZP <b className="text-ink-body">{kc(res.healthDoplatek)}</b>
                 </span>
               )}
               {res.taxWithheld && <span>srážková daň 15 %</span>}
@@ -696,7 +697,7 @@ function EmployeeCard({
           {res.warnings.map((w) => (
             <div
               key={w}
-              className="rounded-lg bg-[#fbf3e2] text-[#b0862a] text-[12px] font-semibold px-3 py-2"
+              className="rounded-lg bg-warn-bg text-warn text-[12px] font-semibold px-3 py-2"
             >
               ⚠ {w}
             </div>

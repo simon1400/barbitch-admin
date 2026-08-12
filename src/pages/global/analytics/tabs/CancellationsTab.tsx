@@ -36,40 +36,40 @@ export default function CancellationsTab() {
     load()
   }, [load])
 
-  if (loading) return <div className="text-[#8b857f] py-8 text-center">Načítání…</div>
+  if (loading) return <div className="text-ink-soft py-8 text-center">Načítání…</div>
 
   return (
     <>
       <div className="mb-6 flex justify-between items-center gap-3 flex-wrap sticky top-0 z-40">
         <Select month={month} setMonth={setMonth} year={year} setYear={setYear} />
-        <span className="text-xs text-[#a39e99]">
+        <span className="text-xs text-ink-faint">
           No-show = фактическая потеря · отмена = верхняя оценка (слот могли перебронировать)
         </span>
       </div>
 
       {error || !data ? (
-        <div className="text-[#c53030] py-8 text-center">{error}</div>
+        <div className="text-neg py-8 text-center">{error}</div>
       ) : (
         <>
           <div className="flex gap-4 flex-wrap mb-6">
             <div className="bg-white rounded-lg shadow-sm px-4 py-3">
-              <div className="text-xs text-[#a39e99]">No-show</div>
-              <div className="text-2xl font-bold text-[#c53030]">{data.noshow.count}</div>
-              <div className="text-xs text-[#a39e99] mt-1">
+              <div className="text-xs text-ink-faint">No-show</div>
+              <div className="text-2xl font-bold text-neg">{data.noshow.count}</div>
+              <div className="text-xs text-ink-faint mt-1">
                 {fmtH(data.noshow.lostMin)} · {fmtMoney(data.noshow.lostMoney)}
               </div>
             </div>
             <div className="bg-white rounded-lg shadow-sm px-4 py-3">
-              <div className="text-xs text-[#a39e99]">Отмены</div>
-              <div className="text-2xl font-bold text-[#b0862a]">{data.cancelled.count}</div>
-              <div className="text-xs text-[#a39e99] mt-1">
+              <div className="text-xs text-ink-faint">Отмены</div>
+              <div className="text-2xl font-bold text-warn">{data.cancelled.count}</div>
+              <div className="text-xs text-ink-faint mt-1">
                 {fmtH(data.cancelled.lostMin)} · {fmtMoney(data.cancelled.lostMoney)}
               </div>
             </div>
             <div className="bg-white rounded-lg shadow-sm px-4 py-3">
-              <div className="text-xs text-[#a39e99]">Состоявшихся визитов</div>
-              <div className="text-2xl font-bold text-[#161615]">{data.totalVisits}</div>
-              <div className="text-xs text-[#a39e99] mt-1">
+              <div className="text-xs text-ink-faint">Состоявшихся визитов</div>
+              <div className="text-2xl font-bold text-ink">{data.totalVisits}</div>
+              <div className="text-xs text-ink-faint mt-1">
                 доля no-show:{' '}
                 {data.totalVisits + data.noshow.count
                   ? Math.round(
@@ -83,7 +83,7 @@ export default function CancellationsTab() {
 
           <StatSection title="По мастерам" id="cancel-masters" defaultOpen>
             {data.byMaster.length === 0 ? (
-              <div className="text-[#8b857f] py-8 text-center">За месяц отмен нет.</div>
+              <div className="text-ink-soft py-8 text-center">За месяц отмен нет.</div>
             ) : (
               <TableWrapper>
                 <table className="w-full text-left min-w-[620px]">
@@ -98,11 +98,11 @@ export default function CancellationsTab() {
                   </thead>
                   <tbody>
                     {data.byMaster.map((m) => (
-                      <tr key={m.name} className="hover:bg-[#faf8f7] transition-colors">
+                      <tr key={m.name} className="hover:bg-surface-hover transition-colors">
                         <Cell title={m.name} className="font-medium" />
                         <Cell
                           title={m.noshow.count ? String(m.noshow.count) : '—'}
-                          className={m.noshow.count ? 'text-[#c53030] font-semibold' : ''}
+                          className={m.noshow.count ? 'text-neg font-semibold' : ''}
                         />
                         <Cell
                           title={m.noshow.count ? `${fmtH(m.noshow.lostMin)} · ${fmtMoney(m.noshow.lostMoney)}` : '—'}
@@ -121,7 +121,7 @@ export default function CancellationsTab() {
 
           <StatSection title="Клиенты с отменами (топ-15)" id="cancel-clients">
             {data.topClients.length === 0 ? (
-              <div className="text-[#8b857f] py-8 text-center">Нет данных.</div>
+              <div className="text-ink-soft py-8 text-center">Нет данных.</div>
             ) : (
               <TableWrapper>
                 <table className="w-full text-left min-w-[620px]">
@@ -136,11 +136,11 @@ export default function CancellationsTab() {
                   </thead>
                   <tbody>
                     {data.topClients.map((c) => (
-                      <tr key={c.customerId} className="hover:bg-[#faf8f7] transition-colors">
+                      <tr key={c.customerId} className="hover:bg-surface-hover transition-colors">
                         <Cell title={c.name} className="font-medium" />
                         <Cell
                           title={c.noshowCount ? String(c.noshowCount) : '—'}
-                          className={c.noshowCount ? 'text-[#c53030] font-semibold' : ''}
+                          className={c.noshowCount ? 'text-neg font-semibold' : ''}
                         />
                         <Cell title={c.cancelledCount ? String(c.cancelledCount) : '—'} />
                         <Cell title={fmtMoney(c.lostMoney)} />
@@ -165,7 +165,7 @@ export default function CancellationsTab() {
                 </thead>
                 <tbody>
                   {data.byWeekday.map((d) => (
-                    <tr key={d.label} className="hover:bg-[#faf8f7] transition-colors">
+                    <tr key={d.label} className="hover:bg-surface-hover transition-colors">
                       <Cell title={d.label} className="font-medium" />
                       <Cell title={d.noshow ? String(d.noshow) : '—'} />
                       <Cell title={d.cancelled ? String(d.cancelled) : '—'} />

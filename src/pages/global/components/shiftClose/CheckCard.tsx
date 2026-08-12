@@ -4,7 +4,7 @@ export const StatusBadge = ({ ok, label }: { ok: boolean; label: string }) => (
       ok ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
     }`}
   >
-    <span className={`w-2 h-2 rounded-full ${ok ? 'bg-[#e8f6ee]0' : 'bg-[#fdecec]0'}`} />
+    <span className={`w-2 h-2 rounded-full ${ok ? 'bg-pos-bg0' : 'bg-neg-bg0'}`} />
     {label}
   </span>
 )
@@ -20,9 +20,9 @@ export const CheckCard = ({
   count: number
   children?: React.ReactNode
 }) => (
-  <div className="bg-white rounded-xl border border-[#eee9e6] p-5 shadow-sm">
+  <div className="bg-white rounded-xl border border-line p-5 shadow-sm">
     <div className="flex items-center justify-between mb-3">
-      <h3 className="font-semibold text-[#161615]">{title}</h3>
+      <h3 className="font-semibold text-ink">{title}</h3>
       <StatusBadge ok={found} label={found ? `${count} zázn.` : 'Nenalezeno'} />
     </div>
     {children}

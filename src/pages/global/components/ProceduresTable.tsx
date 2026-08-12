@@ -55,14 +55,14 @@ export const ProceduresTable = ({ data, totalCount, totalRevenue, loading }: Pro
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#e71e6e]"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
       </div>
     )
   }
 
   if (data.length === 0) {
     return (
-      <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+      <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">
         Нет данных за выбранный период
       </div>
     )
@@ -83,34 +83,34 @@ export const ProceduresTable = ({ data, totalCount, totalRevenue, loading }: Pro
         <thead>
           <tr>
             <th
-              className="px-3 py-[7px] text-left border-b border-[#eee9e6] cursor-pointer select-none"
+              className="px-3 py-[7px] text-left border-b border-line cursor-pointer select-none"
               onClick={() => handleSort('name')}
             >
-              <p className="flex items-center gap-2 text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#b3ada7] whitespace-nowrap">
+              <p className="flex items-center gap-2 text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-label whitespace-nowrap">
                 Название процедуры
                 <span className="text-[10px]">{getSortIcon('name')}</span>
               </p>
             </th>
             <th
-              className="w-px whitespace-nowrap px-3 py-[7px] text-left border-b border-[#eee9e6] cursor-pointer select-none"
+              className="w-px whitespace-nowrap px-3 py-[7px] text-left border-b border-line cursor-pointer select-none"
               onClick={() => handleSort('count')}
             >
-              <p className="flex items-center gap-2 text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#b3ada7] whitespace-nowrap">
+              <p className="flex items-center gap-2 text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-label whitespace-nowrap">
                 Количество
                 <span className="text-[10px]">{getSortIcon('count')}</span>
               </p>
             </th>
             <th
-              className="w-px whitespace-nowrap px-3 py-[7px] text-left border-b border-[#eee9e6] cursor-pointer select-none"
+              className="w-px whitespace-nowrap px-3 py-[7px] text-left border-b border-line cursor-pointer select-none"
               onClick={() => handleSort('totalRevenue')}
             >
-              <p className="flex items-center gap-2 text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#b3ada7] whitespace-nowrap">
+              <p className="flex items-center gap-2 text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-label whitespace-nowrap">
                 Общая выручка
                 <span className="text-[10px]">{getSortIcon('totalRevenue')}</span>
               </p>
             </th>
-            <th className="w-px whitespace-nowrap px-3 py-[7px] text-left border-b border-[#eee9e6]">
-              <p className="text-[10.5px] font-bold tracking-[0.06em] uppercase text-[#b3ada7] whitespace-nowrap">
+            <th className="w-px whitespace-nowrap px-3 py-[7px] text-left border-b border-line">
+              <p className="text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-label whitespace-nowrap">
                 Ср. чек
               </p>
             </th>
@@ -121,11 +121,11 @@ export const ProceduresTable = ({ data, totalCount, totalRevenue, loading }: Pro
             const averageCheck = item.count > 0 ? Math.round(item.totalRevenue / item.count) : 0
 
             return (
-              <tr key={`${item.name}-${index}`} className="hover:bg-[#faf8f7] transition-colors">
+              <tr key={`${item.name}-${index}`} className="hover:bg-surface-hover transition-colors">
                 <Cell className="break-words" title={item.name} />
                 <Cell className="whitespace-nowrap" title={item.count.toLocaleString()} />
                 <Cell
-                  className="whitespace-nowrap text-[#b81b60] font-extrabold"
+                  className="whitespace-nowrap text-brand-dark font-extrabold"
                   title={`${item.totalRevenue.toLocaleString()} Kč`}
                 />
                 <Cell className="whitespace-nowrap" title={`${averageCheck.toLocaleString()} Kč`} />

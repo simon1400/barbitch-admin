@@ -37,7 +37,7 @@ export default function BlogAIPage() {
         <PlanGenerator onGenerated={loadPlans} />
 
         {loading ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+          <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">
             Načítání…
           </div>
         ) : plans.length > 0 ? (
@@ -52,7 +52,7 @@ export default function BlogAIPage() {
             ))}
           </div>
         ) : (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+          <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">
             Zatím žádné plány. Vytvořte první obsahový plán výše.
           </div>
         )}

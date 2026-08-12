@@ -14,10 +14,10 @@ export default function AnalyticsPage() {
     <OwnerProtection>
       <section className="min-h-screen">
         <div className="max-w-[1024px] mx-auto px-5 pt-7 pb-[60px]">
-          <div className="text-[11px] font-bold tracking-[.08em] uppercase text-[#a39e99] mb-1">
+          <div className="text-[11px] font-bold tracking-[.08em] uppercase text-ink-faint mb-1">
             {sub.moduleLabel}
           </div>
-          <h1 className="mb-5 text-[24px] leading-[1.2] font-extrabold text-[#161615]">
+          <h1 className="mb-5 text-[24px] leading-[1.2] font-extrabold text-ink">
             {activeTabLabel(sub, location.pathname)}
           </h1>
 

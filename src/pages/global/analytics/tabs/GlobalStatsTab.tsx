@@ -17,6 +17,7 @@ import {
   type GlobalStatsResult,
   type MonthKey,
 } from '../fetch/globalStats'
+import { CHART } from '../../../../ui/chartColors'
 
 const PRESETS = [
   { label: '3 месяца', n: 3 },
@@ -150,8 +151,8 @@ export default function GlobalStatsTab() {
               onClick={() => setPreset(p.n)}
               className={`px-4 py-2 rounded-lg text-sm font-semibold border transition-colors ${
                 activePreset === p.n
-                  ? 'bg-[#e71e6e] text-white border-[#e71e6e] shadow-sm'
-                  : 'bg-white text-[#4c4844] border-[#e7e2de] shadow-sm hover:bg-[#faf8f7] hover:border-[#c9c3be]'
+                  ? 'bg-brand text-white border-brand shadow-sm'
+                  : 'bg-white text-ink-body border-line-btn shadow-sm hover:bg-surface-hover hover:border-line-btn-hover'
               }`}
             >
               {p.label}
@@ -161,7 +162,7 @@ export default function GlobalStatsTab() {
 
         <div className="flex flex-wrap items-center gap-3 bg-white rounded-lg shadow-sm p-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-[#a39e99]">С</span>
+            <span className="text-xs text-ink-faint">С</span>
             <Select
               month={from.month}
               setMonth={(m) => setFrom((f) => ({ ...f, month: m }))}
@@ -170,7 +171,7 @@ export default function GlobalStatsTab() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-[#a39e99]">По</span>
+            <span className="text-xs text-ink-faint">По</span>
             <Select
               month={to.month}
               setMonth={(m) => setTo((t) => ({ ...t, month: m }))}
@@ -181,12 +182,12 @@ export default function GlobalStatsTab() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm font-semibold text-[#6f6a66]">
+          <span className="text-sm font-semibold text-ink-muted">
             {rangeLabel(months)} · {months.length} мес.
           </span>
           <div className="flex items-center gap-2">
             {result && result.cachedAt > 0 && (
-              <span className="text-xs text-[#a39e99] whitespace-nowrap">
+              <span className="text-xs text-ink-faint whitespace-nowrap">
                 {formatAgo(result.cachedAt)}
               </span>
             )}
@@ -194,7 +195,7 @@ export default function GlobalStatsTab() {
               type="button"
               onClick={() => load(true)}
               disabled={loading}
-              className="px-3 py-2 rounded-lg text-sm font-semibold border bg-white text-[#4c4844] border-[#e7e2de] shadow-sm hover:bg-[#faf8f7] hover:border-[#c9c3be] disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              className="px-3 py-2 rounded-lg text-sm font-semibold border bg-white text-ink-body border-line-btn shadow-sm hover:bg-surface-hover hover:border-line-btn-hover disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
             >
               {loading ? 'Обновление…' : 'Обновить всё'}
             </button>
@@ -203,9 +204,9 @@ export default function GlobalStatsTab() {
       </div>
 
       {loading && !result && (
-        <div className="text-[#8b857f] py-8 text-center">Načítání…</div>
+        <div className="text-ink-soft py-8 text-center">Načítání…</div>
       )}
-      {error && <div className="text-[#c53030] py-8 text-center">{error}</div>}
+      {error && <div className="text-neg py-8 text-center">{error}</div>}
 
       {totals && (
         <>
@@ -262,10 +263,10 @@ export default function GlobalStatsTab() {
                 <GlobalLineChart
                   data={chartData}
                   lines={[
-                    { dataKey: 'оборот', stroke: '#e71e6e', name: 'Оборот' },
-                    { dataKey: 'результат', stroke: '#16a34a', name: 'Результат' },
-                    { dataKey: 'зарплаты', stroke: '#161615', name: 'Зарплаты' },
-                    { dataKey: 'затраты', stroke: '#f59e0b', name: 'Затраты' },
+                    { dataKey: 'оборот', stroke: CHART.brand, name: 'Оборот' },
+                    { dataKey: 'результат', stroke: CHART.positive, name: 'Результат' },
+                    { dataKey: 'зарплаты', stroke: CHART.ink, name: 'Зарплаты' },
+                    { dataKey: 'затраты', stroke: CHART.warning, name: 'Затраты' },
                   ]}
                 />
               </div>
@@ -301,16 +302,16 @@ export default function GlobalStatsTab() {
                       const isCurrent =
                         r.year === now.getFullYear() && r.month === now.getMonth()
                       return (
-                        <tr key={key} className="hover:bg-[#faf8f7] transition-colors">
+                        <tr key={key} className="hover:bg-surface-hover transition-colors">
                           <Cell
                             title={`${monthLabels[r.month]} ${r.year}${isCurrent ? ' (идёт)' : ''}`}
                             className="font-medium"
                           />
                           <Cell title={`${d.globalFlow.toLocaleString()} Kč`} />
-                          <td className="p-4 border-b border-[#f2efec]">
+                          <td className="p-4 border-b border-line-soft">
                             <span
                               className={`font-sans text-sm font-medium ${
-                                monthResult >= 0 ? 'text-[#1d7a3f]' : 'text-[#c53030]'
+                                monthResult >= 0 ? 'text-pos' : 'text-neg'
                               }`}
                             >
                               {toLocalStringDigits(monthResult)}
@@ -319,12 +320,12 @@ export default function GlobalStatsTab() {
                           <Cell title={salaries.toLocaleString()} />
                           <Cell title={d.noDphCosts.toLocaleString()} />
                           <Cell title={String(d.clients.all)} />
-                          <td className="p-4 border-b border-[#f2efec]">
+                          <td className="p-4 border-b border-line-soft">
                             <button
                               type="button"
                               onClick={() => refreshMonth({ month: r.month, year: r.year })}
                               disabled={refreshingMonth === key}
-                              className="px-2 py-1 rounded text-xs font-semibold border bg-white text-[#6f6a66] border-[#e7e2de] hover:bg-[#faf8f7] disabled:opacity-50"
+                              className="px-2 py-1 rounded text-xs font-semibold border bg-white text-ink-muted border-line-btn hover:bg-surface-hover disabled:opacity-50"
                             >
                               {refreshingMonth === key ? '…' : 'Обновить'}
                             </button>
@@ -335,7 +336,7 @@ export default function GlobalStatsTab() {
                   </tbody>
                 </table>
               </TableWrapper>
-              <p className="text-xs text-[#a39e99] mt-3">
+              <p className="text-xs text-ink-faint mt-3">
                 Прошлые месяцы держатся в кэше постоянно (они уже не меняются). Кнопка
                 «Обновить» пересчитывает конкретный месяц заново.
               </p>

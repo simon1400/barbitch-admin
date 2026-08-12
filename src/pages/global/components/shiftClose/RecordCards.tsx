@@ -14,26 +14,26 @@ export const CashCard = ({ data }: { data: ShiftCheckResult['cash'] }) => (
         {data.items.map((item: any, i: number) => {
           const flow: any[] = Array.isArray(item.flow) ? item.flow : []
           return (
-            <div key={i} className="rounded-lg border border-[#f2efec] bg-[#faf9f8] p-2">
-              <div className="text-sm text-[#4c4844] flex justify-between items-center">
+            <div key={i} className="rounded-lg border border-line-soft bg-surface-tile p-2">
+              <div className="text-sm text-ink-body flex justify-between items-center">
                 <span className="font-medium">{item.name || item.personal?.name || '—'}</span>
                 <span className="font-medium">
                   {item.sum} Kč (zisk: {item.profit} Kč)
                 </span>
               </div>
               {hasText(item.comment) && (
-                <p className="mt-1 text-xs text-[#8b857f] italic">{item.comment}</p>
+                <p className="mt-1 text-xs text-ink-soft italic">{item.comment}</p>
               )}
               {flow.length > 0 && (
-                <div className="mt-2 border-t border-[#eee9e6] pt-2 space-y-1">
-                  <p className="text-xs font-medium text-[#8b857f]">Pohyb peněz</p>
+                <div className="mt-2 border-t border-line pt-2 space-y-1">
+                  <p className="text-xs font-medium text-ink-soft">Pohyb peněz</p>
                   {flow.map((f: any, fi: number) => (
-                    <div key={fi} className="text-sm text-[#6f6a66] flex justify-between gap-3">
+                    <div key={fi} className="text-sm text-ink-muted flex justify-between gap-3">
                       <span className="break-words">{hasText(f.coment) ? f.coment : '—'}</span>
                       <span className="font-medium whitespace-nowrap">{f.sum} Kč</span>
                     </div>
                   ))}
-                  <div className="flex justify-between text-sm font-semibold text-[#161615] border-t border-[#eee9e6] pt-1">
+                  <div className="flex justify-between text-sm font-semibold text-ink border-t border-line pt-1">
                     <span>Celkem</span>
                     <span>
                       {flow.reduce((s: number, f: any) => s + (Number(f.sum) || 0), 0)} Kč
@@ -54,7 +54,7 @@ export const WorkTimeCard = ({ data }: { data: ShiftCheckResult['workTime'] }) =
     {data.found && data.items.length > 0 && (
       <div className="mt-2 space-y-1">
         {data.items.map((item: any, i: number) => (
-          <div key={i} className="text-sm text-[#6f6a66] flex justify-between">
+          <div key={i} className="text-sm text-ink-muted flex justify-between">
             <span className="inline-flex items-center">
               {item.personal?.name || '—'}
               {hasComment(item.comment) && <CommentPopover html={item.comment} />}
@@ -74,7 +74,7 @@ export const PayrollCard = ({ data }: { data: ShiftCheckResult['payroll'] }) => 
     {data.found && data.items.length > 0 && (
       <div className="mt-2 space-y-1">
         {data.items.map((item: any, i: number) => (
-          <div key={i} className="text-sm text-[#6f6a66] flex justify-between">
+          <div key={i} className="text-sm text-ink-muted flex justify-between">
             <span>{item.personal?.name || '—'}</span>
             <span className="font-medium">{item.sum} Kč</span>
           </div>

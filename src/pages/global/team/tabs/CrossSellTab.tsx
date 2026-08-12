@@ -27,7 +27,7 @@ const fmtDay = (date: string) => {
 }
 
 // Нейтральный серый чип («отправлено»)
-const neutralChipCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-[#8b857f] bg-[#f6f4f2]'
+const neutralChipCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-ink-soft bg-surface-input'
 
 export default function CrossSellTab() {
   const [cands, setCands] = useState<CrossSellCandidate[]>([])
@@ -97,7 +97,7 @@ export default function CrossSellTab() {
     <>
       <div className={toolbarCardCls}>
         <div className="flex items-center gap-3 flex-wrap">
-          <label className="flex items-center gap-2 text-[13px] font-bold text-[#4c4844]">
+          <label className="flex items-center gap-2 text-[13px] font-bold text-ink-body">
             Скидка в письме:
             <input
               type="text"
@@ -121,9 +121,9 @@ export default function CrossSellTab() {
       </div>
 
       {result && (
-        <div className="mb-6 rounded-lg bg-[#e8f6ee] text-[#1d7a3f] text-[13px] font-semibold px-4 py-2.5">
+        <div className="mb-6 rounded-lg bg-pos-bg text-pos text-[13px] font-semibold px-4 py-2.5">
           Отправлено: {result.successful} из {result.total}
-          {result.failed > 0 && <span className="text-[#c53030]"> · ошибок: {result.failed}</span>}
+          {result.failed > 0 && <span className="text-neg"> · ошибок: {result.failed}</span>}
         </div>
       )}
 
@@ -137,11 +137,11 @@ export default function CrossSellTab() {
         </p>
 
         {loading ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">Načítání…</div>
+          <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">Načítání…</div>
         ) : error ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#d61f61]">{error}</div>
+          <div className="py-12 text-center text-[13px] font-semibold text-brand-alert">{error}</div>
         ) : cands.length === 0 ? (
-          <div className="py-12 text-center text-[13px] font-semibold text-[#a39e99]">
+          <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">
             Нет подходящих окон для дозаписи на завтра и послезавтра.
           </div>
         ) : (
@@ -149,12 +149,12 @@ export default function CrossSellTab() {
             <table className="w-full text-left">
               <thead>
                 <tr>
-                  <th className="px-3 py-[7px] text-left border-b border-[#eee9e6]">
+                  <th className="px-3 py-[7px] text-left border-b border-line">
                     <input
                       type="checkbox"
                       checked={allSelected}
                       onChange={toggleAll}
-                      className="accent-[#e71e6e]"
+                      className="accent-brand"
                       aria-label="Выбрать всех"
                     />
                   </th>
@@ -172,38 +172,38 @@ export default function CrossSellTab() {
                   <tr
                     key={c.key}
                     className={`transition-colors ${
-                      c.alreadySent ? 'opacity-60' : 'hover:bg-[#faf8f7]'
+                      c.alreadySent ? 'opacity-60' : 'hover:bg-surface-hover'
                     }`}
                   >
-                    <td className="p-4 border-b border-[#f2efec]">
+                    <td className="p-4 border-b border-line-soft">
                       <input
                         type="checkbox"
                         checked={selected.has(c.key) && !c.alreadySent}
                         disabled={c.alreadySent}
                         onChange={() => toggle(c.key)}
-                        className="accent-[#e71e6e]"
+                        className="accent-brand"
                         aria-label={`Выбрать ${c.customerName}`}
                       />
                     </td>
-                    <Cell title={c.customerName} className="font-bold text-[#161615]" />
-                    <Cell title={c.email} className="text-[#8b857f]" />
+                    <Cell title={c.customerName} className="font-bold text-ink" />
+                    <Cell title={c.email} className="text-ink-soft" />
                     <Cell title={fmtDay(c.date)} />
                     <Cell title={`${BUCKET_LABEL[c.anchorBucket]} · до ${c.anchorEndHHMM}`} />
-                    <td className="p-4 border-b border-[#f2efec]">
+                    <td className="p-4 border-b border-line-soft">
                       <span className="flex flex-col">
-                        <span className="text-[13.5px] font-bold text-[#e71e6e]">
+                        <span className="text-[13.5px] font-bold text-brand">
                           {BUCKET_LABEL[c.offerBucket]}
                         </span>
-                        <span className="text-[11.5px] font-semibold text-[#8b857f]">
+                        <span className="text-[11.5px] font-semibold text-ink-soft">
                           {c.serviceTitle} · {c.masterName}
                         </span>
                       </span>
                     </td>
                     <Cell
                       title={`${c.windowStartHHMM} · ${c.serviceDurationMin} мин`}
-                      className="text-[#4c4844]"
+                      className="text-ink-body"
                     />
-                    <td className="p-4 border-b border-[#f2efec]">
+                    <td className="p-4 border-b border-line-soft">
                       {c.alreadySent ? (
                         <span className={neutralChipCls}>отправлено</span>
                       ) : (
@@ -220,19 +220,19 @@ export default function CrossSellTab() {
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-[rgba(22,22,21,0.45)] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-[#eee9e6] shadow-[0_10px_28px_rgba(22,22,21,0.14)] w-full max-w-[560px] max-h-[85vh] overflow-y-auto p-6">
-            <h3 className="text-[17px] font-extrabold text-[#161615] mb-2">Отправить предложения</h3>
+          <div className="bg-white rounded-xl border border-line shadow-pop w-full max-w-[560px] max-h-[85vh] overflow-y-auto p-6">
+            <h3 className="text-[17px] font-extrabold text-ink mb-2">Отправить предложения</h3>
             <p className={`m-0 mb-4 ${hintCls}`}>
               {selectedCands.length} писем · скидка {discount}. Каждому уйдёт персональное письмо с
               его мастером, временем и ссылкой на дозапись.
             </p>
-            <ul className="text-[13px] text-[#4c4844] mb-4 max-h-48 overflow-y-auto border border-[#eee9e6] rounded-lg divide-y divide-[#f2efec]">
+            <ul className="text-[13px] text-ink-body mb-4 max-h-48 overflow-y-auto border border-line rounded-lg divide-y divide-line-soft">
               {selectedCands.map((c) => (
                 <li key={c.key} className="px-3 py-2">
-                  <span className="font-bold text-[#161615]">{c.customerName}</span>{' '}
-                  <span className="text-[#a39e99]">{c.email}</span>
+                  <span className="font-bold text-ink">{c.customerName}</span>{' '}
+                  <span className="text-ink-faint">{c.email}</span>
                   <br />
-                  <span className="text-[11.5px] font-semibold text-[#8b857f]">
+                  <span className="text-[11.5px] font-semibold text-ink-soft">
                     {fmtDay(c.date)} · {BUCKET_LABEL[c.offerBucket]} ({c.serviceTitle}) ·{' '}
                     {c.masterName} · {c.windowStartHHMM}
                   </span>
