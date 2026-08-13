@@ -5,6 +5,7 @@ import { modulesForRole, type ModuleDef } from '../moduleAccess'
 import { subnavForPathname } from '../subnav'
 import { logout } from '../services/auth'
 import { LogoIcon } from '../icons/Logo'
+import { IconAnalytics, IconCalendar, IconCatalog, IconHome, IconTeam } from '../icons/nav'
 import { CHART } from '../ui/chartColors'
 
 // Новая шапка админки (редизайн s164 по standalone-макету «Шапка и меню»):
@@ -27,8 +28,19 @@ const HOME_BY_ROLE: Record<UserRole, string> = {
   master: '/',
 }
 
-const pillCls = (on: boolean) =>
-  `px-3.5 py-2 rounded-full text-[13px] font-bold whitespace-nowrap transition-all duration-150 ${
+// Пункты меню, которые рисуются иконкой вместо подписи (подпись остаётся
+// в title/aria-label). «Главная» — по её роль-зависимому пути, см. HOME_BY_ROLE.
+type IconComp = ({ className }: { className?: string }) => React.ReactElement
+
+const NAV_ICONS: Partial<Record<string, IconComp>> = {
+  '/calendar': IconCalendar,
+  '/global/analytics': IconAnalytics,
+  '/global/team': IconTeam,
+  '/global/catalog': IconCatalog,
+}
+
+const pillCls = (on: boolean, iconOnly = false) =>
+  `${iconOnly ? 'px-3 inline-flex items-center' : 'px-3.5'} py-2 rounded-full text-[13px] font-bold whitespace-nowrap transition-all duration-150 ${
     on
       ? 'bg-brand text-white shadow-brand-pill'
       : 'text-ink-muted hover:text-ink'
@@ -128,11 +140,28 @@ export const AdminHeader = ({ userName }: { userName: string }) => {
           {/* Ряд 2: главное меню */}
           {role && (
             <nav className={'flex items-center gap-1 flex-wrap pb-2.5'}>
-              {primary.map((item) => (
-                <Link key={item.path} to={item.path} className={pillCls(isActive(item))}>
-                  {item.label}
-                </Link>
-              ))}
+              {primary.map((item) => {
+                const Icon = item.path === home ? IconHome : NAV_ICONS[item.path]
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    title={Icon ? item.label : undefined}
+                    aria-label={Icon ? item.label : undefined}
+                    className={pillCls(isActive(item), Boolean(Icon))}
+                  >
+                    {Icon ? (
+                      // высота = line-box подписи соседних пилюль (13px × 1.5) —
+                      // чтобы иконочная пилюля не была ниже текстовых
+                      <span className={'flex items-center h-[19px]'}>
+                        <Icon />
+                      </span>
+                    ) : (
+                      item.label
+                    )}
+                  </Link>
+                )
+              })}
 
               {moreItems.length > 0 && (
                 <div className={'relative'} ref={moreRef}>
