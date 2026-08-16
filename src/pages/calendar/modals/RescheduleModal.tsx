@@ -5,11 +5,19 @@
 
 import { useMemo, useState } from 'react'
 import type { CalendarBooking, CalendarEmployee } from '../fetch/calendarDay'
-import { enginePatchBooking } from '../fetch/engineApi'
+import { enginePatchBooking, type EngineRepricing } from '../fetch/engineApi'
 import { fmtTime } from '../utils'
-import { TIME_OPTIONS, btnPrimaryCls, btnSecondaryCls, inputCls, labelCls, toMin } from './helpers'
+import {
+  TIME_OPTIONS,
+  btnPrimaryCls,
+  btnSecondaryCls,
+  inputCls,
+  labelCls,
+  previewTierReprice,
+  toMin,
+} from './helpers'
 import type { SlotFitContext } from './NewBookingModal'
-import { ModalShell, Section } from './ui'
+import { ModalShell, RepriceNotice, Section } from './ui'
 
 export const RescheduleModal = ({
   booking,
@@ -22,7 +30,7 @@ export const RescheduleModal = ({
   employees: CalendarEmployee[]
   slotFit?: SlotFitContext | null
   onClose: () => void
-  onMoved: (newDate: string) => void
+  onMoved: (newDate: string, repricing?: EngineRepricing | null) => void
 }) => {
   const curTime = fmtTime(booking.startsAt)
   // текущий мастер брони; бывший сотрудник может отсутствовать в списке → ''
@@ -62,17 +70,24 @@ export const RescheduleModal = ({
     )
   }, [slotFit, empDocId, date, time, durMin, curTime, booking.date, curEmp?.docId])
 
+  // цена при переносе к мастеру другого тира (junior −20 %) — превью до сабмита
+  const reprice = useMemo(() => {
+    if (!masterChanged) return null
+    const target = employees.find((e) => e.docId === empDocId)
+    return previewTierReprice(booking, curEmp?.tier, target?.tier)
+  }, [masterChanged, employees, empDocId, booking, curEmp?.tier])
+
   const submit = async () => {
     setSubmitting(true)
     setError(null)
     try {
-      await enginePatchBooking(booking.documentId, {
+      const res = await enginePatchBooking(booking.documentId, {
         date,
         time,
         ...(masterChanged ? { employee: empDocId } : {}),
         ...(notifyClient && hasEmail ? { notifyClient: true } : {}),
       })
-      onMoved(date)
+      onMoved(date, res?.repricing ?? null)
     } catch (e) {
       setError((e as Error).message)
       setSubmitting(false)
@@ -147,6 +162,7 @@ export const RescheduleModal = ({
               </span>
             </div>
           )}
+          {reprice && <RepriceNotice reprice={reprice} />}
         </Section>
 
         <Section title="Oznámení">

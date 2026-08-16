@@ -2,10 +2,51 @@
 // здесь (не в ui.tsx) — eslint react-refresh/only-export-components запрещает
 // смешивать компоненты и константы в одном файле.
 
-import type { CatalogService } from '../fetch/engineApi'
+import type { CalendarBooking } from '../fetch/calendarDay'
+import { JUNIOR_DISCOUNT_PERCENT, type CatalogService } from '../fetch/engineApi'
 import { fmtHM } from '../utils'
 
 export { fmtHM }
+
+// ── превью пересчёта цены при переносе к мастеру другого тира ──
+// Зеркало серверной логики (adminPatchBooking): цена берётся из seniorPrice снапшота
+// брони, junior платит −20 %. Сервер — источник истины, здесь только подсказка админу.
+
+export interface TierRepricePreview {
+  tier: 'senior' | 'junior'
+  from: number
+  to: number
+  // причина, по которой сервер цену НЕ тронет (ручная цена/скидка или зеркальная бронь)
+  blocked: 'price_override' | 'no_snapshot' | null
+}
+
+export const previewTierReprice = (
+  booking: Pick<CalendarBooking, 'services' | 'totalPrice' | 'priceOverride'>,
+  fromTier: 'senior' | 'junior' | undefined,
+  toTier: 'senior' | 'junior' | undefined,
+): TierRepricePreview | null => {
+  const tier = toTier === 'junior' ? 'junior' : 'senior'
+  const prevTier = fromTier === 'junior' ? 'junior' : 'senior'
+  const from = Number(booking.totalPrice) || 0
+  // ручная цена / системная скидка (bitchcard, дозапись) — сервер репрайс пропустит;
+  // предупреждаем только когда тир реально меняется
+  if (booking.priceOverride) {
+    return prevTier === tier ? null : { tier, from, to: from, blocked: 'price_override' }
+  }
+  const snap = booking.services || []
+  if (!snap.length || snap.some((s) => !Number.isFinite(Number(s.seniorPrice)))) {
+    return prevTier === tier ? null : { tier, from, to: from, blocked: 'no_snapshot' }
+  }
+  const to = snap.reduce(
+    (sum, s) =>
+      sum +
+      (tier === 'junior'
+        ? Math.round(Number(s.seniorPrice) * (1 - JUNIOR_DISCOUNT_PERCENT / 100))
+        : Number(s.seniorPrice)),
+    0,
+  )
+  return to === from ? null : { tier, from, to, blocked: null }
+}
 
 export const toMin = (s: string): number => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5))
 

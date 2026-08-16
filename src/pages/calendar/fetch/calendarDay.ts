@@ -12,6 +12,9 @@ export interface CalendarService {
   title: string
   price: number | null
   durationMin: number | null
+  // полная (senior) цена позиции на момент брони — по ней движок пересчитывает
+  // цену при переносе к мастеру другого тира (junior −20 %)
+  seniorPrice?: number | null
 }
 
 export interface CalendarBooking {
@@ -28,6 +31,9 @@ export interface CalendarBooking {
   arrived?: boolean
   services: CalendarService[] | null
   totalPrice: number | null
+  // цена задана вручную ИЛИ системной скидкой (bitchcard/дозапись) — такую бронь
+  // движок при смене мастера не репрайсит
+  priceOverride?: boolean | null
   comment: string | null
   customerComment: string | null
   bsChannel: string | null

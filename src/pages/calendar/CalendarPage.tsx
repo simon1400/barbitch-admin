@@ -32,6 +32,7 @@ import {
   engineRemoveRebookDiscount,
   engineRestoreRebookDiscount,
   updateClientBlacklist,
+  type EngineRepricing,
 } from './fetch/engineApi'
 import { fetchBookingLabels, type BookingLabel } from './fetch/bookingLabels'
 import { CalendarGrid } from './CalendarGrid'
@@ -120,6 +121,9 @@ export default function CalendarPage() {
   const [editBlock, setEditBlock] = useState<{ block: BlockedRange; masterName: string; date: string } | null>(null)
   // drag-and-drop перенос брони → модалка подтверждения (с чекбоксом уведомления)
   const [movePending, setMovePending] = useState<MovePending | null>(null)
+  // короткая плашка-подтверждение над гридом (сейчас: пересчёт цены при смене мастера)
+  const [notice, setNotice] = useState<string | null>(null)
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // кастомные лейблы броней (справочник + модал управления)
   const [labels, setLabels] = useState<BookingLabel[]>([])
   const [manageLabels, setManageLabels] = useState(false)
@@ -453,6 +457,21 @@ export default function CalendarPage() {
     }
   }
 
+  // Плашка после переноса: что стало с ценой при смене мастера (senior↔junior).
+  // repricing приходит из движка — он же источник истины по пересчёту.
+  const showRepriceNotice = (r: EngineRepricing | null | undefined) => {
+    if (!r) return
+    const msg = r.applied
+      ? `Cena přepočítána podle mistra: ${r.from} Kč → ${r.to} Kč (${r.tier === 'junior' ? 'junior −20 %' : 'plná cena'})`
+      : r.reason === 'price_override'
+        ? 'Cena nebyla přepočítána — je zadaná ručně nebo je na rezervaci sleva.'
+        : null
+    if (!msg) return
+    setNotice(msg)
+    if (noticeTimer.current) clearTimeout(noticeTimer.current)
+    noticeTimer.current = setTimeout(() => setNotice(null), 8000)
+  }
+
   const moveBooking = (b: CalendarBooking, target: MasterColumn, startMin: number) => {
     if (!target.employeeDocId || !target.date) return
     const time = fmtHM(startMin)
@@ -467,7 +486,17 @@ export default function CalendarPage() {
     const toLabel = [time, dateChanged ? ddmm(target.date) : '', masterChanged ? target.name.split(' ')[0] : '']
       .filter(Boolean)
       .join(' · ')
-    setMovePending({ booking: b, employeeDocId: target.employeeDocId, date: target.date, time, fromLabel, toLabel, masterChanged })
+    setMovePending({
+      booking: b,
+      employeeDocId: target.employeeDocId,
+      date: target.date,
+      time,
+      fromLabel,
+      toLabel,
+      masterChanged,
+      fromTier: employees.find((e) => e.id === b.noonaEmployeeId)?.tier,
+      toTier: target.tier,
+    })
   }
 
   const confirmMove = async (notifyClient: boolean) => {
@@ -475,13 +504,14 @@ export default function CalendarPage() {
     const m = movePending
     setMutating(true)
     try {
-      await enginePatchBooking(m.booking.documentId, {
+      const res = await enginePatchBooking(m.booking.documentId, {
         date: m.date,
         time: m.time,
         ...(m.masterChanged ? { employee: m.employeeDocId } : {}),
         ...(notifyClient ? { notifyClient: true } : {}),
       })
       setMovePending(null)
+      showRepriceNotice(res?.repricing)
       await reload()
     } catch (e) {
       window.alert((e as Error).message)
@@ -515,6 +545,7 @@ export default function CalendarPage() {
 
   useEffect(() => () => {
     if (highlightTimer.current) clearTimeout(highlightTimer.current)
+    if (noticeTimer.current) clearTimeout(noticeTimer.current)
   }, [])
 
   // Контекст «влезает ли служба в свободное время» для модала новой брони:
@@ -771,6 +802,22 @@ export default function CalendarPage() {
 
       {/* Кто в этот день администратор (график shift) — информативно, для всех ролей */}
       <AdminShiftBar roster={adminRoster} date={date} mode={mode} />
+
+      {/* Итог последнего действия (пересчёт цены при смене мастера) — гаснет сам */}
+      {notice && (
+        <div className="mx-2 mb-1 flex items-start gap-2 rounded-lg border border-primary bg-[#e71e6e0d] px-3 py-2 text-xs text-gray-700 dark:bg-[#e71e6e1a] dark:text-gray-300">
+          <span className="text-sm leading-none">💰</span>
+          <span className="flex-1">{notice}</span>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            className="shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+            aria-label="Zavřít"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Грид скроллится внутри собственной области (sticky ось/шапки живут там);
           при переключении дня остаётся на месте — поверх появляется лоадер */}
@@ -1035,10 +1082,11 @@ export default function CalendarPage() {
           employees={employees}
           slotFit={slotFit}
           onClose={() => setReschedule(null)}
-          onMoved={(newDate) => {
+          onMoved={(newDate, repricing) => {
             // как переход из истории: закрыть drawer, показать день брони, мигнуть 3 с
             const docId = reschedule.documentId
             setReschedule(null)
+            showRepriceNotice(repricing)
             setSelected(null)
             setHighlightId(docId)
             if (highlightTimer.current) clearTimeout(highlightTimer.current)

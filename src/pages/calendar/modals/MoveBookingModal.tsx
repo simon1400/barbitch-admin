@@ -1,9 +1,10 @@
 // Подтверждение переноса брони (drag-and-drop в гриде): что и куда + чекбокс
 // «уведомить клиента e-mailem» (движок шлёт письмо с новыми деталями + ICS).
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { CalendarBooking } from '../fetch/calendarDay'
-import { ModalShell, Section } from './ui'
+import { previewTierReprice } from './helpers'
+import { ModalShell, RepriceNotice, Section } from './ui'
 
 export interface MovePending {
   booking: CalendarBooking
@@ -13,6 +14,9 @@ export interface MovePending {
   fromLabel: string // «14:00 · Yana» (старый термин)
   toLabel: string // «11:30 · 12. 7. · Karina» (новый)
   masterChanged: boolean
+  // тиры мастеров для превью пересчёта цены (junior −20 %)
+  fromTier?: 'senior' | 'junior'
+  toTier?: 'senior' | 'junior'
 }
 
 interface MoveModalProps {
@@ -25,6 +29,14 @@ interface MoveModalProps {
 export const MoveBookingModal = ({ pending, onClose, onConfirm, busy }: MoveModalProps) => {
   const hasEmail = Boolean(pending.booking.client?.email?.trim())
   const [notifyClient, setNotifyClient] = useState(hasEmail)
+  // цена при переносе к мастеру другого тира (junior −20 %) — превью до подтверждения
+  const reprice = useMemo(
+    () =>
+      pending.masterChanged
+        ? previewTierReprice(pending.booking, pending.fromTier, pending.toTier)
+        : null,
+    [pending],
+  )
 
   return (
     <ModalShell title="Přesunout rezervaci" onClose={onClose}>
@@ -37,6 +49,7 @@ export const MoveBookingModal = ({ pending, onClose, onConfirm, busy }: MoveModa
             <span className="text-primary">→</span>
             <span className="font-semibold text-gray-900 dark:text-gray-300">{pending.toLabel}</span>
           </div>
+          {reprice && <RepriceNotice reprice={reprice} />}
         </div>
 
         {/* уведомление клиента */}

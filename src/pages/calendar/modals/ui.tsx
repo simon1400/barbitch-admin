@@ -1,8 +1,9 @@
 // Общие UI-примитивы модалов календаря: каркас модала, секция формы, строка выбора,
 // пикер времени блока.
 
+import { JUNIOR_DISCOUNT_PERCENT } from '../fetch/engineApi'
 import { useIsNarrow } from '../useMediaQuery'
-import { TIME_OPTIONS_15, inputCls } from './helpers'
+import { TIME_OPTIONS_15, inputCls, type TierRepricePreview } from './helpers'
 
 // Пикер времени: на телефоне нативный input type=time (работает хорошо),
 // на десктопе обычный select 10:00–19:00 с шагом 15 мин. Нестандартное текущее
@@ -135,3 +136,33 @@ export const OptionRow = ({
     <PriceBadge diff={priceDiff} />
   </button>
 )
+
+// Подсказка про цену при переносе к мастеру другого тира: junior платит −20 %,
+// движок пересчитывает цену по снапшоту услуг. Розовая — цена изменится,
+// янтарная — сервер её не тронет (ручная цена/скидка или зеркальная бронь).
+export const RepriceNotice = ({ reprice }: { reprice: TierRepricePreview }) => {
+  const kc = (n: number) => `${n} Kč`
+  if (reprice.blocked) {
+    return (
+      <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+        <span className="text-sm leading-none">⚠</span>
+        <span>
+          Cena zůstane {kc(reprice.from)} —{' '}
+          {reprice.blocked === 'price_override'
+            ? 'je zadaná ručně nebo je na rezervaci sleva. Případnou změnu zadejte ručně.'
+            : 'u této rezervace ji nelze podle mistra přepočítat.'}
+        </span>
+      </div>
+    )
+  }
+  return (
+    <div className="mt-2 flex items-start gap-2 rounded-lg border border-primary bg-[#e71e6e0d] px-3 py-2 text-xs text-gray-700 dark:bg-[#e71e6e1a] dark:text-gray-300">
+      <span className="text-sm leading-none">💰</span>
+      <span>
+        Cena se přepočítá: <span className="text-gray-400 line-through dark:text-gray-500">{kc(reprice.from)}</span>{' '}
+        <b className="text-primary">{kc(reprice.to)}</b>{' '}
+        {reprice.tier === 'junior' ? `(junior −${JUNIOR_DISCOUNT_PERCENT} %)` : '(plná cena)'}
+      </span>
+    </div>
+  )
+}

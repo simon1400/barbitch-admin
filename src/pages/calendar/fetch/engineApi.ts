@@ -119,6 +119,16 @@ export interface EnginePatchInput {
   label?: { name: string; color: string } | null
 }
 
+// Итог пересчёта цены при смене мастера senior↔junior (движок считает по снапшоту
+// услуг брони). null — мастера не меняли; applied:false — пересчёт пропущен (reason)
+export interface EngineRepricing {
+  applied: boolean
+  tier: 'senior' | 'junior'
+  from?: number
+  to?: number
+  reason?: 'price_override' | 'no_snapshot'
+}
+
 // Ответ = обновлённый документ брони (движок возвращает findOne после патча)
 export interface EnginePatchResult {
   status: string
@@ -127,6 +137,7 @@ export interface EnginePatchResult {
   totalPrice?: number | null
   startsAt?: string | null
   endsAt?: string | null
+  repricing?: EngineRepricing | null
 }
 
 export const enginePatchBooking = (bookingDocId: string, patch: EnginePatchInput) =>
