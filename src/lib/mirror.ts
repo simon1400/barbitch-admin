@@ -183,7 +183,10 @@ export interface MirrorTimeBlock {
   noonaKey: string | null
 }
 
+// Только подтверждённые блоки (approved) + легаси/зеркальные без поля (NULL):
+// блок администратора, ждущий подтверждения владельца, время ещё не занимает.
 export const fetchTimeBlocksRange = (fromStr: string, toStr: string): Promise<MirrorTimeBlock[]> =>
   fetchAllPagesStrapi<MirrorTimeBlock>(
-    `/api/time-blocks?filters[date][$gte]=${fromStr}&filters[date][$lte]=${toStr}`,
+    `/api/time-blocks?filters[date][$gte]=${fromStr}&filters[date][$lte]=${toStr}` +
+      '&filters[$or][0][approvalStatus][$null]=true&filters[$or][1][approvalStatus][$eq]=approved',
   )

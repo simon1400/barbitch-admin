@@ -21,11 +21,13 @@ import { ModalShell, Section, TimeSelect } from './ui'
 interface NewBlockProps {
   employees: CalendarEmployee[]
   initial: { employeeDocId?: string; date: string; startMin?: number }
+  // блок владельца действует сразу, блок администратора ждёт подтверждения владельца
+  isOwner: boolean
   onClose: () => void
   onCreated: () => void
 }
 
-export const NewBlockModal = ({ employees, initial, onClose, onCreated }: NewBlockProps) => {
+export const NewBlockModal = ({ employees, initial, isOwner, onClose, onCreated }: NewBlockProps) => {
   const [employeeDocId, setEmployeeDocId] = useState(initial.employeeDocId || employees[0]?.docId || '')
   const [date, setDate] = useState(initial.date)
   const [fromTime, setFromTime] = useState(initial.startMin != null ? fmtHM(initial.startMin) : '09:00')
@@ -102,6 +104,11 @@ export const NewBlockModal = ({ employees, initial, onClose, onCreated }: NewBlo
       onClose={onClose}
       footer={
         <>
+          {!isOwner && (
+            <p className="mb-2 rounded-md bg-amber-50 dark:bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+              Blok se odešle majiteli ke schválení. Termín začne blokovat rezervace až po schválení.
+            </p>
+          )}
           {error && <p className="mb-2 rounded-md bg-red-50 dark:bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">{error}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={onClose} className={btnSecondaryCls}>

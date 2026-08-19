@@ -425,18 +425,32 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                   />
                 )}
 
-                {/* Затемнённое нерабочее время — клик открывает управление блоком */}
+                {/* Затемнённое нерабочее время — клик открывает управление блоком.
+                    Блок администратора действует только после подтверждения владельцем:
+                    pending — янтарная штриховка, rejected — красная (время НЕ занимают). */}
                 {col.blocks.map((bl, i) => (
                   <div
                     key={bl.documentId || i}
                     role={onSelectBlock && bl.documentId ? 'button' : undefined}
-                    className={`absolute left-0.5 right-0.5 rounded-md bg-gray-500/45 dark:bg-gray-300/20 ${
+                    className={`absolute left-0.5 right-0.5 rounded-md border ${
+                      bl.approval === 'pending'
+                        ? 'border-dashed border-amber-500 bg-amber-400/25 dark:bg-amber-400/15'
+                        : bl.approval === 'rejected'
+                          ? 'border-dashed border-red-500 bg-red-400/20 dark:bg-red-400/12'
+                          : 'border-transparent bg-gray-500/45 dark:bg-gray-300/20'
+                    } ${
                       onSelectBlock && bl.documentId
-                        ? 'cursor-pointer hover:bg-gray-500/55 dark:hover:bg-gray-300/30'
+                        ? 'cursor-pointer hover:brightness-95'
                         : 'pointer-events-none'
                     }`}
                     style={{ top: yOf(bl.startMin), height: (bl.endMin - bl.startMin) * pxPerMin }}
-                    title={`${bl.title || 'Nepracovní doba'} (${fmtHM(bl.startMin)}–${fmtHM(bl.endMin)})`}
+                    title={`${bl.title || 'Nepracovní doba'} (${fmtHM(bl.startMin)}–${fmtHM(bl.endMin)})${
+                      bl.approval === 'pending'
+                        ? ' — čeká na schválení majitele, termín zatím neblokuje'
+                        : bl.approval === 'rejected'
+                          ? ' — zamítnuto majitelem, termín neblokuje'
+                          : ''
+                    }`}
                     onClick={(e) => {
                       e.stopPropagation()
                       if (onSelectBlock && bl.documentId) onSelectBlock(bl, col)
@@ -445,6 +459,17 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                     <span className="pointer-events-none max-w-full p-2 absolute left-1.5 top-0.5 truncate text-sm font-bold text-gray-800 dark:text-gray-200">
                       {bl.title || (bl.own ? 'blok' : 'Nepracovní doba')}
                     </span>
+                    {bl.approval && bl.approval !== 'approved' && (
+                      <span
+                        className={`pointer-events-none absolute bottom-0.5 left-1.5 truncate rounded px-1 text-[10px] font-bold uppercase tracking-wide ${
+                          bl.approval === 'pending'
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-red-500 text-white'
+                        }`}
+                      >
+                        {bl.approval === 'pending' ? 'čeká na schválení' : 'zamítnuto'}
+                      </span>
+                    )}
                   </div>
                 ))}
 

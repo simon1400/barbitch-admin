@@ -56,6 +56,10 @@ const CODE_MESSAGES: Record<string, string> = {
   voucher_not_paid: 'Voucher není zaplacený.',
   client_required: 'U rezervace chybí jméno klientky.',
   employee_required: 'U rezervace chybí mistrová.',
+  // подтверждение блоков владельцем
+  owner_only: 'Schvalovat bloky může jen majitel.',
+  block_not_found: 'Blok nenalezen — možná už byl smazán.',
+  bad_approval_status: 'Neplatný stav schválení.',
 }
 
 async function engineFetch<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -322,11 +326,47 @@ export const engineCreateBlock = (input: {
   endMin: number
   title?: string
   recurrence?: BlockRecurrence
-}) => engineFetch<{ documentId: string; count: number }>('POST', '/engine/admin/blocks', input)
+}) =>
+  // approvalStatus: 'pending' — блок администратора ушёл на подтверждение владельцу
+  engineFetch<{ documentId: string; count: number; approvalStatus?: 'approved' | 'pending' }>(
+    'POST',
+    '/engine/admin/blocks',
+    input,
+  )
 
 // series=true → удалить все повторения серии (общий ключ группы)
 export const engineDeleteBlock = (blockDocId: string, series = false) =>
   engineFetch<{ deleted: number }>('DELETE', `/engine/admin/blocks/${blockDocId}${series ? '?series=1' : ''}`)
+
+// Блок, který čeká na schválení majitele (GET /engine/admin/blocks/pending)
+export interface PendingBlock {
+  documentId: string
+  date: string
+  startMin: number | null
+  endMin: number | null
+  title: string
+  employeeName: string
+  createdByName: string
+  createdAt: string | null
+  own: boolean
+  seriesKey: string | null
+}
+
+// Список блоков, ждущих подтверждения (только владелец; от сегодняшнего дня)
+export const fetchPendingBlocks = () =>
+  engineFetch<{ items: PendingBlock[] }>('GET', '/engine/admin/blocks/pending')
+
+// Подтверждение/отклонение блока владельцем. series=true — вся серия повторений.
+export const engineSetBlockApproval = (
+  blockDocId: string,
+  status: 'approved' | 'rejected',
+  series = false,
+) =>
+  engineFetch<{ updated: number; status: 'approved' | 'rejected' }>(
+    'POST',
+    `/engine/admin/blocks/${blockDocId}/approval`,
+    { status, series },
+  )
 
 // Правка одного конкретного блока: время в рамках его дня и/или название
 export const enginePatchBlock = (blockDocId: string, patch: { startMin?: number; endMin?: number; title?: string }) =>

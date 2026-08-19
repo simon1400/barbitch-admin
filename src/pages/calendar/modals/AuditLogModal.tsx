@@ -19,6 +19,11 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
   block_create: { label: 'Nový blok', cls: 'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300' },
   block_edit: { label: 'Úprava bloku', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300' },
   block_delete: { label: 'Smazání bloku', cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300' },
+  block_approve: {
+    label: 'Blok schválen',
+    cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
+  },
+  block_reject: { label: 'Blok zamítnut', cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300' },
 }
 
 const actionMeta = (a: string) =>

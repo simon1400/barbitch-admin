@@ -31,6 +31,7 @@ import {
   engineReleaseRedemption,
   engineRemoveRebookDiscount,
   engineRestoreRebookDiscount,
+  fetchPendingBlocks,
   updateClientBlacklist,
   type EngineRepricing,
 } from './fetch/engineApi'
@@ -40,7 +41,7 @@ import { BookingDrawer } from './BookingDrawer'
 import { InstallAppButton } from './InstallAppButton'
 import { NotificationButton } from './NotificationButton'
 import { useCoarsePointer } from './useMediaQuery'
-import { IconArrowLeft, IconChevronDown, IconHistory, IconMoon, IconSearch, IconSun } from './icons'
+import { IconArrowLeft, IconChevronDown, IconHistory, IconLock, IconMoon, IconSearch, IconSun } from './icons'
 import { fmtHM, fmtTime, mondayOf, shiftDate, todayStr, type Mode } from './utils'
 import {
   AuditLogModal,
@@ -53,6 +54,7 @@ import {
   MoveBookingModal,
   NewBookingModal,
   NewBlockModal,
+  PendingBlocksModal,
   RescheduleModal,
   type MovePending,
   type NewBookingInitial,
@@ -127,6 +129,9 @@ export default function CalendarPage() {
   // кастомные лейблы броней (справочник + модал управления)
   const [labels, setLabels] = useState<BookingLabel[]>([])
   const [manageLabels, setManageLabels] = useState(false)
+  // блоки администраторов, ждущие подтверждения владельца (у него же и кнопка)
+  const [pendingBlocks, setPendingBlocks] = useState(0)
+  const [showPending, setShowPending] = useState(false)
   // модал порядка колонок мастеров (personal.calendarOrder)
   const [orderModal, setOrderModal] = useState(false)
   // модал глобального поиска клиента (история/контакты/blacklist, admin-only)
@@ -256,13 +261,29 @@ export default function CalendarPage() {
     (silent = true) => load(date, mode, weekEmpId, employees, silent),
     [date, mode, weekEmpId, employees, load],
   )
+  // счётчик блоков «ke schválení» — только владельцу (ручка требует роль owner)
+  const reloadPending = useCallback(() => {
+    if (!isOwner) return
+    fetchPendingBlocks()
+      .then((r) => setPendingBlocks(r.items?.length || 0))
+      .catch(() => undefined)
+  }, [isOwner])
+  useEffect(() => {
+    reloadPending()
+  }, [reloadPending])
+
   const reloadRef = useRef(reload)
   reloadRef.current = reload
+  const reloadPendingRef = useRef(reloadPending)
+  reloadPendingRef.current = reloadPending
 
   // Polling 25 с — тихое обновление (чужие изменения); скрытый таб не дёргаем
   useEffect(() => {
     const t = setInterval(() => {
-      if (!document.hidden) reloadRef.current(true)
+      if (!document.hidden) {
+        reloadRef.current(true)
+        reloadPendingRef.current()
+      }
     }, 25000)
     return () => clearInterval(t)
   }, [])
@@ -687,6 +708,18 @@ export default function CalendarPage() {
               <span className="ml-1.5">Klient</span>
             </button>
           )}
+          {/* Bloky ke schválení — блоки администраторов ждут решения владельца */}
+          {isOwner && pendingBlocks > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowPending(true)}
+              title="Bloky zadané administrátorkami čekají na schválení — dokud je neschválíte, termín neblokují"
+              className="inline-flex items-center rounded-md border border-amber-400 bg-amber-50 px-2.5 py-1.5 text-sm font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-500/60 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20"
+            >
+              <IconLock />
+              <span className="ml-1.5">Ke schválení ({pendingBlocks})</span>
+            </button>
+          )}
           {/* Deník kalendáře — журнал действий админов; ТОЛЬКО владелец (оверсайт) */}
           {isOwner && (
             <button
@@ -988,6 +1021,20 @@ export default function CalendarPage() {
                     {calTheme === 'dark' ? <IconSun /> : <IconMoon />}
                     <span className="ml-2">{calTheme === 'dark' ? 'Světlý režim' : 'Tmavý režim'}</span>
                   </button>
+                  {/* Bloky ke schválení — только владелец */}
+                  {isOwner && pendingBlocks > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMoreOpen(false)
+                        setShowPending(true)
+                      }}
+                      className={menuItemCls}
+                    >
+                      <IconLock />
+                      <span className="ml-2">Ke schválení ({pendingBlocks})</span>
+                    </button>
+                  )}
                   {/* Deník kalendáře — журнал действий; только владелец */}
                   {isOwner && (
                     <button
@@ -1194,10 +1241,24 @@ export default function CalendarPage() {
         <NewBlockModal
           employees={employees}
           initial={blockModal}
+          isOwner={isOwner}
           onClose={() => setBlockModal(null)}
           onCreated={() => {
             setBlockModal(null)
             reload()
+            reloadPending()
+          }}
+        />
+      )}
+      {showPending && (
+        <PendingBlocksModal
+          onClose={() => {
+            setShowPending(false)
+            reloadPending()
+          }}
+          onChanged={() => {
+            reload()
+            reloadPending()
           }}
         />
       )}
@@ -1206,10 +1267,12 @@ export default function CalendarPage() {
           block={editBlock.block}
           masterName={editBlock.masterName}
           date={editBlock.date}
+          isOwner={isOwner}
           onClose={() => setEditBlock(null)}
           onChanged={() => {
             setEditBlock(null)
             reload()
+            reloadPending()
           }}
         />
       )}

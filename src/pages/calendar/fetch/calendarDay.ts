@@ -67,6 +67,10 @@ export interface CalendarBooking {
   } | null
 }
 
+// approved — блок действует (занимает время); pending — ждёт подтверждения владельца;
+// rejected — владелец отклонил (в календаре виден помеченным, слоты НЕ занимает).
+export type BlockApproval = 'approved' | 'pending' | 'rejected'
+
 export interface BlockedRange {
   startMin: number
   endMin: number
@@ -78,6 +82,10 @@ export interface BlockedRange {
   noonaBlockedId?: string | null
   createdAt?: string | null // когда блок заведён (Strapi createdAt)
   createdByName?: string | null // имя админа-создателя (только own-блоки движка)
+  // подтверждение владельцем: блок администратора занимает время только после approved.
+  // Легаси-строки и зеркальные Noona-блоки поля не имеют → трактуем как approved.
+  approval?: BlockApproval
+  approvedByName?: string | null
 }
 
 export interface MasterColumn {
@@ -150,6 +158,8 @@ interface MirrorTimeBlock {
   endsAt: string | null
   createdAt?: string | null
   createdByName?: string | null
+  approvalStatus?: BlockApproval | null
+  approvedByName?: string | null
 }
 
 // Активные мастера из НАШЕЙ базы (personal). Ключ колонки = noonaEmployeeId
@@ -263,6 +273,8 @@ const toBlockedRange = (b: MirrorTimeBlock, startMin: number, endMin: number): B
   noonaBlockedId: b.noonaBlockedId ?? null,
   createdAt: b.createdAt ?? null,
   createdByName: b.createdByName ?? null,
+  approval: b.approvalStatus || 'approved',
+  approvedByName: b.approvedByName ?? null,
 })
 
 // Занятые интервалы колонки (для подсказки «служба se nevejde» в модале новой брони).
@@ -276,7 +288,10 @@ export function busyIntervals(col: MasterColumn): { startMin: number; endMin: nu
     const e = isoToMin(b.endsAt)
     if (s != null && e != null && e > s) out.push({ startMin: s, endMin: e })
   }
-  for (const bl of col.blocks) out.push({ startMin: bl.startMin, endMin: bl.endMin })
+  for (const bl of col.blocks) {
+    if (bl.approval && bl.approval !== 'approved') continue
+    out.push({ startMin: bl.startMin, endMin: bl.endMin })
+  }
   return out
 }
 

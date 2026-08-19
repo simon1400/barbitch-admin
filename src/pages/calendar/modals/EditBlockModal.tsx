@@ -3,7 +3,12 @@
 
 import { useEffect, useState } from 'react'
 import type { BlockedRange } from '../fetch/calendarDay'
-import { engineDeleteBlock, enginePatchBlock, fetchBlockSeriesCount } from '../fetch/engineApi'
+import {
+  engineDeleteBlock,
+  enginePatchBlock,
+  engineSetBlockApproval,
+  fetchBlockSeriesCount,
+} from '../fetch/engineApi'
 import { blokPlural, fmtHM, inputCls, labelCls, toMin } from './helpers'
 import { ModalShell, Section, TimeSelect } from './ui'
 
@@ -11,6 +16,8 @@ interface EditBlockProps {
   block: BlockedRange
   masterName: string
   date: string
+  // владелец подтверждает/отклоняет блоки администраторов (у остальных ролей — только статус)
+  isOwner: boolean
   onClose: () => void
   onChanged: () => void
 }
@@ -33,7 +40,7 @@ const blockCreatedLabel = (block: BlockedRange): string | null => {
   return parts.length ? parts.join(' · ') : null
 }
 
-export const EditBlockModal = ({ block, masterName, date, onClose, onChanged }: EditBlockProps) => {
+export const EditBlockModal = ({ block, masterName, date, isOwner, onClose, onChanged }: EditBlockProps) => {
   const [fromTime, setFromTime] = useState(fmtHM(block.startMin))
   const [toTime, setToTime] = useState(fmtHM(block.endMin))
   const [title, setTitle] = useState(block.title || '')
@@ -47,6 +54,9 @@ export const EditBlockModal = ({ block, masterName, date, onClose, onChanged }: 
   }, [block])
 
   const timeValid = /^\d{2}:\d{2}$/.test(fromTime) && /^\d{2}:\d{2}$/.test(toTime) && toMin(toTime) > toMin(fromTime)
+  // легаси-блоки (заведены до подтверждений) и зеркальные Noona-блоки поля не имеют → approved
+  const approval = block.approval || 'approved'
+
   const dirty =
     toMin(fromTime) !== block.startMin || toMin(toTime) !== block.endMin || title.trim() !== (block.title || '')
 
@@ -68,6 +78,22 @@ export const EditBlockModal = ({ block, masterName, date, onClose, onChanged }: 
       enginePatchBlock(block.documentId!, { startMin: toMin(fromTime), endMin: toMin(toTime), title: title.trim() }),
     )
   }
+  const approve = (series: boolean) => {
+    if (!block.documentId) return
+    run(() => engineSetBlockApproval(block.documentId!, 'approved', series))
+  }
+  const reject = (series: boolean) => {
+    if (!block.documentId) return
+    if (
+      !window.confirm(
+        series
+          ? `Zamítnout celou sérii — ${seriesCount} ${blokPlural(seriesCount)} (${masterName})?`
+          : `Zamítnout blok ${fmtHM(block.startMin)}–${fmtHM(block.endMin)} (${masterName})?`,
+      )
+    )
+      return
+    run(() => engineSetBlockApproval(block.documentId!, 'rejected', series))
+  }
   const removeOne = () => {
     if (!block.documentId) return
     if (!window.confirm(`Smazat blok ${block.title || ''} ${fmtHM(block.startMin)}–${fmtHM(block.endMin)} (${masterName})?`)) return
@@ -88,12 +114,73 @@ export const EditBlockModal = ({ block, masterName, date, onClose, onChanged }: 
           {seriesCount > 1 && (
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Součást série — celkem {seriesCount} {blokPlural(seriesCount)}.</p>
           )}
+          {approval === 'approved' && block.approvedByName && (
+            <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
+              <span className="font-semibold">Schváleno:</span> {block.approvedByName}
+            </p>
+          )}
           {blockCreatedLabel(block) && (
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               <span className="font-semibold text-gray-600 dark:text-gray-300">Vytvořeno:</span> {blockCreatedLabel(block)}
             </p>
           )}
         </div>
+
+        {/* подтверждение владельцем: до него блок термин НЕ занимает */}
+        {approval !== 'approved' && (
+          <div
+            className={`rounded-lg px-3 py-2 text-sm ${
+              approval === 'pending'
+                ? 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300'
+                : 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300'
+            }`}
+          >
+            <b>{approval === 'pending' ? 'Čeká na schválení majitele' : 'Zamítnuto majitelem'}</b>
+            <p className="mt-1 text-xs">
+              {approval === 'pending'
+                ? 'Dokud majitel blok neschválí, termín se neblokuje — klienti si ho můžou zarezervovat.'
+                : 'Blok termín neblokuje. Upravte ho (půjde znovu ke schválení), nebo ho smažte.'}
+            </p>
+            {approval === 'rejected' && block.approvedByName && (
+              <p className="mt-1 text-xs opacity-80">Zamítl/a: {block.approvedByName}</p>
+            )}
+          </div>
+        )}
+
+        {isOwner && approval !== 'approved' && (
+          <Section title="Schválení">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => approve(false)}
+                className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
+              >
+                Schválit tento blok
+              </button>
+              {seriesCount > 1 && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => approve(true)}
+                  className="rounded-md border border-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 disabled:opacity-40"
+                >
+                  Schválit celou sérii ({seriesCount})
+                </button>
+              )}
+              {approval === 'pending' && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => reject(seriesCount > 1)}
+                  className="rounded-md border border-red-300 px-4 py-2 text-sm font-semibold text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-40"
+                >
+                  Zamítnout{seriesCount > 1 ? ` (celou sérii ${seriesCount})` : ''}
+                </button>
+              )}
+            </div>
+          </Section>
+        )}
 
         {/* правка этого конкретного блока */}
         <Section title="Upravit tento blok">
