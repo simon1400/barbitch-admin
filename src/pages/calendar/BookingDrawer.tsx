@@ -8,6 +8,7 @@ import { fetchClientHistory, todayStrPrague } from './fetch/calendarDay'
 import type { BookingLabel } from './fetch/bookingLabels'
 import type { BookingRedemption, LoyaltyProgress } from './fetch/engineApi'
 import { fetchBookingRedemptions } from './fetch/engineApi'
+import { bookingFullPrice, masterShare } from './pricing'
 import { STATUS_META, fmtTime } from './utils'
 import { VisitCloseSection } from './VisitCloseSection'
 
@@ -410,6 +411,7 @@ export const BookingDrawer = ({
   busy,
   readOnly = false,
   masterRate = null,
+  hidePrice = false,
   historyEmployeeId = null,
 }: {
   b: CalendarBooking
@@ -442,6 +444,9 @@ export const BookingDrawer = ({
   readOnly?: boolean
   // процент мастера — если задан, «Celkem» показывает его долю, а не полную цену
   masterRate?: number | null
+  // 🟥 чужая бронь у роли master (дневной рознис всех мастеров): строку «Celkem»
+  // не показываем вообще — деньги коллег мастеру не видны
+  hidePrice?: boolean
   // id мастера (noonaEmployeeId) — история клиента ограничивается его бронями.
   // Задаётся только для роли master; у админа/владельца null = вся история.
   historyEmployeeId?: string | null
@@ -484,6 +489,11 @@ export const BookingDrawer = ({
     setRedemptionUsed(false)
   }, [b.documentId]) // eslint-disable-line react-hooks/exhaustive-deps
   const commentChanged = commentDraft.trim() !== (b.comment || '').trim()
+  // Полная цена визита и системная скидка (bitchcard / дозапись −15 %) — для строки
+  // доли мастера: он получает процент от ПОЛНОЙ цены, скидку несёт салон (s47)
+  const fullPrice = bookingFullPrice(b)
+  const systemDiscountKc =
+    fullPrice != null && b.totalPrice != null ? Math.max(0, fullPrice - b.totalPrice) : 0
   // авто-высота позна́мки: с контентом растёт под текст (кап 240px), пустая — компактная
   const commentRef = useRef<HTMLTextAreaElement | null>(null)
   useEffect(() => {
@@ -543,17 +553,31 @@ export const BookingDrawer = ({
               </div>
             ))}
           </div>
-          <div className="mt-2 flex items-center justify-between">
-            {/* Мастеру (masterRate) показываем его долю, а не полную цену услуги */}
-            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Celkem</span>
-            <span className="text-sm1 font-bold text-primary">
-              {b.totalPrice == null
-                ? '—'
-                : masterRate != null
-                  ? `${Math.round((b.totalPrice * masterRate) / 100)} Kč`
-                  : `${b.totalPrice} Kč`}
-            </span>
-          </div>
+          {/* Мастеру (masterRate) показываем ЕГО долю — процент от ПОЛНОЙ цены услуги
+              (системную скидку несёт салон, s47), а не от суммы со скидкой;
+              у чужой брони (hidePrice) строки с деньгами нет вообще */}
+          {!hidePrice && (
+            <>
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  {masterRate != null ? 'Vaše část' : 'Celkem'}
+                </span>
+                <span className="text-sm1 font-bold text-primary">
+                  {b.totalPrice == null
+                    ? '—'
+                    : masterRate != null
+                      ? `${masterShare(b, masterRate) ?? b.totalPrice} Kč`
+                      : `${b.totalPrice} Kč`}
+                </span>
+              </div>
+              {/* Со скидкой — поясняем, что доля считается из полной цены */}
+              {masterRate != null && systemDiscountKc > 0 && fullPrice != null && (
+                <div className="mt-1 text-right text-[11px] text-gray-500 dark:text-gray-400">
+                  Sleva {systemDiscountKc} Kč jde za salonem — vaše část se počítá z plné ceny {fullPrice} Kč.
+                </div>
+              )}
+            </>
+          )}
 
           {/* Скидки — сразу под ценой, к которой относятся. Bitchcard: только админам
               и только active/checkedOut (сервер это тоже проверяет); rebook −15% тоже. */}

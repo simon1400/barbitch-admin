@@ -65,6 +65,10 @@ export interface CalendarBooking {
     originalPrice: number
     applied: boolean
   } | null
+  // Сумма ПРИМЕНЁННОЙ к этой брони награды bitchcard (redemption.discountKc).
+  // Живёт в отдельной коллекции — дотягивается пачкой (attachRedemptions), чтобы
+  // календарь мог показать мастеру процент от ПОЛНОЙ цены (скидку несёт салон).
+  redemptionKc?: number | null
 }
 
 // approved — блок действует (занимает время); pending — ждёт подтверждения владельца;
@@ -277,6 +281,35 @@ const toBlockedRange = (b: MirrorTimeBlock, startMin: number, endMin: number): B
   approvedByName: b.approvedByName ?? null,
 })
 
+// Погашенные награды bitchcard по списку броней → проставляем discountKc в сами брони.
+// Нужно, чтобы календарь считал ПОЛНУЮ цену визита (оплачено + системные скидки) и
+// делил мастеру процент от неё, а не от суммы со скидкой (правило s47: скидку несёт
+// салон). Один запрос на загрузку календаря; сбой/выключенная программа → тихо без
+// скидок (тогда полная цена берётся из снапшота услуг, что для bitchcard тоже верно).
+async function attachRedemptions(bookings: CalendarBooking[]): Promise<void> {
+  const ids = bookings.map((b) => b.documentId).filter(Boolean)
+  if (!ids.length) return
+  try {
+    const params = ids.map((id, i) => `filters[usedInBookingDocId][$in][${i}]=${encodeURIComponent(id)}`).join('&')
+    const res = (await Axios.get(
+      `/api/redemptions?filters[status][$eq]=used&${params}&fields[0]=usedInBookingDocId&fields[1]=discountKc&pagination[pageSize]=200`,
+      { headers: authHeaders },
+    )) as { usedInBookingDocId: string | null; discountKc: number | null }[]
+    const byBooking = new Map<string, number>()
+    for (const r of res || []) {
+      if (!r.usedInBookingDocId) continue
+      byBooking.set(r.usedInBookingDocId, (byBooking.get(r.usedInBookingDocId) || 0) + (r.discountKc || 0))
+    }
+    if (!byBooking.size) return
+    for (const b of bookings) {
+      const kc = byBooking.get(b.documentId)
+      if (kc) b.redemptionKc = kc
+    }
+  } catch {
+    /* лояльность выключена / нет прав — считаем без bitchcard-скидок */
+  }
+}
+
 // Занятые интервалы колонки (для подсказки «служба se nevejde» в модале новой брони).
 // Только active-брони + блоки блокируют слот — движок конфликтует ровно по ним
 // (cancelled/checkedOut/noshow НЕ блокируют, дозапись поверх них допустима).
@@ -306,6 +339,7 @@ export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
   ])
 
   const bookings = bookingsRes || []
+  await attachRedemptions(bookings)
   let { openMin, closeMin } = schedule
   const { blocksByEmp } = schedule
 
@@ -468,6 +502,7 @@ export async function fetchCalendarWeek(
   ])
 
   const bookings = bookingsRes || []
+  await attachRedemptions(bookings)
   const bookingsByDate = new Map<string, CalendarBooking[]>()
   for (const b of bookings) {
     const arr = bookingsByDate.get(b.date) || []

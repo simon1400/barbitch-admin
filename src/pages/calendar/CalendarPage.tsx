@@ -189,21 +189,28 @@ export default function CalendarPage() {
 
   // master без привязанного personal (имя не совпало) — показываем подсказку вместо грида
   const [masterMissing, setMasterMissing] = useState(false)
+  // сам мастер (роль master): его брони = единственные, где ему показываются деньги
+  const [ownEmp, setOwnEmp] = useState<CalendarEmployee | null>(null)
+  // 🟥 Гейт денег для роли master: цену/долю показываем ТОЛЬКО по броням этого мастера.
+  // '__none__' (personal не сопоставлен) = fail-closed — чужие суммы не покажутся.
+  const priceEmployeeId = isMaster ? ownEmp?.id || '__none__' : null
+  const masterRate = isMaster ? (ownEmp?.ratePercent ?? null) : null
 
-  // Список мастеров для недельного селектора (один раз).
-  // Для роли master — оставляем ТОЛЬКО его самого (матч personal.name по username,
-  // тот же принцип, что getWorks в кабинете мастера).
+  // Список мастеров (один раз). Мастер тоже получает ПОЛНЫЙ список — он может
+  // посмотреть дневное расписание салона (кто когда занят), но деньги видит только
+  // свои: `ownEmp` = он сам (матч personal.name по username, тот же принцип, что
+  // getWorks в кабинете мастера) и только его брони показывают долю (см. ownEmpId ниже).
   useEffect(() => {
     fetchWeekEmployees()
       .then((emps) => {
+        setEmployees(emps)
         if (isMaster) {
           const uname = (localStorage.getItem('usernameLocalData') || '').trim().toLowerCase()
-          const own = emps.find((e) => e.name.trim().toLowerCase() === uname)
-          setEmployees(own ? [own] : [])
+          const own = emps.find((e) => e.name.trim().toLowerCase() === uname) || null
+          setOwnEmp(own)
           setWeekEmpId(own?.id || '')
           setMasterMissing(!own)
         } else {
-          setEmployees(emps)
           setWeekEmpId((cur) => cur || emps[0]?.id || '')
         }
       })
@@ -642,8 +649,9 @@ export default function CalendarPage() {
           >
             ◀
           </button>
-          {/* master листает неделями — вместо пикера конкретной даты подпись недели */}
-          {isMaster ? (
+          {/* master в своём недельном виде листает неделями — вместо пикера конкретной
+              даты подпись недели; в дневном виде (расписание всех мастеров) пикер нужен */}
+          {isMaster && mode === 'week' ? (
             <span className="hidden whitespace-nowrap text-sm font-semibold text-gray-800 dark:text-gray-300 sm:block">
               {weekLabelCs(date)}
             </span>
@@ -753,11 +761,35 @@ export default function CalendarPage() {
               ))}
             </select>
           )}
-          {/* master: вместо селектора — его имя (переключать мастера нельзя) */}
-          {isMaster && employees[0] && (
-            <span className="truncate text-sm font-semibold text-gray-800 dark:text-gray-300">
-              {employees[0].name}
-            </span>
+          {/* master: переключатель «мой týden ↔ denní rozpis všech mistrů».
+              Чужую НЕДЕЛЮ мастеру не показываем — только общий день (кто когда занят),
+              и там его собственное имя подписано рядом. */}
+          {isMaster && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  if (mode === 'week') setMode('day')
+                  else {
+                    setWeekEmpId(ownEmp?.id || '')
+                    setMode('week')
+                  }
+                }}
+                title={
+                  mode === 'week'
+                    ? 'Denní rozpis všech mistrů (ceny vidíte jen u svých rezervací)'
+                    : 'Zpět na můj týdenní kalendář'
+                }
+                className={tbNeutral}
+              >
+                {mode === 'week' ? 'Všichni mistři (den)' : 'Můj týden'}
+              </button>
+              {ownEmp && (
+                <span className="truncate text-sm font-semibold text-gray-800 dark:text-gray-300">
+                  {ownEmp.name}
+                </span>
+              )}
+            </>
           )}
           {/* Переключатель темы календаря (light/dark, живёт в localStorage) */}
           <button
@@ -872,7 +904,8 @@ export default function CalendarPage() {
                   }
                 : undefined
             }
-            masterRate={isMaster ? (employees[0]?.ratePercent ?? null) : null}
+            masterRate={masterRate}
+            priceEmployeeId={priceEmployeeId}
           />
         )}
         {/* master, чей personal не найден по username — календарь показать нечего */}
@@ -964,8 +997,9 @@ export default function CalendarPage() {
               <span className="block truncate px-0.5 text-center text-sm font-semibold text-gray-800 dark:text-gray-300">
                 {mode === 'week' ? weekLabelShortCs(date) : dateLabelShortCs(date)}
               </span>
-              {/* master листает целыми неделями — нативный пикер конкретной даты не нужен */}
-              {!isMaster && (
+              {/* в своём недельном виде мастер листает целыми неделями — пикер не нужен;
+                  в дневном (расписание всех мастеров) он есть, как у админа */}
+              {(!isMaster || mode === 'day') && (
                 <input
                   type="date"
                   value={date}
@@ -1021,6 +1055,23 @@ export default function CalendarPage() {
                     {calTheme === 'dark' ? <IconSun /> : <IconMoon />}
                     <span className="ml-2">{calTheme === 'dark' ? 'Světlý režim' : 'Tmavý režim'}</span>
                   </button>
+                  {/* master: мой týden ↔ denní rozpis všech mistrů (цены только свои) */}
+                  {isMaster && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMoreOpen(false)
+                        if (mode === 'week') setMode('day')
+                        else {
+                          setWeekEmpId(ownEmp?.id || '')
+                          setMode('week')
+                        }
+                      }}
+                      className={menuItemCls}
+                    >
+                      {mode === 'week' ? 'Všichni mistři (den)' : 'Můj týden'}
+                    </button>
+                  )}
                   {/* Bloky ke schválení — только владелец */}
                   {isOwner && pendingBlocks > 0 && (
                     <button
@@ -1114,13 +1165,12 @@ export default function CalendarPage() {
           onVisitReopened={visitReopened}
           busy={mutating}
           readOnly={isMaster}
-          masterRate={isMaster ? (employees[0]?.ratePercent ?? null) : null}
+          masterRate={masterRate}
+          // Чужая бронь в дневном рознисе — мастер видит термин/услугу, но НЕ деньги
+          hidePrice={priceEmployeeId != null && selected.noonaEmployeeId !== priceEmployeeId}
           // Мастеру — история клиента только по ЕГО броням (визиты к другим мастерам
-          // не показываем). Фолбэк на мастера самой брони = он же (мастер видит
-          // только свою колонку); '__none__' — fail-closed, если id вдруг нет.
-          historyEmployeeId={
-            isMaster ? employees[0]?.id || selected.noonaEmployeeId || '__none__' : null
-          }
+          // не показываем). '__none__' — fail-closed, если personal не сопоставлен.
+          historyEmployeeId={priceEmployeeId}
         />
       )}
       {reschedule && (

@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { BlockedRange, CalendarBooking, CalendarDay, MasterColumn } from './fetch/calendarDay'
 import { packColumn, nowMinPrague } from './fetch/calendarDay'
+import { masterShare } from './pricing'
 import { useCoarsePointer, useIsNarrow } from './useMediaQuery'
 import { useTouchDrag } from './useTouchDrag'
 import { fmtHM } from './utils'
@@ -92,9 +93,12 @@ interface Props {
   onSelectBlock?: (block: BlockedRange, col: MasterColumn) => void
   // процент мастера (режим master): на карточках показывается ЕГО доля, а не полная цена
   masterRate?: number | null
+  // 🟥 Гейт денег (режим master): цена рисуется ТОЛЬКО у броней этого мастера
+  // (noonaEmployeeId). null = без ограничения (owner/administrator видят всё).
+  priceEmployeeId?: string | null
 }
 
-export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectMaster, onEmptyCell, onMoveBooking, onSelectBlock, masterRate }: Props) => {
+export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectMaster, onEmptyCell, onMoveBooking, onSelectBlock, masterRate, priceEmployeeId = null }: Props) => {
   const { openMin, closeMin, columns } = day
   // Адаптивный масштаб: телефон — уже колонки, крупнее минуты; тач — без HTML5 DnD
   const isNarrow = useIsNarrow()
@@ -592,10 +596,14 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                             {serviceTitles[0] || 'bez služby'}
                           </div>
                         ))}
-                      {dur >= 70 && p.booking.totalPrice != null && (
+                      {dur >= 70 &&
+                        p.booking.totalPrice != null &&
+                        (priceEmployeeId == null || p.booking.noonaEmployeeId === priceEmployeeId) && (
                         <div className="mt-0.5 text-[12px] font-semibold">
+                          {/* Мастеру — его доля от ПОЛНОЙ цены (системную скидку несёт
+                              салон, s47); админу/владельцу — фактически оплаченная сумма */}
                           {masterRate != null
-                            ? `${Math.round((p.booking.totalPrice * masterRate) / 100)} Kč`
+                            ? `${masterShare(p.booking, masterRate) ?? p.booking.totalPrice} Kč`
                             : `${p.booking.totalPrice} Kč`}
                         </div>
                       )}
