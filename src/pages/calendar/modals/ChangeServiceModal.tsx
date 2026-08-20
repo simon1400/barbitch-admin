@@ -1,17 +1,28 @@
 // «Změnit službu» — смена услуги существующей брони (PATCH serviceItems:
 // сервер пишет новый снапшот services, пересчитывает цену/длительность и
 // перепроверяет пересечения — при конфликте вернёт slot_taken).
+//
+// Уже применённую скидку (bitchcard / −15 % за дозапис) движок пересчитывает от
+// новой суммы (s174) — здесь показываем итог заранее, чтобы админ видел, сколько
+// клиент реально заплатит. Ручная цена в поле «Cena ručně» скидку отменяет.
 
 import { useEffect, useState } from 'react'
 import type { CalendarBooking, CalendarEmployee } from '../fetch/calendarDay'
-import type { CatalogService, EnginePatchResult } from '../fetch/engineApi'
-import { JUNIOR_DISCOUNT_PERCENT, calcCombo, enginePatchBooking, fetchCatalog } from '../fetch/engineApi'
+import type { BookingRedemption, CatalogService, EnginePatchResult } from '../fetch/engineApi'
+import {
+  JUNIOR_DISCOUNT_PERCENT,
+  calcCombo,
+  enginePatchBooking,
+  fetchBookingRedemptions,
+  fetchCatalog,
+} from '../fetch/engineApi'
 import {
   EMPTY_SERVICE_SELECTION,
   btnPrimaryCls,
   btnSecondaryCls,
   inputCls,
   labelCls,
+  previewDiscountReprice,
   type ServiceSelection,
 } from './helpers'
 import { ServicePicker } from './ServicePicker'
@@ -40,6 +51,25 @@ export const ChangeServiceModal = ({
       .catch(() => setError('Nepodařilo se načíst katalog služeb'))
   }, [])
 
+  // применённая награда bitchcard (свой fetch — в брони лежит только сумма
+  // redemptionKc, а для пересчёта нужен тип награды). Сбой → просто нет подсказки.
+  const [usedRedemption, setUsedRedemption] = useState<BookingRedemption | null>(null)
+  useEffect(() => {
+    let alive = true
+    fetchBookingRedemptions(booking.documentId)
+      .then((res) => {
+        if (!alive) return
+        const rows = res.enabled ? res.redemptions : []
+        setUsedRedemption(
+          rows.find((r) => r.status === 'used' && r.usedInBookingDocId === booking.documentId) || null,
+        )
+      })
+      .catch(() => setUsedRedemption(null))
+    return () => {
+      alive = false
+    }
+  }, [booking.documentId])
+
   // tier мастера брони — junior-цена считается как в «Nová rezervace»
   const tier = employees.find((e) => e.id === booking.noonaEmployeeId)?.tier || 'senior'
   const svc = sel.service
@@ -48,6 +78,12 @@ export const ChangeServiceModal = ({
     .map((s) => s.title)
     .filter(Boolean)
     .join(' + ')
+  // ручная цена побеждает пересчёт (и скидку) — сервер берёт её как итог
+  const manualPrice = priceOverride.trim() !== ''
+  const rd = booking.discount
+  const hasDiscount = !!usedRedemption || !!(rd && rd.type === 'rebook' && rd.applied)
+  const discount =
+    pricing && !manualPrice ? previewDiscountReprice(booking, usedRedemption, pricing.price) : null
 
   const submit = async () => {
     if (!svc) return
@@ -114,6 +150,25 @@ export const ChangeServiceModal = ({
               )}
               <span className="text-base font-bold text-primary">{pricing.price} Kč</span>
             </span>
+          </div>
+        )}
+
+        {discount && (
+          <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm dark:border-emerald-500/40 dark:bg-emerald-500/10">
+            <div className="text-emerald-800 dark:text-emerald-200">
+              Na rezervaci je <b>{discount.label}</b> — sleva se přepočítá z nové ceny:
+            </div>
+            <div className="mt-0.5 flex items-baseline gap-2 text-emerald-900 dark:text-emerald-100">
+              <span className="text-xs line-through opacity-60">{pricing?.price} Kč</span>
+              <b className="text-base">{discount.totalPrice} Kč</b>
+              <span className="text-xs">(−{discount.discountKc} Kč)</span>
+            </div>
+          </div>
+        )}
+
+        {manualPrice && hasDiscount && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+            Ruční cena přepíše slevu na rezervaci — zadejte částku už po slevě.
           </div>
         )}
 

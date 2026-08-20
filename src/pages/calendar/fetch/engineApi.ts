@@ -133,6 +133,18 @@ export interface EngineRepricing {
   reason?: 'price_override' | 'no_snapshot'
 }
 
+// Пересчёт применённой скидки (bitchcard / −15 % за дозапис) при смене состава
+// услуг: движок считает её от НОВОЙ суммы и возвращает итог (s174).
+export interface EngineDiscountReprice {
+  kind: 'bitchcard' | 'rebook'
+  label: string
+  code: string | null
+  totalPrice: number
+  discountKc: number
+  fullPrice: number
+  from: number | null
+}
+
 // Ответ = обновлённый документ брони (движок возвращает findOne после патча)
 export interface EnginePatchResult {
   status: string
@@ -142,6 +154,7 @@ export interface EnginePatchResult {
   startsAt?: string | null
   endsAt?: string | null
   repricing?: EngineRepricing | null
+  discountReprice?: EngineDiscountReprice | null
 }
 
 export const enginePatchBooking = (bookingDocId: string, patch: EnginePatchInput) =>

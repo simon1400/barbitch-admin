@@ -1204,6 +1204,8 @@ export default function CalendarPage() {
           onClose={() => setChangeService(null)}
           onChanged={(upd) => {
             setChangeService(null)
+            // применённая скидка пересчитана движком от новой суммы (s174)
+            const dr = upd.discountReprice
             // drawer остаётся открытым — обновляем услуги/цену/конец из ответа движка
             setSelected((prev) =>
               prev && prev.documentId === changeService.documentId
@@ -1212,9 +1214,34 @@ export default function CalendarPage() {
                     services: upd.services ?? prev.services,
                     totalPrice: upd.totalPrice ?? prev.totalPrice,
                     endsAt: upd.endsAt ?? prev.endsAt,
+                    // цена стала «со скидкой» (priceOverride) и сама сумма скидки
+                    // изменилась — иначе доля мастера считалась бы от старой полной
+                    ...(dr
+                      ? {
+                          priceOverride: true,
+                          ...(dr.kind === 'bitchcard'
+                            ? { redemptionKc: dr.discountKc }
+                            : {
+                                discount: prev.discount
+                                  ? {
+                                      ...prev.discount,
+                                      discountKc: dr.discountKc,
+                                      originalPrice: dr.fullPrice,
+                                    }
+                                  : prev.discount,
+                              }),
+                        }
+                      : {}),
                   }
                 : prev,
             )
+            if (dr) {
+              setNotice(
+                `Sleva přepočítána z nové ceny: ${dr.fullPrice} Kč − ${dr.discountKc} Kč (${dr.label}) = ${dr.totalPrice} Kč`,
+              )
+              if (noticeTimer.current) clearTimeout(noticeTimer.current)
+              noticeTimer.current = setTimeout(() => setNotice(null), 8000)
+            }
             reload()
           }}
         />

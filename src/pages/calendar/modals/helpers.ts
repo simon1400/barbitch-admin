@@ -3,7 +3,7 @@
 // смешивать компоненты и константы в одном файле.
 
 import type { CalendarBooking } from '../fetch/calendarDay'
-import { JUNIOR_DISCOUNT_PERCENT, type CatalogService } from '../fetch/engineApi'
+import { JUNIOR_DISCOUNT_PERCENT, type BookingRedemption, type CatalogService } from '../fetch/engineApi'
 import { fmtHM } from '../utils'
 
 export { fmtHM }
@@ -46,6 +46,42 @@ export const previewTierReprice = (
     0,
   )
   return to === from ? null : { tier, from, to, blocked: null }
+}
+
+// ── превью пересчёта применённой скидки при смене состава услуг (s174) ──
+// Зеркало серверного `_repriceDiscountOnServiceChange`: цена собирается заново от
+// каталога, поэтому уже применённая скидка (bitchcard / дозапись) считается от
+// НОВОЙ суммы. Сервер — источник истины, здесь только подсказка админу ДО сохранения.
+
+export interface DiscountRepricePreview {
+  label: string
+  totalPrice: number
+  discountKc: number
+}
+
+export const previewDiscountReprice = (
+  booking: Pick<CalendarBooking, 'discount'>,
+  usedRedemption: BookingRedemption | null,
+  basePrice: number,
+): DiscountRepricePreview | null => {
+  if (usedRedemption?.reward) {
+    const value = Number(usedRedemption.reward.discountValue) || 0
+    const totalPrice =
+      usedRedemption.reward.discountType === 'percent'
+        ? Math.round(basePrice * (1 - value / 100))
+        : Math.max(0, basePrice - Math.round(value))
+    return { label: usedRedemption.reward.title, totalPrice, discountKc: basePrice - totalPrice }
+  }
+  const d = booking.discount
+  if (d && d.type === 'rebook' && d.applied && Number(d.percent) > 0) {
+    const totalPrice = Math.round(basePrice * (1 - Number(d.percent) / 100))
+    return {
+      label: `Sleva za dozápis ${d.percent} %`,
+      totalPrice,
+      discountKc: basePrice - totalPrice,
+    }
+  }
+  return null
 }
 
 export const toMin = (s: string): number => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5))
