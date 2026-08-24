@@ -23,6 +23,17 @@ export interface CatalogModifier {
   description: string
 }
 
+/**
+ * Ограничение мастера по услуге: какие варианты/дополнения он делает.
+ * null = разрешено всё (мастера без записи ведут себя как раньше);
+ * массив = белый список; пустой массив = «только базовая услуга» / «без дополнений».
+ */
+export interface CatalogRestriction {
+  personalDocId: string
+  allowedVariants: string[] | null
+  allowedModifiers: string[] | null
+}
+
 export interface CatalogServiceFull {
   documentId: string
   title: string
@@ -36,6 +47,7 @@ export interface CatalogServiceFull {
   onlineBookable: boolean
   variants: CatalogVariant[]
   modifiers: CatalogModifier[]
+  restrictions: CatalogRestriction[]
   // мастера, назначенные на услугу (дедуп по documentId — relation целится
   // в draft+published строки personal и populate может отдать дубль)
   personalDocIds: string[]
@@ -49,7 +61,8 @@ export interface MasterOption {
 }
 
 const SERVICE_POPULATE =
-  'populate[variants]=true&populate[modifiers]=true&populate[personals][fields][0]=name&populate[personals][fields][1]=tier'
+  'populate[variants]=true&populate[modifiers]=true&populate[restrictions]=true' +
+  '&populate[personals][fields][0]=name&populate[personals][fields][1]=tier'
 
 interface RawVariant {
   label?: string
@@ -69,6 +82,12 @@ interface RawDocRef {
   tier?: string
 }
 
+interface RawRestriction {
+  personalDocId?: string
+  allowedVariants?: unknown
+  allowedModifiers?: unknown
+}
+
 interface RawService {
   documentId: string
   title?: string
@@ -82,6 +101,7 @@ interface RawService {
   onlineBookable?: boolean
   variants?: RawVariant[]
   modifiers?: RawModifier[]
+  restrictions?: RawRestriction[]
   personals?: RawDocRef[]
 }
 
@@ -105,6 +125,17 @@ const mapModifier = (m: RawModifier): CatalogModifier => ({
   description: m?.description ?? '',
 })
 
+// Список приходит из json-поля: массив → белый список, всё остальное (null,
+// отсутствие поля, мусор) → «разрешено всё».
+const mapAllowed = (raw: unknown): string[] | null =>
+  Array.isArray(raw) ? raw.map((x) => String(x)) : null
+
+const mapRestriction = (r: RawRestriction): CatalogRestriction => ({
+  personalDocId: r?.personalDocId ?? '',
+  allowedVariants: mapAllowed(r?.allowedVariants),
+  allowedModifiers: mapAllowed(r?.allowedModifiers),
+})
+
 const mapService = (item: RawService): CatalogServiceFull => ({
   documentId: item.documentId,
   title: item.title ?? '',
@@ -118,6 +149,7 @@ const mapService = (item: RawService): CatalogServiceFull => ({
   onlineBookable: item.onlineBookable !== false,
   variants: (item.variants ?? []).map(mapVariant),
   modifiers: (item.modifiers ?? []).map(mapModifier),
+  restrictions: (item.restrictions ?? []).filter((r) => r?.personalDocId).map(mapRestriction),
   personalDocIds: [...new Set((item.personals ?? []).map((p) => p.documentId))],
 })
 
@@ -156,6 +188,7 @@ export interface ServicePayload {
   onlineBookable: boolean
   variants: CatalogVariant[]
   modifiers: CatalogModifier[]
+  restrictions: CatalogRestriction[]
 }
 
 // Ключ нового модификатора — слаг из label (канон toKey s49/s53: lowercase,
@@ -185,6 +218,13 @@ const toData = (p: ServicePayload) => ({
     durationDiff: m.durationDiff,
     group: m.group.trim(),
     description: m.description.trim(),
+  })),
+  // ограничения мастеров: пустые записи (разрешено всё) наверх не уезжают —
+  // их отфильтровывает вызывающий редактор
+  restrictions: p.restrictions.map((r) => ({
+    personalDocId: r.personalDocId,
+    allowedVariants: r.allowedVariants,
+    allowedModifiers: r.allowedModifiers,
   })),
 })
 

@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { palette } from '../../../ui/palette'
 import type {
   CatalogModifier,
+  CatalogRestriction,
   CatalogServiceFull,
   CatalogVariant,
   MasterOption,
@@ -21,6 +22,7 @@ import {
   createService,
   fetchCatalogServices,
   fetchMasterOptions,
+  toModifierKey,
   updateService,
 } from './fetch/bookingCatalog'
 
@@ -42,6 +44,7 @@ const EMPTY_PAYLOAD: ServicePayload = {
   onlineBookable: true,
   variants: [],
   modifiers: [],
+  restrictions: [],
 }
 
 // ── стили макета (точные значения из standalone-HTML) ──
@@ -206,6 +209,77 @@ const AddDashedBtn = ({ label, onClick }: { label: string; onClick: () => void }
   </button>
 )
 
+// ── ограничения мастеров по варианту/дополнению ──
+// null = разрешено всё, массив = белый список, [] = только базовая услуга.
+// Записи «разрешено всё» в БД не хранятся: их убирает cleanRestrictions при сохранении.
+
+const modKeyOf = (m: CatalogModifier) => (m.key || toModifierKey(m.label)).trim()
+
+const isLimited = (r: CatalogRestriction | null | undefined) =>
+  Boolean(r && (r.allowedVariants !== null || r.allowedModifiers !== null))
+
+// Подпись на чипе мастера: «варианты 2/4 · допы 5/11».
+const limitSummary = (
+  r: CatalogRestriction | null | undefined,
+  variants: number,
+  modifiers: number,
+) => {
+  if (!r) return String()
+  const parts: string[] = []
+  if (r.allowedVariants !== null) parts.push(`варианты ${r.allowedVariants.length}/${variants}`)
+  if (r.allowedModifiers !== null) parts.push(`допы ${r.allowedModifiers.length}/${modifiers}`)
+  return parts.join(" · ")
+}
+
+// Перед отправкой: выкидываем мастеров, снятых с услуги, и значения удалённых/
+// переименованных вариантов и дополнений; «разрешено всё» схлопываем в null.
+const cleanRestrictions = (p: ServicePayload, masterIds: Set<string>): CatalogRestriction[] => {
+  const labels = p.variants.map((v) => v.label.trim()).filter(Boolean)
+  const keys = p.modifiers.map(modKeyOf).filter(Boolean)
+  const out: CatalogRestriction[] = []
+  for (const r of p.restrictions) {
+    if (!masterIds.has(r.personalDocId)) continue
+    let allowedVariants = r.allowedVariants
+      ? r.allowedVariants.filter((x) => labels.includes(x))
+      : null
+    let allowedModifiers = r.allowedModifiers
+      ? r.allowedModifiers.filter((x) => keys.includes(x))
+      : null
+    if (allowedVariants && allowedVariants.length === labels.length) allowedVariants = null
+    if (allowedModifiers && allowedModifiers.length === keys.length) allowedModifiers = null
+    if (allowedVariants === null && allowedModifiers === null) continue
+    out.push({ personalDocId: r.personalDocId, allowedVariants, allowedModifiers })
+  }
+  return out
+}
+
+// Строка-чекбокс панели ограничений
+const AllowRow = ({
+  checked,
+  label,
+  onToggle,
+}: {
+  checked: boolean
+  label: string
+  onToggle: () => void
+}) => (
+  <button
+    type="button"
+    className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-[13px] font-semibold text-ink-body transition-colors hover:bg-brand-wash-soft"
+    onClick={onToggle}
+  >
+    <span
+      className="inline-flex h-[15px] w-[15px] flex-none items-center justify-center rounded text-[10px] leading-none text-white transition-colors"
+      style={{
+        background: checked ? palette.brand : "#fff",
+        border: `1px solid ${checked ? palette.brand : palette["line-chip"]}`,
+      }}
+    >
+      {checked ? "✓" : ""}
+    </span>
+    <span className="truncate">{label}</span>
+  </button>
+)
 const CatalogPage = () => {
   const [services, setServices] = useState<CatalogServiceFull[]>([])
   const [masters, setMasters] = useState<MasterOption[]>([])
@@ -214,6 +288,8 @@ const CatalogPage = () => {
   const [editor, setEditor] = useState<EditorState | null>(null)
   const [saving, setSaving] = useState(false)
   const [notice, setNotice] = useState('')
+  // documentId мастера, чья панель ограничений сейчас раскрыта (одна за раз)
+  const [limitsFor, setLimitsFor] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -251,8 +327,13 @@ const CatalogPage = () => {
 
   const openEditor = (s: CatalogServiceFull | null) => {
     setNotice('')
+    setLimitsFor(null)
     if (!s) {
-      setEditor({ documentId: null, payload: { ...EMPTY_PAYLOAD }, masterIds: new Set() })
+      setEditor({
+        documentId: null,
+        payload: { ...EMPTY_PAYLOAD, variants: [], modifiers: [], restrictions: [] },
+        masterIds: new Set(),
+      })
       return
     }
     setEditor({
@@ -269,6 +350,11 @@ const CatalogPage = () => {
         onlineBookable: s.onlineBookable,
         variants: s.variants.map((v) => ({ ...v })),
         modifiers: s.modifiers.map((m) => ({ ...m })),
+        restrictions: s.restrictions.map((r) => ({
+          personalDocId: r.personalDocId,
+          allowedVariants: r.allowedVariants ? [...r.allowedVariants] : null,
+          allowedModifiers: r.allowedModifiers ? [...r.allowedModifiers] : null,
+        })),
       },
       masterIds: new Set(mastersOfService(s).map((m) => m.documentId)),
     })
@@ -317,6 +403,41 @@ const CatalogPage = () => {
       return { ...prev, masterIds }
     })
 
+  // Ограничение мастера: null-поля = «разрешено всё»; запись целиком исчезает,
+  // когда оба поля снова null.
+  const patchRestriction = (
+    docId: string,
+    patch: Partial<Omit<CatalogRestriction, "personalDocId">>,
+  ) =>
+    setEditor((prev) => {
+      if (!prev) return prev
+      const cur = prev.payload.restrictions.find((r) => r.personalDocId === docId)
+      const next: CatalogRestriction = {
+        personalDocId: docId,
+        allowedVariants: cur?.allowedVariants ?? null,
+        allowedModifiers: cur?.allowedModifiers ?? null,
+        ...patch,
+      }
+      const rest = prev.payload.restrictions.filter((r) => r.personalDocId !== docId)
+      const restrictions =
+        next.allowedVariants === null && next.allowedModifiers === null ? rest : [...rest, next]
+      return { ...prev, payload: { ...prev.payload, restrictions } }
+    })
+
+  // Снятие галочки при «разрешено всё» материализует полный список минус этот пункт;
+  // когда снова отмечено всё — возвращаемся к null (в БД ничего не пишем).
+  const toggleAllowed = (
+    docId: string,
+    kind: "allowedVariants" | "allowedModifiers",
+    value: string,
+    allValues: string[],
+  ) => {
+    const cur =
+      editor?.payload.restrictions.find((r) => r.personalDocId === docId)?.[kind] ?? null
+    const list = cur ?? allValues
+    const next = list.includes(value) ? list.filter((x) => x !== value) : [...list, value]
+    patchRestriction(docId, { [kind]: next.length === allValues.length ? null : next })
+  }
   const validate = (p: ServicePayload): string | null => {
     if (!p.title.trim()) return 'Название обязательно'
     if (!(p.durationMin > 0)) return 'Длительность должна быть > 0'
@@ -338,11 +459,15 @@ const CatalogPage = () => {
     setSaving(true)
     setNotice('')
     try {
+      const payload: ServicePayload = {
+        ...editor.payload,
+        restrictions: cleanRestrictions(editor.payload, editor.masterIds),
+      }
       let docId = editor.documentId
       if (docId) {
-        await updateService(docId, editor.payload)
+        await updateService(docId, payload)
       } else {
-        docId = await createService(editor.payload)
+        docId = await createService(payload)
       }
       const changed = docId ? await applyMasterAssignment(docId, editor.masterIds, masters) : 0
       setNotice(`✓ Сохранено${changed ? ` (мастера обновлены: ${changed})` : ''}`)
@@ -601,11 +726,14 @@ const CatalogPage = () => {
         <SectionCard
           title="Мастера"
           badge={ed.masterIds.size}
-          hint="Кто выполняет услугу. Junior-мастер автоматически даёт −20 % от итоговой цены."
+          hint="Кто выполняет услугу. Junior-мастер автоматически даёт −20 % от итоговой цены. Шестерёнка на чипе — какие варианты и дополнения мастер делает."
         >
           <div className="flex flex-wrap gap-2.5 content-start">
             {masters.map((m) => {
               const on = ed.masterIds.has(m.documentId)
+              const rule = ed.payload.restrictions.find((r) => r.personalDocId === m.documentId)
+              const limited = on && isLimited(rule)
+              const tunable = p.variants.length > 0 || p.modifiers.length > 0
               return (
                 <span
                   key={m.documentId}
@@ -613,14 +741,14 @@ const CatalogPage = () => {
                   style={
                     on
                       ? {
-                          background: palette['brand-tint'],
-                          borderColor: palette['brand-line'],
-                          color: palette['brand-dark'],
+                          background: palette["brand-tint"],
+                          borderColor: palette["brand-line"],
+                          color: palette["brand-dark"],
                         }
                       : {
-                          background: '#fff',
-                          borderColor: palette['line-chip'],
-                          color: palette['ink-soft'],
+                          background: "#fff",
+                          borderColor: palette["line-chip"],
+                          color: palette["ink-soft"],
                         }
                   }
                   onClick={() => toggleMaster(m.documentId)}
@@ -629,22 +757,141 @@ const CatalogPage = () => {
                     className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] flex-none transition-all duration-150"
                     style={
                       on
-                        ? { background: palette.brand, color: '#fff' }
-                        : { background: palette['surface-track'], color: palette['surface-track'] }
+                        ? { background: palette.brand, color: "#fff" }
+                        : { background: palette["surface-track"], color: palette["surface-track"] }
                     }
                   >
                     ✓
                   </span>
                   {m.name}
-                  {m.tier === 'junior' && (
+                  {m.tier === "junior" && (
                     <span className="text-[9.5px] font-bold tracking-[0.05em] uppercase bg-white border border-brand-line text-brand-dark rounded px-[5px] py-px">
                       junior
                     </span>
+                  )}
+                  {limited && (
+                    <span className="text-[10px] font-bold text-ink-soft bg-white border border-line-chip rounded-full px-[7px] py-px whitespace-nowrap">
+                      {limitSummary(rule, p.variants.length, p.modifiers.length)}
+                    </span>
+                  )}
+                  {on && tunable && (
+                    <button
+                      type="button"
+                      title="Что этот мастер делает: варианты и дополнения"
+                      className="inline-flex items-center justify-center w-[18px] h-[18px] flex-none rounded-full border-0 bg-transparent p-0 text-[13px] leading-none text-brand-dark cursor-pointer transition-opacity hover:opacity-70"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setLimitsFor((cur) => (cur === m.documentId ? null : m.documentId))
+                      }}
+                    >
+                      ⚙
+                    </button>
                   )}
                 </span>
               )
             })}
           </div>
+
+          {/* Панель: что именно делает выбранный мастер */}
+          {(() => {
+            const docId = limitsFor
+            if (!docId || !ed.masterIds.has(docId)) return null
+            const master = masters.find((m) => m.documentId === docId)
+            if (!master) return null
+            const labels = p.variants.map((v) => v.label.trim()).filter(Boolean)
+            const keys = p.modifiers.map(modKeyOf).filter(Boolean)
+            if (!labels.length && !keys.length) return null
+            const rule = ed.payload.restrictions.find((r) => r.personalDocId === docId)
+            const allowedV = rule?.allowedVariants ?? null
+            const allowedM = rule?.allowedModifiers ?? null
+            return (
+              <div className="mt-3.5 rounded-xl border border-line bg-surface-input px-4 py-3.5">
+                <div className="flex items-center justify-between gap-3 flex-wrap mb-2.5">
+                  <div className="text-[13.5px] font-extrabold text-ink">
+                    Что делает {master.name}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="rounded-md border border-line-btn bg-white px-2.5 py-1 text-[12px] font-bold text-ink-body transition-colors hover:border-line-btn-hover"
+                      onClick={() =>
+                        patchRestriction(docId, { allowedVariants: null, allowedModifiers: null })
+                      }
+                    >
+                      Разрешить всё
+                    </button>
+                    <button
+                      type="button"
+                      title="Свернуть"
+                      className="w-[26px] h-[26px] rounded-md border border-line-btn bg-white text-[13px] text-ink-muted transition-colors hover:border-line-btn-hover"
+                      onClick={() => setLimitsFor(null)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[11.5px] leading-snug text-ink-hint mb-3">
+                  Снятая галочка = мастер этот пункт не делает: на сайте он исчезнет из
+                  выбора специалисток, когда клиент отметит такой вариант или дополнение.
+                  Базовая услуга разрешена всегда.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {labels.length > 0 && (
+                    <div>
+                      <div className={`${colHeadCls} mb-1.5`}>
+                        Варианты ({(allowedV ?? labels).length}/{labels.length})
+                      </div>
+                      <div className="grid gap-0.5">
+                        {labels.map((label) => (
+                          <AllowRow
+                            key={label}
+                            checked={allowedV === null || allowedV.includes(label)}
+                            label={label}
+                            onToggle={() => toggleAllowed(docId, "allowedVariants", label, labels)}
+                          />
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className="mt-1 px-1.5 text-[11.5px] font-bold text-brand bg-transparent border-0 cursor-pointer hover:opacity-70"
+                        onClick={() => patchRestriction(docId, { allowedVariants: [] })}
+                      >
+                        Только базовая
+                      </button>
+                    </div>
+                  )}
+                  {keys.length > 0 && (
+                    <div>
+                      <div className={`${colHeadCls} mb-1.5`}>
+                        Дополнения ({(allowedM ?? keys).length}/{keys.length})
+                      </div>
+                      <div className="grid gap-0.5">
+                        {p.modifiers.map((m, i) => {
+                          const key = modKeyOf(m)
+                          if (!key) return null
+                          return (
+                            <AllowRow
+                              key={`${key}-${i}`}
+                              checked={allowedM === null || allowedM.includes(key)}
+                              label={m.label || key}
+                              onToggle={() => toggleAllowed(docId, "allowedModifiers", key, keys)}
+                            />
+                          )
+                        })}
+                      </div>
+                      <button
+                        type="button"
+                        className="mt-1 px-1.5 text-[11.5px] font-bold text-brand bg-transparent border-0 cursor-pointer hover:opacity-70"
+                        onClick={() => patchRestriction(docId, { allowedModifiers: [] })}
+                      >
+                        Без дополнений
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
         </SectionCard>
 
         {/* Sticky-бар сохранения */}

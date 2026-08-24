@@ -71,7 +71,8 @@ export const ChangeServiceModal = ({
   }, [booking.documentId])
 
   // tier мастера брони — junior-цена считается как в «Nová rezervace»
-  const tier = employees.find((e) => e.id === booking.noonaEmployeeId)?.tier || 'senior'
+  const bookingEmployee = employees.find((e) => e.id === booking.noonaEmployeeId)
+  const tier = bookingEmployee?.tier || 'senior'
   const svc = sel.service
   const pricing = svc ? calcCombo(svc, sel.variantLabel || null, sel.modKeys, tier) : null
   const currentTitle = (booking.services || [])
@@ -131,7 +132,7 @@ export const ChangeServiceModal = ({
         </div>
 
         <Section title="Nová služba">
-          <ServicePicker catalog={catalog} sel={sel} onChange={setSel} />
+          <ServicePicker catalog={catalog} sel={sel} onChange={setSel} employeeDocId={bookingEmployee?.docId} />
         </Section>
 
         {pricing && (

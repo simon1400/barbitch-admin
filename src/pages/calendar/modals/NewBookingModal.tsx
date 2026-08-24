@@ -292,7 +292,7 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
 
         {/* ── Услуга ── */}
         <Section title="Služba">
-          <ServicePicker catalog={catalog} sel={sel} onChange={setSel} />
+          <ServicePicker catalog={catalog} sel={sel} onChange={setSel} employeeDocId={employee?.docId} />
         </Section>
 
         {/* ── Мастер + дата/время + итог ── */}

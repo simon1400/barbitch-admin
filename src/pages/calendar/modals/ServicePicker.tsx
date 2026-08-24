@@ -4,17 +4,24 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { CatalogService } from '../fetch/engineApi'
+
+import { restrictionFor } from '../fetch/engineApi'
 import { inputCls, labelCls, type ServiceSelection } from './helpers'
 import { OptionRow } from './ui'
 
+// employeeDocId — мастер, на которого пишется бронь: пункты, которые он по каталогу
+// не делает, помечаются ⚠. Это подсказка, а не запрет: админ волен записать клиента
+// на что угодно (ограничения режут только онлайн-запись на сайте).
 export const ServicePicker = ({
   catalog,
   sel,
   onChange,
+  employeeDocId,
 }: {
   catalog: CatalogService[]
   sel: ServiceSelection
   onChange: (v: ServiceSelection) => void
+  employeeDocId?: string
 }) => {
   const categories = useMemo(() => [...new Set(catalog.map((s) => s.category))], [catalog])
   const [category, setCategory] = useState('')
@@ -30,6 +37,19 @@ export const ServicePicker = ({
   }, [services, sel.service, onChange])
 
   const svc = sel.service
+  const rule = restrictionFor(svc, employeeDocId)
+  const variantAllowed = (label: string) =>
+    !rule?.allowedVariants || rule.allowedVariants.includes(label)
+  const modAllowed = (key: string) => !rule?.allowedModifiers || rule.allowedModifiers.includes(key)
+  // выбранные пункты, которые мастер по каталогу не делает — для плашки внизу
+  const blocked = svc
+    ? [
+        ...(sel.variantLabel && !variantAllowed(sel.variantLabel) ? [sel.variantLabel] : []),
+        ...sel.modKeys
+          .filter((k) => !modAllowed(k))
+          .map((k) => svc.modifiers.find((m) => m.key === k)?.label || k),
+      ]
+    : []
   const toggleMod = (key: string) => {
     if (!svc) return
     const mod = svc.modifiers.find((m) => m.key === key)
@@ -99,7 +119,9 @@ export const ServicePicker = ({
                 radio
                 active={sel.variantLabel === v.label}
                 name={v.label}
-                hint={v.durationDiff ? `+${v.durationDiff} min` : undefined}
+                hint={[v.durationDiff ? `+${v.durationDiff} min` : '', variantAllowed(v.label) ? '' : '⚠ nedělá']
+                  .filter(Boolean)
+                  .join(' · ') || undefined}
                 priceDiff={v.priceDiff}
                 onClick={() => onChange({ ...sel, variantLabel: v.label })}
               />
@@ -118,13 +140,21 @@ export const ServicePicker = ({
                 radio={false}
                 active={sel.modKeys.includes(m.key)}
                 name={m.label}
-                hint={m.group ? `skupina: ${m.group}` : undefined}
+                hint={[m.group ? `skupina: ${m.group}` : '', modAllowed(m.key) ? '' : '⚠ nedělá']
+                  .filter(Boolean)
+                  .join(' · ') || undefined}
                 priceDiff={m.priceDiff}
                 onClick={() => toggleMod(m.key)}
               />
             ))}
           </div>
         </div>
+      )}
+
+      {blocked.length > 0 && (
+        <p className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-[11px] leading-snug text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300">
+          {`Mistrová podle katalogu nedělá: ${blocked.join(', ')}. Rezervaci to nezablokuje — jen na webu si tuto kombinaci u ní klientka nevybere.`}
+        </p>
       )}
     </>
   )

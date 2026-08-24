@@ -420,6 +420,16 @@ export interface CatalogModifier {
   group?: string | null
   description?: string | null
 }
+/**
+ * Ограничение мастера по услуге (salon-service.restrictions, ставится в «Каталог услуг»).
+ * null = разрешено всё, массив = белый список, [] = только базовая услуга.
+ * В календаре это ПОДСКАЗКА: админ может записать клиента на что угодно.
+ */
+export interface CatalogRestriction {
+  personalDocId: string
+  allowedVariants: string[] | null
+  allowedModifiers: string[] | null
+}
 export interface CatalogService {
   documentId: string
   title: string
@@ -430,6 +440,7 @@ export interface CatalogService {
   durationMin: number
   variants: CatalogVariant[]
   modifiers: CatalogModifier[]
+  restrictions?: CatalogRestriction[]
 }
 
 let catalogCache: { ts: number; data: CatalogService[] } | null = null
@@ -437,11 +448,26 @@ let catalogCache: { ts: number; data: CatalogService[] } | null = null
 export async function fetchCatalog(force = false): Promise<CatalogService[]> {
   if (!force && catalogCache && Date.now() - catalogCache.ts < 5 * 60000) return catalogCache.data
   const res = (await Axios.get(
-    `/api/salon-services?filters[active][$eq]=true&populate[variants]=true&populate[modifiers]=true&sort[0]=categoryOrder:asc&sort[1]=order:asc&pagination[pageSize]=200`,
+    `/api/salon-services?filters[active][$eq]=true&populate[variants]=true&populate[modifiers]=true&populate[restrictions]=true&sort[0]=categoryOrder:asc&sort[1]=order:asc&pagination[pageSize]=200`,
     { headers: authHeaders() },
   )) as CatalogService[]
   catalogCache = { ts: Date.now(), data: res || [] }
   return catalogCache.data
+}
+
+// Ограничение конкретного мастера по услуге (null = разрешено всё)
+export function restrictionFor(
+  svc: CatalogService | null,
+  employeeDocId: string | null | undefined,
+): CatalogRestriction | null {
+  if (!svc || !employeeDocId) return null
+  const r = (svc.restrictions || []).find((x) => x?.personalDocId === employeeDocId)
+  if (!r) return null
+  return {
+    personalDocId: r.personalDocId,
+    allowedVariants: Array.isArray(r.allowedVariants) ? r.allowedVariants.map(String) : null,
+    allowedModifiers: Array.isArray(r.allowedModifiers) ? r.allowedModifiers.map(String) : null,
+  }
 }
 
 // Цена/длительность комбинации (зеркало slots-core.computePricing; сервер пересчитает сам)
