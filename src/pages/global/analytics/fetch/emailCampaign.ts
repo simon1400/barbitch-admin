@@ -1,14 +1,16 @@
 import qs from 'qs'
 import { Axios } from '../../../../lib/api'
+import { sendCampaign } from '../../../../lib/campaignApi'
+import type { CampaignSendResult } from '../../../../lib/campaignApi'
 import { getEventsHistory, isAttended, todayStr } from './eventsHistory'
 
 // Отправка win-back кампаний из таба «Спящие» + лог рассылок.
 // Лог: Strapi `email-campaign-log`, ОДНА запись = ОДНА кампания
 // (recipients — json-массив; по-письмово было бы ~300 POST-ов через pooler).
-// Письма шлются через СУЩЕСТВУЮЩИЙ client-роут /api/send-bulk-email (Resend,
-// шаблоны в client/src/app/api/email-templates/*.html, переменная {{name}}).
+// Письма шлются через Strapi (api::campaign) — он проверяет права владельца,
+// режет отписавшихся/заблокированных и только потом зовёт client-роут
+// /api/send-bulk-email (Resend, шаблоны client/src/app/api/email-templates/*.html).
 
-const CLIENT_URL = import.meta.env.VITE_CLIENT_URL as string
 
 export interface CampaignExtraVar {
   key: string // {{key}} в html-шаблоне
@@ -173,34 +175,28 @@ export const saveCampaignLog = async (
   })
 }
 
-export interface SendResult {
-  total: number
-  successful: number
-  failed: number
-}
+// Результат отправки = ответ Strapi: помимо счётчиков несёт разбивку отсева
+// (отписался / чёрный список / без согласия) — её показывает UI.
+export type SendResult = CampaignSendResult
 
+// Отправка идёт через Strapi (api::campaign): там гейт владельца и отсев
+// отписавшихся/заблокированных. Напрямую в client-роут больше не ходим — он
+// закрыт серверным секретом (s175).
 export const sendBulkEmail = async (
   template: string,
   subject: string,
   recipients: CampaignRecipient[],
   extraVariables: Record<string, string> = {},
-): Promise<SendResult> => {
-  const res = await fetch(`${CLIENT_URL}/api/send-bulk-email`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      template,
-      subject,
-      recipients: recipients.map((r) => ({
-        email: r.email,
-        variables: { ...extraVariables, name: r.name, daysAway: r.daysAway ?? '' },
-      })),
-    }),
-  })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data?.error || 'Send failed')
-  return { total: data.total ?? 0, successful: data.successful ?? 0, failed: data.failed ?? 0 }
-}
+): Promise<SendResult> =>
+  sendCampaign(
+    template,
+    subject,
+    recipients.map((r) => ({
+      email: r.email,
+      variables: { ...extraVariables, name: r.name, daysAway: r.daysAway ?? '' },
+    })),
+    'sleeping',
+  )
 
 export const daysSinceIso = (iso: string): number =>
   Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)

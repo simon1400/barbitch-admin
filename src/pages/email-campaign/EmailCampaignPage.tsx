@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
+import { sendCampaign, skippedSummary } from '../../lib/campaignApi'
 import { hintCls, kickerCls, pageShellCls } from '../../ui/kit'
-const clientUrl = import.meta.env.VITE_CLIENT_URL;
 
 // Example emails list for bulk
 const exampleBulkEmails = `example1@email.com
@@ -93,38 +93,37 @@ const EmailCampaignPage = () => {
         recipients = emails.map(email => ({ email }))
       }
 
-      const response = await fetch(`${clientUrl}/api/send-bulk-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          template,
-          subject,
-          recipients,
-        }),
+      // Отправка через Strapi: там проверяются права владельца и отсеиваются
+      // отписавшиеся (NEZASÍLAT), заблокированные и битые адреса (s175).
+      const data = await sendCampaign(template, subject, recipients, 'manual')
+
+      const skipTotal =
+        data.skipped.optOut +
+        data.skipped.blacklisted +
+        data.skipped.noConsent +
+        data.skipped.invalid +
+        data.skipped.duplicate
+      const parts: string[] = []
+      if (data.failed > 0) parts.push(`Selhalo: ${data.failed}`)
+      if (skipTotal > 0) parts.push(`Vynecháno ${skipTotal} — ${skippedSummary(data.skipped)}`)
+
+      setMessage({
+        type: 'success',
+        text: `Úspěšně odesláno ${data.successful} z ${data.total} emailů`,
+        details: parts.length ? parts.join(' · ') : undefined,
       })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setMessage({
-          type: 'success',
-          text: `Úspěšně odesláno ${data.successful} z ${data.total} emailů`,
-          details: data.failed > 0 ? `Selhalo: ${data.failed}` : undefined
-        })
-        // Clear form
-        if (mode === 'personalized') {
-          setRecipientsJson('')
-        } else {
-          setBulkEmails('')
-        }
+      // Clear form
+      if (mode === 'personalized') {
+        setRecipientsJson('')
       } else {
-        setMessage({ type: 'error', text: data.error || 'Nepodařilo se odeslat emaily' })
+        setBulkEmails('')
       }
     } catch (error) {
       console.error('Error sending emails:', error)
-      setMessage({ type: 'error', text: 'Chyba při odesílání emailů' })
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Chyba při odesílání emailů',
+      })
     } finally {
       setLoading(false)
     }

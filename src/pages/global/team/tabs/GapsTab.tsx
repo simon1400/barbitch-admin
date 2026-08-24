@@ -157,7 +157,12 @@ export default function GapsTab() {
       loadResults() // обновить статистику
 
     } catch {
-      setFillResult({ total: fillSelected.length, successful: 0, failed: fillSelected.length })
+      setFillResult({
+        total: fillSelected.length,
+        successful: 0,
+        failed: fillSelected.length,
+        skipped: { invalid: 0, duplicate: 0, optOut: 0, blacklisted: 0, noConsent: 0 },
+      })
     } finally {
       setFillSending(false)
     }

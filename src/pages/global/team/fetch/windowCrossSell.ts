@@ -1,5 +1,7 @@
 import qs from 'qs'
 import { Axios } from '../../../../lib/api'
+import { sendCampaign } from '../../../../lib/campaignApi'
+import type { CampaignSendResult, CampaignSkipped } from '../../../../lib/campaignApi'
 import {
   clientKey,
   fetchAllPagesStrapi,
@@ -610,11 +612,22 @@ export const getWindowFillCandidates = async (
 }
 
 // ─── Отправка + лог ───────────────────────────────────────────────────────────
+// skipped — разбивка отсева от Strapi (отписался / чёрный список / без согласия);
+// суммируется по обоим шаблонам (senior + junior).
 export interface SendResult {
   total: number
   successful: number
   failed: number
+  skipped: CampaignSkipped
 }
+
+const emptySkipped = (): CampaignSkipped => ({
+  invalid: 0,
+  duplicate: 0,
+  optOut: 0,
+  blacklisted: 0,
+  noConsent: 0,
+})
 
 const TEMPLATE = 'window-cross-sell'
 const TEMPLATE_JUNIOR = 'window-cross-sell-junior'
@@ -635,39 +648,36 @@ const postBulk = async (
   subject: string,
   cands: CrossSellCandidate[],
   discount: string,
-): Promise<{ total: number; successful: number; failed: number }> => {
-  const res = await fetch(`${CLIENT_URL}/api/send-bulk-email`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      template,
-      subject,
-      recipients: cands.map((c) => ({
-        email: c.email,
-        variables: {
-          name: c.customerName,
-          anchorLabel: BUCKET_LABEL_CS[c.anchorBucket],
-          offerLabel: BUCKET_LABEL_CS[c.offerBucket], // категория предложения (manikúra/obočí/řasy)
-          date: fmtCsDate(c.date),
-          time: c.windowStartHHMM,
-          service: c.serviceTitle,
-          master: c.masterName,
-          discount,
-          bookingUrl: offerUrl(c, discount),
-        },
-      })),
-    }),
-  })
-  const data = await res.json()
-  if (!res.ok) throw new Error(data?.error || 'Send failed')
-  return { total: data.total ?? 0, successful: data.successful ?? 0, failed: data.failed ?? 0 }
+): Promise<CampaignSendResult> => {
+  // Через Strapi (api::campaign): гейт владельца + отсев отписавшихся и
+  // заблокированных. Напрямую в client-роут больше не ходим — он закрыт
+  // серверным секретом (s175).
+  return sendCampaign(
+    template,
+    subject,
+    cands.map((c) => ({
+      email: c.email,
+      variables: {
+        name: c.customerName,
+        anchorLabel: BUCKET_LABEL_CS[c.anchorBucket],
+        offerLabel: BUCKET_LABEL_CS[c.offerBucket], // категория предложения (manikúra/obočí/řasy)
+        date: fmtCsDate(c.date),
+        time: c.windowStartHHMM,
+        service: c.serviceTitle,
+        master: c.masterName,
+        discount,
+        bookingUrl: offerUrl(c, discount),
+      },
+    })),
+    'window-cross-sell',
+  )
 }
 
 export const sendCrossSellOffers = async (
   cands: CrossSellCandidate[],
   discount: string,
 ): Promise<SendResult> => {
-  if (!cands.length) return { total: 0, successful: 0, failed: 0 }
+  if (!cands.length) return { total: 0, successful: 0, failed: 0, skipped: emptySkipped() }
 
   // Junior получают ДРУГОЕ письмо (−20% уже в цене + −discount за дозапись).
   const senior = cands.filter((c) => !c.isJunior)
@@ -678,18 +688,28 @@ export const sendCrossSellOffers = async (
       ? postBulk(TEMPLATE_JUNIOR, SUBJECT_JUNIOR, junior, discount)
       : Promise.resolve(null),
   ])
-  const agg: SendResult = { total: 0, successful: 0, failed: 0 }
+  const agg: SendResult = { total: 0, successful: 0, failed: 0, skipped: emptySkipped() }
+  // адреса, которые Strapi реально принял (остальные отсеяны как отписавшиеся,
+  // заблокированные и т.п.) — по ним же пишем лог предложений
+  const accepted = new Set<string>()
   for (const p of parts) {
     if (!p) continue
     agg.total += p.total
     agg.successful += p.successful
     agg.failed += p.failed
+    for (const k of Object.keys(agg.skipped) as Array<keyof CampaignSkipped>) {
+      agg.skipped[k] += p.skipped?.[k] ?? 0
+    }
+    for (const e of p.acceptedEmails || []) accepted.add(e.toLowerCase())
   }
 
-  // Лог по каждому отправленному предложению (дедуп по bookingEventId)
+  // Лог ТОЛЬКО по реально отправленным: иначе отписавшийся клиент считался бы
+  // «уже получившим предложение» и выпал бы из будущих подборок ни за что.
   const sentAt = new Date().toISOString()
   await Promise.all(
-    cands.map((c) =>
+    cands
+      .filter((c) => accepted.has(String(c.email || '').toLowerCase()))
+      .map((c) =>
       Axios.post('/api/window-offer-logs', {
         data: {
           bookingEventId: c.bookingEventId,
