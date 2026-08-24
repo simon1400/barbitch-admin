@@ -7,17 +7,124 @@ import {
   kickerCls,
   mutedCls,
   pageShellCls,
+  tileCls,
+  tileLabelCls,
+  tileSubCls,
+  tileValueCls,
   toolbarCardCls,
 } from '../../ui/kit'
+import { Cell } from '../dashboard/components/Cell'
 import { OwnerProtection } from './components/OwnerProtection'
+import { StatSection } from './components/StatSection'
+import { TableWrapper } from './components/TableWrapper'
 import type { GoogleReview } from './fetch/reviewSync'
 import { fetchGoogleReviews, syncReviews, deleteReview } from './fetch/reviewSync'
+import type { ReviewRequestLog } from './fetch/reviewRequests'
+import { fetchReviewRequestLogs, statsFromLogs } from './fetch/reviewRequests'
+
+// Дата+время отправки письма как «23.08 14:05»
+const fmtSent = (iso: string): string => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return `${d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })} ${d.toLocaleTimeString(
+    'ru-RU',
+    { hour: '2-digit', minute: '2-digit' },
+  )}`
+}
+
+const fmtDay = (ymd: string): string =>
+  ymd ? new Date(`${ymd}T12:00:00Z`).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) : '—'
+
+// Секция журнала автописем «оставьте отзыв». Данные пишет крон Strapi
+// (api::review-request), админка их только показывает — кнопок отправки тут нет
+// намеренно: ручная рассылка легко даёт всплеск отзывов, а это флаг для Google.
+function ReviewRequestsSection({ logs, failed }: { logs: ReviewRequestLog[]; failed: boolean }) {
+  const stats = statsFromLogs(logs)
+
+  return (
+    <StatSection title={'Žádosti o recenzi (automatické e-maily)'} id={'review-requests'} count={stats.total}>
+      {failed ? (
+        <p className={hintCls}>
+          Журнал недоступен. Обычно это значит, что модуль ещё не задеплоен на Strapi
+          или у API-токена нет прав на коллекцию «Review request logs».
+        </p>
+      ) : logs.length === 0 ? (
+        <p className={hintCls}>
+          Писем пока не отправлено. Рассылка включается переменной REVIEW_REQUEST_ENABLED=true
+          в .env Strapi — до этого крон молчит. Письмо уходит вечером после визита клиенткам
+          с 2+ посещениями, не чаще раза в год на человека.
+        </p>
+      ) : (
+        <>
+          <div className={'grid gap-2.5 mb-4 grid-cols-2 md:grid-cols-4'}>
+            <div className={tileCls}>
+              <div className={tileLabelCls}>Всего</div>
+              <div className={tileValueCls}>{stats.total}</div>
+              <div className={tileSubCls}>писем отправлено</div>
+            </div>
+            <div className={tileCls}>
+              <div className={tileLabelCls}>За 30 дней</div>
+              <div className={tileValueCls}>{stats.last30}</div>
+              <div className={tileSubCls}>≈ {(stats.last30 / 30).toFixed(1)} в день</div>
+            </div>
+            <div className={tileCls}>
+              <div className={tileLabelCls}>За 7 дней</div>
+              <div className={tileValueCls}>{stats.last7}</div>
+              <div className={tileSubCls}>последняя неделя</div>
+            </div>
+            <div className={tileCls}>
+              <div className={tileLabelCls}>Визитов у адресатов</div>
+              <div className={tileValueCls}>
+                {stats.avgVisits == null ? '—' : stats.avgVisits.toFixed(1)}
+              </div>
+              <div className={tileSubCls}>в среднем на клиента</div>
+            </div>
+          </div>
+
+          <TableWrapper
+            additionalInfo={
+              'Сколько из этих писем превратилось в отзывы, Google не сообщает — связь «отзыв → клиент» он не отдаёт. Ориентир — рост числа отзывов на профиле.'
+            }
+          >
+            <table className={'w-full border-collapse min-w-[560px]'}>
+              <thead>
+                <tr>
+                  <Cell asHeader title={'Отправлено'} />
+                  <Cell asHeader title={'Клиент'} />
+                  <Cell asHeader title={'Визит'} />
+                  <Cell asHeader title={'Визитов'} className={'w-px'} />
+                  <Cell asHeader title={'Услуга'} />
+                  <Cell asHeader title={'Мастер'} />
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((l) => (
+                  <tr key={l.documentId}>
+                    <Cell title={fmtSent(l.sentAt)} className={'whitespace-nowrap'} />
+                    <Cell title={l.clientName || l.email || '—'} />
+                    <Cell title={fmtDay(l.visitDate)} className={'whitespace-nowrap'} />
+                    <Cell title={String(l.visitCount ?? '—')} className={'text-right'} />
+                    <Cell title={l.serviceTitle || '—'} className={'break-words'} />
+                    <Cell title={l.employeeName || '—'} />
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableWrapper>
+        </>
+      )}
+    </StatSection>
+  )
+}
 
 export default function ReviewSyncPage() {
   const [reviews, setReviews] = useState<GoogleReview[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [syncResult, setSyncResult] = useState<string | null>(null)
+  // журнал автописем «оставьте отзыв» (s175) — пишет крон Strapi, тут только чтение
+  const [requests, setRequests] = useState<ReviewRequestLog[]>([])
+  const [requestsErr, setRequestsErr] = useState(false)
 
   const loadReviews = useCallback(async () => {
     setLoading(true)
@@ -31,9 +138,21 @@ export default function ReviewSyncPage() {
     }
   }, [])
 
+  const loadRequests = useCallback(async () => {
+    try {
+      setRequests(await fetchReviewRequestLogs())
+      setRequestsErr(false)
+    } catch {
+      // модуль ещё не задеплоен / нет прав на коллекцию — секция скажет об этом
+      setRequests([])
+      setRequestsErr(true)
+    }
+  }, [])
+
   useEffect(() => {
     loadReviews()
-  }, [loadReviews])
+    loadRequests()
+  }, [loadReviews, loadRequests])
 
   const handleSync = async () => {
     setSyncing(true)
@@ -89,6 +208,8 @@ export default function ReviewSyncPage() {
             {syncResult}
           </div>
         )}
+
+        <ReviewRequestsSection logs={requests} failed={requestsErr} />
 
         {loading ? (
           <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">
