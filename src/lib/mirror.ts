@@ -1,3 +1,4 @@
+import { authHeaders } from './authHeaders'
 // Общий data-слой ЗЕРКАЛА (собственные коллекции Strapi: booking / client /
 // salon-hour / time-block / personal) для аналитики и дашбордов admin-апки.
 // Заменяет прямые обращения к Noona API (own-booking фаза 4).
@@ -7,7 +8,6 @@
 // Bearer strapi-токеном (booking/client содержат PII — Public-права не включаем).
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:1337'
-const strapiToken = import.meta.env.VITE_STRAPI_TOKEN as string | undefined
 
 interface StrapiListResponse<T> {
   data: T[]
@@ -16,7 +16,7 @@ interface StrapiListResponse<T> {
 
 const getJson = async <T>(pathWithQuery: string): Promise<StrapiListResponse<T>> => {
   const res = await fetch(`${API_URL}${pathWithQuery}`, {
-    headers: strapiToken ? { Authorization: `Bearer ${strapiToken}` } : undefined,
+    headers: authHeaders(),
   })
   if (!res.ok) throw new Error(`Strapi GET ${pathWithQuery} → ${res.status}`)
   return res.json()

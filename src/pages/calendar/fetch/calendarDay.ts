@@ -4,9 +4,8 @@
 // Noona). Все GET с явным Bearer (booking содержит PII → Public-права не включаем).
 
 import { Axios } from '../../../lib/api'
+import { authHeaders } from '../../../lib/authHeaders'
 
-const strapiToken = import.meta.env.VITE_STRAPI_TOKEN as string | undefined
-const authHeaders = strapiToken ? { Authorization: `Bearer ${strapiToken}` } : undefined
 
 export interface CalendarService {
   title: string
@@ -172,7 +171,7 @@ interface MirrorTimeBlock {
 export async function fetchEmployees(): Promise<CalendarEmployee[]> {
   const res = (await Axios.get(
     `/api/personals?filters[isActive][$eq]=true&fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=position&fields[3]=tier&fields[4]=calendarOrder&fields[5]=ratePercent&pagination[pageSize]=100`,
-    { headers: authHeaders },
+    { headers: authHeaders() },
   )) as RawPersonal[]
   // Запрос уже фильтрует isActive=true; здесь только отсекаем без noona-id и ❌
   return (res || [])
@@ -190,7 +189,7 @@ export async function fetchEmployees(): Promise<CalendarEmployee[]> {
 
 // Сохранение порядка колонок: personal.calendarOrder пишется в ОБЕ версии
 // (draft + published — календарь читает published; паттерн каталога s101).
-// Мутации идут через admin-Axios (интерсептор подставляет VITE_STRAPI_TOKEN на PUT).
+// Мутации идут через admin-Axios (интерсептор подставляет токен сессии на PUT).
 export async function saveEmployeesOrder(items: { docId: string; order: number }[]): Promise<void> {
   for (const it of items) {
     await Axios.put(`/api/personals/${it.docId}`, { data: { calendarOrder: it.order } })
@@ -229,7 +228,7 @@ export async function fetchClientHistory(opts: {
     : ''
   const res = (await Axios.get(
     `/api/bookings?${base}${empFilter}&sort=startsAt:desc&fields[0]=date&fields[1]=startsAt&fields[2]=status&fields[3]=employeeNameRaw&fields[4]=services&fields[5]=totalPrice&pagination[pageSize]=200`,
-    { headers: authHeaders },
+    { headers: authHeaders() },
   )) as ClientHistoryItem[]
   return res || []
 }
@@ -240,11 +239,11 @@ async function fetchSchedule(
   dateStr: string,
 ): Promise<{ openMin: number; closeMin: number; blocksByEmp: Map<string, BlockedRange[]> }> {
   const [hourRes, blockRes] = await Promise.all([
-    Axios.get(`/api/salon-hours?filters[date][$eq]=${dateStr}`, { headers: authHeaders }) as Promise<
+    Axios.get(`/api/salon-hours?filters[date][$eq]=${dateStr}`, { headers: authHeaders() }) as Promise<
       MirrorSalonHour[]
     >,
     Axios.get(`/api/time-blocks?filters[date][$eq]=${dateStr}&pagination[pageSize]=300`, {
-      headers: authHeaders,
+      headers: authHeaders(),
     }) as Promise<MirrorTimeBlock[]>,
   ])
   const hour = (hourRes || [])[0]
@@ -293,7 +292,7 @@ async function attachRedemptions(bookings: CalendarBooking[]): Promise<void> {
     const params = ids.map((id, i) => `filters[usedInBookingDocId][$in][${i}]=${encodeURIComponent(id)}`).join('&')
     const res = (await Axios.get(
       `/api/redemptions?filters[status][$eq]=used&${params}&fields[0]=usedInBookingDocId&fields[1]=discountKc&pagination[pageSize]=200`,
-      { headers: authHeaders },
+      { headers: authHeaders() },
     )) as { usedInBookingDocId: string | null; discountKc: number | null }[]
     const byBooking = new Map<string, number>()
     for (const r of res || []) {
@@ -332,7 +331,7 @@ export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
   const [bookingsRes, employees, schedule] = await Promise.all([
     Axios.get(
       `/api/bookings?filters[date][$eq]=${dateStr}&sort=startsAt:asc&populate[client][fields][0]=email&populate[client][fields][1]=phone&populate[client][fields][2]=blacklisted&pagination[pageSize]=200`,
-      { headers: authHeaders },
+      { headers: authHeaders() },
     ) as Promise<CalendarBooking[]>,
     fetchEmployees(),
     fetchSchedule(dateStr),
@@ -490,14 +489,14 @@ export async function fetchCalendarWeek(
   const [bookingsRes, hoursRes, blocksRes] = await Promise.all([
     Axios.get(
       `/api/bookings?filters[date][$gte]=${monday}&filters[date][$lte]=${sunday}&filters[noonaEmployeeId][$eq]=${employee.id}&sort=startsAt:asc&populate[client][fields][0]=email&populate[client][fields][1]=phone&populate[client][fields][2]=blacklisted&pagination[pageSize]=300`,
-      { headers: authHeaders },
+      { headers: authHeaders() },
     ) as Promise<CalendarBooking[]>,
     Axios.get(`/api/salon-hours?filters[date][$gte]=${monday}&filters[date][$lte]=${sunday}&pagination[pageSize]=10`, {
-      headers: authHeaders,
+      headers: authHeaders(),
     }) as Promise<MirrorSalonHour[]>,
     Axios.get(
       `/api/time-blocks?filters[date][$gte]=${monday}&filters[date][$lte]=${sunday}&filters[noonaEmployeeId][$eq]=${employee.id}&pagination[pageSize]=100`,
-      { headers: authHeaders },
+      { headers: authHeaders() },
     ) as Promise<MirrorTimeBlock[]>,
   ])
 

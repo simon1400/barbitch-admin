@@ -8,6 +8,7 @@ import { getAllWorks } from '../../dashboard/fetch/allWorks'
 import { splitTeam } from '../../dashboard/fetch/teamSplit'
 import { invalidateGlobalMonthData } from '../../dashboard/fetch/monthDataCache'
 import { computeShiftDiff } from '../components/shiftClose/helpers'
+import { authHeaders } from '../../../lib/authHeaders'
 
 // Verify-флаги (метаданные + разбор скидки) живут в отдельном лёгком модуле
 // lib/verifyFlags — их переиспользует и drawer календаря, которому весь shiftClose
@@ -20,16 +21,12 @@ export type { VerifyFlag, FlagMeta } from '../../../lib/verifyFlags'
 export { VERIFY_FLAGS, FLAG_META, parseSaleRate } from '../../../lib/verifyFlags'
 import { VERIFY_FLAGS, type VerifyFlag, parseSaleRate } from '../../../lib/verifyFlags'
 
-// 🟥 GET-ы админки идут БЕЗ токена (интерсептор Axios подставляет его только на
-// мутации) → Strapi санитизирует populate по Public-роли, а у коллекции `booking`
-// Public-прав нет (PII) → `populate=*` МОЛЧА выкидывает relation booking из ответа.
+// 🟥 Без токена Strapi санитизирует populate по правам роли Public, а у коллекции
+// `booking` их нет (PII) → `populate=*` МОЛЧА выкидывает relation booking из ответа.
 // Записи чекаута из календаря выглядели непривязанными: янтарный «—» в колонке
 // услуги и pre-flight «offer/booking: chybí vazba», блокирующий закрытие смены.
 // Явный Bearer на запросах services-provided сохраняет booking в ответе.
-const STRAPI_TOKEN = import.meta.env.VITE_STRAPI_TOKEN as string | undefined
-const authHeaders = STRAPI_TOKEN
-  ? { headers: { Authorization: `Bearer ${STRAPI_TOKEN}` } }
-  : undefined
+const authCfg = () => ({ headers: authHeaders() })
 
 // Цены хранятся строками; junior-цены (−20%) бывают с запятой ("237,6").
 // Number("237,6") = NaN → 0. Нормализуем запятую перед парсом.
@@ -209,7 +206,7 @@ const fetchServiceProvided = async (dateStr: string) => {
   try {
     const res = await Axios.get(
       `/api/services-provided?filters[date][$eq]=${dateStr}&populate=*&pagination[pageSize]=100&status=draft`,
-      authHeaders,
+      authCfg(),
     )
     const items = Array.isArray(res) ? res : (res as any)?.data || []
     // Counters are per-flag (one item with multiple flags is counted in each)
@@ -599,7 +596,7 @@ export const publishShift = async (
   const allDrafts = await Promise.all(
     collections.map(async (c) => {
       try {
-        const res = await Axios.get(c.url, authHeaders)
+        const res = await Axios.get(c.url, authCfg())
         return Array.isArray(res) ? res : []
       } catch { return [] }
     }),

@@ -1,10 +1,10 @@
+import { authHeaders } from '../../../lib/authHeaders'
 // Журнал действий календаря — чтение коллекции calendar-log (записи создаёт движок
 // booking-engine при admin-операциях). Plain fetch с явным Bearer strapi-токеном
 // (как lib/mirror.ts): интерсептор Axios теряет meta.pagination и подменяет auth;
 // лог содержит имена клиентов → Public-права не включаем, читаем под токеном.
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:1337'
-const strapiToken = import.meta.env.VITE_STRAPI_TOKEN as string | undefined
 
 export interface CalendarLog {
   id: number
@@ -46,7 +46,7 @@ export const fetchCalendarLogs = async ({
   if (actor && actor.trim()) params.set('filters[actorName][$containsi]', actor.trim())
 
   const res = await fetch(`${API_URL}/api/calendar-logs?${params.toString()}`, {
-    headers: strapiToken ? { Authorization: `Bearer ${strapiToken}` } : undefined,
+    headers: authHeaders(),
   })
   if (!res.ok) throw new Error(`calendar-logs → ${res.status}`)
   const json = await res.json()
@@ -63,7 +63,7 @@ export const fetchCalendarLogs = async ({
 export const deleteCalendarLog = async (documentId: string): Promise<void> => {
   const res = await fetch(`${API_URL}/api/calendar-logs/${documentId}`, {
     method: 'DELETE',
-    headers: strapiToken ? { Authorization: `Bearer ${strapiToken}` } : undefined,
+    headers: authHeaders(),
   })
   if (!res.ok) throw new Error(`smazání záznamu → ${res.status}`)
 }

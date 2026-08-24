@@ -1,15 +1,14 @@
 // Клиент админских ручек движка бронирования (/api/engine/admin/*) + каталог
 // salon-service + поиск клиентов. Мутации движка идут ЧИСТЫМ fetch с admin-jwt
 // (userJwt из localStorage): Axios-интерсептор admin-апки принудительно подменяет
-// Authorization на VITE_STRAPI_TOKEN для POST/PATCH/DELETE и разворачивает
+// Authorization на токен сессии для POST/PATCH/DELETE и разворачивает
 // res.data.data — для engine-ответов не годится.
 
 import { Axios } from '../../../lib/api'
 import { getToken } from '../../../services/auth'
+import { authHeaders } from '../../../lib/authHeaders'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:1337'
-const strapiToken = import.meta.env.VITE_STRAPI_TOKEN as string | undefined
-const strapiHeaders = strapiToken ? { Authorization: `Bearer ${strapiToken}` } : undefined
 
 // ── ошибки движка ──
 
@@ -397,7 +396,7 @@ export async function fetchBlockSeriesCount(block: {
   if (!filter) return 1
   try {
     const res = (await Axios.get(`/api/time-blocks?${filter}&fields[0]=date&pagination[pageSize]=500`, {
-      headers: strapiHeaders,
+      headers: authHeaders(),
     })) as unknown[]
     return Math.max(1, (res || []).length)
   } catch {
@@ -439,7 +438,7 @@ export async function fetchCatalog(force = false): Promise<CatalogService[]> {
   if (!force && catalogCache && Date.now() - catalogCache.ts < 5 * 60000) return catalogCache.data
   const res = (await Axios.get(
     `/api/salon-services?filters[active][$eq]=true&populate[variants]=true&populate[modifiers]=true&sort[0]=categoryOrder:asc&sort[1]=order:asc&pagination[pageSize]=200`,
-    { headers: strapiHeaders },
+    { headers: authHeaders() },
   )) as CatalogService[]
   catalogCache = { ts: Date.now(), data: res || [] }
   return catalogCache.data
@@ -474,7 +473,7 @@ export interface ClientHit {
 }
 
 // Блэклист клиента (toggle в drawer брони). Коллекция client без draft/publish →
-// один PUT; интерсептор admin-Axios сам подставляет VITE_STRAPI_TOKEN на PUT.
+// один PUT; интерсептор admin-Axios сам подставляет токен сессии на PUT.
 // Блокирует ТОЛЬКО записи с сайта (движок 403 blacklisted) — админ бронировать может.
 export async function updateClientBlacklist(clientDocId: string, blacklisted: boolean): Promise<void> {
   await Axios.put(`/api/clients/${clientDocId}`, { data: { blacklisted } })
@@ -489,7 +488,7 @@ export async function searchClients(q: string, limit = 8): Promise<ClientHit[]> 
   const enc = encodeURIComponent(query)
   const res = (await Axios.get(
     `/api/clients?filters[$or][0][name][$containsi]=${enc}&filters[$or][1][phone][$containsi]=${enc}&filters[$or][2][email][$containsi]=${enc}&fields[0]=name&fields[1]=phone&fields[2]=email&fields[3]=blacklisted&pagination[pageSize]=${limit}&sort=name:asc`,
-    { headers: strapiHeaders },
+    { headers: authHeaders() },
   )) as ClientHit[]
   return res || []
 }

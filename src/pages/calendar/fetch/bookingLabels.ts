@@ -6,9 +6,8 @@
 // (интерсептор сам подставляет токен на POST/PUT/DELETE).
 
 import { Axios } from '../../../lib/api'
+import { authHeaders } from '../../../lib/authHeaders'
 
-const strapiToken = import.meta.env.VITE_STRAPI_TOKEN as string | undefined
-const authHeaders = strapiToken ? { Authorization: `Bearer ${strapiToken}` } : undefined
 
 export interface BookingLabel {
   documentId: string
@@ -30,7 +29,7 @@ export const LABEL_COLORS = [
 
 export async function fetchBookingLabels(): Promise<BookingLabel[]> {
   const res = (await Axios.get(`/api/booking-labels?sort=order:asc&pagination[pageSize]=100`, {
-    headers: authHeaders,
+    headers: authHeaders(),
   })) as BookingLabel[]
   return res || []
 }

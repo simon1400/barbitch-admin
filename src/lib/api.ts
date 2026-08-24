@@ -1,17 +1,26 @@
 import axios from 'axios'
-import { checkUserStatus, logout } from '../services/auth'
+import { checkUserStatus, getToken, logout } from '../services/auth'
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:1337'
-const strapiToken = import.meta.env.VITE_STRAPI_TOKEN as string | undefined
 
 export const Axios = axios.create({
   baseURL: apiUrl,
 })
 
-// Add auth token for mutating requests (PUT, POST, DELETE)
+// 🟥 Раньше здесь подставлялся VITE_STRAPI_TOKEN — вечный full-access токен
+// Strapi, вкомпилированный в бандл: кто открыл JS админки, получал постоянный
+// полный доступ к API. И подставлялся он только на мутациях, поэтому все GET-ы
+// шли анонимно и держались на правах роли Public — из-за чего наружу были
+// открыты зарплаты, расходы и персональные данные покупателей ваучеров.
+//
+// Теперь шлём токен СЕССИИ сотрудника (7 дней, привязан к admin-user и роли).
+// На стороне Strapi middleware `global::admin-session` меняет его на серверный
+// API-токен, который в браузер не попадает. Токен нужен на ВСЕХ методах, включая
+// GET, — после закрытия прав Public без него чтение коллекций отдаёт 403.
 Axios.interceptors.request.use((config) => {
-  if (strapiToken && config.method && ['put', 'post', 'delete', 'patch'].includes(config.method)) {
-    config.headers.Authorization = `Bearer ${strapiToken}`
+  const token = getToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })

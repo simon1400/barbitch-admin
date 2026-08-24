@@ -1,10 +1,10 @@
+import { authHeaders } from '../../../lib/authHeaders'
 // Data-слой журнала писем-просьб об отзыве (Strapi review-request-log, s175).
-// GET с явным Bearer VITE_STRAPI_TOKEN: в коллекции лежат имя и e-mail клиента,
-// Public-прав у неё нет — без токена Strapi отдал бы 403/пустоту (гоча проекта).
+// В коллекции лежат имя и e-mail клиента, Public-прав у неё нет — запрос идёт
+// с токеном сессии сотрудника (см. lib/authHeaders).
 // Пишет в коллекцию только крон Strapi, админка её лишь читает.
 
 const strapiUrl = import.meta.env.VITE_API_URL || 'http://localhost:1337'
-const strapiToken = import.meta.env.VITE_STRAPI_TOKEN as string | undefined
 
 export interface ReviewRequestLog {
   id: number
@@ -29,7 +29,7 @@ export interface ReviewRequestStats {
 export async function fetchReviewRequestLogs(limit = 100): Promise<ReviewRequestLog[]> {
   const res = await fetch(
     `${strapiUrl}/api/review-request-logs?sort=sentAt:desc&pagination[pageSize]=${limit}`,
-    { headers: strapiToken ? { Authorization: `Bearer ${strapiToken}` } : undefined },
+    { headers: authHeaders() },
   )
   if (!res.ok) throw new Error(`Strapi ${res.status}`)
   const json = await res.json()

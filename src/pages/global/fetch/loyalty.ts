@@ -1,21 +1,19 @@
 // Data-слой admin-таба «Лояльность» (bitchcard, К3).
 //
-// Чистый fetch с явным Bearer VITE_STRAPI_TOKEN (НЕ Axios из lib/api: его
-// интерсептор разворачивает res.data.data и подменяет Authorization — гоча
-// s99/s103). Лояльность = PII → Public-права в Strapi НЕ включаем.
+// Чистый fetch (НЕ Axios из lib/api: его интерсептор разворачивает res.data.data —
+// гоча s99/s103). Авторизация — токен сессии (lib/authHeaders).
+// Лояльность = PII → Public-права в Strapi НЕ включаем.
 
 import { getSession } from '../../../services/auth'
+import { authHeaders } from '../../../lib/authHeaders'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:1337'
-const strapiToken = import.meta.env.VITE_STRAPI_TOKEN as string | undefined
 
 interface StrapiListResponse<T> {
   data: T[]
   meta?: { pagination?: { pageCount?: number; total?: number } }
 }
 
-const authHeaders = (): Record<string, string> =>
-  strapiToken ? { Authorization: `Bearer ${strapiToken}` } : {}
 
 const getJson = async <T>(pathWithQuery: string): Promise<StrapiListResponse<T>> => {
   const res = await fetch(`${API_URL}${pathWithQuery}`, { headers: authHeaders() })

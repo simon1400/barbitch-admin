@@ -1,12 +1,11 @@
 // Data-слой редактора собственного каталога услуг (salon-service, own-booking шаг 6.2).
-// Обычный Strapi REST: GET с явным Bearer VITE_STRAPI_TOKEN (Public-прав у коллекции нет),
-// мутации через Axios (интерсептор сам подставляет токен на POST/PUT/DELETE).
+// Обычный Strapi REST. Авторизация — токен сессии сотрудника (lib/authHeaders);
+// у Axios из lib/api тот же токен вешает интерсептор.
 // ⚠️ Каталог живой: движок /engine/* читает эти же записи — правки сразу видны на сайте.
 
 import { Axios } from '../../../../lib/api'
+import { authHeaders } from '../../../../lib/authHeaders'
 
-const strapiToken = import.meta.env.VITE_STRAPI_TOKEN as string | undefined
-const strapiHeaders = strapiToken ? { Authorization: `Bearer ${strapiToken}` } : undefined
 
 export interface CatalogVariant {
   label: string
@@ -125,7 +124,7 @@ const mapService = (item: RawService): CatalogServiceFull => ({
 export const fetchCatalogServices = async (): Promise<CatalogServiceFull[]> => {
   const data = (await Axios.get(
     `/api/salon-services?${SERVICE_POPULATE}&sort[0]=categoryOrder:asc&sort[1]=order:asc&sort[2]=title:asc&pagination[pageSize]=200`,
-    { headers: strapiHeaders },
+    { headers: authHeaders() },
   )) as unknown as RawService[]
   return (data || []).map(mapService)
 }
@@ -133,7 +132,7 @@ export const fetchCatalogServices = async (): Promise<CatalogServiceFull[]> => {
 export const fetchMasterOptions = async (): Promise<MasterOption[]> => {
   const data = (await Axios.get(
     '/api/personals?fields[0]=name&fields[1]=tier&filters[position][$eq]=master&filters[isActive][$eq]=true&populate[services][fields][0]=title&status=published&pagination[pageSize]=100&sort=name:asc',
-    { headers: strapiHeaders },
+    { headers: authHeaders() },
   )) as unknown as RawPersonal[]
   return (data || []).map((p) => ({
     documentId: p.documentId,
