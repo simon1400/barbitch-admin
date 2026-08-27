@@ -86,15 +86,9 @@ export const previewDiscountReprice = (
 
 export const toMin = (s: string): number => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5))
 
-// Слоты времени брони: 10:00–19:00, шаг 30 мин
+// Слоты времени броней и блоков: 10:00–19:00, шаг 15 мин — как на сайте
+// (STEP_MIN=15 в strapi slots-core). Отдаются десктопным TimeSelect (modals/ui).
 export const TIME_OPTIONS: string[] = (() => {
-  const out: string[] = []
-  for (let m = 10 * 60; m <= 19 * 60; m += 30) out.push(fmtHM(m))
-  return out
-})()
-
-// Слоты времени блоков: 10:00–19:00, шаг 15 мин (десктопный TimeSelect)
-export const TIME_OPTIONS_15: string[] = (() => {
   const out: string[] = []
   for (let m = 10 * 60; m <= 19 * 60; m += 15) out.push(fmtHM(m))
   return out

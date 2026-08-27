@@ -8,7 +8,6 @@ import type { CatalogService, ClientHit } from '../fetch/engineApi'
 import { calcCombo, engineCreateBooking, fetchCatalog, searchClients } from '../fetch/engineApi'
 import {
   EMPTY_SERVICE_SELECTION,
-  TIME_OPTIONS,
   btnPrimaryCls,
   btnSecondaryCls,
   fmtHM,
@@ -18,7 +17,7 @@ import {
   type ServiceSelection,
 } from './helpers'
 import { ServicePicker } from './ServicePicker'
-import { ModalShell, Section } from './ui'
+import { ModalShell, Section, TimeSelect } from './ui'
 
 export interface NewBookingInitial {
   employeeDocId?: string
@@ -315,13 +314,7 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
             </div>
             <div>
               <span className={labelCls}>Čas</span>
-              <select className={inputCls} value={time} onChange={(e) => setTime(e.target.value)}>
-                {(TIME_OPTIONS.includes(time) ? TIME_OPTIONS : [...TIME_OPTIONS, time].sort()).map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+              <TimeSelect value={time} onChange={setTime} />
             </div>
           </div>
 

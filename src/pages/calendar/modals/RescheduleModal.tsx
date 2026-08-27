@@ -8,7 +8,6 @@ import type { CalendarBooking, CalendarEmployee } from '../fetch/calendarDay'
 import { enginePatchBooking, type EngineRepricing } from '../fetch/engineApi'
 import { fmtTime } from '../utils'
 import {
-  TIME_OPTIONS,
   btnPrimaryCls,
   btnSecondaryCls,
   inputCls,
@@ -17,7 +16,7 @@ import {
   toMin,
 } from './helpers'
 import type { SlotFitContext } from './NewBookingModal'
-import { ModalShell, RepriceNotice, Section } from './ui'
+import { ModalShell, RepriceNotice, Section, TimeSelect } from './ui'
 
 export const RescheduleModal = ({
   booking,
@@ -107,7 +106,7 @@ export const RescheduleModal = ({
             </button>
             <button
               type="button"
-              disabled={!changed || !date || submitting}
+              disabled={!changed || !date || !/^\d{2}:\d{2}$/.test(time) || submitting}
               onClick={submit}
               className={`${btnPrimaryCls} flex-1 sm:flex-none`}
             >
@@ -145,13 +144,7 @@ export const RescheduleModal = ({
             </div>
             <div>
               <span className={labelCls}>Čas</span>
-              <select className={inputCls} value={time} onChange={(e) => setTime(e.target.value)}>
-                {(TIME_OPTIONS.includes(time) ? TIME_OPTIONS : [...TIME_OPTIONS, time].sort()).map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+              <TimeSelect value={time} onChange={setTime} />
             </div>
           </div>
           {conflict && (
