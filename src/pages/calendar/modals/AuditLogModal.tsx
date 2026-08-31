@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { deleteCalendarLog, fetchCalendarLogs, type CalendarLog } from '../fetch/calendarLog'
 import { ModalShell } from './ui'
-import { inputCls } from './helpers'
+import { inputCls, parseSummary } from './helpers'
 
 // Метаданные типа действия: чешский лейбл + классы бейджа (light + dark)
 const ACTION_META: Record<string, { label: string; cls: string }> = {
@@ -97,12 +97,16 @@ const LogRow = ({
   onConfirmDelete: () => void
 }) => {
   const meta = actionMeta(log.action)
+  const p = parseSummary(log.summary)
+  // строку не удалось разложить (нестандартный формат) — показываем как есть
+  const bare = !p.subject && !p.when && !p.changes.length && !p.notes.length
   return (
     <div className="relative rounded-lg border border-gray-200 bg-white transition hover:border-gray-300 dark:border-[#3f3f3d] dark:bg-[#2a2a28] dark:hover:border-[#4f4f4c]">
-      <button type="button" onClick={onToggle} className="w-full px-3 py-2 pr-9 text-left">
+      <button type="button" onClick={onToggle} className="w-full pb-[10px] pl-3 pr-9 pt-[9px] text-left">
+        {/* kdo: действие · администратор · когда записано */}
         <div className="flex items-center gap-2">
           <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${meta.cls}`}>{meta.label}</span>
-          <span className="truncate rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-bold text-gray-700 dark:bg-[#3a3a38] dark:text-gray-200">
+          <span className="truncate rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold text-gray-600 dark:bg-[#3a3a38] dark:text-[#b8b8b2]">
             {log.actorName || 'neznámý admin'}
           </span>
           <span
@@ -112,7 +116,51 @@ const LogRow = ({
             {relTime(log.createdAt)}
           </span>
         </div>
-        <div className="mt-1 text-sm text-gray-800 dark:text-gray-300">{log.summary || '—'}</div>
+
+        {/* koho se týká + kdy (термин прижат вправо, цифры моноширинные) */}
+        {bare ? (
+          <div className="mt-[7px] text-[15px] font-bold leading-5 text-gray-900 dark:text-[#f3f4f6]">
+            {log.summary || '—'}
+          </div>
+        ) : (
+          (p.subject || p.when) && (
+            <div className="mt-[7px] flex items-baseline gap-2.5">
+              {p.subject && (
+                <span className="min-w-0 truncate text-[15px] font-bold leading-5 text-gray-900 dark:text-[#f3f4f6]">
+                  {p.subject}
+                </span>
+              )}
+              {p.when && (
+                <span
+                  className={`${p.subject ? 'ml-auto ' : ''}shrink-0 whitespace-nowrap text-[12px] font-semibold tabular-nums text-gray-500 dark:text-gray-400`}
+                >
+                  {p.when}
+                </span>
+              )}
+            </div>
+          )
+        )}
+
+        {/* co se změnilo: старое → новое */}
+        {p.changes.map((ch) => (
+          <div
+            key={`${ch.from}→${ch.to}`}
+            className="mt-1.5 flex flex-col gap-0.5 border-l-2 border-gray-300 pl-[9px] dark:border-[#4a4a47]"
+          >
+            <span className="text-[13px] font-medium leading-[18px] text-gray-400 dark:text-[#8f8f8b]">{ch.from}</span>
+            <span className="flex gap-1.5 text-[13px] font-semibold leading-[18px] text-gray-800 dark:text-[#e5e7eb]">
+              <span className="shrink-0 text-gray-400 dark:text-gray-500">→</span>
+              <span className="min-w-0">{ch.to}</span>
+            </span>
+          </div>
+        ))}
+
+        {p.notes.map((n) => (
+          <div key={n} className="mt-[5px] text-[12px] font-medium leading-[17px] text-gray-500 dark:text-gray-400">
+            {n}
+          </div>
+        ))}
+
         {open && <DetailBlock log={log} />}
       </button>
 
@@ -284,7 +332,7 @@ export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
           <button
             type="button"
             onClick={() => load(page + 1, true)}
-            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 dark:border-[#3f3f3d] dark:bg-[#2a2a28] dark:text-gray-300 dark:hover:bg-[#2e2e2c]"
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-[9px] text-[14px] font-bold text-gray-600 hover:bg-gray-50 dark:border-[#3f3f3d] dark:bg-[#2a2a28] dark:text-gray-300 dark:hover:bg-[#2e2e2c]"
           >
             Načíst starší
           </button>

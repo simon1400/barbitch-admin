@@ -130,3 +130,86 @@ export interface ServiceSelection {
   modKeys: string[]
 }
 export const EMPTY_SERVICE_SELECTION: ServiceSelection = { service: null, variantLabel: '', modKeys: [] }
+
+// ── Разбор `summary` на «kdo · kdy · co se změnilo» ────────────────────────────
+// Движок пишет журнал одной строкой вида
+//   «Změna služby: Jana N. · po 31.8. 13:00 · Gel lak → Gel lak + Design basic»
+// Читать её сплошняком тяжело, поэтому строка раскладывается на части:
+//   subject — кого/чего касается (клиент у броней, мастер у блоков)
+//   when    — термин (день + время), выравнивается вправо
+//   changes — пары «старое → новое» (перенос, смена услуги, правка блока)
+//   notes   — всё остальное (мастер у новой брони, название блока, «čeká na schválení»)
+// Префикс до первого «: » не парсится — он дублирует бейдж действия.
+export interface ParsedSummary {
+  subject: string
+  when: string
+  changes: { from: string; to: string }[]
+  notes: string[]
+}
+
+// Чешские сокращения дня недели из fmtDay движка («po 31.8.»); время — «13:00», «13:00–13:30»
+const DAY_RE = /^(po|út|st|čt|pá|so|ne)\s/
+const TIME_RE = /^\d{1,2}:\d{2}/
+
+export const parseSummary = (raw: string | null): ParsedSummary => {
+  const s = (raw || '').trim()
+  const cut = s.indexOf(': ')
+  const segs = (cut < 0 ? s : s.slice(cut + 2))
+    .split(' · ')
+    .map((x) => x.trim())
+    .filter(Boolean)
+
+  let day = ''
+  const whenParts: string[] = []
+  const changes: { from: string; to: string }[] = []
+  const notes: string[] = []
+
+  // Стрелка без реального изменения бывает двух видов:
+  //   «12:00 → 12:00» — менялся только мастер, время просто уточняет термин;
+  //   «Gel lak → Gel lak» — админ пересохранил услугу, ничего не изменив (на проде 3 записи).
+  // Во втором случае название услуги в термин пускать нельзя — уводим в примечания.
+  const pushArrow = (seg: string) => {
+    const at = seg.indexOf('→')
+    const from = seg.slice(0, at).trim()
+    const to = seg.slice(at + 1).trim()
+    if (from !== to) changes.push({ from, to })
+    else if (TIME_RE.test(from)) whenParts.push(from)
+    else notes.push(from)
+  }
+
+  // первый сегмент — имя клиента/мастера; но оно бывает пустым (у брони без имени,
+  // у блока без мастера), и тогда на его месте оказывается дата — subject остаётся пустым
+  const head = segs[0] || ''
+  const hasSubject = !!head && !DAY_RE.test(head) && !TIME_RE.test(head) && !head.includes('→')
+
+  for (const seg of segs.slice(hasSubject ? 1 : 0)) {
+    if (DAY_RE.test(seg)) {
+      const words = seg.split(' ')
+      const tail = words.slice(2).join(' ')
+      if (day) {
+        // второй сегмент с датой (не бывает в текущих форматах) — кладём целиком,
+        // чтобы ничего не потерять
+        whenParts.push(seg)
+      } else {
+        day = words.slice(0, 2).join(' ')
+        if (tail.includes('→')) pushArrow(tail)
+        // «po 31.8. – pá 4.9. (5×)» — диапазон дат серии блоков остаётся при дне
+        else if (/^[–-]/.test(tail)) day = `${day} ${tail}`
+        else if (tail) whenParts.push(tail)
+      }
+    } else if (seg.includes('→')) {
+      pushArrow(seg)
+    } else if (TIME_RE.test(seg)) {
+      whenParts.push(seg)
+    } else {
+      notes.push(seg)
+    }
+  }
+
+  return {
+    subject: hasSubject ? head : '',
+    when: [day, ...whenParts].filter(Boolean).join(' · '),
+    changes,
+    notes,
+  }
+}
