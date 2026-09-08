@@ -48,14 +48,14 @@ export const HistoryRow = ({ r, onOpen }: { r: ClientHistoryItem; onOpen: (r: Cl
 // Секция «Historie klienta» в drawer — грузит брони клиента, делит на будущие/прошлые.
 // restrictEmployeeId (роль master) → только брони ЭТОГО мастера с клиентом; визиты
 // клиента к другим мастерам мастеру не показываются (и не запрашиваются).
+// Мастеру сервер отдаёт только ЕГО визиты с этим клиентом — проп-ограничение
+// здесь больше не нужно (и не было бы защитой: фильтр из query снимается).
 const ClientHistory = ({
   b,
   onOpen,
-  restrictEmployeeId,
 }: {
   b: CalendarBooking
   onOpen: (r: ClientHistoryItem) => void
-  restrictEmployeeId?: string | null
 }) => {
   const [history, setHistory] = useState<ClientHistoryItem[] | null>(null)
   const [loading, setLoading] = useState(false)
@@ -67,7 +67,6 @@ const ClientHistory = ({
     fetchClientHistory({
       clientDocId: b.client?.documentId,
       clientName: b.clientNameRaw,
-      employeeNoonaId: restrictEmployeeId,
     })
       .then((rows) => {
         if (!cancelled) setHistory(rows.filter((r) => r.documentId !== b.documentId))
@@ -81,7 +80,7 @@ const ClientHistory = ({
     return () => {
       cancelled = true
     }
-  }, [b.documentId, b.client?.documentId, b.clientNameRaw, restrictEmployeeId])
+  }, [b.documentId, b.client?.documentId, b.clientNameRaw])
 
   const today = todayStrPrague()
   const rows = history || []
@@ -412,7 +411,6 @@ export const BookingDrawer = ({
   readOnly = false,
   masterRate = null,
   hidePrice = false,
-  historyEmployeeId = null,
 }: {
   b: CalendarBooking
   labels: BookingLabel[]
@@ -449,7 +447,6 @@ export const BookingDrawer = ({
   hidePrice?: boolean
   // id мастера (noonaEmployeeId) — история клиента ограничивается его бронями.
   // Задаётся только для роли master; у админа/владельца null = вся история.
-  historyEmployeeId?: string | null
 }) => {
   // active + arrived → зелёный бейдж «dorazila» (промежуточный шаг перед proběhla)
   const meta =
@@ -796,7 +793,7 @@ export const BookingDrawer = ({
           </div>
         )}
 
-        <ClientHistory b={b} onOpen={onOpenHistory} restrictEmployeeId={historyEmployeeId} />
+        <ClientHistory b={b} onOpen={onOpenHistory} />
         </div>
 
         {/* Фиксированный футер: кнопки статусов (+ инлайн-подтверждение отмены).

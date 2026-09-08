@@ -5,6 +5,7 @@
 
 import { Axios } from '../../../lib/api'
 import { authHeaders } from '../../../lib/authHeaders'
+import { engineCalendarDay, engineCalendarWeek, engineClientHistory } from './engineApi'
 
 
 export interface CalendarService {
@@ -65,7 +66,7 @@ export interface CalendarBooking {
     applied: boolean
   } | null
   // Сумма ПРИМЕНЁННОЙ к этой брони награды bitchcard (redemption.discountKc).
-  // Живёт в отдельной коллекции — дотягивается пачкой (attachRedemptions), чтобы
+  // Приходит вместе с бронью из ответа движка, чтобы
   // календарь мог показать мастеру процент от ПОЛНОЙ цены (скидку несёт салон).
   redemptionKc?: number | null
 }
@@ -209,27 +210,20 @@ export interface ClientHistoryItem {
   totalPrice: number | null
 }
 
+// Роль master видит только СВОИ визиты с этим клиентом. Ограничение ставит
+// СЕРВЕР (`/engine/admin/clients/history`): раньше оно было фильтром в query,
+// то есть снималось из DevTools вместе с ценами чужих визитов.
 export async function fetchClientHistory(opts: {
   clientDocId?: string | null
   clientName?: string | null
-  // Ограничение выборки одним мастером (роль master видит только СВОИ брони
-  // с этим клиентом — визиты к другим мастерам ему не показываются). Фильтр
-  // уходит в запрос → чужие брони в браузер мастера вообще не приезжают.
-  employeeNoonaId?: string | null
 }): Promise<ClientHistoryItem[]> {
-  const base = opts.clientDocId
-    ? `filters[client][documentId][$eq]=${opts.clientDocId}`
-    : opts.clientName
-      ? `filters[clientNameRaw][$eq]=${encodeURIComponent(opts.clientName)}`
-      : null
-  if (!base) return []
-  const empFilter = opts.employeeNoonaId
-    ? `&filters[noonaEmployeeId][$eq]=${encodeURIComponent(opts.employeeNoonaId)}`
-    : ''
-  const res = (await Axios.get(
-    `/api/bookings?${base}${empFilter}&sort=startsAt:desc&fields[0]=date&fields[1]=startsAt&fields[2]=status&fields[3]=employeeNameRaw&fields[4]=services&fields[5]=totalPrice&pagination[pageSize]=200`,
-    { headers: authHeaders() },
-  )) as ClientHistoryItem[]
+  if (!opts.clientDocId && !opts.clientName) return []
+  // Фильтр «только свои визиты» больше НЕ строится здесь: мастеру его ставит
+  // сервер. Раньше ограничение жило в query, то есть снималось из DevTools.
+  const res = (await engineClientHistory({
+    clientDocId: opts.clientDocId || undefined,
+    clientName: opts.clientName || undefined,
+  })) as ClientHistoryItem[]
   return res || []
 }
 
@@ -280,34 +274,9 @@ const toBlockedRange = (b: MirrorTimeBlock, startMin: number, endMin: number): B
   approvedByName: b.approvedByName ?? null,
 })
 
-// Погашенные награды bitchcard по списку броней → проставляем discountKc в сами брони.
-// Нужно, чтобы календарь считал ПОЛНУЮ цену визита (оплачено + системные скидки) и
-// делил мастеру процент от неё, а не от суммы со скидкой (правило s47: скидку несёт
-// салон). Один запрос на загрузку календаря; сбой/выключенная программа → тихо без
-// скидок (тогда полная цена берётся из снапшота услуг, что для bitchcard тоже верно).
-async function attachRedemptions(bookings: CalendarBooking[]): Promise<void> {
-  const ids = bookings.map((b) => b.documentId).filter(Boolean)
-  if (!ids.length) return
-  try {
-    const params = ids.map((id, i) => `filters[usedInBookingDocId][$in][${i}]=${encodeURIComponent(id)}`).join('&')
-    const res = (await Axios.get(
-      `/api/redemptions?filters[status][$eq]=used&${params}&fields[0]=usedInBookingDocId&fields[1]=discountKc&pagination[pageSize]=200`,
-      { headers: authHeaders() },
-    )) as { usedInBookingDocId: string | null; discountKc: number | null }[]
-    const byBooking = new Map<string, number>()
-    for (const r of res || []) {
-      if (!r.usedInBookingDocId) continue
-      byBooking.set(r.usedInBookingDocId, (byBooking.get(r.usedInBookingDocId) || 0) + (r.discountKc || 0))
-    }
-    if (!byBooking.size) return
-    for (const b of bookings) {
-      const kc = byBooking.get(b.documentId)
-      if (kc) b.redemptionKc = kc
-    }
-  } catch {
-    /* лояльность выключена / нет прав — считаем без bitchcard-скидок */
-  }
-}
+// Скидки bitchcard (`redemptionKc`) приходят прямо в ответе движка — отдельного
+// запроса к `/api/redemptions` больше нет. Так и на один запрос меньше, и мастеру
+// не видны суммы скидок по чужим броням (коллекция ему теперь вообще закрыта).
 
 // Занятые интервалы колонки (для подсказки «служба se nevejde» в модале новой брони).
 // Только active-брони + блоки блокируют слот — движок конфликтует ровно по ним
@@ -329,16 +298,15 @@ export function busyIntervals(col: MasterColumn): { startMin: number; endMin: nu
 
 export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
   const [bookingsRes, employees, schedule] = await Promise.all([
-    Axios.get(
-      `/api/bookings?filters[date][$eq]=${dateStr}&sort=startsAt:asc&populate[client][fields][0]=email&populate[client][fields][1]=phone&populate[client][fields][2]=blacklisted&pagination[pageSize]=200`,
-      { headers: authHeaders() },
-    ) as Promise<CalendarBooking[]>,
+    // 🟥 Не `/api/bookings` напрямую: ручка движка режет данные по роли, и
+    // мастеру контакты клиентов и деньги чужих броней просто не приезжают
+    // (раньше они лежали в браузере, а скрывал их только рендер).
+    engineCalendarDay(dateStr) as Promise<CalendarBooking[]>,
     fetchEmployees(),
     fetchSchedule(dateStr),
   ])
 
   const bookings = bookingsRes || []
-  await attachRedemptions(bookings)
   let { openMin, closeMin } = schedule
   const { blocksByEmp } = schedule
 
@@ -487,10 +455,7 @@ export async function fetchCalendarWeek(
   const sunday = days[6]
 
   const [bookingsRes, hoursRes, blocksRes] = await Promise.all([
-    Axios.get(
-      `/api/bookings?filters[date][$gte]=${monday}&filters[date][$lte]=${sunday}&filters[noonaEmployeeId][$eq]=${employee.id}&sort=startsAt:asc&populate[client][fields][0]=email&populate[client][fields][1]=phone&populate[client][fields][2]=blacklisted&pagination[pageSize]=300`,
-      { headers: authHeaders() },
-    ) as Promise<CalendarBooking[]>,
+    engineCalendarWeek(monday, sunday, employee.id) as Promise<CalendarBooking[]>,
     Axios.get(`/api/salon-hours?filters[date][$gte]=${monday}&filters[date][$lte]=${sunday}&pagination[pageSize]=10`, {
       headers: authHeaders(),
     }) as Promise<MirrorSalonHour[]>,
@@ -501,7 +466,6 @@ export async function fetchCalendarWeek(
   ])
 
   const bookings = bookingsRes || []
-  await attachRedemptions(bookings)
   const bookingsByDate = new Map<string, CalendarBooking[]>()
   for (const b of bookings) {
     const arr = bookingsByDate.get(b.date) || []

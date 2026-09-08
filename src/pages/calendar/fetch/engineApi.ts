@@ -78,6 +78,34 @@ async function engineFetch<T>(method: string, path: string, body?: unknown): Pro
   return json as T
 }
 
+// ── день календаря ──
+
+// Брони дня. Ходим через движок, а НЕ напрямую в /api/bookings: сервер режет
+// по роли (мастеру не отдаёт контакты клиентов и деньги чужих броней).
+// Тип ответа намеренно `unknown[]` — форму описывает CalendarBooking в
+// calendarDay.ts, дублировать её здесь незачем.
+export const engineCalendarDay = (date: string) =>
+  engineFetch<unknown[]>('GET', `/engine/admin/calendar/day?date=${encodeURIComponent(date)}`)
+
+// Неделя одного мастера. Мастеру сервер подставит его собственного независимо
+// от того, что ушло в параметре.
+export const engineCalendarWeek = (monday: string, sunday: string, employeeId: string) =>
+  engineFetch<unknown[]>(
+    'GET',
+    `/engine/admin/calendar/week?monday=${encodeURIComponent(monday)}&sunday=${encodeURIComponent(
+      sunday,
+    )}&employee=${encodeURIComponent(employeeId)}`,
+  )
+
+// История визитов клиента. Ограничение «только свои визиты» для мастера теперь
+// на сервере — параметр employee отсюда не передаётся вовсе.
+export const engineClientHistory = (opts: { clientDocId?: string; clientName?: string }) => {
+  const q = opts.clientDocId
+    ? `clientDocId=${encodeURIComponent(opts.clientDocId)}`
+    : `clientName=${encodeURIComponent(opts.clientName || '')}`
+  return engineFetch<unknown[]>('GET', `/engine/admin/clients/history?${q}`)
+}
+
 // ── мутации броней ──
 
 export interface EngineServiceItem {

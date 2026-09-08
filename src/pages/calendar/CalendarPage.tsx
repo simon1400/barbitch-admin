@@ -1172,7 +1172,6 @@ export default function CalendarPage() {
           hidePrice={priceEmployeeId != null && selected.noonaEmployeeId !== priceEmployeeId}
           // Мастеру — история клиента только по ЕГО броням (визиты к другим мастерам
           // не показываем). '__none__' — fail-closed, если personal не сопоставлен.
-          historyEmployeeId={priceEmployeeId}
         />
       )}
       {reschedule && (
