@@ -1,10 +1,9 @@
+import { API_URL } from './config'
 // Web Push подписка (PWA мастеров): регистрирует service worker sw.js, спрашивает
 // разрешение, подписывается через VAPID и шлёт подписку в движок (/engine/push/*).
 // Всё gated: если браузер не поддерживает или VAPID-ключа нет — тихо ничего не делает.
 
 import { getToken } from '../services/auth'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:1350'
 
 export type PushState =
   | 'unsupported' // нет serviceWorker/PushManager/Notification

@@ -1,3 +1,4 @@
+import { API_URL } from './config'
 import { authHeaders } from './authHeaders'
 // Общий data-слой ЗЕРКАЛА (собственные коллекции Strapi: booking / client /
 // salon-hour / time-block / personal) для аналитики и дашбордов admin-апки.
@@ -6,8 +7,6 @@ import { authHeaders } from './authHeaders'
 // Чистый fetch (НЕ Axios из lib/api): его интерсептор разворачивает res.data.data
 // и теряет meta.pagination, а на мутациях подменяет Authorization. Все GET с явным
 // Bearer strapi-токеном (booking/client содержат PII — Public-права не включаем).
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:1337'
 
 interface StrapiListResponse<T> {
   data: T[]

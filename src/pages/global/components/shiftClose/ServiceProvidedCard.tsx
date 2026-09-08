@@ -1,3 +1,4 @@
+import { API_URL as STRAPI_URL } from '../../../../lib/config'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { memo, useMemo } from 'react'
 import {
@@ -9,7 +10,8 @@ import {
   type VerifyFlag,
 } from '../../fetch/shiftClose'
 import { CheckCard } from './CheckCard'
-import { CommentPopover, hasComment } from './CommentPopover'
+import { CommentPopover } from './CommentPopover'
+import { hasComment } from './helpers'
 import {
   buildOfferMatches,
   sortByClientName,
@@ -17,7 +19,7 @@ import {
   type OfferMatchStatus,
 } from './helpers'
 
-const STRAPI_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:1337'
+
 
 const strapiLink = (documentId: string) =>
   `${STRAPI_URL}/admin/content-manager/collection-types/api::service-provided.service-provided/${documentId}?status=draft`

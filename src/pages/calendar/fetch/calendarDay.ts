@@ -8,7 +8,7 @@ import { authHeaders } from '../../../lib/authHeaders'
 import { engineCalendarDay, engineCalendarWeek, engineClientHistory } from './engineApi'
 
 
-export interface CalendarService {
+interface CalendarService {
   title: string
   price: number | null
   durationMin: number | null
@@ -73,7 +73,7 @@ export interface CalendarBooking {
 
 // approved — блок действует (занимает время); pending — ждёт подтверждения владельца;
 // rejected — владелец отклонил (в календаре виден помеченным, слоты НЕ занимает).
-export type BlockApproval = 'approved' | 'pending' | 'rejected'
+type BlockApproval = 'approved' | 'pending' | 'rejected'
 
 export interface BlockedRange {
   startMin: number

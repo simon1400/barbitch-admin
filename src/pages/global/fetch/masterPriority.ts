@@ -7,12 +7,20 @@ export interface MasterPriorityData {
   bookingPriority: number
 }
 
+/** Сырая запись personal из Strapi (часть полей может отсутствовать). */
+interface RawMasterPersonal {
+  documentId: string
+  name: string
+  noonaEmployeeId?: string | null
+  bookingPriority?: number | null
+}
+
 export const fetchMasters = async (): Promise<MasterPriorityData[]> => {
-  const data: any[] = await Axios.get(
+  const data: RawMasterPersonal[] = await Axios.get(
     '/api/personals?fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=bookingPriority&filters[position][$eq]=master&filters[isActive][$eq]=true&pagination[pageSize]=100&status=published',
   )
 
-  return (data || []).map((item: any) => ({
+  return (data || []).map((item) => ({
     documentId: item.documentId,
     name: item.name,
     noonaEmployeeId: item.noonaEmployeeId || null,

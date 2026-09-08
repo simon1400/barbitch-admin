@@ -1,6 +1,5 @@
+import { API_URL } from '../lib/config'
 import type { UserRole } from '../types/admin'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:1337'
 
 export interface LoginResponse {
   username: string
@@ -100,7 +99,7 @@ export async function loginUser(
 // (у календаря на старте несколько запросов сразу) должны схлопываться в один.
 let statusInFlight: Promise<{ isActive: boolean } | null> | null = null
 
-export function checkUserStatus(): Promise<{ isActive: boolean } | null> {
+function checkUserStatus(): Promise<{ isActive: boolean } | null> {
   if (statusInFlight) return statusInFlight
   statusInFlight = requestUserStatus().finally(() => {
     statusInFlight = null

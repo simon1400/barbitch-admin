@@ -5,16 +5,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CalendarBooking, ClientHistoryItem } from './fetch/calendarDay'
 import { fetchClientHistory, todayStrPrague } from './fetch/calendarDay'
-import type { BookingLabel } from './fetch/bookingLabels'
 import type { BookingRedemption, LoyaltyProgress } from './fetch/engineApi'
 import { fetchBookingRedemptions } from './fetch/engineApi'
 import { bookingFullPrice, masterShare } from './pricing'
 import { STATUS_META, fmtTime } from './utils'
 import { VisitCloseSection } from './VisitCloseSection'
-
-// Карточка «Štítek» (кастомные лейблы + «Spravovat štítky») временно скрыта по решению владельца.
-// Вернуть = поставить true. Авто-лейблы по статусу на карточках грида это не трогает.
-const SHOW_LABEL_CARD = false
 
 // Строка истории клиента (прошлая/будущая бронь) — клик открывает её день в календаре.
 // Экспортируется: переиспользуется в модале глобального поиска клиента (ClientSearchModal)
@@ -389,14 +384,11 @@ const dateLabelCs = (dateStr: string): string => {
 // смены услуги/лейблов/удаления; детали и история клиента остаются.
 export const BookingDrawer = ({
   b,
-  labels,
   onClose,
   onStatus,
   onSaveComment,
   onToggleBlacklist,
   onArrived,
-  onLabel,
-  onManageLabels,
   onOpenHistory,
   onChangeService,
   onReschedule,
@@ -413,7 +405,6 @@ export const BookingDrawer = ({
   hidePrice = false,
 }: {
   b: CalendarBooking
-  labels: BookingLabel[]
   onClose: () => void
   // note — необязательная позна́мка при отмене/noshow, дописывается к comment брони
   onStatus: (status: CalendarBooking['status'], notify?: boolean, note?: string) => void
@@ -422,8 +413,6 @@ export const BookingDrawer = ({
   // блэклист клиента (карточка Kontakt) — блокирует ему запись через сайт
   onToggleBlacklist: (next: boolean) => void
   onArrived: () => void
-  onLabel: (label: { name: string; color: string } | null) => void
-  onManageLabels: () => void
   onOpenHistory: (r: ClientHistoryItem) => void
   onChangeService: () => void
   onReschedule: () => void
@@ -737,53 +726,6 @@ export const BookingDrawer = ({
             )}
           </div>
         ) : null}
-
-        {/* Read-only (master): štítek показываем статично, без управления */}
-        {SHOW_LABEL_CARD && readOnly && b.label && (
-          <div className="mt-3 rounded-xl border border-gray-200 p-3 dark:border-[#2e2e2c]">
-            <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Štítek</div>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: b.label.color }} />
-              {b.label.name}
-            </span>
-          </div>
-        )}
-
-        {/* Карточка «Štítek» (только активные; прошедшие/отменённые получают авто-лейбл) */}
-        {SHOW_LABEL_CARD && b.status === 'active' && !readOnly && (
-          <div className="mt-3 rounded-xl border border-gray-200 p-3 dark:border-[#2e2e2c]">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Štítek</span>
-              <button type="button" onClick={onManageLabels} className="rounded-md border border-pink-300 bg-white px-3 py-2 text-xs font-semibold text-primary shadow-sm transition hover:bg-pink-50 dark:border-[#e71e6e80] dark:bg-transparent dark:shadow-none dark:hover:bg-[#e71e6e26] sm:px-2.5 sm:py-1">
-                Spravovat štítky
-              </button>
-            </div>
-            {labels.length ? (
-              <div className="flex flex-wrap gap-1.5">
-                {labels.map((l) => {
-                  const isSet = b.label?.name === l.name && b.label?.color === l.color
-                  return (
-                    <button
-                      key={l.documentId}
-                      type="button"
-                      disabled={busy}
-                      onClick={() => onLabel(isSet ? null : { name: l.name, color: l.color })}
-                      className={`flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition disabled:opacity-40 sm:px-2.5 sm:py-1 ${
-                        isSet ? 'border-gray-700 bg-gray-100 text-gray-900' : 'border-gray-300 bg-white text-gray-600 hover:border-gray-400'
-                      }`}
-                    >
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: l.color }} />
-                      {l.name}
-                      {isSet && <span className="text-gray-400">✕</span>}
-                    </button>
-                  )
-                })}
-              </div>
-            ) : (
-              <p className="text-xs text-gray-400">Zatím žádné štítky — vytvořte je přes „Spravovat štítky“.</p>
-            )}
-          </div>
-        )}
 
         {/* Когда/кем/через что создана резервация (движок: site/admin+имя; зеркало: канал Noona) */}
         {(bookingCreatedLabel(b) || bookingSourceLabel(b)) && (

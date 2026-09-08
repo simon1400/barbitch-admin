@@ -4,19 +4,19 @@ import { getEventsHistory, fetchEmployeeNames, todayStr } from './eventsHistory'
 // «Потеряно» = длительность слота и цена брони. Для отмен это верхняя оценка
 // (слот могли перебронировать), для no-show — фактическая потеря.
 
-export interface CancelStats {
+interface CancelStats {
   count: number
   lostMin: number
   lostMoney: number
 }
 
-export interface MasterCancelRow {
+interface MasterCancelRow {
   name: string
   noshow: CancelStats
   cancelled: CancelStats
 }
 
-export interface ClientCancelRow {
+interface ClientCancelRow {
   customerId: string
   name: string
   noshowCount: number
@@ -25,7 +25,7 @@ export interface ClientCancelRow {
   lastDate: string
 }
 
-export interface WeekdayCancelRow {
+interface WeekdayCancelRow {
   label: string
   noshow: number
   cancelled: number

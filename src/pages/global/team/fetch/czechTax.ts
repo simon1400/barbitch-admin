@@ -148,7 +148,7 @@ export const workingDaysInMonth = (month: number, year: number): number => {
 // --- Náhrada mzdy (nemoc, первые 14 дней): редукция часового заработка §192 ZP ---
 // 90 % до 1-й границы, 60 % между 1-й и 2-й, 30 % между 2-й и 3-й, выше — не считается.
 // Náhrada = 60 % редуцированного часового × часы болезни.
-export const reduceHourly = (phv: number, p: TaxParams): number => {
+const reduceHourly = (phv: number, p: TaxParams): number => {
   let r = Math.min(phv, p.redukce1) * 0.9
   if (phv > p.redukce1) r += (Math.min(phv, p.redukce2) - p.redukce1) * 0.6
   if (phv > p.redukce2) r += (Math.min(phv, p.redukce3) - p.redukce2) * 0.3
@@ -308,12 +308,12 @@ type GrossInput = Pick<
 
 // true, если ту же čistou у DPP можно объяснить И суммой под лимитом (без
 // pojistného), И суммой над лимитом. Тогда выбор ветки — за пользователем.
-export const dppAmbiguous = (targetNet: number, input: GrossInput, p: TaxParams): boolean => {
+const dppAmbiguous = (targetNet: number, input: GrossInput, p: TaxParams): boolean => {
   if (input.contract !== 'dpp' || targetNet <= 0) return false
   return targetNet <= computeFromGross(p.dppThreshold - 1, input, p).net
 }
 
-export const grossFromNet = (targetNet: number, input: GrossInput, p: TaxParams): number => {
+const grossFromNet = (targetNet: number, input: GrossInput, p: TaxParams): number => {
   if (targetNet <= 0) return 0
   if (input.contract === 'osvc') return targetNet // фактура = ровно то, что заплатили
   if (input.contract === 'dpp') {

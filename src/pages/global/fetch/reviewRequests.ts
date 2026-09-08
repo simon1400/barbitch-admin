@@ -1,10 +1,9 @@
+import { API_URL as strapiUrl } from '../../../lib/config'
 import { authHeaders } from '../../../lib/authHeaders'
 // Data-слой журнала писем-просьб об отзыве (Strapi review-request-log, s175).
 // В коллекции лежат имя и e-mail клиента, Public-прав у неё нет — запрос идёт
 // с токеном сессии сотрудника (см. lib/authHeaders).
 // Пишет в коллекцию только крон Strapi, админка её лишь читает.
-
-const strapiUrl = import.meta.env.VITE_API_URL || 'http://localhost:1337'
 
 export interface ReviewRequestLog {
   id: number

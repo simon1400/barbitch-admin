@@ -1,3 +1,4 @@
+import { API_URL } from '../../../lib/config'
 // Клиент админских ручек движка бронирования (/api/engine/admin/*) + каталог
 // salon-service + поиск клиентов. Мутации движка идут ЧИСТЫМ fetch с admin-jwt
 // (userJwt из localStorage): Axios-интерсептор admin-апки принудительно подменяет
@@ -8,11 +9,11 @@ import { Axios } from '../../../lib/api'
 import { getToken } from '../../../services/auth'
 import { authHeaders } from '../../../lib/authHeaders'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:1337'
+
 
 // ── ошибки движка ──
 
-export class EngineApiError extends Error {
+class EngineApiError extends Error {
   status: number
   code: string
   constructor(status: number, code: string, message: string) {
@@ -108,7 +109,7 @@ export const engineClientHistory = (opts: { clientDocId?: string; clientName?: s
 
 // ── мутации броней ──
 
-export interface EngineServiceItem {
+interface EngineServiceItem {
   service: string // salon-service documentId
   variant?: string | null
   modifiers?: string[]
@@ -162,7 +163,7 @@ export interface EngineRepricing {
 
 // Пересчёт применённой скидки (bitchcard / −15 % за дозапис) при смене состава
 // услуг: движок считает её от НОВОЙ суммы и возвращает итог (s174).
-export interface EngineDiscountReprice {
+interface EngineDiscountReprice {
   kind: 'bitchcard' | 'rebook'
   label: string
   code: string | null

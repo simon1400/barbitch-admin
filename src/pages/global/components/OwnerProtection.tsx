@@ -1,4 +1,4 @@
-import { useAppContext } from '../../../context/AppContext'
+import { useAppContext } from '../../../context/useAppContext'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { rolesForPathname } from '../../../moduleAccess'

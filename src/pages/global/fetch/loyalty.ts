@@ -1,3 +1,4 @@
+import { API_URL } from '../../../lib/config'
 // Data-слой admin-таба «Лояльность» (bitchcard, К3).
 //
 // Чистый fetch (НЕ Axios из lib/api: его интерсептор разворачивает res.data.data —
@@ -7,13 +8,12 @@
 import { getSession } from '../../../services/auth'
 import { authHeaders } from '../../../lib/authHeaders'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:1337'
+
 
 interface StrapiListResponse<T> {
   data: T[]
   meta?: { pagination?: { pageCount?: number; total?: number } }
 }
-
 
 const getJson = async <T>(pathWithQuery: string): Promise<StrapiListResponse<T>> => {
   const res = await fetch(`${API_URL}${pathWithQuery}`, { headers: authHeaders() })
@@ -52,7 +52,7 @@ const fetchAllPages = async <T>(path: string, pageSize = 500): Promise<T[]> => {
 
 // ── типы ──
 
-export interface LoyaltyTx {
+interface LoyaltyTx {
   id: number
   documentId: string
   delta: number
@@ -261,7 +261,7 @@ interface RedemptionMetricRow {
   reward: { documentId: string; title: string; thresholdKc: number } | null
 }
 
-export interface RewardTierMetric {
+interface RewardTierMetric {
   title: string
   thresholdKc: number
   available: number

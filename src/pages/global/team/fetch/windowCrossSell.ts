@@ -48,7 +48,7 @@ export const BUCKET_LABEL: Record<Bucket, string> = {
   lashes: 'Ресницы',
 }
 // Для текста письма (чешский, в нижнем регистре — встраивается в предложение)
-export const BUCKET_LABEL_CS: Record<Bucket, string> = {
+const BUCKET_LABEL_CS: Record<Bucket, string> = {
   manicure: 'manikúra',
   brows: 'obočí',
   lashes: 'řasy',
@@ -57,7 +57,7 @@ export const BUCKET_LABEL_CS: Record<Bucket, string> = {
 // Классификация по названию услуги/категории каталога. Покрывает и снапшоты услуг
 // в бронях (services[].title). Порядок важен: «řas» (ресницы) проверяем до «obočí»,
 // маникюр — последним. ⚠️ При новых категориях каталога — дополнить ключевые слова.
-export const classifyTitle = (raw: string): Bucket | null => {
+const classifyTitle = (raw: string): Bucket | null => {
   const t = raw.toLowerCase()
   if (t.includes('řas') || t.includes('rias') || t.includes('lash')) return 'lashes'
   // Брови: многие услуги БЕЗ слова «obočí» (Laminace, Úprava tvaru, Korekce…).
@@ -173,7 +173,7 @@ const fetchOfferableServices = async (): Promise<CatalogSvc[]> => {
 }
 
 // ─── Лог предложений (дедуп) ────────────────────────────────────────────────
-export interface WindowOfferLog {
+interface WindowOfferLog {
   documentId: string
   bookingEventId: string
   offeredCategory: string
@@ -189,7 +189,7 @@ export interface WindowOfferLog {
   sentAt: string
 }
 
-export const fetchOfferLogs = async (): Promise<WindowOfferLog[]> => {
+const fetchOfferLogs = async (): Promise<WindowOfferLog[]> => {
   const logs: WindowOfferLog[] = []
   let page = 1
   for (;;) {
@@ -252,7 +252,7 @@ export const fetchOfferLogs = async (): Promise<WindowOfferLog[]> => {
 
 // ─── Кандидат ──────────────────────────────────────────────────────────────
 // Вариант услуги для выбора (используется в модале «дозапись в окно»)
-export interface ServiceOption {
+interface ServiceOption {
   serviceId: string
   serviceTitle: string
   serviceDurationMin: number
@@ -743,7 +743,7 @@ export const sendCrossSellOffers = async (
 // оффера (anchorDate) или позже, СОЗДАННАЯ после отправки письма. Точная отметка
 // факта — в комментарии брони (bb_offer-атрибуция); здесь — приблизительный
 // матчинг по истории событий (как в win-back).
-export interface OfferResult {
+interface OfferResult {
   log: WindowOfferLog
   converted: boolean
   bookingDate: string | null

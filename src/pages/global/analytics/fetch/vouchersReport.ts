@@ -5,7 +5,7 @@ import { Axios } from '../../../../lib/api'
 // Жизненный цикл: dateOrder (заказан) → datePay (оплачен) → dateRealized (использован).
 // «Висит» (liability) = оплачен, но не использован — обязательство салона.
 
-export interface VoucherRecord {
+interface VoucherRecord {
   id: number
   documentId: string
   name: string
@@ -17,7 +17,7 @@ export interface VoucherRecord {
   idVoucher: string
 }
 
-export interface VoucherMonthRow {
+interface VoucherMonthRow {
   month: string // 'YYYY-MM'
   label: string
   orderedCount: number

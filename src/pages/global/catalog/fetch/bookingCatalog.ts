@@ -244,7 +244,7 @@ export const createService = async (payload: ServicePayload): Promise<string> =>
 // версии (draft + published), как salon_service_migrate.mjs: движок читает
 // published personals. ⚠️ PUT ?status=published публикует текущий драфт personal.
 
-export const setMasterServices = async (
+const setMasterServices = async (
   personalDocId: string,
   serviceDocIds: string[],
 ): Promise<void> => {

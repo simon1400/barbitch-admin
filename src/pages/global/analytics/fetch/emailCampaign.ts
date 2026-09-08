@@ -12,7 +12,7 @@ import { getEventsHistory, isAttended, todayStr } from './eventsHistory'
 // /api/send-bulk-email (Resend, шаблоны client/src/app/api/email-templates/*.html).
 
 
-export interface CampaignExtraVar {
+interface CampaignExtraVar {
   key: string // {{key}} в html-шаблоне
   label: string
   defaultValue: string
@@ -204,7 +204,7 @@ export const daysSinceIso = (iso: string): number =>
 // Спящие на момент отправки НЕ имели будущей брони → любая активная запись
 // с датой ПОЗЖЕ дня отправки гарантированно создана после письма.
 
-export interface CampaignConversion {
+interface CampaignConversion {
   customerId: string
   name: string
   email: string

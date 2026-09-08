@@ -14,14 +14,14 @@ interface Interval {
   end: number
 }
 
-export interface GapInterval {
+interface GapInterval {
   start: string // 'HH:MM'
   end: string
   durationMin: number
   dead: boolean
 }
 
-export interface DayGaps {
+interface DayGaps {
   date: string // 'YYYY-MM-DD'
   capacityMin: number
   bookedMin: number

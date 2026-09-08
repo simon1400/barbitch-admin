@@ -52,7 +52,7 @@ export const buildQuery = (
   )
 }
 
-export const buildQueryCost = (
+const buildQueryCost = (
   fields: string[],
   dateField: string,
   firstDay: Date,

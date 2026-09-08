@@ -10,8 +10,11 @@ import {
 } from 'recharts'
 import { CHART } from '../../../../ui/chartColors'
 
+// Строки графика: у каждой ключ date + числовые серии, имена которых задаёт
+// вызывающий через lines[].dataKey. Конкретные интерфейсы строк у страниц свои,
+// поэтому здесь только «массив объектов».
 interface Props {
-  data: any
+  data: object[]
   lines: {
     dataKey: string
     stroke: string

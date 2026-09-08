@@ -4,7 +4,7 @@ import type { ShiftCheckResult } from '../../fetch/shiftClose'
 export const fmt = (n: number) =>
   n.toLocaleString('cs-CZ', { maximumFractionDigits: 0 })
 
-export const normalize = (name: string) =>
+const normalize = (name: string) =>
   name
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -49,7 +49,7 @@ export const bookingServiceTitle = (booking: any): string =>
     .filter(Boolean)
     .join(' + ')
 
-export interface BookingMatchResult {
+interface BookingMatchResult {
   /** запись → её бронь (событие календаря) */
   linked: Map<any, any>
   /** записи С линком, чьей брони в списке дня нет (отменена/удалена) */
@@ -62,7 +62,7 @@ export interface BookingMatchResult {
 
 // Каждое событие «съедается» максимум один раз (у клиента с двумя визитами в день
 // каждая запись матчится на свою бронь).
-export const matchByBooking = (items: any[], events: any[]): BookingMatchResult => {
+const matchByBooking = (items: any[], events: any[]): BookingMatchResult => {
   const byId = new Map<string, any[]>()
   for (const e of events) {
     const id = e?.id ? String(e.id) : ''
@@ -179,7 +179,7 @@ export const buildOfferMatches = (items: any[], events: any[]): Map<any, OfferMa
 // Pure client-name multiset diff between Strapi service rows and calendar
 // bookings. Returns the records on each side that have no counterpart by name.
 // Internal services must be filtered out by the caller (never in the calendar).
-export const diffByName = (
+const diffByName = (
   strapiItems: any[],
   calendarEvents: any[],
 ): { strapiExtra: any[]; calendarExtra: any[] } => {
@@ -272,4 +272,12 @@ export const getDiff = (result: ShiftCheckResult) => {
   )
   if (strapiExtra.length === 0 && calendarExtra.length === 0) return null
   return { strapiExtra, calendarExtra }
+}
+
+// Есть ли в (возможно HTML) строке видимый текст после срезания тегов.
+// Жил в CommentPopover.tsx — переехал сюда: файл с компонентом обязан
+// экспортировать только компоненты (react-refresh).
+export const hasComment = (raw: unknown) => {
+  if (!raw || typeof raw !== 'string') return false
+  return raw.replace(/<[^>]*>/g, '').trim().length > 0
 }

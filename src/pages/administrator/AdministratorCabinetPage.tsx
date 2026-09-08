@@ -1,3 +1,4 @@
+import { API_URL } from '../../lib/config'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { h1Cls, kickerCls, pageShellCls, toolbarCardCls } from '../../ui/kit'
 import { useState, useEffect, useMemo } from 'react'
@@ -137,7 +138,7 @@ const AdministratorCabinetPage = () => {
   const workTimesPerPage = 10
 
   const username = getSession()?.username ?? null
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:1337'
+
 
   // Получаем глобальные данные для графиков
   const { data: globalData } = useGlobalMonthData(selectedMonth, selectedYear)
@@ -170,7 +171,7 @@ const AdministratorCabinetPage = () => {
     }
 
     fetchData()
-  }, [username, API_URL])
+  }, [username])
 
   // Фильтрация данных по выбранному месяцу и году
   const filteredData = useMemo(() => {

@@ -10,7 +10,7 @@ import type { Result } from './allWorks'
 // ⚠️ Раньше это кодировалось тремя разрозненными списками-исключениями
 // (ADMIN_MASTERS в Masters.tsx, excludeFromMasters в allWorks.ts, excludeFromAdmins
 // в allAdminsHours.ts). Теперь это ОДИН источник истины. Новый совместитель → добавить сюда.
-export const DUAL_ROLE_WORKERS = ['Mariia Medvedeva', 'Oleksandra Fishchuk']
+const DUAL_ROLE_WORKERS = ['Mariia Medvedeva', 'Oleksandra Fishchuk']
 
 export interface CombinedResult {
   name: string

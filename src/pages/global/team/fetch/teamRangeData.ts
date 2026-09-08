@@ -55,6 +55,7 @@ export const getTeamRangeData = (
   return data
 }
 
+/** @public Сброс кэша среза. В приложении вызова нет — держится ради стенда .audit-sim. */
 export const invalidateTeamRangeData = () => {
   cache = null
 }

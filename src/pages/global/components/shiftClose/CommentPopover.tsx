@@ -20,12 +20,6 @@ const sanitize = (html: string) =>
     ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|tel:)/i,
   })
 
-// True if the (possibly HTML) string has any visible text once tags are stripped.
-export const hasComment = (raw: unknown) => {
-  if (!raw || typeof raw !== 'string') return false
-  return raw.replace(/<[^>]*>/g, '').trim().length > 0
-}
-
 // 💬 button that toggles a popover with rendered CKEditor HTML.
 // Shared by ServiceProvidedCard (deal comment) and WorkTimeCard (worker comment).
 export const CommentPopover = ({ html }: { html: string }) => {

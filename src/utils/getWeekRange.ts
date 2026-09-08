@@ -1,21 +1,5 @@
-export const getWeekRange = (year: number, month: number, weekNumber: number) => {
-  // Вычисляем начало недели (weekNumber: 0 = первая неделя месяца)
-  const startDay = weekNumber * 7 + 1
-  const firstDay = new Date(Date.UTC(year, month, startDay, 0, 0, 0, 0))
-
-  // Конец недели (7 дней от начала)
-  const lastDay = new Date(Date.UTC(year, month, startDay + 6, 23, 59, 59, 999))
-
-  // Убеждаемся, что не выходим за пределы месяца
-  const lastDayOfMonth = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999))
-
-  return {
-    firstDay,
-    lastDay: lastDay > lastDayOfMonth ? lastDayOfMonth : lastDay,
-  }
-}
-
-// Альтернативный вариант: получить неделю по конкретной дате
+// Диапазон текущей недели (понедельник..воскресенье) в UTC.
+// Единственный потребитель — dashboard/hooks/useGlobalWeekData.ts.
 export const getCurrentWeekRange = (date: Date = new Date()) => {
   const currentDate = new Date(date)
 
@@ -34,28 +18,6 @@ export const getCurrentWeekRange = (date: Date = new Date()) => {
 
   // Вычисляем конец недели (воскресенье)
   const lastDay = new Date(Date.UTC(year, month, dayOfMonth + diff + 6, 23, 59, 59, 999))
-
-  return { firstDay, lastDay }
-}
-
-// Получить диапазон недели по ISO стандарту (неделя начинается с понедельника)
-export const getISOWeekRange = (year: number, weekNumber: number) => {
-  // Находим 4 января (это всегда в первой неделе года по ISO)
-  const jan4 = new Date(Date.UTC(year, 0, 4))
-
-  // Находим понедельник первой недели
-  const firstMonday = new Date(jan4)
-  firstMonday.setDate(jan4.getDate() - (jan4.getDay() + 6) % 7)
-
-  // Вычисляем начало нужной недели
-  const firstDay = new Date(firstMonday)
-  firstDay.setDate(firstMonday.getDate() + (weekNumber - 1) * 7)
-  firstDay.setHours(0, 0, 0, 0)
-
-  // Конец недели (воскресенье)
-  const lastDay = new Date(firstDay)
-  lastDay.setDate(firstDay.getDate() + 6)
-  lastDay.setHours(23, 59, 59, 999)
 
   return { firstDay, lastDay }
 }

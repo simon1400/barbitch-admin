@@ -5,7 +5,7 @@ import { getExpenses } from '../../fetch/expenses'
 // ⚠️ «Выручка» здесь = сумма ЦЕН броней (event_types price), а не фактическая касса —
 // скидки/допродажи/ваучеры не учитываются. Это оценка темпа, точные деньги — в GlobalPage.
 
-export interface MonthRevenueRow {
+interface MonthRevenueRow {
   month: string // 'YYYY-MM'
   label: string
   revenue: number

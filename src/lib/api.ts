@@ -1,7 +1,6 @@
+import { API_URL as apiUrl } from './config'
 import axios from 'axios'
 import { enforceActiveSession, getToken } from '../services/auth'
-
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:1337'
 
 export const Axios = axios.create({
   baseURL: apiUrl,

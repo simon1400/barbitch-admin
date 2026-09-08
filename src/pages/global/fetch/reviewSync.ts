@@ -1,7 +1,6 @@
+import { API_URL as strapiUrl } from '../../../lib/config'
 import { Axios } from '../../../lib/api'
 import { authHeaders } from '../../../lib/authHeaders'
-
-const strapiUrl = import.meta.env.VITE_API_URL || 'http://localhost:1337'
 
 export interface GoogleReview {
   id: number

@@ -1,3 +1,4 @@
+import { API_URL as strapiUrl } from './config'
 // Единая точка отправки маркетинговых рассылок из админки (s175).
 //
 // Раньше все три пути (страница «Email kampaň», win-back из «Спящих»,
@@ -10,8 +11,6 @@
 // Фильтрация намеренно НЕ здесь: из браузера её можно было бы обойти.
 
 import { getToken } from '../services/auth'
-
-const strapiUrl = import.meta.env.VITE_API_URL || 'http://localhost:1337'
 
 export interface CampaignRecipientInput {
   email: string
@@ -34,13 +33,6 @@ export interface CampaignSendResult {
   skippedDetail: Array<{ email: string; reason: string }>
   acceptedEmails: string[]
   requireConsent: boolean
-}
-
-export const SKIP_REASON_LABEL: Record<string, string> = {
-  optOut: 'отписался (NEZASÍLAT)',
-  blacklisted: 'в чёрном списке',
-  noConsent: 'нет согласия на рассылку',
-  invalid: 'некорректный адрес',
 }
 
 export async function sendCampaign(

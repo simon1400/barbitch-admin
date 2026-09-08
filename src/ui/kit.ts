@@ -84,13 +84,14 @@ export const toolbarCardCls = `${cardCls} px-4 py-3 mb-3.5 flex items-center jus
 /** Плитка-показатель (нейтральная). */
 export const tileCls = 'rounded-[10px] px-4 py-[13px] bg-surface-tile'
 
-/** Плитка-показатель (розовый акцент). */
+/** @public Плитка-показатель (розовый акцент). Пока не подключена — см. этап 5.3 аудита. */
 export const tileAccentCls = 'rounded-[10px] px-4 py-[13px] bg-brand-tint border border-brand-line'
 
 export const tileLabelCls =
   'text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-soft mb-[5px]'
 export const tileValueCls = 'text-[21px] font-extrabold leading-[1.15] text-ink'
 export const tileValueNegCls = 'text-[21px] font-extrabold leading-[1.15] text-neg'
+/** @public Пока не подключено — литеральные копии в страницах, см. этап 5.3 аудита. */
 export const tileValueAccentCls = 'text-[21px] font-extrabold leading-[1.15] text-brand-dark'
 export const tileSubCls = 'text-[11.5px] font-semibold text-ink-faint mt-[3px]'
 
@@ -116,7 +117,10 @@ export const chipCls = (on: boolean): string =>
     ? 'bg-brand-tint border-brand-line text-brand-dark'
     : 'bg-white border-line-chip text-ink-soft')
 
-/** Строка грид-таблицы: ховер + разделитель сверху (кроме первой). */
+/**
+ * @public Строка грид-таблицы: ховер + разделитель сверху (кроме первой).
+ * Пока не подключено — литеральные копии в страницах, см. этап 5.3 аудита.
+ */
 export const gridRowCls = (idx: number): string =>
   'items-center py-[10px] px-2 -mx-2 rounded-lg transition-colors hover:bg-surface-hover' +
   (idx > 0 ? ' border-t border-line-soft' : '')
@@ -134,7 +138,12 @@ export const NUM_CELL = 'text-right'
 export const NEG_CELL = 'text-right text-neg'
 export const RESULT_CELL = 'text-right !text-brand-dark'
 
-/** Итоговая строка под таблицей. */
+/**
+ * @public Итоговая строка под таблицей.
+ * Пока не подключено — литеральные копии в страницах, см. этап 5.3 аудита.
+ */
 export const totalRowCls = 'flex justify-between items-center pt-3 mt-1'
+/** @public Пока не подключено — литеральные копии в страницах, см. этап 5.3 аудита. */
 export const totalLabelCls = 'text-[13px] font-bold text-ink-body'
+/** @public Пока не подключено — литеральные копии в страницах, см. этап 5.3 аудита. */
 export const totalValueCls = 'text-[18px] font-extrabold text-brand-dark whitespace-nowrap'

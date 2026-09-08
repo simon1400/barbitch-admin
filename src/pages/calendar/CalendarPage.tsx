@@ -35,7 +35,6 @@ import {
   updateClientBlacklist,
   type EngineRepricing,
 } from './fetch/engineApi'
-import { fetchBookingLabels, type BookingLabel } from './fetch/bookingLabels'
 import { CalendarGrid } from './CalendarGrid'
 import { BookingDrawer } from './BookingDrawer'
 import { InstallAppButton } from './InstallAppButton'
@@ -50,7 +49,6 @@ import {
   ClientSearchModal,
   ColumnOrderModal,
   EditBlockModal,
-  ManageLabelsModal,
   MoveBookingModal,
   NewBookingModal,
   NewBlockModal,
@@ -131,8 +129,6 @@ export default function CalendarPage() {
   const [notice, setNotice] = useState<string | null>(null)
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // кастомные лейблы броней (справочник + модал управления)
-  const [labels, setLabels] = useState<BookingLabel[]>([])
-  const [manageLabels, setManageLabels] = useState(false)
   // блоки администраторов, ждущие подтверждения владельца (у него же и кнопка)
   const [pendingBlocks, setPendingBlocks] = useState(0)
   const [showPending, setShowPending] = useState(false)
@@ -186,10 +182,6 @@ export default function CalendarPage() {
   const [changeService, setChangeService] = useState<CalendarBooking | null>(null)
   // перенос открытой брони из drawer (модал «Změnit termín»: дата/время/мастер)
   const [reschedule, setReschedule] = useState<CalendarBooking | null>(null)
-
-  useEffect(() => {
-    fetchBookingLabels().then(setLabels).catch(() => {})
-  }, [])
 
   // master без привязанного personal (имя не совпало) — показываем подсказку вместо грида
   const [masterMissing, setMasterMissing] = useState(false)
@@ -484,21 +476,6 @@ export default function CalendarPage() {
   const visitReopened = () => {
     setSelected((prev) => (prev ? { ...prev, status: 'active', arrived: true } : prev))
     reload(true)
-  }
-
-  // лейбл на бронь (drawer остаётся открытым — обновляем и selected, и грид)
-  const patchLabel = async (label: { name: string; color: string } | null) => {
-    if (!selected) return
-    setMutating(true)
-    try {
-      await enginePatchBooking(selected.documentId, { label })
-      setSelected({ ...selected, label })
-      await reload(true)
-    } catch (e) {
-      window.alert((e as Error).message)
-    } finally {
-      setMutating(false)
-    }
   }
 
   // Плашка после переноса: что стало с ценой при смене мастера (senior↔junior).
@@ -1161,14 +1138,11 @@ export default function CalendarPage() {
       {selected && (
         <BookingDrawer
           b={selected}
-          labels={labels}
           onClose={() => setSelected(null)}
           onStatus={patchStatus}
           onSaveComment={saveComment}
           onToggleBlacklist={toggleBlacklist}
           onArrived={patchArrived}
-          onLabel={patchLabel}
-          onManageLabels={() => setManageLabels(true)}
           onOpenHistory={openHistoryBooking}
           onChangeService={() => selected && setChangeService(selected)}
           onReschedule={() => selected && setReschedule(selected)}
@@ -1258,14 +1232,6 @@ export default function CalendarPage() {
               noticeTimer.current = setTimeout(() => setNotice(null), 8000)
             }
             reload()
-          }}
-        />
-      )}
-      {manageLabels && (
-        <ManageLabelsModal
-          onClose={() => {
-            setManageLabels(false)
-            fetchBookingLabels().then(setLabels).catch(() => {})
           }}
         />
       )}

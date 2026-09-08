@@ -2,7 +2,8 @@
 import { memo } from 'react'
 import type { ShiftCheckResult } from '../../fetch/shiftClose'
 import { CheckCard } from './CheckCard'
-import { CommentPopover, hasComment } from './CommentPopover'
+import { CommentPopover } from './CommentPopover'
+import { hasComment } from './helpers'
 
 // Plain-text comment (cash.comment, flow.coment) — not HTML, render inline.
 const hasText = (raw: unknown) =>

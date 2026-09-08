@@ -6,7 +6,7 @@ import { fetchAllPagesStrapi } from '../../../../lib/mirror'
 // у коллекции нет, читаем через fetchAllPagesStrapi (явный Bearer, см. lib/mirror.ts).
 // Отписка клиента = поле client.reminderOptOut (его же проверяет сервис перед отправкой).
 
-export interface ComebackLog {
+interface ComebackLog {
   id: number
   documentId: string
   clientDocId: string
@@ -166,7 +166,7 @@ export const getComebackReport = async (force = false): Promise<ComebackReport> 
   return data
 }
 
-export const invalidateComebackReport = (): void => {
+const invalidateComebackReport = (): void => {
   cache = null
 }
 

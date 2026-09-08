@@ -1,7 +1,7 @@
 import type { UserRole } from '../../types/admin'
 
 import { Container } from '../../components/Container'
-import { useAppContext } from '../../context/AppContext'
+import { useAppContext } from '../../context/useAppContext'
 import { useOnMountUnsafe } from '../../hooks/useOnMountUnsafe'
 import { useNavigate } from 'react-router-dom'
 import { AdminHeader } from '../../components/AdminHeader'

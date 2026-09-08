@@ -8,6 +8,7 @@
 // только literal px.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { cardCls, colHeadCls, labelCls } from '../../../ui/kit'
 import { palette } from '../../../ui/palette'
 import type {
   CatalogModifier,
@@ -48,8 +49,12 @@ const EMPTY_PAYLOAD: ServicePayload = {
 }
 
 // ── стили макета (точные значения из standalone-HTML) ──
-
-const cardCls = 'bg-white border border-line rounded-xl shadow-panel'
+//
+// cardCls / labelCls / colHeadCls берутся из ui/kit.ts — они там побайтово те же.
+// ⚠️ Остальное НЕ дубли kit, а сознательно другие значения этого макета:
+// инпуты добавляют `w-full`, kickerCls даёт mb-[3px] вместо mb-1, кнопки крупнее
+// (px-[18px] py-[9px], text-[14px], shadow-brand-lg против px-4 py-2 / text-[13px]).
+// Заменять их на kit нельзя — поедет вид страницы.
 
 // инпут формы: bg surface-input, border transparent, focus = белый + розовая рамка + кольцо
 const inputBaseCls =
@@ -62,9 +67,6 @@ const inputCls = `${inputBaseCls} rounded-lg px-3 py-[9px] text-[15px]`
 // строчный инпут (таблицы вариантов/дополнений): padding 7px 10px, radius 7px, 14px
 const rowInputCls = `${inputBaseCls} rounded-[7px] px-2.5 py-[7px] text-[14px]`
 
-const labelCls =
-  'block text-[11px] font-bold tracking-[0.07em] uppercase text-ink-soft mb-1.5'
-const colHeadCls = 'text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-label'
 const kickerCls = 'text-[11px] font-bold tracking-[0.08em] uppercase text-ink-faint mb-[3px]'
 
 // кнопки макета

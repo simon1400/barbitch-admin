@@ -11,7 +11,7 @@ interface RawEvent {
   event_date?: string // 'YYYY-MM-DD'
 }
 
-export interface MonthlyClientRow {
+interface MonthlyClientRow {
   month: string // 'YYYY-MM'
   label: string // 'Дек 2025'
   total: number
@@ -21,7 +21,7 @@ export interface MonthlyClientRow {
   partial: boolean
 }
 
-export interface WeekdayRow {
+interface WeekdayRow {
   dow: number
   label: string
   reservations: number
@@ -31,7 +31,7 @@ export interface WeekdayRow {
   clientsPerDay: number
 }
 
-export interface MonthlyTotals {
+interface MonthlyTotals {
   total: number
   newClients: number
   returning: number

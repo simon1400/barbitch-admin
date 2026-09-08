@@ -18,7 +18,7 @@ export interface ModuleDef {
   more?: boolean
 }
 
-export const MODULES: ModuleDef[] = [
+const MODULES: ModuleDef[] = [
   // календарь: master попадает только по кнопке (read-only своя неделя), меню у него нет
   { path: '/calendar', label: 'Календарь', roles: ['owner', 'administrator', 'master'] },
   { path: '/global/analytics', label: 'Аналитика', roles: ['owner'], hasTabs: true },

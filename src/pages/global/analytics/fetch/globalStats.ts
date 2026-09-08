@@ -11,7 +11,7 @@ export interface MonthKey {
 }
 
 // Все суммируемые сырые поля GlobalMonthData + перечисленные счётчики резерваций.
-export interface GlobalStatsTotals {
+interface GlobalStatsTotals {
   // финансы (вход для blockStateItems)
   noDphCosts: number
   globalFlow: number
@@ -45,7 +45,7 @@ export interface GlobalStatsTotals {
   reservationIndex: number // созданных резерваций в день (в среднем)
 }
 
-export interface MonthlyRow extends MonthKey {
+interface MonthlyRow extends MonthKey {
   data: GlobalMonthData
 }
 

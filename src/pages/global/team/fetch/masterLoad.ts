@@ -8,7 +8,7 @@ import { getTeamRangeData } from './teamRangeData'
 // ⚠️ Зеркало расписания покрывает окно синка (~[−30..+90] дней от импорта s99) —
 // более старые месяцы покажут нулевую капациту (ограничение зеркала, не бага).
 
-export interface DayLoad {
+interface DayLoad {
   date: string // 'YYYY-MM-DD'
   capacityMin: number
   blockedMin: number
@@ -32,7 +32,7 @@ export interface MasterLoadRow {
   pastPct: number | null
 }
 
-export interface MasterLoadTotals {
+interface MasterLoadTotals {
   workingDays: number
   capacityMin: number
   bookedMin: number

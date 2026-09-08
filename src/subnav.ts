@@ -3,7 +3,7 @@
 // модулей (AnalyticsPage/TeamPage) берут отсюда подпись активного таба для заголовка.
 // Новый таб = строка здесь + роут в App.tsx.
 
-export interface SubTab {
+interface SubTab {
   to: string
   label: string
 }

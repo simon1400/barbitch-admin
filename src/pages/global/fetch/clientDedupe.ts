@@ -1,3 +1,4 @@
+import { API_URL } from '../../../lib/config'
 // Data-слой модуля «Дубли клиентов» (/global/client-duplicates, owner + administrator).
 //
 // Ручки /api/client-dedupe/* защищены admin-jwt → ЧИСТЫЙ fetch с Bearer userJwt
@@ -6,9 +7,7 @@
 
 import { getToken } from '../../../services/auth'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:1337'
-
-export class DedupeApiError extends Error {
+class DedupeApiError extends Error {
   code: string
   status: number
   constructor(status: number, code: string, message: string) {
@@ -66,7 +65,7 @@ export interface DupClient {
   redemptions: number
 }
 
-export type MatchReason = 'name' | 'email' | 'phone'
+type MatchReason = 'name' | 'email' | 'phone'
 
 export interface DupGroup {
   key: string
@@ -78,7 +77,7 @@ export interface DupGroup {
   clients: DupClient[]
 }
 
-export interface DedupeStats {
+interface DedupeStats {
   clientsTotal: number
   strongGroups: number
   weakGroups: number

@@ -17,8 +17,8 @@ import { authHeaders } from '../../../lib/authHeaders'
 // sleva_bez_karty (K4): информационный — у записи есть скидка, но у клиента в этот
 // день нет погашенной награды bitchcard. Считается ТОЛЬКО в Strapi (нужен lookup
 // брони/redemption) — клиентские пересчёты ниже его просто не добавляют.
-export type { VerifyFlag, FlagMeta } from '../../../lib/verifyFlags'
-export { VERIFY_FLAGS, FLAG_META, parseSaleRate } from '../../../lib/verifyFlags'
+export type { VerifyFlag } from '../../../lib/verifyFlags'
+export { VERIFY_FLAGS, FLAG_META } from '../../../lib/verifyFlags'
 import { VERIFY_FLAGS, type VerifyFlag, parseSaleRate } from '../../../lib/verifyFlags'
 
 // 🟥 Без токена Strapi санитизирует populate по правам роли Public, а у коллекции

@@ -16,7 +16,7 @@ const money = (v: unknown): number => {
 }
 
 /** Скидка за дозапись (rebook −15 %, s133) — прямо из booking.discount, пока applied. */
-export const rebookDiscountKc = (b: CalendarBooking): number => {
+const rebookDiscountKc = (b: CalendarBooking): number => {
   const d = b.discount
   return d && d.type === 'rebook' && d.applied ? Math.max(0, money(d.discountKc)) : 0
 }
@@ -45,6 +45,3 @@ export const masterShare = (b: CalendarBooking, ratePercent: number): number | n
   return full == null ? null : Math.round((full * ratePercent) / 100)
 }
 
-/** Есть ли на брони системная скидка (для пометки «slevu nese salon»). */
-export const hasSystemDiscount = (b: CalendarBooking): boolean =>
-  rebookDiscountKc(b) > 0 || money(b.redemptionKc) > 0

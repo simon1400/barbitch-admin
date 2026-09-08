@@ -6,7 +6,7 @@ import {
   kickerCls,
   pageShellCls,
 } from '../../../ui/kit'
-import { useAppContext } from '../../../context/AppContext'
+import { useAppContext } from '../../../context/useAppContext'
 import { formatDate } from '../../../utils/parseDate'
 import { lazy, Suspense, useCallback, useEffect, useState, useMemo } from 'react'
 

@@ -1,10 +1,9 @@
+import { API_URL } from '../../../lib/config'
 import { authHeaders } from '../../../lib/authHeaders'
 // Журнал действий календаря — чтение коллекции calendar-log (записи создаёт движок
 // booking-engine при admin-операциях). Plain fetch с явным Bearer strapi-токеном
 // (как lib/mirror.ts): интерсептор Axios теряет meta.pagination и подменяет auth;
 // лог содержит имена клиентов → Public-права не включаем, читаем под токеном.
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:1337'
 
 export interface CalendarLog {
   id: number
