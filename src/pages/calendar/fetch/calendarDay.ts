@@ -296,13 +296,22 @@ export function busyIntervals(col: MasterColumn): { startMin: number; endMin: nu
   return out
 }
 
-export async function fetchCalendarDay(dateStr: string): Promise<CalendarDay> {
+// `knownEmployees` — уже загруженный страницей список мастеров. Без него функция
+// тянула `/api/personals` сама, а страница грузит его и для селектора недели: на
+// старте календаря личные карточки запрашивались ТРИЖДЫ, и ещё раз на каждом тике
+// polling'а (каждые 25 с), хотя состав мастеров за это время не меняется.
+// Пустой/не переданный список → старое поведение (сам сходит за мастерами), чтобы
+// сбой загрузки списка на странице не оставлял день без колонок.
+export async function fetchCalendarDay(
+  dateStr: string,
+  knownEmployees?: CalendarEmployee[],
+): Promise<CalendarDay> {
   const [bookingsRes, employees, schedule] = await Promise.all([
     // 🟥 Не `/api/bookings` напрямую: ручка движка режет данные по роли, и
     // мастеру контакты клиентов и деньги чужих броней просто не приезжают
     // (раньше они лежали в браузере, а скрывал их только рендер).
     engineCalendarDay(dateStr) as Promise<CalendarBooking[]>,
-    fetchEmployees(),
+    knownEmployees?.length ? Promise.resolve(knownEmployees) : fetchEmployees(),
     fetchSchedule(dateStr),
   ])
 

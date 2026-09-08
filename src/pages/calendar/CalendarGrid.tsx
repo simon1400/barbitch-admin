@@ -9,9 +9,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { BlockedRange, CalendarBooking, CalendarDay, MasterColumn } from './fetch/calendarDay'
 import { packColumn, nowMinPrague } from './fetch/calendarDay'
+import { createLiveValue, useLiveValue, type LiveValue } from './liveValue'
 import { masterShare } from './pricing'
 import { useCoarsePointer, useIsNarrow } from './useMediaQuery'
-import { useTouchDrag } from './useTouchDrag'
+import { useTouchDrag, type TouchPoint } from './useTouchDrag'
 import { fmtHM } from './utils'
 import { LogoIcon } from '../../icons/Logo'
 
@@ -66,6 +67,62 @@ const bookingLabel = (b: CalendarBooking): { name: string; color: string } | nul
   }
 }
 
+// Подсвеченный слот: колонка + минута начала получасовой клетки под курсором/пальцем
+type HoverSlot = { colId: string; min: number } | null
+
+// Подсветка слота в ОДНОЙ колонке. Отдельный компонент, потому что подписан на
+// hover напрямую: пока курсор ходит по гриду, перерисовываются только эти
+// прямоугольники, а не весь день с карточками (см. liveValue.ts).
+const SlotHighlight = ({
+  live,
+  colId,
+  dispOpen,
+  pxPerMin,
+}: {
+  live: LiveValue<HoverSlot>
+  colId: string
+  dispOpen: number
+  pxPerMin: number
+}) => {
+  const hover = useLiveValue(live)
+  if (hover?.colId !== colId) return null
+  return (
+    <div
+      className="pointer-events-none absolute left-0 right-0 z-[5] flex items-center justify-center bg-[#e71e6e40]"
+      style={{ top: (hover.min - dispOpen) * pxPerMin, height: SNAP_MIN * pxPerMin }}
+    >
+      <span className="absolute left-1 top-0.5 rounded bg-primary px-1 text-[10px] font-bold text-white">
+        {fmtHM(hover.min)}
+      </span>
+      <span className="text-[18px] font-normal leading-none text-primary">+</span>
+    </div>
+  )
+}
+
+// Призрак под пальцем при переносе. Координаты и подпись времени тоже подписные:
+// иначе каждое событие touchmove перерисовывало бы весь грид.
+const TouchGhost = ({
+  point,
+  hover,
+  name,
+}: {
+  point: LiveValue<TouchPoint>
+  hover: LiveValue<HoverSlot>
+  name: string
+}) => {
+  const { x, y } = useLiveValue(point)
+  const slot = useLiveValue(hover)
+  return (
+    <div
+      className="pointer-events-none fixed z-50 whitespace-nowrap rounded-md bg-primary px-2 py-1 text-[12px] font-bold text-white shadow-lg"
+      style={{ left: x, top: y, transform: 'translate(-50%, -170%)' }}
+    >
+      {slot ? `${fmtHM(slot.min)} · ` : ''}
+      {name}
+    </div>
+  )
+}
+
 // Закладка-лейбл (bookmark, как в Noona)
 const LabelMark = ({ color, name }: { color: string; name: string }) => (
   <svg
@@ -113,18 +170,33 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
   const dispClose = Math.min(24 * 60, closeMin + EXTRA_MIN)
   const totalMin = Math.max(60, dispClose - dispOpen)
   const gridH = totalMin * pxPerMin
-  const nowMin = nowMinPrague()
+  // Линия текущего времени. Раньше `nowMinPrague()` (внутри — Intl.formatToParts)
+  // вызывался в теле рендера, то есть на каждое движение мыши по гриду, а сама
+  // линия при этом двигалась только тогда, когда грид случайно перерисовывался.
+  // Теперь — свой тик раз в минуту: и работы меньше, и линия едет предсказуемо.
+  const [nowMin, setNowMin] = useState<number | null>(() => nowMinPrague())
+  useEffect(() => {
+    const t = setInterval(() => setNowMin(nowMinPrague()), 60000)
+    return () => clearInterval(t)
+  }, [])
   // Перетаскиваемая бронь (ref, не state — рендер не нужен)
   const dragged = useRef<CalendarBooking | null>(null)
   // Смещение точки захвата от ВЕРХА карточки (px) — перенос целится верхним краем, не курсором
   const dragOffsetY = useRef(0)
-  // Подсветка получасового слота под курсором (куда попадёт клик/дроп)
-  const [hover, setHover] = useState<{ colId: string; min: number } | null>(null)
+  // Подсветка получасового слота под курсором (куда попадёт клик/дроп).
+  // Живёт ВНЕ состояния грида: меняется на каждом пересечении получасовой границы
+  // (и на каждом touchmove при переносе), а рисует её один прямоугольник — см. liveValue.
+  const [hoverLive] = useState(() =>
+    createLiveValue<HoverSlot>(null, (a, b) =>
+      a === b || Boolean(a && b && a.colId === b.colId && a.min === b.min),
+    ),
+  )
   // карточка каскада, поднятая ховером на передний план (documentId брони)
   const [frontCardId, setFrontCardId] = useState<string | null>(null)
-  const setHoverSlot = (colId: string, min: number) =>
-    setHover((prev) => (prev && prev.colId === colId && prev.min === min ? prev : { colId, min }))
-  const clearHover = (colId: string) => setHover((prev) => (prev?.colId === colId ? null : prev))
+  const setHoverSlot = (colId: string, min: number) => hoverLive.set({ colId, min })
+  const clearHover = (colId: string) => {
+    if (hoverLive.get()?.colId === colId) hoverLive.set(null)
+  }
 
   // Часовые метки (по всей отображаемой шкале, включая запас ±2ч).
   // Крайние (= dispOpen / dispClose) не рендерим: метка по краю выступает за грид
@@ -159,6 +231,15 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
   // ── перенос пальцем (планшет): цель ищется по координатам, а не по событию дропа ──
 
   const colById = useMemo(() => new Map(columns.map((c) => [c.id, c])), [columns])
+  // Лейн-паковка пересекающихся броней. Считалась в теле рендера для КАЖДОЙ колонки,
+  // а внутри `isoToMin` = `Intl.DateTimeFormat.formatToParts` дважды на бронь: полный
+  // пересчёт всего дня происходил на каждый ре-рендер грида (ховер слота, ховер
+  // карточки в каскаде, тик линии now). Зависит только от данных дня — считаем один
+  // раз на загрузку.
+  const packedByCol = useMemo(
+    () => new Map(columns.map((c) => [c.id, packColumn(c.bookings)])),
+    [columns],
+  )
   // откуда потащили — чтобы дроп в то же место не открывал окно подтверждения
   const dragSrc = useRef<{ colId: string; startMin: number } | null>(null)
 
@@ -237,7 +318,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
       // грид уехал под неподвижным пальцем → цель поменялась, подсветку пересчитываем
       const t = resolveRef.current(lastPt.current.x, lastPt.current.y)
       if (t) setHoverSlot(t.col.id, t.min)
-      else setHover(null)
+      else hoverLive.set(null)
     }, 16)
   }
 
@@ -247,23 +328,23 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
       lastPt.current = { x, y }
       const t = resolvePoint(x, y)
       if (t) setHoverSlot(t.col.id, t.min)
-      else setHover(null)
+      else hoverLive.set(null)
       updateEdgeScroll(x, y)
     },
     onDrop: (b, x, y) => {
       stopEdgeScroll()
-      setHover(null)
+      hoverLive.set(null)
       const t = resolvePoint(x, y)
       if (t) commitMove(b, t.col, t.min)
       else dragSrc.current = null
     },
     onCancel: () => {
       stopEdgeScroll()
-      setHover(null)
+      hoverLive.set(null)
       dragSrc.current = null
     },
   })
-  const touchDraggedId = touchDrag.active?.item.documentId
+  const touchDraggedId = touchDrag.active?.documentId
 
   // Подсветка по ссылке (?highlight= из пуша / из закрытия смены): карточка может
   // быть за пределами видимой области грида (вечерняя бронь, дальняя колонка) —
@@ -322,7 +403,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
         {/* Колонки мастеров */}
         {columns.map((col) => {
           // отменённые показываются всегда (полупрозрачные, с красным лейблом)
-          const positioned = packColumn(col.bookings)
+          const positioned = packedByCol.get(col.id) || []
           const writable = Boolean(col.employeeDocId)
           return (
             // flex-1 + minWidth: колонки растягиваются на всю ширину окна, на узком
@@ -403,18 +484,13 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                   commitMove(b, col, minuteOfDrag(e, e.currentTarget))
                 }}
               >
-                {/* Подсветка слота под курсором */}
-                {hover?.colId === col.id && (
-                  <div
-                    className="pointer-events-none absolute left-0 right-0 z-[5] flex items-center justify-center bg-[#e71e6e40]"
-                    style={{ top: yOf(hover.min), height: SNAP_MIN * pxPerMin }}
-                  >
-                    <span className="absolute left-1 top-0.5 rounded bg-primary px-1 text-[10px] font-bold text-white">
-                      {fmtHM(hover.min)}
-                    </span>
-                    <span className="text-[18px] font-normal leading-none text-primary">+</span>
-                  </div>
-                )}
+                {/* Подсветка слота под курсором (свой подписчик — грид не трогает) */}
+                <SlotHighlight
+                  live={hoverLive}
+                  colId={col.id}
+                  dispOpen={dispOpen}
+                  pxPerMin={pxPerMin}
+                />
                 {/* Часовые линии */}
                 {hourLines.map((m) => (
                   <div
@@ -629,13 +705,11 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
           слот). fixed → не зависит от скролла грида; pointer-events-none → не мешает
           elementFromPoint искать колонку под пальцем */}
       {touchDrag.active && (
-        <div
-          className="pointer-events-none fixed z-50 whitespace-nowrap rounded-md bg-primary px-2 py-1 text-[12px] font-bold text-white shadow-lg"
-          style={{ left: touchDrag.active.x, top: touchDrag.active.y, transform: 'translate(-50%, -170%)' }}
-        >
-          {hover ? `${fmtHM(hover.min)} · ` : ''}
-          {touchDrag.active.item.clientNameRaw || 'Rezervace'}
-        </div>
+        <TouchGhost
+          point={touchDrag.point}
+          hover={hoverLive}
+          name={touchDrag.active.clientNameRaw || 'Rezervace'}
+        />
       )}
     </div>
   )

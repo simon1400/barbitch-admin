@@ -93,7 +93,22 @@ export async function loginUser(
 
 // Статус СВОЕЙ учётки (деактивирована ли). id берём из токена, а не из
 // отдельного localStorage-ключа; сервер всё равно смотрит только на сессию.
-export async function checkUserStatus(): Promise<{ isActive: boolean } | null> {
+//
+// ⚠️ Single-flight: запрос дедуплицируется по всему приложению. Раньше дедуп жил
+// флагом в response-интерсепторе Axios, который дёргал эту проверку после КАЖДОГО
+// ответа; теперь её зовут таймер в App.tsx и обработчик 401, и параллельные вызовы
+// (у календаря на старте несколько запросов сразу) должны схлопываться в один.
+let statusInFlight: Promise<{ isActive: boolean } | null> | null = null
+
+export function checkUserStatus(): Promise<{ isActive: boolean } | null> {
+  if (statusInFlight) return statusInFlight
+  statusInFlight = requestUserStatus().finally(() => {
+    statusInFlight = null
+  })
+  return statusInFlight
+}
+
+async function requestUserStatus(): Promise<{ isActive: boolean } | null> {
   try {
     const token = getToken()
     if (!token) return null
@@ -122,6 +137,18 @@ export async function checkUserStatus(): Promise<{ isActive: boolean } | null> {
   } catch (error) {
     console.error('Check status error:', error)
     return null
+  }
+}
+
+// Единая реакция на «учётка больше не годится»: деактивирован → разлогинить.
+// Истёкшую/отозванную сессию разлогинивает сам checkUserStatus (нет payload →
+// logout, 401 от сервера → logout). Зовут её ровно два места: таймер App.tsx
+// (раз в 30 с) и обработчик 401 в Axios-интерсепторе.
+export async function enforceActiveSession(): Promise<void> {
+  const status = await checkUserStatus()
+  if (status && !status.isActive) {
+    console.log('User has been deactivated, logging out...')
+    logout()
   }
 }
 

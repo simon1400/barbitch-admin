@@ -12,11 +12,17 @@
 // активации палец неподвижен и браузер скролл ещё не начал.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createLiveValue } from './liveValue'
 
 const LONG_PRESS_MS = 400 // столько держим, чтобы «поднять» карточку
 const MOVE_TOLERANCE = 10 // px: уехали раньше активации → это скролл, не перенос
 
-export type TouchDragActive<T> = { item: T; x: number; y: number }
+// 🟥 Координаты пальца НЕ в состоянии: `setActive({item, x, y})` на каждом touchmove
+// перерисовывал весь грид календаря (все колонки и карточки) — по нескольку десятков
+// раз в секунду, пока бронь тащат. Теперь в состоянии живёт только сам факт «тащим
+// вот эту бронь» (меняется дважды за жест), а позиция — в подписном значении, на
+// которое подписан один призрак под пальцем.
+export type TouchPoint = { x: number; y: number }
 
 type DragState<T> = {
   item: T
@@ -41,7 +47,9 @@ export const useTouchDrag = <T,>(options: Options<T>) => {
   const opts = useRef(options)
   opts.current = options
 
-  const [active, setActive] = useState<TouchDragActive<T> | null>(null)
+  // active = что тащим (null — жест не активен); позиция пальца — в point
+  const [active, setActive] = useState<T | null>(null)
+  const [point] = useState(() => createLiveValue<TouchPoint>({ x: 0, y: 0 }))
   const st = useRef<DragState<T> | null>(null)
 
   const teardown = useCallback((drop: boolean) => {
@@ -86,7 +94,7 @@ export const useTouchDrag = <T,>(options: Options<T>) => {
         ev.preventDefault() // глушим скролл, пока тащим
         s.x = p.clientX
         s.y = p.clientY
-        setActive({ item: s.item, x: s.x, y: s.y })
+        point.set({ x: s.x, y: s.y })
         opts.current.onMove(s.item, s.x, s.y)
       }
       s.end = (ev: TouchEvent) => {
@@ -98,7 +106,8 @@ export const useTouchDrag = <T,>(options: Options<T>) => {
         s.timer = null
         s.active = true
         navigator.vibrate?.(25)
-        setActive({ item: s.item, x: s.x, y: s.y })
+        point.set({ x: s.x, y: s.y })
+        setActive(s.item)
         opts.current.onMove(s.item, s.x, s.y)
       }, LONG_PRESS_MS)
 
@@ -107,8 +116,8 @@ export const useTouchDrag = <T,>(options: Options<T>) => {
       document.addEventListener('touchend', s.end, { passive: false })
       document.addEventListener('touchcancel', s.end, { passive: false })
     },
-    [teardown]
+    [teardown, point]
   )
 
-  return { active, start }
+  return { active, point, start }
 }

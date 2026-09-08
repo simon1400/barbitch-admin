@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { checkUserStatus, getToken, logout } from '../services/auth'
+import { enforceActiveSession, getToken } from '../services/auth'
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:1337'
 
@@ -25,27 +25,20 @@ Axios.interceptors.request.use((config) => {
   return config
 })
 
-// Флаг для предотвращения множественных проверок
-let isCheckingStatus = false
-
+// 🟥 Раньше здесь после КАЖДОГО успешного ответа await-илась проверка
+// `check-status`: каждый запрос админки превращался в два, и все они ждали лишний
+// круг до сервера (страница дня календаря = 5 запросов → 10). При этом App.tsx и
+// так опрашивает статус раз в 30 секунд, то есть проверка была ещё и дублирующей.
+//
+// Осталось два триггера: таймер (штатный путь) и ответ 401 (быстрая реакция, если
+// сессию отозвали между тиками таймера). Ветку 401 намеренно НЕ делаем безусловным
+// logout: наши собственные ручки отвечают 401 и на «не твоя роль» (`owner_only`),
+// а это не повод выкидывать залогиненного человека. Решает `enforceActiveSession` —
+// он разлогинивает только когда сессия действительно мертва или учётка выключена.
 Axios.interceptors.response.use(
-  async (response) => {
-    // Проверяем статус пользователя при каждом успешном запросе
-    if (!isCheckingStatus) {
-      isCheckingStatus = true
-      const status = await checkUserStatus()
-      isCheckingStatus = false
-
-      if (status && !status.isActive) {
-        console.log('User has been deactivated, logging out...')
-        logout()
-        return Promise.reject(new Error('User account has been deactivated'))
-      }
-    }
-
-    return response.data.data
-  },
+  (response) => response.data.data,
   (error) => {
+    if (error?.response?.status === 401) void enforceActiveSession()
     return Promise.reject(error)
   },
 )

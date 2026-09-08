@@ -113,6 +113,10 @@ export default function CalendarPage() {
   // график дежурных админов на показанную неделю (плашка «кто открыт», все роли)
   const [adminRoster, setAdminRoster] = useState<AdminRoster>({})
   const [employees, setEmployees] = useState<CalendarEmployee[]>([])
+  // список мастеров загружен (успешно или нет) — до этого день не грузим: раньше
+  // эффект стартовал с пустым списком, потом employees приезжали и всё грузилось
+  // ВТОРОЙ раз (см. комментарий у эффекта загрузки ниже)
+  const [empsLoaded, setEmpsLoaded] = useState(false)
   const [weekEmpId, setWeekEmpId] = useState<string>('')
   const [mutating, setMutating] = useState(false)
   const [bookingModal, setBookingModal] = useState<NewBookingInitial | null>(null)
@@ -204,6 +208,7 @@ export default function CalendarPage() {
     fetchWeekEmployees()
       .then((emps) => {
         setEmployees(emps)
+        setEmpsLoaded(true)
         if (isMaster) {
           // имя из подписанного токена: по localStorage-ключу мастер мог бы
           // выдать себя за коллегу и увидеть его цены и историю (s181, п. 1.5)
@@ -216,7 +221,10 @@ export default function CalendarPage() {
           setWeekEmpId((cur) => cur || emps[0]?.id || '')
         }
       })
-      .catch(() => setEmployees([]))
+      .catch(() => {
+        setEmployees([])
+        setEmpsLoaded(true)
+      })
   }, [isMaster])
 
   const load = useCallback(
@@ -234,7 +242,7 @@ export default function CalendarPage() {
             setDay(await fetchCalendarWeek(mondayOf(dateStr), emp))
           }
         } else {
-          setDay(await fetchCalendarDay(dateStr))
+          setDay(await fetchCalendarDay(dateStr, emps))
         }
         if (silent) setError(null)
       } catch (e) {
@@ -249,9 +257,15 @@ export default function CalendarPage() {
     [],
   )
 
+  // 🟥 Ждём список мастеров. Он нужен обоим видам (колонки дня строятся по нему,
+  // неделя — по выбранному из него мастеру), и до правки эффект успевал отработать
+  // с пустым списком: день грузился дважды, `/api/personals` уходил трижды
+  // (fetchCalendarDay ходил за мастерами сам). Теперь список приезжает один раз и
+  // передаётся внутрь.
   useEffect(() => {
+    if (!empsLoaded) return
     load(date, mode, weekEmpId, employees)
-  }, [date, mode, weekEmpId, employees, load])
+  }, [date, mode, weekEmpId, employees, empsLoaded, load])
 
   // График дежурных админов недели, в которую попала показанная дата (одна запись
   // shift = неделя, покрывает оба вида). Видно всем ролям; сбой → пустой график.
@@ -1275,11 +1289,13 @@ export default function CalendarPage() {
           onClose={() => setOrderModal(false)}
           onSaved={() => {
             setOrderModal(false)
-            // список мастеров (недельный селектор) + колонки дня — с новым порядком
+            // Список мастеров (недельный селектор) + колонки дня — с новым порядком.
+            // Отдельный reload() здесь больше не нужен и был вреден: смена employees
+            // сама перезагружает день (эффект загрузки), а reload() успевал нарисовать
+            // его по СТАРОМУ порядку колонок. Оставлен только на случай сбоя запроса.
             fetchWeekEmployees()
               .then(setEmployees)
-              .catch(() => {})
-            reload()
+              .catch(() => reload())
           }}
         />
       )}

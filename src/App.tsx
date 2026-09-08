@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import Login from './pages/Login'
 import AdminLayout from './pages/dashboard/AdminLayout'
 import { AppProvider } from './context/AppContext'
-import { checkUserStatus, logout, getSessionRole } from './services/auth'
+import { enforceActiveSession, getSessionRole } from './services/auth'
 import { canAccessModule } from './moduleAccess'
 
 const AdminPage = lazy(() => import('./pages/dashboard/AdminPage'))
@@ -123,22 +123,12 @@ const OwnerRoute = ({ children }: { children: React.ReactNode }) => {
 }
 
 function App() {
-  // Проверяем статус пользователя каждые 30 секунд
+  // Статус учётки (деактивирована / сессия отозвана) — раз в 30 секунд.
+  // Это ЕДИНСТВЕННЫЙ регулярный опрос: из Axios-интерсептора проверку убрали,
+  // там осталась только реакция на 401 (см. lib/api.ts).
   useEffect(() => {
-    const checkStatus = async () => {
-      const status = await checkUserStatus()
-      if (status && !status.isActive) {
-        console.log('User has been deactivated, logging out...')
-        logout()
-      }
-    }
-
-    // Проверяем сразу при загрузке
-    checkStatus()
-
-    // Проверяем каждые 30 секунд
-    const intervalId = setInterval(checkStatus, 30000)
-
+    enforceActiveSession()
+    const intervalId = setInterval(enforceActiveSession, 30000)
     return () => clearInterval(intervalId)
   }, [])
 
