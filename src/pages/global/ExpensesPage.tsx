@@ -1,3 +1,4 @@
+import { useMonthYear } from '../../hooks/useMonthYear'
 import { useState, useEffect, useMemo } from 'react'
 import { h1Cls, kickerCls, pageShellCls, toolbarCardCls } from '../../ui/kit'
 import { Select } from '../dashboard/components/Select'
@@ -10,8 +11,7 @@ import { TableWrapper } from './components/TableWrapper'
 import { ExpensesBarChart } from './components/ExpensesBarChart'
 
 const ExpensesPage = () => {
-  const [month, setMonth] = useState<number>(new Date().getMonth())
-  const [year, setYear] = useState<number>(new Date().getFullYear())
+  const { month, setMonth, year, setYear } = useMonthYear()
   const [expenses, setExpenses] = useState<IExpenseItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
 

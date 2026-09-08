@@ -1,3 +1,4 @@
+import { daysInMonth, monthLabelRu, ym as ymOfDate } from '../../../../utils/date'
 import { getEventsHistory, isAttended, isActive, todayStr } from './eventsHistory'
 import { getExpenses } from '../../fetch/expenses'
 
@@ -28,25 +29,20 @@ export interface ForecastData {
   history: MonthRevenueRow[] // ВСЕ полные месяцы с данными (по возрастанию), период выбирается в UI
 }
 
-const MONTHS_RU = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']
 const ym = (d: string) => d.slice(0, 7)
-const monthLabel = (m: string) => {
-  const [y, mm] = m.split('-')
-  return `${MONTHS_RU[Number(mm) - 1]} ${y}`
-}
 
 export const getForecast = async (force = false): Promise<ForecastData> => {
   const now = new Date()
   const year = now.getFullYear()
   const month = now.getMonth()
   const today = todayStr()
-  const daysTotal = new Date(year, month + 1, 0).getDate()
+  const daysTotal = daysInMonth(year, month)
   const daysPassed = now.getDate()
 
   const curMonth = ym(today)
   const prev = new Date(year, month - 1, 1)
-  const prevMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`
-  const prevSameDay = `${prevMonth}-${String(Math.min(daysPassed, new Date(prev.getFullYear(), prev.getMonth() + 1, 0).getDate())).padStart(2, '0')}`
+  const prevMonth = ymOfDate(prev)
+  const prevSameDay = `${prevMonth}-${String(Math.min(daysPassed, daysInMonth(prev.getFullYear(), prev.getMonth()))).padStart(2, '0')}`
 
   const [events, expenses] = await Promise.all([getEventsHistory(force), getExpenses(month, year)])
 
@@ -92,16 +88,16 @@ export const getForecast = async (force = false): Promise<ForecastData> => {
   const cursor = new Date(fy, fm - 1, 1)
   const historyEnd = new Date(year, month - 1, 1) // прошлый месяц — последний полный
   while (cursor <= historyEnd) {
-    const m = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`
+    const m = ymOfDate(cursor)
     const h = histRevenue.get(m) || { revenue: 0, visits: 0 }
-    history.push({ month: m, label: monthLabel(m), revenue: Math.round(h.revenue), visits: h.visits })
+    history.push({ month: m, label: monthLabelRu(m), revenue: Math.round(h.revenue), visits: h.visits })
     cursor.setMonth(cursor.getMonth() + 1)
   }
 
   const expensesMonth = expenses.reduce((a, x) => a + (x.sum || 0), 0)
 
   return {
-    monthLabel: monthLabel(curMonth),
+    monthLabel: monthLabelRu(curMonth),
     daysPassed,
     daysTotal,
     actualToDate: Math.round(actualToDate),

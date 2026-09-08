@@ -1,3 +1,4 @@
+import { DOW_RU_SHORT, dowOfYmd } from '../../../../utils/date'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Cell } from '../../../dashboard/components/Cell'
 import { StatSection } from '../../components/StatSection'
@@ -20,10 +21,9 @@ import {
   type SendResult,
 } from '../fetch/windowCrossSell'
 
-const DOW_RU = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
 const fmtDay = (date: string) => {
-  const [y, m, d] = date.split('-').map(Number)
-  return `${String(d).padStart(2, '0')}.${String(m).padStart(2, '0')} ${DOW_RU[new Date(y, m - 1, d).getDay()]}`
+  const [, m, d] = date.split('-')
+  return `${d}.${m} ${DOW_RU_SHORT[dowOfYmd(date)]}`
 }
 
 // Нейтральный серый чип («отправлено»)

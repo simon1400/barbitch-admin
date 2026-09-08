@@ -5,6 +5,14 @@
 
 import { Axios } from '../../../lib/api'
 import { authHeaders } from '../../../lib/authHeaders'
+import {
+  addDaysYmd,
+  dowOfYmd,
+  isoToMinPrague,
+  nowMinPrague,
+  todayYmd,
+  WEEKDAYS_CS,
+} from '../../../utils/date'
 import { engineCalendarDay, engineCalendarWeek, engineClientHistory } from './engineApi'
 
 
@@ -120,19 +128,7 @@ export interface CalendarDay {
 }
 
 // Минуты от полуночи в часовом поясе Праги (сервер/браузер-независимо)
-const HM_FMT = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Europe/Prague',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-})
-const isoToMin = (iso: string | null | undefined): number | null => {
-  if (!iso) return null
-  const parts = HM_FMT.formatToParts(new Date(iso))
-  const h = Number(parts.find((p) => p.type === 'hour')?.value ?? NaN)
-  const m = Number(parts.find((p) => p.type === 'minute')?.value ?? NaN)
-  return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : null
-}
+const isoToMin = isoToMinPrague
 
 const DEFAULT_OPEN = 9 * 60
 const DEFAULT_CLOSE = 20 * 60
@@ -443,17 +439,12 @@ export function packColumn(bookings: CalendarBooking[]): PositionedBooking[] {
 }
 
 // 'YYYY-MM-DD' сегодня в Праге
-export function todayStrPrague(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Prague' }).format(new Date())
-}
+export const todayStrPrague = todayYmd
 
 // Текущее время в минутах от полуночи (Прага) — позиция линии now
-export function nowMinPrague(): number | null {
-  return isoToMin(new Date().toISOString())
-}
+export { nowMinPrague }
 
 // ── Недельный вид: неделя ОДНОГО мастера, колонки = дни ──
-const WEEKDAYS_CS = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So']
 
 export async function fetchWeekEmployees(): Promise<CalendarEmployee[]> {
   return fetchEmployees()
@@ -465,11 +456,7 @@ export async function fetchCalendarWeek(
   employee: CalendarEmployee,
 ): Promise<CalendarDay> {
   const days: string[] = []
-  for (let i = 0; i < 7; i++) {
-    const [y, m, d] = monday.split('-').map(Number)
-    const dt = new Date(y, m - 1, d + i)
-    days.push(`${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`)
-  }
+  for (let i = 0; i < 7; i++) days.push(addDaysYmd(monday, i))
   const sunday = days[6]
 
   const [bookingsRes, hoursRes, blocksRes] = await Promise.all([
@@ -585,10 +572,8 @@ export async function fetchAdminRoster(monday: string): Promise<AdminRoster> {
     if (!days) return {}
     const roster: AdminRoster = {}
     for (let i = 0; i < 7; i++) {
-      const d = new Date(`${monday}T12:00:00`)
-      d.setDate(d.getDate() + i)
-      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      const name = (days[DAY_KEYS[d.getDay()]] || '').trim()
+      const dateStr = addDaysYmd(monday, i)
+      const name = (days[DAY_KEYS[dowOfYmd(dateStr)]] || '').trim()
       if (name) roster[dateStr] = name
     }
     return roster

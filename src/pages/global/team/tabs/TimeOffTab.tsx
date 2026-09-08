@@ -1,3 +1,5 @@
+import { useMonthYear } from '../../../../hooks/useMonthYear'
+import { fmtCsDate } from '../../../../utils/date'
 import { useState, useEffect, useCallback } from 'react'
 import { Select } from '../../../dashboard/components/Select'
 import { Cell } from '../../../dashboard/components/Cell'
@@ -20,14 +22,10 @@ const TYPE_BADGE: Record<TimeOffType, string> = {
   personal: 'bg-warn-bg text-warn',
 }
 
-const fmtDate = (d: string) => {
-  const [y, m, day] = d.split('-')
-  return `${day}.${m}.${y}`
-}
+const fmtDate = fmtCsDate
 
 export default function TimeOffTab() {
-  const [month, setMonth] = useState<number>(new Date().getMonth())
-  const [year, setYear] = useState<number>(new Date().getFullYear())
+  const { month, setMonth, year, setYear } = useMonthYear()
   const [records, setRecords] = useState<TimeOffRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)

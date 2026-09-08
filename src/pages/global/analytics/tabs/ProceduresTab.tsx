@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMonthYear } from '../../../../hooks/useMonthYear'
 
 import { Select } from '../../../dashboard/components/Select'
 import { StatSection } from '../../components/StatSection'
@@ -7,8 +7,7 @@ import { useProceduresData } from '../../hooks/useProceduresData'
 import { toolbarCardCls } from '../../../../ui/kit'
 
 export default function ProceduresTab() {
-  const [month, setMonth] = useState<number>(new Date().getMonth())
-  const [year, setYear] = useState<number>(new Date().getFullYear())
+  const { month, setMonth, year, setYear } = useMonthYear()
   const { procedures, totalCount, totalRevenue, loading } = useProceduresData(month, year)
 
   return (

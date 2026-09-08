@@ -1,4 +1,5 @@
 import { Axios } from '../../../../lib/api'
+import { fmtCsDate, ymdPrague } from '../../../../utils/date'
 import { fetchAllPagesStrapi } from '../../../../lib/strapiRest'
 
 // Автонапоминания «пора записаться снова» (comeback-reminder, крон 11:00 Праги).
@@ -64,15 +65,10 @@ export interface ComebackReport {
 const CLIENT_FIELDS =
   'fields[0]=name&fields[1]=email&fields[2]=phone&fields[3]=reminderOptOut'
 
-/** День отправки в пражской зоне (sv-SE даёт формат YYYY-MM-DD). */
-export const dayKeyPrague = (iso: string): string =>
-  new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'Europe/Prague' })
+/** День отправки в пражской зоне. */
+export const dayKeyPrague = ymdPrague
 
-export const fmtDay = (d: string | null): string => {
-  if (!d) return '—'
-  const [y, m, day] = d.split('-')
-  return `${day}.${m}.${y}`
-}
+export const fmtDay = fmtCsDate
 
 const fetchLogs = (): Promise<ComebackLog[]> =>
   fetchAllPagesStrapi<ComebackLog>('/api/comeback-reminder-logs?sort=sentAt:desc')

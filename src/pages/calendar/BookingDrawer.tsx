@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CalendarBooking, ClientHistoryItem } from './fetch/calendarDay'
+import { dowOfYmd, WEEKDAYS_CS } from '../../utils/date'
 import { fetchClientHistory, todayStrPrague } from './fetch/calendarDay'
 import type { BookingRedemption, LoyaltyProgress } from './fetch/engineApi'
 import { fetchBookingRedemptions } from './fetch/engineApi'
@@ -372,11 +373,10 @@ const bookingCreatedLabel = (b: CalendarBooking): string | null => {
 }
 
 // «Ne 19. 7. 2026» — дата брони с днём недели (сразу видно, о каком дне речь)
-const CS_DOW = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So']
 const dateLabelCs = (dateStr: string): string => {
   const [y, m, d] = dateStr.split('-').map(Number)
   if (!y || !m || !d) return dateStr
-  return `${CS_DOW[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]} ${d}. ${m}. ${y}`
+  return `${WEEKDAYS_CS[dowOfYmd(dateStr)]} ${d}. ${m}. ${y}`
 }
 
 // Drawer с деталями брони + кнопки статусов (пишут в движок).

@@ -4,10 +4,10 @@
 
 import type { AdminRoster } from './fetch/calendarDay'
 import type { Mode } from './utils'
+import { dowOfYmd, WEEKDAYS_CS } from '../../utils/date'
 import { mondayOf, shiftDate, todayStr } from './utils'
 
-const WD_SHORT = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So']
-const wdOf = (d: string): string => WD_SHORT[new Date(`${d}T12:00:00`).getDay()]
+const wdOf = (d: string): string => WEEKDAYS_CS[dowOfYmd(d)]
 
 // flex-wrap обязателен: на телефоне «Admin:» + 7 чипов недели в одну строку не влезают
 // и раньше распирали страницу по горизонтали (весь календарь уезжал вбок)

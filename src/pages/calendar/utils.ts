@@ -1,36 +1,27 @@
 // Общие хелперы календаря: дата/время + мета статусов броней.
 // fmtHM живёт здесь (единственная копия) — реэкспортится в modals/helpers.
 
+import { addDaysYmd, fmtTimePrague, minToHHMM, mondayOfYmd, todayYmd } from '../../utils/date'
 import type { CalendarBooking } from './fetch/calendarDay'
 
 export type Mode = 'day' | 'week'
 
-export const todayStr = (): string => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+// 🟥 «Сегодня» здесь считалось по часовому поясу БРАУЗЕРА, а линия текущего
+// времени на том же экране (calendarDay.nowMinPrague) — по Праге. У владельца
+// в поездке календарь мог открыться на одном дне, а «сейчас» относиться к
+// другому. День у салона один — пражский (s186).
+export const todayStr = todayYmd
 
-export const shiftDate = (dateStr: string, days: number): string => {
-  const d = new Date(`${dateStr}T12:00:00`)
-  d.setDate(d.getDate() + days)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+export const shiftDate = addDaysYmd
 
 // Понедельник недели, в которой лежит dateStr
-export const mondayOf = (dateStr: string): string => {
-  const d = new Date(`${dateStr}T12:00:00`)
-  const dow = (d.getDay() + 6) % 7 // Пн=0
-  d.setDate(d.getDate() - dow)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+export const mondayOf = mondayOfYmd
 
-// ISO → «HH:MM» (локаль cs)
-export const fmtTime = (iso: string | null): string =>
-  iso ? new Date(iso).toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' }) : '—'
+// ISO → «HH:MM» по Праге (см. разбор в utils/date.fmtTimePrague)
+export const fmtTime = fmtTimePrague
 
 // минуты от полуночи → «HH:MM»
-export const fmtHM = (min: number): string =>
-  `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
+export const fmtHM = minToHHMM
 
 export const STATUS_META: Record<CalendarBooking['status'], { label: string; cls: string }> = {
   active: { label: 'aktivní', cls: 'bg-pink-100 text-pink-700' },

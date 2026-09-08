@@ -15,7 +15,16 @@ import {
   selectCls,
   toolbarCardCls,
 } from '../../../../ui/kit'
-import { dateToStr } from '../fetch/masterLoad'
+import {
+  addDays,
+  DOW_RU_SHORT,
+  dowOfYmd,
+  fmtCsShort,
+  monthEndYmd,
+  startOfWeek,
+  todayDate,
+  ymd,
+} from '../../../../utils/date'
 import {
   getScheduleGaps,
   DEAD_MAX,
@@ -32,27 +41,11 @@ import {
   type OfferResultsSummary,
 } from '../fetch/windowCrossSell'
 
-const startOfWeek = (d: Date): Date => {
-  const res = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-  res.setDate(res.getDate() - ((res.getDay() + 6) % 7))
-  return res
-}
-
-const addDays = (d: Date, n: number): Date => {
-  const res = new Date(d)
-  res.setDate(res.getDate() + n)
-  return res
-}
-
-const fmtShort = (d: Date) =>
-  `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`
-
 const fmtH = (min: number) => `${Math.round((min / 60) * 10) / 10} ч`
 
-const DOW_RU = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
 const fmtDay = (date: string) => {
-  const [y, m, d] = date.split('-').map(Number)
-  return `${String(d).padStart(2, '0')}.${String(m).padStart(2, '0')} ${DOW_RU[new Date(y, m - 1, d).getDay()]}`
+  const [, m, d] = date.split('-')
+  return `${d}.${m} ${DOW_RU_SHORT[dowOfYmd(date)]}`
 }
 
 // Нейтральный серый чип (напр. «нет» / «отправлено»)
@@ -61,7 +54,7 @@ const neutralChipCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-in
 type Mode = 'month' | 'week'
 
 export default function GapsTab() {
-  const now = new Date()
+  const now = todayDate()
   const [mode, setMode] = useState<Mode>('week')
   const [month, setMonth] = useState<number>(now.getMonth())
   const [year, setYear] = useState<number>(now.getFullYear())
@@ -169,7 +162,7 @@ export default function GapsTab() {
   }
 
   const weekEnd = addDays(weekStart, 6)
-  const isCurrentWeek = dateToStr(weekStart) === dateToStr(startOfWeek(now))
+  const isCurrentWeek = ymd(weekStart) === ymd(startOfWeek(now))
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -177,12 +170,12 @@ export default function GapsTab() {
     try {
       const fromStr =
         mode === 'month'
-          ? dateToStr(new Date(year, month, 1))
-          : dateToStr(weekStart)
+          ? ymd(new Date(year, month, 1))
+          : ymd(weekStart)
       const toStr =
         mode === 'month'
-          ? dateToStr(new Date(year, month + 1, 0))
-          : dateToStr(addDays(weekStart, 6))
+          ? monthEndYmd(year, month)
+          : ymd(addDays(weekStart, 6))
       const data = await getScheduleGaps(fromStr, toStr)
       setRows(data.sort((a, b) => b.deadMin - a.deadMin))
     } catch {
@@ -224,7 +217,7 @@ export default function GapsTab() {
                 ‹
               </button>
               <span className="text-[13px] font-bold text-ink-body whitespace-nowrap min-w-[150px] text-center">
-                {fmtShort(weekStart)} – {fmtShort(weekEnd)}.{weekEnd.getFullYear()}
+                {fmtCsShort(weekStart)} – {fmtCsShort(weekEnd)}.{weekEnd.getFullYear()}
               </span>
               <button
                 type="button"

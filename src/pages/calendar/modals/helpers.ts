@@ -4,6 +4,7 @@
 
 import type { CalendarBooking } from '../fetch/calendarDay'
 import { JUNIOR_DISCOUNT_PERCENT, type BookingRedemption, type CatalogService } from '../fetch/engineApi'
+import { addDaysYmd } from '../../../utils/date'
 import { fmtHM } from '../utils'
 
 export { fmtHM }
@@ -105,8 +106,7 @@ export const WEEKDAYS: { v: number; label: string }[] = [
   { v: 0, label: 'Ne' },
 ]
 
-export const addDays = (d: string, n: number): string =>
-  new Date(new Date(`${d}T00:00:00Z`).getTime() + n * 86400000).toISOString().slice(0, 10)
+export const addDays = addDaysYmd
 
 export const weekdayOf = (d: string): number => new Date(`${d}T00:00:00Z`).getUTCDay()
 

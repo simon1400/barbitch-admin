@@ -1,3 +1,4 @@
+import { DOW_RU_FULL } from '../../../../utils/date'
 import { getEventsHistory, fetchEmployeeNames, todayStr } from './eventsHistory'
 
 // Аналитика отмен и no-show за выбранный месяц (из истории броней).
@@ -40,7 +41,6 @@ export interface CancellationsData {
   byWeekday: WeekdayCancelRow[]
 }
 
-const DOW_RU = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
 
 const emptyStats = (): CancelStats => ({ count: 0, lostMin: 0, lostMoney: 0 })
 
@@ -115,7 +115,7 @@ export const getCancellations = async (
 
   const order = [1, 2, 3, 4, 5, 6, 0]
   const byWeekday: WeekdayCancelRow[] = order.map((d) => ({
-    label: DOW_RU[d],
+    label: DOW_RU_FULL[d],
     noshow: dowNoshow.get(d) || 0,
     cancelled: dowCancelled.get(d) || 0,
   }))

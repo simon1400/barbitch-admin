@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { monthEndYmd, ymdToDate } from '../../../utils/date'
 import { Axios } from '../../../lib/api'
 import { clientKey, fetchMirrorBookingsRange, fetchMirrorClientNames } from '../../../lib/mirror'
 import { format } from 'date-fns'
@@ -323,8 +324,7 @@ const fetchCurrentClientNames = async (): Promise<Map<string, string>> => {
 const findMonthlyCardProfit = async (dateStr: string) => {
   const [year, month] = dateStr.split('-')
   const monthStart = `${year}-${month}-01`
-  const lastDay = new Date(Number(year), Number(month), 0).getDate()
-  const monthEnd = `${year}-${month}-${String(lastDay).padStart(2, '0')}`
+  const monthEnd = monthEndYmd(Number(year), Number(month) - 1)
 
   // Search both published and draft
   const [published, drafts] = await Promise.all([
@@ -343,8 +343,7 @@ export const getMonthlyCardProfit = async (
 ): Promise<{ sum: number; extraIncome: number } | null> => {
   const [year, month] = dateStr.split('-')
   const monthStart = `${year}-${month}-01`
-  const lastDay = new Date(Number(year), Number(month), 0).getDate()
-  const monthEnd = `${year}-${month}-${String(lastDay).padStart(2, '0')}`
+  const monthEnd = monthEndYmd(Number(year), Number(month) - 1)
   try {
     const res = await Axios.get(
       `/api/card-profits?filters[date][$gte]=${monthStart}&filters[date][$lte]=${monthEnd}&pagination[pageSize]=1`,
@@ -428,7 +427,10 @@ export const previewShiftResult = async (
   cardSum: number,
   extraIncome: number,
 ): Promise<ShiftDelta> => {
-  const date = new Date(dateStr)
+  // 🟥 Было `new Date(dateStr)` — это полночь UTC, а месяц читался локальными
+  // getMonth/getFullYear. В отрицательном часовом поясе первое число месяца
+  // давало ПРЕДЫДУЩИЙ месяц, и владелец видел дельту не того месяца (s186).
+  const date = ymdToDate(dateStr)
   const month = date.getMonth()
   const year = date.getFullYear()
   const [before, after] = await Promise.all([

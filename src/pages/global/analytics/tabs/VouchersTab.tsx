@@ -2,14 +2,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { Cell } from '../../../dashboard/components/Cell'
 import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
+import { fmtCsDate } from '../../../../utils/date'
 import { getVouchersReport, type VouchersReport } from '../fetch/vouchersReport'
 
 const fmtMoney = (n: number) => `${n.toLocaleString('cs-CZ')} Kč`
-const fmtDate = (d: string | null) => {
-  if (!d) return '—'
-  const [y, m, day] = d.split('-')
-  return `${day}.${m}.${y}`
-}
+const fmtDate = fmtCsDate
 const ageDays = (d: string) => {
   const [y, m, day] = d.split('-').map(Number)
   return Math.floor((Date.now() - new Date(y, m - 1, day).getTime()) / 86400000)

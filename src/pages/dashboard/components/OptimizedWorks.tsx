@@ -1,3 +1,5 @@
+import { useMonthYear } from '../../../hooks/useMonthYear'
+import { daysInMonth as daysInMonthOf } from '../../../utils/date'
 import type { IDataWorks, IExtraProfitItem } from '../fetch/works'
 
 import {
@@ -30,8 +32,7 @@ import { TableWrapper } from '../../global/components/TableWrapper'
 import { CHART } from '../../../ui/chartColors'
 
 const OptimizedWorks = () => {
-  const [month, setMonth] = useState<number>(new Date().getMonth())
-  const [year, setYear] = useState<number>(new Date().getFullYear())
+  const { month, setMonth, year, setYear } = useMonthYear()
   const [data, setData] = useState<IDataWorks>()
   const [salary, setSalary] = useState<number>(0)
   const [extraProfit, setExtraProfit] = useState<number>(0)
@@ -62,7 +63,7 @@ const OptimizedWorks = () => {
     }
 
     // Создаём массив для всех дней месяца
-    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    const daysInMonth = daysInMonthOf(year, month)
     const result = []
 
     for (let day = 1; day <= daysInMonth; day++) {

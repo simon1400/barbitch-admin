@@ -1,3 +1,4 @@
+import { fmtTimePrague } from '../../../../utils/date'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Cell } from '../../../dashboard/components/Cell'
 import { StatSection } from '../../components/StatSection'
@@ -16,16 +17,7 @@ import {
 
 const PAGE = 50
 
-const fmtDayTime = (iso: string): string => {
-  const d = new Date(iso)
-  const day = fmtDay(dayKeyPrague(iso))
-  const hm = d.toLocaleTimeString('cs-CZ', {
-    timeZone: 'Europe/Prague',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-  return `${day} ${hm}`
-}
+const fmtDayTime = (iso: string): string => `${fmtDay(dayKeyPrague(iso))} ${fmtTimePrague(iso)}`
 
 const Card = ({
   label,

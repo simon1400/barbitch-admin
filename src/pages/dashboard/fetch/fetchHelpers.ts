@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { daysInMonth as daysInMonthOf } from '../../../utils/date'
 import { strapiQuery } from '../../../lib/strapiQuery'
 
 import { Axios } from '../../../lib/api'
@@ -202,7 +203,7 @@ export function groupCountReservationByDate(
   const baseDate = allItems.length ? new Date(allItems[0].ends_at) : new Date()
   const year = baseDate.getFullYear()
   const month = baseDate.getMonth()
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const daysInMonth = daysInMonthOf(year, month)
 
   // создаём полный месяц
   const fullMonth: OutputMetrictsItem[] = []

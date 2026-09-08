@@ -1,3 +1,4 @@
+import { daysInMonth } from '../../../../utils/date'
 import { getGlobalMonthData, type GlobalMonthData } from '../../../dashboard/fetch/monthDataCache'
 
 // Агрегация показателей «Финансового обзора»/«Резерваций» за ПРОИЗВОЛЬНЫЙ период
@@ -64,7 +65,7 @@ const activeDaysForMonth = (month: number, year: number): number => {
   if (year > today.getFullYear() || (year === today.getFullYear() && month > today.getMonth())) {
     return 0
   }
-  return new Date(year, month + 1, 0).getDate() // дней в прошлом месяце
+  return daysInMonth(year, month) // дней в прошлом месяце
 }
 
 const emptyTotals = (): GlobalStatsTotals => ({

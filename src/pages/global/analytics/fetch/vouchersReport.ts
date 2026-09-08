@@ -1,4 +1,5 @@
 import { strapiQuery } from '../../../../lib/strapiQuery'
+import { monthLabelRu, ym } from '../../../../utils/date'
 import { fetchAllPagesAxios } from '../../../../lib/strapiPaginate'
 
 // Отчёт по ваучерам (Strapi коллекция vouchers).
@@ -38,11 +39,7 @@ export interface VouchersReport {
   byMonth: VoucherMonthRow[] // последние 12 месяцев
 }
 
-const MONTHS_RU = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']
-const monthLabel = (m: string) => {
-  const [y, mm] = m.split('-')
-  return `${MONTHS_RU[Number(mm) - 1]} ${y}`
-}
+
 
 const fetchAllVouchers = async (): Promise<VoucherRecord[]> => {
   const result: VoucherRecord[] = []
@@ -86,7 +83,7 @@ export const getVouchersReport = async (): Promise<VouchersReport> => {
     if (!row) {
       row = {
         month: m,
-        label: monthLabel(m),
+        label: monthLabelRu(m),
         orderedCount: 0,
         paidCount: 0,
         paidSum: 0,
@@ -124,7 +121,7 @@ export const getVouchersReport = async (): Promise<VouchersReport> => {
   const byMonth: VoucherMonthRow[] = []
   for (let i = 11; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const m = ym(d)
     byMonth.push(months.get(m) ?? monthRow(m))
   }
 

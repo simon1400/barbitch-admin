@@ -1,3 +1,4 @@
+import { daysInMonth, hhmmToMin, todayYmd, ymd } from '../../../../utils/date'
 import { getTeamRangeData } from './teamRangeData'
 
 // Загрузка мастеров по слотам за месяц. own-booking фаза 4: источники — НАША БД
@@ -48,21 +49,14 @@ export interface MasterLoadResult {
   totals: MasterLoadTotals
 }
 
-const pad = (n: number) => String(n).padStart(2, '0')
-const dayStr = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`
-export const dateToStr = (d: Date) => dayStr(d.getFullYear(), d.getMonth(), d.getDate())
-
-const minutesFromHHMM = (s: string): number => {
-  const [h, m] = s.split(':').map(Number)
-  return (h || 0) * 60 + (m || 0)
-}
+const dayStr = (y: number, m: number, d: number) => ymd(new Date(y, m, d))
 
 const calcPct = (booked: number, capacity: number): number | null =>
   capacity > 0 ? Math.round((booked / capacity) * 100) : null
 
 // month — 0-based (как getMonth())
 export const getMasterLoad = (month: number, year: number): Promise<MasterLoadResult> => {
-  const lastDay = new Date(year, month + 1, 0).getDate()
+  const lastDay = daysInMonth(year, month)
   return getMasterLoadRange(dayStr(year, month, 1), dayStr(year, month, lastDay))
 }
 
@@ -79,7 +73,7 @@ export const getMasterLoadRange = async (
   for (const h of hours) {
     const winSum = (h.windows || []).reduce((acc, w) => {
       if (!w.starts_at || !w.ends_at) return acc
-      return acc + Math.max(0, minutesFromHHMM(w.ends_at) - minutesFromHHMM(w.starts_at))
+      return acc + Math.max(0, hhmmToMin(w.ends_at) - hhmmToMin(w.starts_at))
     }, 0)
     const fallback = h.openMin != null && h.closeMin != null ? Math.max(0, h.closeMin - h.openMin) : 0
     openMinByDate.set(String(h.date), winSum || fallback)
@@ -106,13 +100,13 @@ export const getMasterLoadRange = async (
     bookedCount.set(key, (bookedCount.get(key) || 0) + 1)
   }
 
-  const todayStr = dateToStr(new Date())
+  const todayStr = todayYmd()
 
   // Список дат диапазона (включительно)
   const allDates: string[] = []
   const [fy, fm, fd] = fromStr.split('-').map(Number)
-  for (let cur = new Date(fy, fm - 1, fd); dateToStr(cur) <= toStr; cur.setDate(cur.getDate() + 1)) {
-    allDates.push(dateToStr(cur))
+  for (let cur = new Date(fy, fm - 1, fd); ymd(cur) <= toStr; cur.setDate(cur.getDate() + 1)) {
+    allDates.push(ymd(cur))
   }
 
   const rows: MasterLoadRow[] = employees.map((emp) => {

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { fmtTimePrague } from '../../../../utils/date'
 import type { ShiftCheckResult } from '../../fetch/shiftClose'
 import { StatSection } from '../StatSection'
 import { bookingDocIdOf, getDiff } from './helpers'
@@ -81,12 +82,7 @@ export const ComparisonCard = ({ result }: { result: ShiftCheckResult }) => {
                     <span className="font-medium">{event.customer_name}</span>
                     <span className="text-purple-500">
                       — {event.event_types?.[0]?.title || '—'},{' '}
-                      {event.starts_at
-                        ? new Date(event.starts_at).toLocaleTimeString('cs-CZ', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        : '—'}
+                      {fmtTimePrague(event.starts_at)}
                     </span>
                   </div>
                 ))}

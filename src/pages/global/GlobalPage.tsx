@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMonthYear } from '../../hooks/useMonthYear'
 
 import { BlocksContent } from '../dashboard/components/BlocksContent'
 import { RefreshControl } from '../dashboard/components/RefreshControl'
@@ -11,8 +11,7 @@ import { StatSection } from './components/StatSection'
 import { blockReservationsItems, blockStateItems } from './data'
 
 const GlobalMonthStates = () => {
-  const [month, setMonth] = useState<number>(new Date().getMonth())
-  const [year, setYear] = useState<number>(new Date().getFullYear())
+  const { month, setMonth, year, setYear } = useMonthYear()
   const { data, loading, cachedAt, refresh } = useGlobalMonthData(month, year)
 
   return (

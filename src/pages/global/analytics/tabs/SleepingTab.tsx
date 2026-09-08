@@ -1,3 +1,4 @@
+import { fmtCsDate, ymdPrague } from '../../../../utils/date'
 import { memo, useState, useEffect, useCallback, useMemo } from 'react'
 import { Cell } from '../../../dashboard/components/Cell'
 import { StatSection } from '../../components/StatSection'
@@ -29,15 +30,10 @@ const VISIT_OPTIONS = [1, 2, 3, 5]
 const SKIP_RECENT_OPTIONS = [0, 30, 60, 90] // не слать тем, кому писали недавно
 const PAGE_SIZE = 50
 
-const fmtDate = (d: string) => {
-  const [y, m, day] = d.split('-')
-  return `${day}.${m}.${y}`
-}
+const fmtDate = fmtCsDate
 
-const fmtDateTime = (iso: string) => {
-  const d = new Date(iso)
-  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`
-}
+// Момент отправки письма → день САЛОНА (раньше день брался по поясу браузера).
+const fmtDateTime = (iso: string) => fmtCsDate(ymdPrague(iso))
 
 const fmtMoney = (n: number) => n.toLocaleString('cs-CZ')
 

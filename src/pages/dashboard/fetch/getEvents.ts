@@ -1,6 +1,7 @@
 import type { InputItemReservation } from './fetchHelpers'
 
 import { isBefore, isEqual, parseISO } from 'date-fns'
+import { daysInMonth, ymd } from '../../../utils/date'
 import { getMonthRange } from '../../../utils/getMonthRange'
 import { fetchMirrorBookingsRange, countBookingsCreatedBetween } from '../../../lib/mirror'
 import type { MirrorBooking } from '../../../lib/mirror'
@@ -13,8 +14,6 @@ import { groupCountReservationByDate } from './fetchHelpers'
 // «payed» / #822949 «fixed») в зеркале не существуют → «payed» = все брони
 // кроме cancelled/noshow (то, что реально приносит визиты), «fixed» = 0.
 
-const dayStr = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 export const getEvents = async (month: number, year: number) => {
   const { firstDay, lastDay } = getMonthRange(year, month)
@@ -22,7 +21,7 @@ export const getEvents = async (month: number, year: number) => {
   const today = new Date()
   let day = today.getDate()
   if (today.getMonth() !== month || today.getFullYear() !== year) {
-    day = new Date(year, month + 1, 0).getDate()
+    day = daysInMonth(year, month)
   }
 
   const startToday = new Date(today)
@@ -31,7 +30,7 @@ export const getEvents = async (month: number, year: number) => {
   endToday.setHours(23, 59, 59, 999)
 
   const [bookings, countCreatedMonthReservation, countCreatedTodayReservation] = await Promise.all([
-    fetchMirrorBookingsRange(dayStr(firstDay), dayStr(lastDay)),
+    fetchMirrorBookingsRange(ymd(firstDay), ymd(lastDay)),
     countBookingsCreatedBetween(firstDay.toISOString(), lastDay.toISOString()),
     countBookingsCreatedBetween(startToday.toISOString(), endToday.toISOString()),
   ])

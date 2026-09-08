@@ -1,21 +1,18 @@
+import { useMonthYear } from '../../../../hooks/useMonthYear'
 import { useState, useEffect, useCallback } from 'react'
 import { Select } from '../../../dashboard/components/Select'
 import { Cell } from '../../../dashboard/components/Cell'
 import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
+import { fmtCsDate } from '../../../../utils/date'
 import { getCancellations, type CancellationsData } from '../fetch/cancellations'
 
 const fmtMoney = (n: number) => `${Math.round(n).toLocaleString('cs-CZ')} Kč`
 const fmtH = (min: number) => `${Math.round((min / 60) * 10) / 10} ч`
-const fmtDate = (d: string) => {
-  if (!d) return '—'
-  const [y, m, day] = d.split('-')
-  return `${day}.${m}.${y}`
-}
+const fmtDate = fmtCsDate
 
 export default function CancellationsTab() {
-  const [month, setMonth] = useState<number>(new Date().getMonth())
-  const [year, setYear] = useState<number>(new Date().getFullYear())
+  const { month, setMonth, year, setYear } = useMonthYear()
   const [data, setData] = useState<CancellationsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

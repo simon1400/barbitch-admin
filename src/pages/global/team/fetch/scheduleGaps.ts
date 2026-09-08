@@ -1,3 +1,4 @@
+import { hhmmToMin, isoToMinPrague, minToHHMM } from '../../../../utils/date'
 import { getTeamRangeData } from './teamRangeData'
 
 // «Окна» (дыры) в расписании мастеров: свободные интервалы внутри рабочего
@@ -41,18 +42,12 @@ export interface MasterGapsRow {
   bookedMin: number
 }
 
-const hhmmToMin = (s: string): number => {
-  const [h, m] = s.split(':').map(Number)
-  return (h || 0) * 60 + (m || 0)
-}
-
-const isoToMin = (iso: string): number => {
-  const d = new Date(iso)
-  return d.getHours() * 60 + d.getMinutes()
-}
-
-const minToHHMM = (min: number): string =>
-  `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(Math.round(min % 60)).padStart(2, '0')}`
+// 🟥 Было `d.getHours()` — часы БРАУЗЕРА. Часы салона (`windows`) приходят
+// строками «HH:MM» пражского настенного времени, а начало брони — ISO-моментом,
+// поэтому у владельца вне Чехии окна вычитались не из тех интервалов и «мёртвые
+// окна» считались по чужому поясу. Календарь на тех же данных всегда считал по
+// Праге — теперь считают одинаково (s186).
+const isoToMin = (iso: string): number => isoToMinPrague(iso) ?? 0
 
 // Вычитание занятых интервалов из окна: возвращает свободные куски
 const subtract = (window: Interval, busy: Interval[]): Interval[] => {
@@ -79,11 +74,10 @@ export const getScheduleGaps = async (
 
   // Часы салона по дням: окна как в Noona (windows json), fallback open/close
   const opening: Record<string, Array<{ starts_at?: string; ends_at?: string }>> = {}
-  const minToHM = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
   for (const h of hours) {
     if (h.windows?.length) opening[String(h.date)] = h.windows
     else if (h.openMin != null && h.closeMin != null) {
-      opening[String(h.date)] = [{ starts_at: minToHM(h.openMin), ends_at: minToHM(h.closeMin) }]
+      opening[String(h.date)] = [{ starts_at: minToHHMM(h.openMin), ends_at: minToHHMM(h.closeMin) }]
     }
   }
 

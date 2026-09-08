@@ -1,3 +1,4 @@
+import { useMonthYear } from '../../../../hooks/useMonthYear'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Select } from '../../../dashboard/components/Select'
 import {
@@ -78,8 +79,7 @@ const CONTRACT_LABEL: Record<ContractType, string> = {
 }
 
 export default function TaxesTab() {
-  const [month, setMonth] = useState<number>(new Date().getMonth())
-  const [year, setYear] = useState<number>(new Date().getFullYear())
+  const { month, setMonth, year, setYear } = useMonthYear()
   const [rows, setRows] = useState<Row[]>([newRow()])
   const [params, setParams] = useState<TaxParams>(DEFAULT_PARAMS_2026)
   const [people, setPeople] = useState<PersonalOption[]>([])

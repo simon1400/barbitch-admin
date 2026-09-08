@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMonthYear } from '../../../../hooks/useMonthYear'
 
 import { Select } from '../../../dashboard/components/Select'
 import { useGlobalMonthData } from '../../../dashboard/hooks/useGlobalMonthData'
@@ -7,8 +7,7 @@ import { StatSection } from '../../components/StatSection'
 import { CHART } from '../../../../ui/chartColors'
 
 export default function ChartsTab() {
-  const [month, setMonth] = useState<number>(new Date().getMonth())
-  const [year, setYear] = useState<number>(new Date().getFullYear())
+  const { month, setMonth, year, setYear } = useMonthYear()
   const { data } = useGlobalMonthData(month, year)
 
   return (

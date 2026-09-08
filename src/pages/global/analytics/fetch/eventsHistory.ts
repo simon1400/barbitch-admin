@@ -1,3 +1,4 @@
+import { todayYmd } from '../../../../utils/date'
 import { fetchAnalyticsHistory, fetchMirrorEmployees } from '../../../../lib/mirror'
 
 // Общий кэш ВСЕЙ истории броней — используется табами «Спящие», «Возвращаемость»,
@@ -88,12 +89,10 @@ export const isAttended = (e: HistEvent) => e.status !== 'cancelled' && e.status
 // Активная бронь (для будущего): просто не отменена
 export const isActive = (e: HistEvent) => e.status !== 'cancelled'
 
-export const todayStr = (): string => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate(),
-  ).padStart(2, '0')}`
-}
+// «Сегодня» здесь сравнивается с `event_date` броней, а это день САЛОНА.
+// Раньше считалось по поясу браузера — у владельца в поездке «спящие»,
+// «возвраты» и прогноз брали на день больше или меньше (s186).
+export const todayStr = todayYmd
 
 // Имена ВСЕХ сотрудников (включая бывших) — для атрибуции исторических событий
 export const fetchEmployeeNames = async (): Promise<Map<string, string>> =>

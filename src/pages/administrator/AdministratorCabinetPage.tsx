@@ -1,3 +1,4 @@
+import { useMonthYear } from '../../hooks/useMonthYear'
 import { API_URL } from '../../lib/config'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { errMsg } from '../../lib/errMsg'
@@ -133,8 +134,12 @@ const AdministratorCabinetPage = () => {
   const [data, setData] = useState<AdministratorData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth())
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
+  const {
+    month: selectedMonth,
+    setMonth: setSelectedMonth,
+    year: selectedYear,
+    setYear: setSelectedYear,
+  } = useMonthYear()
   const [workTimesPage, setWorkTimesPage] = useState(1)
   const workTimesPerPage = 10
 

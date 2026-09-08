@@ -1,3 +1,4 @@
+import { DOW_RU_FULL, monthLabelRu, todayYmd, ym as monthKey, ymd } from '../../../../utils/date'
 import { getEventsHistory } from './eventsHistory'
 
 // Статистика клиентов: новые vs повторные по месяцам + загрузка по дням недели.
@@ -48,17 +49,9 @@ export interface ClientStats {
   totalClientsEver: number
 }
 
-const MONTHS_RU = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']
-const DOW_RU = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота']
-
+// ym здесь берёт месяц ИЗ СТРОКИ 'YYYY-MM-DD' — это не то же, что `ym(Date)`
+// в utils/date, поэтому остаётся своим.
 const ym = (d: string) => d.slice(0, 7)
-const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-const dayKey = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-const monthLabel = (m: string) => {
-  const [y, mm] = m.split('-')
-  return `${MONTHS_RU[Number(mm) - 1]} ${y}`
-}
 
 // Общий кэш истории (5 мин) уже в eventsHistory — мапим в локальную форму
 const fetchAllEvents = async (force: boolean): Promise<RawEvent[]> => {
@@ -96,7 +89,7 @@ export const getClientStats = async (force = false): Promise<ClientStats> => {
     const total = set.size
     return {
       month: m,
-      label: monthLabel(m),
+      label: monthLabelRu(m),
       total,
       newClients,
       returning,
@@ -129,8 +122,8 @@ export const getClientStats = async (force = false): Promise<ClientStats> => {
 
   // Загрузка по дням недели за последние 6 месяцев (только прошедшие визиты)
   const winStart = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate())
-  const startStr = dayKey(winStart)
-  const todayStr = dayKey(now)
+  const startStr = ymd(winStart)
+  const todayStr = todayYmd()
   const windowEvents = valid.filter(
     (e) => e.event_date! >= startStr && e.event_date! <= todayStr,
   )
@@ -155,7 +148,7 @@ export const getClientStats = async (force = false): Promise<ClientStats> => {
     const clients = visitsByDow.get(d)?.size || 0
     return {
       dow: d,
-      label: DOW_RU[d],
+      label: DOW_RU_FULL[d],
       reservations,
       clients,
       workingDays,
@@ -169,7 +162,7 @@ export const getClientStats = async (force = false): Promise<ClientStats> => {
     currentRow,
     monthlyTotals,
     weekdayRows,
-    weekdayWindowLabel: `${monthLabel(ym(startStr))} – ${monthLabel(ym(todayStr))}`,
+    weekdayWindowLabel: `${monthLabelRu(ym(startStr))} – ${monthLabelRu(ym(todayStr))}`,
     totalClientsEver: firstDate.size,
   }
 }

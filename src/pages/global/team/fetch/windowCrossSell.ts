@@ -1,3 +1,4 @@
+import { addDays, hhmmToMin, isoToMinPrague, minToHHMM, todayDate, ymd } from '../../../../utils/date'
 import { strapiQuery } from '../../../../lib/strapiQuery'
 import { fetchAllPagesAxios } from '../../../../lib/strapiPaginate'
 import { Axios } from '../../../../lib/api'
@@ -11,7 +12,6 @@ import {
 } from '../../../../lib/mirror'
 import { fetchAllPagesStrapi } from '../../../../lib/strapiRest'
 import { getScheduleGaps, type MasterGapsRow } from './scheduleGaps'
-import { dateToStr } from './masterLoad'
 import { getEventsHistory, isActive } from '../../analytics/fetch/eventsHistory'
 
 // ─── Cross-sell «дозапись в окно» ──────────────────────────────────────────────
@@ -107,26 +107,14 @@ const isExcludedOfferService = (title: string): boolean => {
 }
 
 // ─── Время ──────────────────────────────────────────────────────────────────
-const hhmmToMin = (s: string): number => {
-  const [h, m] = s.split(':').map(Number)
-  return (h || 0) * 60 + (m || 0)
-}
-const isoToMin = (iso: string): number => {
-  const d = new Date(iso)
-  return d.getHours() * 60 + d.getMinutes()
-}
-const addDays = (d: Date, n: number): Date => {
-  const res = new Date(d)
-  res.setDate(res.getDate() + n)
-  return res
-}
-// '2026-06-16' → '16. 6. 2026'
-const fmtCsDate = (dateStr: string): string => {
+// 🟥 Было `d.getHours()` — часы БРАУЗЕРА, см. тот же разбор в scheduleGaps:
+// предложение «окна» клиенту уезжало бы на часовой пояс владельца (s186).
+const isoToMin = (iso: string): number => isoToMinPrague(iso) ?? 0
+// '2026-06-16' → '16. 6. 2026' — текст письма, НЕ 'DD.MM.YYYY' из utils/date
+const fmtCsDateLong = (dateStr: string): string => {
   const [y, m, d] = dateStr.split('-').map(Number)
   return `${d}. ${m}. ${y}`
 }
-const minToHHMM = (min: number): string =>
-  `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
 
 // ─── Каталог: услуги + назначенные мастера (salon-service) ────────────────────
 interface CatalogSvc {
@@ -410,9 +398,12 @@ const bookedBucketsOf = (grp: ClientDayGroup): Set<Bucket> => {
 export const getWindowCrossSellCandidates = async (
   force = false,
 ): Promise<CrossSellCandidate[]> => {
-  const today = new Date()
-  const d1 = dateToStr(addDays(today, 1)) // завтра
-  const d2 = dateToStr(addDays(today, 2)) // послезавтра
+  // 🟥 `new Date()` здесь означало «сегодня по браузеру». Вечером из пояса
+  // западнее Праги «завтра» оказывалось СЕГОДНЯШНИМ днём салона, и клиенту
+  // ушло бы предложение на окно, которое уже идёт (s186).
+  const today = todayDate()
+  const d1 = ymd(addDays(today, 1)) // завтра
+  const d2 = ymd(addDays(today, 2)) // послезавтра
 
   // Медленно-меняющиеся данные (кэш) + дешёвые свежие (2-дневные окна + лог)
   const slow = await ensureSlow(force)
@@ -667,7 +658,7 @@ const postBulk = async (
         name: c.customerName,
         anchorLabel: BUCKET_LABEL_CS[c.anchorBucket],
         offerLabel: BUCKET_LABEL_CS[c.offerBucket], // категория предложения (manikúra/obočí/řasy)
-        date: fmtCsDate(c.date),
+        date: fmtCsDateLong(c.date),
         time: c.windowStartHHMM,
         service: c.serviceTitle,
         master: c.masterName,

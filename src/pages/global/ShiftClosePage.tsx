@@ -1,3 +1,4 @@
+import { ymd } from '../../utils/date'
 import { useState } from 'react'
 import {
   btnPinkCls,
@@ -41,8 +42,7 @@ import {
 // — это полночь UTC, и в отрицательном часовом поясе сверка смены уехала бы на
 // день назад (та же гоча, что чинили в графике месяца, s182). Дальше по коду
 // дата идёт в `checkShift`, где форматируется локальным `format(date,'yyyy-MM-dd')`.
-const toDateInput = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const toDateInput = ymd
 
 const fromDateInput = (v: string): Date | null => {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v)

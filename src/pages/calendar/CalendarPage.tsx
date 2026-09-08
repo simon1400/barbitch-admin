@@ -41,6 +41,7 @@ import { InstallAppButton } from './InstallAppButton'
 import { NotificationButton } from './NotificationButton'
 import { useCoarsePointer } from './useMediaQuery'
 import { IconArrowLeft, IconChevronDown, IconHistory, IconLock, IconMoon, IconSearch, IconSun } from './icons'
+import { dowOfYmd, WEEKDAYS_CS } from '../../utils/date'
 import { fmtHM, fmtTime, mondayOf, shiftDate, todayStr, type Mode } from './utils'
 import {
   AuditLogModal,
@@ -68,10 +69,9 @@ const weekLabelCs = (d: string): string => {
 
 // Короткие подписи для нижней панели телефона: «Pá 17. 7.» / «14. 7. – 20. 7.»
 // (в узкой панели рядом с кнопками полная подпись с годом не помещается)
-const WEEKDAYS_SHORT_CS = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So']
 const dateLabelShortCs = (d: string): string => {
   const [, m, dd] = d.split('-')
-  return `${WEEKDAYS_SHORT_CS[new Date(`${d}T00:00:00`).getDay()]} ${+dd}. ${+m}.`
+  return `${WEEKDAYS_CS[dowOfYmd(d)]} ${+dd}. ${+m}.`
 }
 const weekLabelShortCs = (d: string): string => {
   const mon = mondayOf(d)

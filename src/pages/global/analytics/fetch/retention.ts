@@ -1,3 +1,4 @@
+import { addDaysYmd } from '../../../../utils/date'
 import { getEventsHistory, fetchEmployeeNames, isAttended, todayStr } from './eventsHistory'
 import { fetchMirrorEmployees } from '../../../../lib/mirror'
 
@@ -21,14 +22,6 @@ export interface RetentionRow {
 export interface RetentionResult {
   rows: RetentionRow[]
   total: RetentionRow
-}
-
-const addDaysStr = (date: string, days: number): string => {
-  const [y, m, d] = date.split('-').map(Number)
-  const res = new Date(y, m - 1, d + days)
-  return `${res.getFullYear()}-${String(res.getMonth() + 1).padStart(2, '0')}-${String(
-    res.getDate(),
-  ).padStart(2, '0')}`
 }
 
 const pctOf = (returned: number, eligible: number): number | null =>
@@ -65,7 +58,7 @@ export const getRetention = async (force = false): Promise<RetentionResult> => {
     same: { eligible: 0, returned: 0 },
   }
 
-  const cutoff = (days: number) => addDaysStr(today, -days)
+  const cutoff = (days: number) => addDaysYmd(today, -days)
 
   for (const list of visits.values()) {
     list.sort((a, b) => (a.date < b.date ? -1 : 1))
@@ -85,7 +78,7 @@ export const getRetention = async (force = false): Promise<RetentionResult> => {
     const rest = list.slice(1)
     for (const days of [30, 60, 90] as const) {
       if (first.date > cutoff(days)) continue // окно ещё не закрыто
-      const limit = addDaysStr(first.date, days)
+      const limit = addDaysYmd(first.date, days)
       const returned = rest.some((v) => v.date <= limit)
       acc.w[days].eligible++
       totalAcc.w[days].eligible++

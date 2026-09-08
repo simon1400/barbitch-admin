@@ -16,11 +16,20 @@ import {
 import {
   getMasterLoad,
   getMasterLoadRange,
-  dateToStr,
   fmtHours,
   type MasterLoadResult,
   type MasterLoadRow,
 } from '../fetch/masterLoad'
+import {
+  addDays,
+  DOW_RU_SHORT,
+  dowOfYmd,
+  fmtCsDate,
+  fmtCsShort,
+  startOfWeek,
+  todayDate,
+  ymd,
+} from '../../../../utils/date'
 
 const pctBadgeCls = (pct: number | null): string => {
   if (pct === null) return 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-ink-faint bg-surface-input'
@@ -33,37 +42,12 @@ const PctChip = ({ pct }: { pct: number | null }) => (
   <span className={`whitespace-nowrap ${pctBadgeCls(pct)}`}>{pct === null ? '—' : `${pct} %`}</span>
 )
 
-const fmtDate = (d: string) => {
-  const [y, m, day] = d.split('-')
-  return `${day}.${m}.${y}`
-}
-
-const DOW_RU = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
-const dowOf = (date: string) => {
-  const [y, m, d] = date.split('-').map(Number)
-  return DOW_RU[new Date(y, m - 1, d).getDay()]
-}
-
-// Понедельник недели, в которую попадает дата
-const startOfWeek = (d: Date): Date => {
-  const res = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-  const shift = (res.getDay() + 6) % 7 // Пн=0 … Вс=6
-  res.setDate(res.getDate() - shift)
-  return res
-}
-
-const addDays = (d: Date, n: number): Date => {
-  const res = new Date(d)
-  res.setDate(res.getDate() + n)
-  return res
-}
-
-const fmtShort = (d: Date) => `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`
+const dowOf = (date: string) => DOW_RU_SHORT[dowOfYmd(date)]
 
 type Mode = 'month' | 'week'
 
 export default function LoadTab() {
-  const now = new Date()
+  const now = todayDate()
   const [mode, setMode] = useState<Mode>('month')
   const [month, setMonth] = useState<number>(now.getMonth())
   const [year, setYear] = useState<number>(now.getFullYear())
@@ -74,12 +58,12 @@ export default function LoadTab() {
   const [expanded, setExpanded] = useState<string | null>(null)
 
   const weekEnd = addDays(weekStart, 6)
-  const todayStr = dateToStr(now)
+  const todayStr = ymd(now)
   // Колонка «до сегодня» — только если период захватывает будущее (иначе равна общей)
   const showPast =
     mode === 'month'
       ? month === now.getMonth() && year === now.getFullYear()
-      : todayStr >= dateToStr(weekStart) && todayStr < dateToStr(weekEnd)
+      : todayStr >= ymd(weekStart) && todayStr < ymd(weekEnd)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -88,7 +72,7 @@ export default function LoadTab() {
       setData(
         mode === 'month'
           ? await getMasterLoad(month, year)
-          : await getMasterLoadRange(dateToStr(weekStart), dateToStr(addDays(weekStart, 6))),
+          : await getMasterLoadRange(ymd(weekStart), ymd(addDays(weekStart, 6))),
       )
     } catch {
       setData(null)
@@ -110,7 +94,7 @@ export default function LoadTab() {
     </button>
   )
 
-  const isCurrentWeek = dateToStr(weekStart) === dateToStr(startOfWeek(now))
+  const isCurrentWeek = ymd(weekStart) === ymd(startOfWeek(now))
 
   return (
     <>
@@ -133,7 +117,7 @@ export default function LoadTab() {
                 ‹
               </button>
               <span className="text-[13px] font-bold text-ink-body whitespace-nowrap min-w-[150px] text-center">
-                {fmtShort(weekStart)} – {fmtShort(weekEnd)}.{weekEnd.getFullYear()}
+                {fmtCsShort(weekStart)} – {fmtCsShort(weekEnd)}.{weekEnd.getFullYear()}
               </span>
               <button
                 type="button"
@@ -277,7 +261,7 @@ function LoadRow({
                       <tr key={d.date} className="hover:bg-surface-hover transition-colors">
                         <td className="p-4 border-b border-line-soft">
                           <span className="block text-[13.5px] font-bold text-ink">
-                            {fmtDate(d.date)}{' '}
+                            {fmtCsDate(d.date)}{' '}
                             <span className="text-[11px] font-semibold text-ink-faint">
                               {dowOf(d.date)}
                             </span>

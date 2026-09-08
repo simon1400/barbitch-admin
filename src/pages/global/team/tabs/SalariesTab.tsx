@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMonthYear } from '../../../../hooks/useMonthYear'
 import { RefreshControl } from '../../../dashboard/components/RefreshControl'
 import { Select } from '../../../dashboard/components/Select'
 import { useGlobalMonthData } from '../../../dashboard/hooks/useGlobalMonthData'
@@ -9,8 +9,7 @@ import { Masters } from '../../components/Masters'
 import { StatSection } from '../../components/StatSection'
 
 export default function SalariesTab() {
-  const [month, setMonth] = useState<number>(new Date().getMonth())
-  const [year, setYear] = useState<number>(new Date().getFullYear())
+  const { month, setMonth, year, setYear } = useMonthYear()
   const { data, loading, cachedAt, refresh } = useGlobalMonthData(month, year)
 
   return (
