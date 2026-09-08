@@ -1,4 +1,4 @@
-import { toLocalStringDigits } from "../../utils/toLocalString"
+import { toLocalStringDigits, toLocalStringInt } from "../../utils/toLocalString"
 
 // Единый источник формулы «Результат за месяц» (без DPH) — используется и в
 // blockStateItems (главная), и в помесячной разбивке «Глобальной статистики».
@@ -49,7 +49,7 @@ export const blockStateItems = (
   const items = [
     {
       title: 'Оборот',
-      value: `${globalFlow.toLocaleString()} Kč`,
+      value: `${toLocalStringInt(globalFlow)} Kč`,
       tone: 'accent' as const,
     },
     {
@@ -71,26 +71,26 @@ export const blockStateItems = (
     },
     {
       title: 'Разниця',
-      value: `${(cardMoney + cardExtraIncome + cashMoney + payrollSum + voucherRealized + qrMoney - globalFlow - extraMoney - voucherPayed).toLocaleString()} Kč`,
+      value: `${toLocalStringInt(cardMoney + cardExtraIncome + cashMoney + payrollSum + voucherRealized + qrMoney - globalFlow - extraMoney - voucherPayed)} Kč`,
     },
     {
       title: 'Затраты на салон',
-      value: `${noDphCosts.toLocaleString()}`,
+      value: `${toLocalStringInt(noDphCosts)}`,
     },
     {
       title: 'Зарплаты мастерам',
-      value: `${sumMasters.toLocaleString()}`,
+      value: `${toLocalStringInt(sumMasters)}`,
     },
     {
       title: 'Зарплаты админам',
-      value: `${sumAdmins.toLocaleString()}`,
+      value: `${toLocalStringInt(sumAdmins)}`,
     },
     ...(sumCombined !== 0
-      ? [{ title: 'Зарплаты совместителям', value: `${sumCombined.toLocaleString()}` }]
+      ? [{ title: 'Зарплаты совместителям', value: `${toLocalStringInt(sumCombined)}` }]
       : []),
     {
       title: 'Налоги',
-      value: `${taxesSum.toLocaleString()}`,
+      value: `${toLocalStringInt(taxesSum)}`,
     },
     {
       title: 'Результат по услугам',

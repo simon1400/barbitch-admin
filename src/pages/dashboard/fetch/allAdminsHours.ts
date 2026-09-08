@@ -2,7 +2,7 @@ import type { PersonalSumData } from './fetchHelpers'
 
 import { getMonthRange } from '../../../utils/getMonthRange'
 
-import { buildQuery, fetchData, fetchDayDrafts, summarizeGeneric } from './fetchHelpers'
+import { buildQuery, fetchAllPages, fetchDayDrafts, PAGE_SIZE, summarizeGeneric } from './fetchHelpers'
 
 interface RateItem {
   rate: number | string
@@ -183,28 +183,33 @@ export const getAdminsHours = async (month: number, year: number, previewDay?: s
     date: { $gte: firstDay.toISOString(), $lte: lastDay.toISOString() },
   }
 
-  const queryWorkTimes = buildQuery(
-    { date: filters.date },
-    ['date', 'sum'],
-    {
-      personal: {
-        fields: ['name', 'excessThreshold'],
-        populate: { rates: { fields: ['rate', 'hourlyRate', 'from', 'to', 'typeWork'] } },
+  // Потолок 70 на work-times убран: он был меньше серверного максимума и в
+  // произвольном диапазоне (неделя/квартал) молча срезал часы, а из часов
+  // считаются зарплаты администраторов.
+  const queryWorkTimes = (page: number) =>
+    buildQuery(
+      { date: filters.date },
+      ['date', 'sum'],
+      {
+        personal: {
+          fields: ['name', 'excessThreshold'],
+          populate: { rates: { fields: ['rate', 'hourlyRate', 'from', 'to', 'typeWork'] } },
+        },
       },
-    },
-    { page: 1, pageSize: 70 },
-  )
+      { page, pageSize: PAGE_SIZE },
+    )
 
-  const genericQuery = buildQuery(filters, ['sum'], { personal: { fields: ['name'] } })
+  const genericQuery = (page: number) =>
+    buildQuery(filters, ['sum'], { personal: { fields: ['name'] } }, { page, pageSize: PAGE_SIZE })
 
   const [data, penalties, extras, payrolls, advance, salaries, taxes] = await Promise.all([
-    fetchData<PersonalSumData>('/api/work-times', queryWorkTimes),
-    fetchData<PersonalSumData>('/api/penalties', genericQuery),
-    fetchData<PersonalSumData>('/api/add-moneys', genericQuery),
-    fetchData<PersonalSumData>('/api/payrolls', genericQuery),
-    fetchData<PersonalSumData>('/api/avanses', genericQuery),
-    fetchData<PersonalSumData>('/api/salaries', genericQuery),
-    fetchData<PersonalSumData>('/api/taxes', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/work-times', queryWorkTimes),
+    fetchAllPages<PersonalSumData>('/api/penalties', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/add-moneys', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/payrolls', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/avanses', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/salaries', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/taxes', genericQuery),
   ])
 
   // Preview: merge the day's draft work-times + payrolls (what a close publishes that
@@ -249,28 +254,33 @@ export const getAdminsHoursByDateRange = async (startDate: Date, endDate: Date) 
     date: { $gte: startDate.toISOString(), $lte: endDate.toISOString() },
   }
 
-  const queryWorkTimes = buildQuery(
-    { date: filters.date },
-    ['date', 'sum'],
-    {
-      personal: {
-        fields: ['name', 'excessThreshold'],
-        populate: { rates: { fields: ['rate', 'hourlyRate', 'from', 'to', 'typeWork'] } },
+  // Потолок 70 на work-times убран: он был меньше серверного максимума и в
+  // произвольном диапазоне (неделя/квартал) молча срезал часы, а из часов
+  // считаются зарплаты администраторов.
+  const queryWorkTimes = (page: number) =>
+    buildQuery(
+      { date: filters.date },
+      ['date', 'sum'],
+      {
+        personal: {
+          fields: ['name', 'excessThreshold'],
+          populate: { rates: { fields: ['rate', 'hourlyRate', 'from', 'to', 'typeWork'] } },
+        },
       },
-    },
-    { page: 1, pageSize: 70 },
-  )
+      { page, pageSize: PAGE_SIZE },
+    )
 
-  const genericQuery = buildQuery(filters, ['sum'], { personal: { fields: ['name'] } })
+  const genericQuery = (page: number) =>
+    buildQuery(filters, ['sum'], { personal: { fields: ['name'] } }, { page, pageSize: PAGE_SIZE })
 
   const [data, penalties, extras, payrolls, advance, salaries, taxes] = await Promise.all([
-    fetchData<PersonalSumData>('/api/work-times', queryWorkTimes),
-    fetchData<PersonalSumData>('/api/penalties', genericQuery),
-    fetchData<PersonalSumData>('/api/add-moneys', genericQuery),
-    fetchData<PersonalSumData>('/api/payrolls', genericQuery),
-    fetchData<PersonalSumData>('/api/avanses', genericQuery),
-    fetchData<PersonalSumData>('/api/salaries', genericQuery),
-    fetchData<PersonalSumData>('/api/taxes', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/work-times', queryWorkTimes),
+    fetchAllPages<PersonalSumData>('/api/penalties', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/add-moneys', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/payrolls', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/avanses', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/salaries', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/taxes', genericQuery),
   ])
 
   const { summary, sumAdmins } = summarizeAdmins(

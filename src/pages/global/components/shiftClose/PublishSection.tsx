@@ -75,6 +75,9 @@ interface PublishSectionProps {
   setExtraIncome: (v: string) => void
   publishing: boolean
   published: boolean
+  // Сбои загрузки данных дня. Пока список непустой, «Uzavřít směnu» заблокировано:
+  // сверка на неполных данных сходится и закрыла бы смену по неверным суммам.
+  loadErrors?: string[]
   publishError: string | null
   publishFailures?: PublishFailure[]
   profitDelta: {
@@ -108,6 +111,7 @@ export const PublishSection = ({
   setExtraIncome,
   publishing,
   published,
+  loadErrors = [],
   publishError,
   publishFailures = [],
   profitDelta,
@@ -164,7 +168,12 @@ export const PublishSection = ({
         <button
           type="button"
           onClick={onPublish}
-          disabled={publishing || published || !cardSum}
+          disabled={publishing || published || !cardSum || loadErrors.length > 0}
+          title={
+            loadErrors.length > 0
+              ? 'Data dne se nenačetla úplně — kontrola by proběhla na neúplných datech'
+              : undefined
+          }
           className={`px-8 py-2.5 font-bold rounded-lg transition-colors text-white ${
             published
               ? 'bg-pos-bg0 cursor-default'

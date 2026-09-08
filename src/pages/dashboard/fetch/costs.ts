@@ -1,9 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getMonthRange } from '../../../utils/getMonthRange'
 
-import { Axios } from '../../../lib/api'
-
-import { buildQueryCost, fetchDayDrafts } from './fetchHelpers'
+import { fetchAllCost, fetchDayDrafts } from './fetchHelpers'
 
 // Preview a shift close without saving: merge a day's drafts + use the entered card values.
 export interface ShiftPreview {
@@ -53,25 +51,18 @@ export const getMoney = async (
     dataQrMoney,
     dataTaxes,
   ] = await Promise.all([
-    Axios.get<IDataCosts[]>(
-      `/api/costs?${buildQueryCost(['sum', 'noDph'], 'date', firstDay, lastDay)}`,
-    ),
-    Axios.get<IDataCosts[]>(
-      `/api/card-profits?${buildQueryCost(['sum', 'extraIncome'], 'date', firstDay, lastDay)}`,
-    ),
-    Axios.get<IDataCosts[]>(
-      `/api/extra-profits?${buildQueryCost(['sum'], 'date', firstDay, lastDay)}`,
-    ),
-    Axios.get<IDataCash[]>(`/api/cashs?${buildQueryCost(['profit'], 'date', firstDay, lastDay)}`),
-    Axios.get<IDataCosts[]>(`/api/payrolls?${buildQueryCost(['sum'], 'date', firstDay, lastDay)}`),
-    Axios.get<IDataCosts[]>(
-      `/api/vouchers?${buildQueryCost(['sum'], 'dateRealized', firstDay, lastDay)}`,
-    ),
-    Axios.get<IDataCosts[]>(
-      `/api/vouchers?${buildQueryCost(['sum'], 'datePay', firstDay, lastDay)}`,
-    ),
-    Axios.get<IDataCosts[]>(`/api/qr-pays?${buildQueryCost(['sum'], 'date', firstDay, lastDay)}`),
-    Axios.get<IDataCosts[]>(`/api/taxes?${buildQueryCost(['sum'], 'date', firstDay, lastDay)}`),
+    // Все девять выборок — с пагинацией: раньше стоял потолок 40 записей на
+    // коллекцию за месяц, и 41-я строка молча не попадала в «Результат месяца»
+    // (на проде расходы за 2026-02 = 35 записей, запас был в 5 строк).
+    fetchAllCost<IDataCosts>('/api/costs', ['sum', 'noDph'], 'date', firstDay, lastDay),
+    fetchAllCost<IDataCosts>('/api/card-profits', ['sum', 'extraIncome'], 'date', firstDay, lastDay),
+    fetchAllCost<IDataCosts>('/api/extra-profits', ['sum'], 'date', firstDay, lastDay),
+    fetchAllCost<IDataCash>('/api/cashs', ['profit'], 'date', firstDay, lastDay),
+    fetchAllCost<IDataCosts>('/api/payrolls', ['sum'], 'date', firstDay, lastDay),
+    fetchAllCost<IDataCosts>('/api/vouchers', ['sum'], 'dateRealized', firstDay, lastDay),
+    fetchAllCost<IDataCosts>('/api/vouchers', ['sum'], 'datePay', firstDay, lastDay),
+    fetchAllCost<IDataCosts>('/api/qr-pays', ['sum'], 'date', firstDay, lastDay),
+    fetchAllCost<IDataCosts>('/api/taxes', ['sum'], 'date', firstDay, lastDay),
   ])
 
   const sumReducer = (arr: { sum: number }[]) =>

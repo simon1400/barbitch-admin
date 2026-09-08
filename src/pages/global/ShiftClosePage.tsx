@@ -262,6 +262,23 @@ export default function ShiftClosePage() {
           </div>
         )}
 
+        {result && !loading && result.errors.length > 0 && (
+          <div className="rounded-xl border border-neg bg-neg-bg px-5 py-4 mb-3.5">
+            <p className="m-0 text-[14px] font-extrabold text-neg">
+              Data dne se nenačetla úplně — kontrole nelze věřit
+            </p>
+            <ul className="mt-1.5 mb-0 pl-5 text-[13px] font-semibold text-neg">
+              {result.errors.map((e) => (
+                <li key={e}>{e}</li>
+              ))}
+            </ul>
+            <p className="mt-2 mb-0 text-[12px] font-semibold text-ink-muted">
+              Uzavření směny je zablokované. Zkuste „Zkontrolovat“ znovu; pokud chyba trvá,
+              jde nejspíš o přihlášení nebo výpadek serveru.
+            </p>
+          </div>
+        )}
+
         {result && !loading && (
           <>
             {/* Overall status */}
@@ -333,6 +350,7 @@ export default function ShiftClosePage() {
               setExtraIncome={setExtraIncome}
               publishing={publishing}
               published={published}
+              loadErrors={result.errors}
               publishError={publishError}
               publishFailures={publishFailures}
               profitDelta={profitDelta}

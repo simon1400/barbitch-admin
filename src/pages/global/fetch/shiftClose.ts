@@ -185,6 +185,18 @@ export interface ShiftCheckResult {
     match: boolean
     difference: number
   }
+  // 🟥 Сбой любой из пяти выборок раньше выглядел как «записей за день нет»:
+  // каждая ловила исключение и возвращала пустой список, сверка сходилась на
+  // пустоте, и смену можно было закрыть по неполным данным. Теперь причина
+  // доезжает до страницы, которая блокирует публикацию.
+  errors: string[]
+}
+
+// Короткое человекочитаемое описание сбоя выборки (HTTP-код или текст).
+const errText = (e: any): string => {
+  const status = e?.response?.status
+  if (status) return `HTTP ${status}`
+  return e?.message ? String(e.message) : 'neznámá chyba'
 }
 
 // Fetch cash records for a specific date
@@ -197,7 +209,7 @@ const fetchCash = async (dateStr: string) => {
     return { found: items.length > 0, count: items.length, items }
   } catch (e) {
     console.error('fetchCash error:', e)
-    return { found: false, count: 0, items: [] }
+    return { found: false, count: 0, items: [], error: `pokladna: ${errText(e)}` }
   }
 }
 
@@ -231,6 +243,7 @@ const fetchServiceProvided = async (dateStr: string) => {
       flagCounts: { ok: 0, sleva: 0, ztrata: 0, salon_up: 0, mistr_up: 0, mistr_down: 0, internal: 0, sleva_bez_karty: 0 },
       unverified: 0,
       items: [],
+      error: `provedené služby: ${errText(e)}`,
     }
   }
 }
@@ -245,7 +258,7 @@ const fetchWorkTime = async (dateStr: string) => {
     return { found: items.length > 0, count: items.length, items }
   } catch (e) {
     console.error('fetchWorkTime error:', e)
-    return { found: false, count: 0, items: [] }
+    return { found: false, count: 0, items: [], error: `pracovní doba: ${errText(e)}` }
   }
 }
 
@@ -259,7 +272,7 @@ const fetchPayroll = async (dateStr: string) => {
     return { found: items.length > 0, count: items.length, items }
   } catch (e) {
     console.error('fetchPayroll error:', e)
-    return { found: false, count: 0, items: [] }
+    return { found: false, count: 0, items: [], error: `výplaty: ${errText(e)}` }
   }
 }
 
@@ -289,7 +302,7 @@ const fetchCalendarBookings = async (dateStr: string) => {
     return { found: activeEvents.length > 0, count: activeEvents.length, events: activeEvents }
   } catch (e) {
     console.error('fetchCalendarBookings error:', e)
-    return { found: false, count: 0, events: [] }
+    return { found: false, count: 0, events: [], error: `rezervace z kalendáře: ${errText(e)}` }
   }
 }
 
@@ -907,6 +920,14 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
     difference: mismatchCount,
   }
 
+  const errors = [
+    (cash as any).error,
+    (serviceProvided as any).error,
+    (workTime as any).error,
+    (payroll as any).error,
+    (calendar as any).error,
+  ].filter(Boolean) as string[]
+
   return {
     date: dateStr,
     cash,
@@ -915,5 +936,6 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
     payroll,
     calendar: { ...calendar, events },
     comparison,
+    errors,
   }
 }

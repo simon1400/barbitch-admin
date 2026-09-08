@@ -214,12 +214,18 @@ export const fetchOfferLogs = async (): Promise<WindowOfferLog[]> => {
       },
       { encodeValuesOnly: true },
     )
+    // 🟥 Раньше сбой страницы молча прерывал цикл: журнал возвращался
+    // НЕПОЛНЫМ, и клиент, которому предложение уже уходило, снова попадал в
+    // подборку — то есть получал второе письмо. Лучше отказать явно.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let res: any
     try {
       res = await Axios.get(`/api/window-offer-logs?${query}`)
-    } catch {
-      break
+    } catch (e) {
+      console.error('fetchOfferLogs: страница', page, 'не загрузилась', e)
+      throw new Error(
+        'Nepodařilo se načíst historii nabídek — seznam by byl neúplný a někdo by dostal nabídku dvakrát.',
+      )
     }
     const data: Array<Record<string, unknown>> = Array.isArray(res) ? res : []
     for (const l of data) {

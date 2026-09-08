@@ -3,11 +3,44 @@ import qs from 'qs'
 
 import { Axios } from '../../../lib/api'
 
+// Потолок страницы = `api.rest.maxLimit` в strapi/config/api.ts. Просить больше
+// бессмысленно: сервер молча урежет ответ до 500, и часть денег потеряется без
+// единой ошибки в консоли.
+export const PAGE_SIZE = 500
+
+// Забрать ВСЕ страницы выборки.
+//
+// 🟥 Зачем цикл, а не «попросить побольше»: интерсептор в lib/api.ts возвращает
+// `response.data.data`, то есть `meta.pagination` до вызывающего кода не доходит
+// и посчитать число страниц нельзя. Поэтому признак конца — короткая страница.
+// Ровно этот пробел и породил `pageSize: 40` на расходах: 41-я строка молча
+// выпадала из «Результата месяца» (на проде расходы уже доходили до 35 в месяц).
+export const fetchAllPages = async <T>(
+  endpoint: string,
+  buildPageQuery: (page: number) => string,
+  maxPages = 40,
+): Promise<T[]> => {
+  const out: T[] = []
+  for (let page = 1; page <= maxPages; page++) {
+    const rows = await Axios.get<T[]>(`${endpoint}?${buildPageQuery(page)}`)
+    const arr = Array.isArray(rows) ? (rows as T[]) : []
+    out.push(...arr)
+    if (arr.length < PAGE_SIZE) return out
+    if (page === maxPages) {
+      // предохранитель: лучше шумная ошибка, чем тихо срезанные деньги
+      console.error(
+        `fetchAllPages: ${endpoint} отдал ${maxPages} полных страниц — выборка обрезана`,
+      )
+    }
+  }
+  return out
+}
+
 export const buildQuery = (
   filters: Record<string, any>,
   fields: string[],
   populate?: Record<string, any>,
-  pagination: { page: number; pageSize: number } = { page: 1, pageSize: 500 },
+  pagination: { page: number; pageSize: number } = { page: 1, pageSize: PAGE_SIZE },
 ) => {
   return qs.stringify(
     {
@@ -25,6 +58,7 @@ export const buildQueryCost = (
   dateField: string,
   firstDay: Date,
   lastDay: Date,
+  page = 1,
 ) =>
   qs.stringify(
     {
@@ -36,12 +70,22 @@ export const buildQueryCost = (
       },
       fields,
       pagination: {
-        page: 1,
-        pageSize: 40,
+        page,
+        pageSize: PAGE_SIZE,
       },
     },
     { encodeValuesOnly: true },
   )
+
+// Все записи коллекции за период (деньги месяца) — с пагинацией.
+export const fetchAllCost = <T>(
+  endpoint: string,
+  fields: string[],
+  dateField: string,
+  firstDay: Date,
+  lastDay: Date,
+): Promise<T[]> =>
+  fetchAllPages<T>(endpoint, (page) => buildQueryCost(fields, dateField, firstDay, lastDay, page))
 
 export const fetchData = async <T>(endpoint: string, query: string): Promise<T[]> => {
   return await Axios.get(`${endpoint}?${query}`)
@@ -92,8 +136,14 @@ export const summarizeGeneric = (
   }
 }
 
+// YYYY-MM-DD по ЛОКАЛЬНЫМ компонентам даты: `toISOString` считает в UTC и у
+// полуночи по Праге отдаёт вчерашний день (ключи графика разъезжались бы с
+// датами записей).
 function formatDate(date: Date): string {
-  return date.toISOString().slice(0, 10) // YYYY-MM-DD
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 interface Entry {
@@ -121,9 +171,18 @@ export function groupAndSumByDateWithGaps(data: Entry[]): GroupedSum[] {
 
   if (dates.length === 0) return []
 
+  // 🟥 Разбор и форматирование должны быть в ОДНОЙ шкале времени, иначе ключи
+  // графика разъедутся с ключами map. `new Date('2026-09-01')` — это полночь
+  // UTC, а `formatDate` теперь читает локальные компоненты; поэтому дату
+  // собираем локальным конструктором.
+  const localDate = (ymd: string) => {
+    const [y, m, d] = ymd.split('-').map(Number)
+    return new Date(y, (m || 1) - 1, d || 1)
+  }
+
   const result: GroupedSum[] = []
-  const currentDate = new Date(dates[0])
-  const endDate = new Date(dates[dates.length - 1])
+  const currentDate = localDate(dates[0])
+  const endDate = localDate(dates[dates.length - 1])
   endDate.setHours(23, 59, 59, 999)
 
   while (currentDate <= endDate) {

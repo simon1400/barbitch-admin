@@ -52,35 +52,3 @@ export const getExpenses = async (month: number, year: number): Promise<IExpense
     return []
   }
 }
-
-export const getAllExpenses = async (): Promise<IExpenseItem[]> => {
-  const query = qs.stringify(
-    {
-      fields: ['name', 'sum', 'date', 'comment', 'noDph', 'category'],
-      sort: ['date:desc'],
-      pagination: {
-        page: 1,
-        pageSize: 5000,
-      },
-    },
-    { encodeValuesOnly: true }
-  )
-
-  try {
-    const response = await Axios.get<any>(`/api/costs?${query}`)
-    const data = Array.isArray(response) ? response : []
-
-    return data.map((item: any) => ({
-      id: item.id || item._id,
-      name: item.name || 'Без названия',
-      date: item.date,
-      sum: Number(item.sum) || 0,
-      noDph: Number(item.noDph) || 0,
-      comment: item.comment || '',
-      category: item.category || 'Другое',
-    }))
-  } catch (error) {
-    console.error('Error fetching all expenses:', error)
-    return []
-  }
-}

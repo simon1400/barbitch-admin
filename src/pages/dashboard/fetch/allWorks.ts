@@ -4,9 +4,10 @@ import { getMonthRange } from '../../../utils/getMonthRange'
 
 import {
   buildQuery,
-  fetchData,
+  fetchAllPages,
   fetchDayDrafts,
   groupAndSumByDateWithGaps,
+  PAGE_SIZE,
   summarizeGeneric,
 } from './fetchHelpers'
 
@@ -129,20 +130,28 @@ export const getAllWorks = async (month: number, year: number, previewDay?: stri
 
   const filters = { date: { $gte: firstDay.toISOString(), $lte: lastDay.toISOString() } }
 
-  const serviceQuery = buildQuery(filters, ['staffSalaries', 'salonSalaries', 'tip', 'date', 'cash'], {
-    personal: { fields: ['name', 'excessThreshold'] },
-  })
+  // Из этих выборок считаются доли мастеров и зарплаты — берём ВСЕ страницы.
+  // Услуг на проде до 306 в месяц, потолок страницы 500, но в произвольном
+  // диапазоне (обзор недели, квартал) одной страницы уже не хватит.
+  const serviceQuery = (page: number) =>
+    buildQuery(
+      filters,
+      ['staffSalaries', 'salonSalaries', 'tip', 'date', 'cash'],
+      { personal: { fields: ['name', 'excessThreshold'] } },
+      { page, pageSize: PAGE_SIZE },
+    )
 
-  const genericQuery = buildQuery(filters, ['sum'], { personal: { fields: ['name'] } })
+  const genericQuery = (page: number) =>
+    buildQuery(filters, ['sum'], { personal: { fields: ['name'] } }, { page, pageSize: PAGE_SIZE })
 
   const [data, penalties, extras, payrolls, advance, salaries, taxes] = await Promise.all([
-    fetchData<IDataAllWorks>('/api/services-provided', serviceQuery),
-    fetchData<PersonalSumData>('/api/penalties', genericQuery),
-    fetchData<PersonalSumData>('/api/add-moneys', genericQuery),
-    fetchData<PersonalSumData>('/api/payrolls', genericQuery),
-    fetchData<PersonalSumData>('/api/avanses', genericQuery),
-    fetchData<PersonalSumData>('/api/salaries', genericQuery),
-    fetchData<PersonalSumData>('/api/taxes', genericQuery),
+    fetchAllPages<IDataAllWorks>('/api/services-provided', serviceQuery),
+    fetchAllPages<PersonalSumData>('/api/penalties', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/add-moneys', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/payrolls', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/avanses', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/salaries', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/taxes', genericQuery),
   ])
 
   // Preview: merge the day's draft services-provided + payrolls (the two collections a
@@ -184,20 +193,28 @@ export const getAllWorks = async (month: number, year: number, previewDay?: stri
 export const getAllWorksByDateRange = async (startDate: Date, endDate: Date) => {
   const filters = { date: { $gte: startDate.toISOString(), $lte: endDate.toISOString() } }
 
-  const serviceQuery = buildQuery(filters, ['staffSalaries', 'salonSalaries', 'tip', 'date', 'cash'], {
-    personal: { fields: ['name', 'excessThreshold'] },
-  })
+  // Из этих выборок считаются доли мастеров и зарплаты — берём ВСЕ страницы.
+  // Услуг на проде до 306 в месяц, потолок страницы 500, но в произвольном
+  // диапазоне (обзор недели, квартал) одной страницы уже не хватит.
+  const serviceQuery = (page: number) =>
+    buildQuery(
+      filters,
+      ['staffSalaries', 'salonSalaries', 'tip', 'date', 'cash'],
+      { personal: { fields: ['name', 'excessThreshold'] } },
+      { page, pageSize: PAGE_SIZE },
+    )
 
-  const genericQuery = buildQuery(filters, ['sum'], { personal: { fields: ['name'] } })
+  const genericQuery = (page: number) =>
+    buildQuery(filters, ['sum'], { personal: { fields: ['name'] } }, { page, pageSize: PAGE_SIZE })
 
   const [data, penalties, extras, payrolls, advance, salaries, taxes] = await Promise.all([
-    fetchData<IDataAllWorks>('/api/services-provided', serviceQuery),
-    fetchData<PersonalSumData>('/api/penalties', genericQuery),
-    fetchData<PersonalSumData>('/api/add-moneys', genericQuery),
-    fetchData<PersonalSumData>('/api/payrolls', genericQuery),
-    fetchData<PersonalSumData>('/api/avanses', genericQuery),
-    fetchData<PersonalSumData>('/api/salaries', genericQuery),
-    fetchData<PersonalSumData>('/api/taxes', genericQuery),
+    fetchAllPages<IDataAllWorks>('/api/services-provided', serviceQuery),
+    fetchAllPages<PersonalSumData>('/api/penalties', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/add-moneys', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/payrolls', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/avanses', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/salaries', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/taxes', genericQuery),
   ])
 
   const filteredData = summarizeWorks(data, penalties, extras, payrolls, advance, salaries, taxes)

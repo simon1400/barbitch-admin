@@ -5,7 +5,7 @@ import { BlocksContent } from '../../../dashboard/components/BlocksContent'
 import { Select } from '../../../dashboard/components/Select'
 import { monthLabels } from '../../../dashboard/data'
 import { getGlobalMonthData } from '../../../dashboard/fetch/monthDataCache'
-import { toLocalStringDigits } from '../../../../utils/toLocalString'
+import { toLocalStringDigits, toLocalStringInt } from '../../../../utils/toLocalString'
 import { GlobalLineChart } from '../../charts/components/GlobalLineChart'
 import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
@@ -307,7 +307,7 @@ export default function GlobalStatsTab() {
                             title={`${monthLabels[r.month]} ${r.year}${isCurrent ? ' (идёт)' : ''}`}
                             className="font-medium"
                           />
-                          <Cell title={`${d.globalFlow.toLocaleString()} Kč`} />
+                          <Cell title={`${toLocalStringInt(d.globalFlow)} Kč`} />
                           <td className="p-4 border-b border-line-soft">
                             <span
                               className={`font-sans text-sm font-medium ${
@@ -317,8 +317,8 @@ export default function GlobalStatsTab() {
                               {toLocalStringDigits(monthResult)}
                             </span>
                           </td>
-                          <Cell title={salaries.toLocaleString()} />
-                          <Cell title={d.noDphCosts.toLocaleString()} />
+                          <Cell title={toLocalStringInt(salaries)} />
+                          <Cell title={toLocalStringInt(d.noDphCosts)} />
                           <Cell title={String(d.clients.all)} />
                           <td className="p-4 border-b border-line-soft">
                             <button

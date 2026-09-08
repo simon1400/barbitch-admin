@@ -1,7 +1,14 @@
 import { getMonthRange } from '../../../utils/getMonthRange'
 import { fetchMirrorBookingsRange } from '../../../lib/mirror'
 
-import { buildQuery, fetchData, groupCountReservationByDate, type InputItemReservation } from './fetchHelpers'
+import {
+  buildQuery,
+  fetchAllPages,
+  fetchData,
+  groupCountReservationByDate,
+  type InputItemReservation,
+  PAGE_SIZE,
+} from './fetchHelpers'
 
 export interface IDataWorks {
   name: string
@@ -61,15 +68,20 @@ export const getWorks = async (name: string, month: number, year: number) => {
     },
   }
 
-  const penaltyQuery = buildQuery(penaltyFilters, ['sum'])
+  const penaltyQuery = (page: number) =>
+    buildQuery(penaltyFilters, ['sum'], undefined, { page, pageSize: PAGE_SIZE })
   // Премии — с датой и названием, чтобы показать таблицу расшифровки (как у администраторов)
-  const extraQuery = buildQuery(penaltyFilters, ['sum', 'date', 'title'])
+  const extraQuery = (page: number) =>
+    buildQuery(penaltyFilters, ['sum', 'date', 'title'], undefined, { page, pageSize: PAGE_SIZE })
 
+  // personals остаётся одиночным запросом: это ОДИН мастер по имени, а его
+  // услуги приходят вложенным populate — он не режется постраничностью
+  // (проверено на проде: 67 услуг за месяц приходят полностью).
   const [data, penalties, extra, payroll] = await Promise.all([
     fetchData<IDataWorks>('/api/personals', offersQuery),
-    fetchData<IDataSumOnly>('/api/penalties', penaltyQuery),
-    fetchData<IExtraProfitItem>('/api/add-moneys', extraQuery),
-    fetchData<IDataSumOnly>('/api/payrolls', penaltyQuery),
+    fetchAllPages<IDataSumOnly>('/api/penalties', penaltyQuery),
+    fetchAllPages<IExtraProfitItem>('/api/add-moneys', extraQuery),
+    fetchAllPages<IDataSumOnly>('/api/payrolls', penaltyQuery),
   ])
 
   const penalty = penalties.reduce((acc, item) => acc + +item.sum, 0)
