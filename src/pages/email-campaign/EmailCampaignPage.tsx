@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { errMsg } from '../../lib/errMsg'
 import { sendCampaign, skippedSummary } from '../../lib/campaignApi'
 import { hintCls, kickerCls, pageShellCls } from '../../ui/kit'
 
@@ -122,7 +123,7 @@ const EmailCampaignPage = () => {
       console.error('Error sending emails:', error)
       setMessage({
         type: 'error',
-        text: error instanceof Error ? error.message : 'Chyba při odesílání emailů',
+        text: errMsg(error, 'Chyba při odesílání emailů'),
       })
     } finally {
       setLoading(false)

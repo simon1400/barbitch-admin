@@ -1,5 +1,6 @@
 import { API_URL } from '../../lib/config'
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { errMsg } from '../../lib/errMsg'
 import { h1Cls, kickerCls, pageShellCls, toolbarCardCls } from '../../ui/kit'
 import { useState, useEffect, useMemo } from 'react'
 import { Cell } from '../dashboard/components/Cell'
@@ -164,7 +165,7 @@ const AdministratorCabinetPage = () => {
         const result = await response.json()
         setData(result)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Произошла ошибка')
+        setError(errMsg(err, 'Произошла ошибка'))
       } finally {
         setLoading(false)
       }

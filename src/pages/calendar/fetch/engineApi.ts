@@ -1,4 +1,4 @@
-import { API_URL } from '../../../lib/config'
+import { makeApiFetch } from '../../../lib/apiFetch'
 // Клиент админских ручек движка бронирования (/api/engine/admin/*) + каталог
 // salon-service + поиск клиентов. Мутации движка идут ЧИСТЫМ fetch с admin-jwt
 // (userJwt из localStorage): Axios-интерсептор admin-апки принудительно подменяет
@@ -6,22 +6,11 @@ import { API_URL } from '../../../lib/config'
 // res.data.data — для engine-ответов не годится.
 
 import { Axios } from '../../../lib/api'
-import { getToken } from '../../../services/auth'
 import { authHeaders } from '../../../lib/authHeaders'
 
 
 
 // ── ошибки движка ──
-
-class EngineApiError extends Error {
-  status: number
-  code: string
-  constructor(status: number, code: string, message: string) {
-    super(message)
-    this.status = status
-    this.code = code
-  }
-}
 
 // Человеческие сообщения по кодам движка
 const CODE_MESSAGES: Record<string, string> = {
@@ -62,22 +51,7 @@ const CODE_MESSAGES: Record<string, string> = {
   bad_approval_status: 'Neplatný stav schválení.',
 }
 
-async function engineFetch<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${API_URL}/api${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${getToken() || ''}`,
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  })
-  const json = await res.json().catch(() => null)
-  if (!res.ok) {
-    const code = json?.error?.code || 'internal'
-    throw new EngineApiError(res.status, code, CODE_MESSAGES[code] || json?.error?.message || `Chyba ${res.status}`)
-  }
-  return json as T
-}
+const engineFetch = makeApiFetch('/api', CODE_MESSAGES, (status) => `Chyba ${status}`)
 
 // ── день календаря ──
 

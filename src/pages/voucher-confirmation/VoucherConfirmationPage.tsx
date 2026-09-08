@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { errMsg } from '../../lib/errMsg'
 import { hintCls, kickerCls, pageShellCls } from '../../ui/kit'
 import { Axios } from '../../lib/api'
 import { sendVoucherConfirmation } from '../../lib/campaignApi'
@@ -119,7 +120,7 @@ const VoucherConfirmationPage = () => {
       // сервер объясняет причину (нет прав / битый адрес / секрет не настроен)
       setMessage({
         type: 'error',
-        text: error instanceof Error ? error.message : 'Chyba při odesílání emailu',
+        text: errMsg(error, 'Chyba při odesílání emailu'),
       })
     } finally {
       setLoading(false)

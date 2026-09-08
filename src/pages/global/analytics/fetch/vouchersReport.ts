@@ -1,5 +1,5 @@
 import { strapiQuery } from '../../../../lib/strapiQuery'
-import { Axios } from '../../../../lib/api'
+import { fetchAllPagesAxios } from '../../../../lib/strapiPaginate'
 
 // Отчёт по ваучерам (Strapi коллекция vouchers).
 // Жизненный цикл: dateOrder (заказан) → datePay (оплачен) → dateRealized (использован).
@@ -46,33 +46,27 @@ const monthLabel = (m: string) => {
 
 const fetchAllVouchers = async (): Promise<VoucherRecord[]> => {
   const result: VoucherRecord[] = []
-  let page = 1
-  for (;;) {
-    const query = strapiQuery(
+  const data = await fetchAllPagesAxios<Record<string, unknown>>('/api/vouchers', (page) =>
+    strapiQuery(
       {
         fields: ['name', 'for', 'sum', 'dateOrder', 'datePay', 'dateRealized', 'idVoucher'],
         sort: ['dateOrder:desc'],
         pagination: { page, pageSize: 500 },
       },
+    ),
   )
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res = await Axios.get<any>(`/api/vouchers?${query}`)
-    const data: Array<Record<string, unknown>> = Array.isArray(res) ? res : []
-    for (const v of data) {
-      result.push({
-        id: Number(v.id) || 0,
-        documentId: String(v.documentId ?? ''),
-        name: String(v.name ?? '—'),
-        forWhom: String(v.for ?? ''),
-        sum: Number(v.sum) || 0,
-        dateOrder: String(v.dateOrder ?? ''),
-        datePay: v.datePay ? String(v.datePay) : null,
-        dateRealized: v.dateRealized ? String(v.dateRealized) : null,
-        idVoucher: String(v.idVoucher ?? ''),
-      })
-    }
-    if (data.length < 500) break
-    page++
+  for (const v of data) {
+    result.push({
+      id: Number(v.id) || 0,
+      documentId: String(v.documentId ?? ''),
+      name: String(v.name ?? '—'),
+      forWhom: String(v.for ?? ''),
+      sum: Number(v.sum) || 0,
+      dateOrder: String(v.dateOrder ?? ''),
+      datePay: v.datePay ? String(v.datePay) : null,
+      dateRealized: v.dateRealized ? String(v.dateRealized) : null,
+      idVoucher: String(v.idVoucher ?? ''),
+    })
   }
   return result
 }

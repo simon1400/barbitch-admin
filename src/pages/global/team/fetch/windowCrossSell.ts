@@ -1,14 +1,15 @@
 import { strapiQuery } from '../../../../lib/strapiQuery'
+import { fetchAllPagesAxios } from '../../../../lib/strapiPaginate'
 import { Axios } from '../../../../lib/api'
 import { sendCampaign } from '../../../../lib/campaignApi'
 import type { CampaignSendResult, CampaignSkipped } from '../../../../lib/campaignApi'
 import {
   clientKey,
-  fetchAllPagesStrapi,
   fetchMirrorBookingsRange,
   fetchMirrorClients,
   fetchMirrorEmployees,
 } from '../../../../lib/mirror'
+import { fetchAllPagesStrapi } from '../../../../lib/strapiRest'
 import { getScheduleGaps, type MasterGapsRow } from './scheduleGaps'
 import { dateToStr } from './masterLoad'
 import { getEventsHistory, isActive } from '../../analytics/fetch/eventsHistory'
@@ -190,10 +191,8 @@ interface WindowOfferLog {
 }
 
 const fetchOfferLogs = async (): Promise<WindowOfferLog[]> => {
-  const logs: WindowOfferLog[] = []
-  let page = 1
-  for (;;) {
-    const query = strapiQuery(
+  const buildQuery = (page: number) =>
+    strapiQuery(
       {
         fields: [
           'bookingEventId',
@@ -212,40 +211,42 @@ const fetchOfferLogs = async (): Promise<WindowOfferLog[]> => {
         sort: ['sentAt:desc'],
         pagination: { page, pageSize: 200 },
       },
+    )
+
+  // 🟥 Сбой страницы НЕ должен молча прерывать сбор: журнал вернулся бы
+  // НЕПОЛНЫМ, и клиент, которому предложение уже уходило, снова попал бы в
+  // подборку — то есть получил бы второе письмо. Отказываем явно.
+  const data = await fetchAllPagesAxios<Record<string, unknown>>(
+    '/api/window-offer-logs',
+    buildQuery,
+    {
+      pageSize: 200,
+      onPageError: (e, page) => {
+        console.error('fetchOfferLogs: страница', page, 'не загрузилась', e)
+        throw new Error(
+          'Nepodařilo se načíst historii nabídek — seznam by byl neúplný a někdo by dostal nabídku dvakrát.',
+        )
+      },
+    },
   )
-    // 🟥 Раньше сбой страницы молча прерывал цикл: журнал возвращался
-    // НЕПОЛНЫМ, и клиент, которому предложение уже уходило, снова попадал в
-    // подборку — то есть получал второе письмо. Лучше отказать явно.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let res: any
-    try {
-      res = await Axios.get(`/api/window-offer-logs?${query}`)
-    } catch (e) {
-      console.error('fetchOfferLogs: страница', page, 'не загрузилась', e)
-      throw new Error(
-        'Nepodařilo se načíst historii nabídek — seznam by byl neúplný a někdo by dostal nabídku dvakrát.',
-      )
-    }
-    const data: Array<Record<string, unknown>> = Array.isArray(res) ? res : []
-    for (const l of data) {
-      logs.push({
-        documentId: String(l.documentId ?? ''),
-        bookingEventId: String(l.bookingEventId ?? ''),
-        offeredCategory: String(l.offeredCategory ?? ''),
-        customerId: String(l.customerId ?? ''),
-        customerName: String(l.customerName ?? ''),
-        email: String(l.email ?? ''),
-        masterId: String(l.masterId ?? ''),
-        masterName: String(l.masterName ?? ''),
-        serviceTitle: String(l.serviceTitle ?? ''),
-        anchorDate: String(l.anchorDate ?? ''),
-        windowTime: String(l.windowTime ?? ''),
-        discount: String(l.discount ?? ''),
-        sentAt: String(l.sentAt ?? ''),
-      })
-    }
-    if (data.length < 200) break
-    page++
+
+  const logs: WindowOfferLog[] = []
+  for (const l of data) {
+    logs.push({
+      documentId: String(l.documentId ?? ''),
+      bookingEventId: String(l.bookingEventId ?? ''),
+      offeredCategory: String(l.offeredCategory ?? ''),
+      customerId: String(l.customerId ?? ''),
+      customerName: String(l.customerName ?? ''),
+      email: String(l.email ?? ''),
+      masterId: String(l.masterId ?? ''),
+      masterName: String(l.masterName ?? ''),
+      serviceTitle: String(l.serviceTitle ?? ''),
+      anchorDate: String(l.anchorDate ?? ''),
+      windowTime: String(l.windowTime ?? ''),
+      discount: String(l.discount ?? ''),
+      sentAt: String(l.sentAt ?? ''),
+    })
   }
   return logs
 }

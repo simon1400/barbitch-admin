@@ -1,54 +1,14 @@
-import { API_URL } from '../../../lib/config'
+import { fetchAllPagesStrapi as fetchAllPages, getJson, sendJson } from '../../../lib/strapiRest'
 // Data-слой admin-таба «Лояльность» (bitchcard, К3).
 //
-// Чистый fetch (НЕ Axios из lib/api: его интерсептор разворачивает res.data.data —
-// гоча s99/s103). Авторизация — токен сессии (lib/authHeaders).
+// Сырой слой (fetch + пагинация по pageCount) — общий: lib/strapiRest.ts.
 // Лояльность = PII → Public-права в Strapi НЕ включаем.
 
 import { getSession } from '../../../services/auth'
-import { authHeaders } from '../../../lib/authHeaders'
 
 
 
-interface StrapiListResponse<T> {
-  data: T[]
-  meta?: { pagination?: { pageCount?: number; total?: number } }
-}
 
-const getJson = async <T>(pathWithQuery: string): Promise<StrapiListResponse<T>> => {
-  const res = await fetch(`${API_URL}${pathWithQuery}`, { headers: authHeaders() })
-  if (!res.ok) throw new Error(`Strapi GET ${pathWithQuery} → ${res.status}`)
-  return res.json()
-}
-
-const sendJson = async (method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown) => {
-  const res = await fetch(`${API_URL}${path}`, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`Strapi ${method} ${path} → ${res.status}${text ? `: ${text.slice(0, 200)}` : ''}`)
-  }
-  return res.status === 204 ? null : res.json()
-}
-
-const fetchAllPages = async <T>(path: string, pageSize = 500): Promise<T[]> => {
-  const sep = path.includes('?') ? '&' : '?'
-  const page = (n: number) =>
-    getJson<T>(
-      `${path}${sep}pagination[page]=${n}&pagination[pageSize]=${pageSize}&pagination[withCount]=true`,
-    )
-  const first = await page(1)
-  const out = [...(first.data || [])]
-  const pageCount = first.meta?.pagination?.pageCount || 1
-  if (pageCount > 1) {
-    const rest = await Promise.all(Array.from({ length: pageCount - 1 }, (_, i) => page(i + 2)))
-    for (const r of rest) out.push(...(r.data || []))
-  }
-  return out
-}
 
 // ── типы ──
 

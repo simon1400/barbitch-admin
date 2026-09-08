@@ -1,4 +1,5 @@
 import { strapiQuery } from '../../../../lib/strapiQuery'
+import { fetchAllPagesAxios } from '../../../../lib/strapiPaginate'
 import { Axios } from '../../../../lib/api'
 import { sendCampaign } from '../../../../lib/campaignApi'
 import type { CampaignSendResult } from '../../../../lib/campaignApi'
@@ -100,45 +101,47 @@ export const fetchCampaignLogs = async (): Promise<CampaignLog[]> => {
   // Если Strapi ещё без поля `filters` (старый деплой) — запрос с ним даёт 400
   // «Invalid key filters». Не терять ВЕСЬ лог (защита от дублей!), а ретраить без него.
   let withFilters = true
-  let page = 1
-  for (;;) {
+  const buildQuery = (page: number) => {
     const fields = ['template', 'subject', 'count', 'recipients', 'createdAt']
     if (withFilters) fields.splice(4, 0, 'filters')
-    const query = strapiQuery(
+    return strapiQuery(
       {
         fields,
         sort: ['createdAt:desc'],
         pagination: { page, pageSize: 100 },
       },
+    )
+  }
+
+  const data = await fetchAllPagesAxios<Record<string, unknown>>(
+    '/api/email-campaign-logs',
+    buildQuery,
+    {
+      pageSize: 100,
+      // повтор ТОЙ ЖЕ страницы, но уже без поля filters
+      onPageError: (e) => {
+        if (withFilters) {
+          withFilters = false
+          return 'retry'
+        }
+        throw e
+      },
+    },
   )
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let res: any
-    try {
-      res = await Axios.get(`/api/email-campaign-logs?${query}`)
-    } catch (e) {
-      if (withFilters) {
-        withFilters = false
-        continue
-      }
-      throw e
-    }
-    const data: Array<Record<string, unknown>> = Array.isArray(res) ? res : []
-    for (const log of data) {
-      logs.push({
-        documentId: String(log.documentId ?? ''),
-        createdAt: String(log.createdAt ?? ''),
-        template: String(log.template ?? ''),
-        subject: String(log.subject ?? ''),
-        count: Number(log.count) || 0,
-        recipients: (Array.isArray(log.recipients) ? log.recipients : []) as CampaignRecipient[],
-        filters:
-          log.filters && typeof log.filters === 'object'
-            ? (log.filters as CampaignFilters)
-            : null,
-      })
-    }
-    if (data.length < 100) break
-    page++
+
+  for (const log of data) {
+    logs.push({
+      documentId: String(log.documentId ?? ''),
+      createdAt: String(log.createdAt ?? ''),
+      template: String(log.template ?? ''),
+      subject: String(log.subject ?? ''),
+      count: Number(log.count) || 0,
+      recipients: (Array.isArray(log.recipients) ? log.recipients : []) as CampaignRecipient[],
+      filters:
+        log.filters && typeof log.filters === 'object'
+          ? (log.filters as CampaignFilters)
+          : null,
+    })
   }
   return logs
 }

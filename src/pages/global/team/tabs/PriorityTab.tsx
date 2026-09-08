@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { errMsg } from '../../../../lib/errMsg'
 import {
   cardPadCls,
   cardTitleCls,
@@ -42,7 +43,7 @@ export default function PriorityTab() {
           .sort((a, b) => b.bookingPriority - a.bookingPriority),
       )
     } catch (err: unknown) {
-      alert(`Chyba: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      alert(`Chyba: ${errMsg(err, 'Unknown error')}`)
     } finally {
       setSaving(null)
     }

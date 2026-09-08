@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
+import { errMsg } from '../../lib/errMsg'
 import { h1Cls, hintCls, kickerCls, pageShellCls } from '../../ui/kit'
 import { OwnerProtection } from './components/OwnerProtection'
 import { Pagination } from '../../components/Pagination'
@@ -105,7 +106,7 @@ export default function ErrorLogsPage() {
         ),
       )
     } catch (err: unknown) {
-      alert(`Failed: ${err instanceof Error ? err.message : 'Unknown'}`)
+      alert(`Failed: ${errMsg(err, 'Unknown')}`)
     }
   }
 
@@ -115,7 +116,7 @@ export default function ErrorLogsPage() {
       await deleteErrorLog(log.documentId)
       setLogs((prev) => prev.filter((l) => l.documentId !== log.documentId))
     } catch (err: unknown) {
-      alert(`Failed: ${err instanceof Error ? err.message : 'Unknown'}`)
+      alert(`Failed: ${errMsg(err, 'Unknown')}`)
     }
   }
 
@@ -126,7 +127,7 @@ export default function ErrorLogsPage() {
       setActionMsg(`Smazáno: ${n}`)
       await load()
     } catch (err: unknown) {
-      setActionMsg(`Error: ${err instanceof Error ? err.message : 'Unknown'}`)
+      setActionMsg(`Error: ${errMsg(err, 'Unknown')}`)
     }
   }
 

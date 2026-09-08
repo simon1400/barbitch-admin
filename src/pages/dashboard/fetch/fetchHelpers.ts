@@ -3,38 +3,12 @@ import { strapiQuery } from '../../../lib/strapiQuery'
 
 import { Axios } from '../../../lib/api'
 
-// Потолок страницы = `api.rest.maxLimit` в strapi/config/api.ts. Просить больше
-// бессмысленно: сервер молча урежет ответ до 500, и часть денег потеряется без
-// единой ошибки в консоли.
-export const PAGE_SIZE = 500
-
-// Забрать ВСЕ страницы выборки.
-//
-// 🟥 Зачем цикл, а не «попросить побольше»: интерсептор в lib/api.ts возвращает
-// `response.data.data`, то есть `meta.pagination` до вызывающего кода не доходит
-// и посчитать число страниц нельзя. Поэтому признак конца — короткая страница.
-// Ровно этот пробел и породил `pageSize: 40` на расходах: 41-я строка молча
-// выпадала из «Результата месяца» (на проде расходы уже доходили до 35 в месяц).
-export const fetchAllPages = async <T>(
-  endpoint: string,
-  buildPageQuery: (page: number) => string,
-  maxPages = 40,
-): Promise<T[]> => {
-  const out: T[] = []
-  for (let page = 1; page <= maxPages; page++) {
-    const rows = await Axios.get<T[]>(`${endpoint}?${buildPageQuery(page)}`)
-    const arr = Array.isArray(rows) ? (rows as T[]) : []
-    out.push(...arr)
-    if (arr.length < PAGE_SIZE) return out
-    if (page === maxPages) {
-      // предохранитель: лучше шумная ошибка, чем тихо срезанные деньги
-      console.error(
-        `fetchAllPages: ${endpoint} отдал ${maxPages} полных страниц — выборка обрезана`,
-      )
-    }
-  }
-  return out
-}
+// Постраничный сбор живёт в lib/strapiPaginate.ts — он общий на весь проект
+// (денежные выборки, журнал рассылок, журнал предложений, ваучеры).
+// Здесь только реэкспорт: имена `PAGE_SIZE`/`fetchAllPages` разошлись по десятку
+// файлов дашборда, и переименование их всех дало бы шум без пользы.
+export { PAGE_SIZE, fetchAllPagesAxios as fetchAllPages } from '../../../lib/strapiPaginate'
+import { PAGE_SIZE, fetchAllPagesAxios as fetchAllPages } from '../../../lib/strapiPaginate'
 
 export const buildQuery = (
   filters: Record<string, any>,

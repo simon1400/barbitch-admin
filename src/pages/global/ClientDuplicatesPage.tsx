@@ -4,6 +4,7 @@
 // с распространением имени на брони календаря, синхронизация блэклиста,
 // «не дубли» (скрыть группу), история операций.
 
+import { errMsg as sharedErrMsg } from '../../lib/errMsg'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
@@ -44,7 +45,7 @@ const PAGE_SIZE = 10
 const fmtDay = (s: string | null) =>
   s ? new Date(s).toLocaleDateString('cs-CZ', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
 
-const errMsg = (e: unknown) => (e instanceof Error ? e.message : 'Неизвестная ошибка')
+const errMsg = (e: unknown) => sharedErrMsg(e, 'Неизвестная ошибка')
 
 // чипы-бейджи (11px/700)
 const chipInfoCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-ink-muted bg-surface-input'

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { errMsg } from '../../lib/errMsg'
 import {
   btnPinkCls,
   cardCls,
@@ -162,7 +163,7 @@ export default function ReviewSyncPage() {
       setSyncResult(`Synced: ${result.created} new, ${result.skipped} already exist, ${result.filtered || 0} filtered (${result.total} from Google)`)
       await loadReviews()
     } catch (err: unknown) {
-      setSyncResult(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      setSyncResult(`Error: ${errMsg(err, 'Unknown error')}`)
     } finally {
       setSyncing(false)
     }
@@ -174,7 +175,7 @@ export default function ReviewSyncPage() {
       await deleteReview(documentId)
       setReviews((prev) => prev.filter((r) => r.documentId !== documentId))
     } catch (err: unknown) {
-      alert(`Failed to delete: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      alert(`Failed to delete: ${errMsg(err, 'Unknown error')}`)
     }
   }
 

@@ -1,5 +1,5 @@
 import { Axios } from '../../../../lib/api'
-import { fetchAllPagesStrapi } from '../../../../lib/mirror'
+import { fetchAllPagesStrapi } from '../../../../lib/strapiRest'
 
 // Автонапоминания «пора записаться снова» (comeback-reminder, крон 11:00 Праги).
 // Лог отправок пишет ТОЛЬКО сервер (strapi api::comeback-reminder-log) — Public-прав

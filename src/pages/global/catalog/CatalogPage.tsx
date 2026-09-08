@@ -7,6 +7,7 @@
 // тоглы 36×21, sticky-бар с blur). Кастомная шкала шрифтов admin не используется —
 // только literal px.
 
+import { errMsg } from '../../../lib/errMsg'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { cardCls, colHeadCls, labelCls } from '../../../ui/kit'
 import { palette } from '../../../ui/palette'
@@ -301,7 +302,7 @@ const CatalogPage = () => {
       setServices(svc)
       setMasters(ms)
     } catch (e: unknown) {
-      setError(`Не удалось загрузить каталог: ${e instanceof Error ? e.message : 'ошибка'}`)
+      setError(`Не удалось загрузить каталог: ${errMsg(e, 'ошибка')}`)
     } finally {
       setLoading(false)
     }
@@ -476,7 +477,7 @@ const CatalogPage = () => {
       setEditor(null)
       await load()
     } catch (e: unknown) {
-      setNotice(`⚠ Ошибка сохранения: ${e instanceof Error ? e.message : 'unknown'}`)
+      setNotice(`⚠ Ошибка сохранения: ${errMsg(e, 'unknown')}`)
     } finally {
       setSaving(false)
     }

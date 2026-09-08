@@ -1,40 +1,11 @@
 import { API_URL } from './config'
 import { authHeaders } from './authHeaders'
+import { fetchAllPagesStrapi, getJson } from './strapiRest'
 // Общий data-слой ЗЕРКАЛА (собственные коллекции Strapi: booking / client /
 // salon-hour / time-block / personal) для аналитики и дашбордов admin-апки.
 // Заменяет прямые обращения к Noona API (own-booking фаза 4).
 //
-// Чистый fetch (НЕ Axios из lib/api): его интерсептор разворачивает res.data.data
-// и теряет meta.pagination, а на мутациях подменяет Authorization. Все GET с явным
-// Bearer strapi-токеном (booking/client содержат PII — Public-права не включаем).
-
-interface StrapiListResponse<T> {
-  data: T[]
-  meta?: { pagination?: { pageCount?: number; total?: number } }
-}
-
-const getJson = async <T>(pathWithQuery: string): Promise<StrapiListResponse<T>> => {
-  const res = await fetch(`${API_URL}${pathWithQuery}`, {
-    headers: authHeaders(),
-  })
-  if (!res.ok) throw new Error(`Strapi GET ${pathWithQuery} → ${res.status}`)
-  return res.json()
-}
-
-// Параллельная пагинация: 1-я страница даёт pageCount → остальные одним залпом
-export const fetchAllPagesStrapi = async <T>(path: string, pageSize = 500): Promise<T[]> => {
-  const sep = path.includes('?') ? '&' : '?'
-  const page = (n: number) =>
-    getJson<T>(`${path}${sep}pagination[page]=${n}&pagination[pageSize]=${pageSize}&pagination[withCount]=true`)
-  const first = await page(1)
-  const out = [...(first.data || [])]
-  const pageCount = first.meta?.pagination?.pageCount || 1
-  if (pageCount > 1) {
-    const rest = await Promise.all(Array.from({ length: pageCount - 1 }, (_, i) => page(i + 2)))
-    for (const r of rest) out.push(...(r.data || []))
-  }
-  return out
-}
+// Сырой слой (fetch + пагинация по pageCount) — общий: lib/strapiRest.ts.
 
 // ── брони (зеркало Noona events + записи собственного движка) ──
 

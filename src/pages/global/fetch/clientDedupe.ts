@@ -1,21 +1,10 @@
-import { API_URL } from '../../../lib/config'
 // Data-слой модуля «Дубли клиентов» (/global/client-duplicates, owner + administrator).
 //
-// Ручки /api/client-dedupe/* защищены admin-jwt → ЧИСТЫЙ fetch с Bearer userJwt
-// (Axios-интерсептор admin-апки подменяет Authorization на токен сессии
-// и разворачивает res.data.data — для этих ответов не годится, гоча s99/s103).
+// Ручки /api/client-dedupe/* защищены admin-jwt → запрос идёт мимо Axios-инстанса
+// (он подменяет Authorization на токен сессии и разворачивает res.data.data —
+// для этих ответов не годится, гоча s99/s103). Общий клиент — lib/apiFetch.ts.
 
-import { getToken } from '../../../services/auth'
-
-class DedupeApiError extends Error {
-  code: string
-  status: number
-  constructor(status: number, code: string, message: string) {
-    super(message)
-    this.status = status
-    this.code = code
-  }
-}
+import { makeApiFetch } from '../../../lib/apiFetch'
 
 const CODE_MESSAGES: Record<string, string> = {
   unauthorized: 'Доступ только для владельца — войдите заново.',
@@ -27,19 +16,7 @@ const CODE_MESSAGES: Record<string, string> = {
   bad_email: 'Некорректный e-mail.',
 }
 
-async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${API_URL}/api/client-dedupe${path}`, {
-    method,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken() || ''}` },
-    body: body ? JSON.stringify(body) : undefined,
-  })
-  const json = await res.json().catch(() => null)
-  if (!res.ok) {
-    const code = json?.error?.code || 'internal'
-    throw new DedupeApiError(res.status, code, CODE_MESSAGES[code] || json?.error?.message || `Ошибка ${res.status}`)
-  }
-  return json as T
-}
+const api = makeApiFetch('/api/client-dedupe', CODE_MESSAGES, (status) => `Ошибка ${status}`)
 
 export interface DupClient {
   id: number
