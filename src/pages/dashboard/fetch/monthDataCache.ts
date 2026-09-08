@@ -92,7 +92,18 @@ export const EMPTY_GLOBAL_MONTH_DATA: GlobalMonthData = {
   dataMetrics: [],
 }
 
-const PREFIX = 'bb_global_month_'
+// 🟥 В ключе есть ВЕРСИЯ СХЕМЫ, и её надо поднимать при любом изменении формы
+// `GlobalMonthData` или формулы месячного результата.
+//
+// Почему это важно: запись за ПРОШЛЫЙ месяц считается годной вечно (месяц закрыт,
+// пересчитывать нечего). Поэтому после правки расчёта владелец продолжал бы видеть
+// цифры, посчитанные СТАРЫМ кодом, — без ошибки и без признака, что они устарели,
+// пока он вручную не нажмёт «Обновить». Смена версии делает старые записи
+// невидимыми, а `sweepStaleVersions()` ниже вычищает их из localStorage.
+const CACHE_VERSION = 2
+const PREFIX = `bb_global_month_v${CACHE_VERSION}_`
+// ключи прошлых версий (и самой первой, без номера) — чистим при старте модуля
+const LEGACY_PREFIXES = ['bb_global_month_']
 const TTL_CURRENT = 10 * 60 * 1000 // текущий месяц волатилен → 10 минут
 
 interface CacheEntry {
@@ -267,3 +278,22 @@ export const invalidateGlobalMonthData = (month?: number, year?: number) => {
     // ignore
   }
 }
+
+// Ключи прошлых версий схемы — мёртвый груз в localStorage (месячные срезы
+// весят прилично, а квота одна на весь домен). Чистим один раз при загрузке
+// модуля; ключи ТЕКУЩЕЙ версии не трогаем.
+const sweepStaleVersions = () => {
+  try {
+    const stale: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (!k || k.startsWith(PREFIX)) continue
+      if (LEGACY_PREFIXES.some((p) => k.startsWith(p))) stale.push(k)
+    }
+    for (const k of stale) removeLs(k)
+  } catch {
+    // localStorage недоступен — просто не чистим
+  }
+}
+
+sweepStaleVersions()

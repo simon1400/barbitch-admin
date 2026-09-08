@@ -1,4 +1,4 @@
-import qs from 'qs'
+import { strapiQuery } from '../../../../lib/strapiQuery'
 import { Axios } from '../../../../lib/api'
 import { sendCampaign } from '../../../../lib/campaignApi'
 import type { CampaignSendResult, CampaignSkipped } from '../../../../lib/campaignApi'
@@ -193,7 +193,7 @@ export const fetchOfferLogs = async (): Promise<WindowOfferLog[]> => {
   const logs: WindowOfferLog[] = []
   let page = 1
   for (;;) {
-    const query = qs.stringify(
+    const query = strapiQuery(
       {
         fields: [
           'bookingEventId',
@@ -212,8 +212,7 @@ export const fetchOfferLogs = async (): Promise<WindowOfferLog[]> => {
         sort: ['sentAt:desc'],
         pagination: { page, pageSize: 200 },
       },
-      { encodeValuesOnly: true },
-    )
+  )
     // 🟥 Раньше сбой страницы молча прерывал цикл: журнал возвращался
     // НЕПОЛНЫМ, и клиент, которому предложение уже уходило, снова попадал в
     // подборку — то есть получал второе письмо. Лучше отказать явно.

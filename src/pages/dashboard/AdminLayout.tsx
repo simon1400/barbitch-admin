@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { AdminHeader } from '../../components/AdminHeader'
 import { getSession } from '../../services/auth'
 
-import './styles.scss'
+import './styles.css'
 
 export default function AdminLayout({
   children,

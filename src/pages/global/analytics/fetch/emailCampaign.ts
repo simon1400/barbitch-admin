@@ -1,4 +1,4 @@
-import qs from 'qs'
+import { strapiQuery } from '../../../../lib/strapiQuery'
 import { Axios } from '../../../../lib/api'
 import { sendCampaign } from '../../../../lib/campaignApi'
 import type { CampaignSendResult } from '../../../../lib/campaignApi'
@@ -104,14 +104,13 @@ export const fetchCampaignLogs = async (): Promise<CampaignLog[]> => {
   for (;;) {
     const fields = ['template', 'subject', 'count', 'recipients', 'createdAt']
     if (withFilters) fields.splice(4, 0, 'filters')
-    const query = qs.stringify(
+    const query = strapiQuery(
       {
         fields,
         sort: ['createdAt:desc'],
         pagination: { page, pageSize: 100 },
       },
-      { encodeValuesOnly: true },
-    )
+  )
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let res: any
     try {

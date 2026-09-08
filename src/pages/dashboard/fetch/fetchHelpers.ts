@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import qs from 'qs'
+import { strapiQuery } from '../../../lib/strapiQuery'
 
 import { Axios } from '../../../lib/api'
 
@@ -42,14 +42,13 @@ export const buildQuery = (
   populate?: Record<string, any>,
   pagination: { page: number; pageSize: number } = { page: 1, pageSize: PAGE_SIZE },
 ) => {
-  return qs.stringify(
+  return strapiQuery(
     {
       filters,
       fields,
       populate,
       pagination,
     },
-    { encodeValuesOnly: true },
   )
 }
 
@@ -60,7 +59,7 @@ export const buildQueryCost = (
   lastDay: Date,
   page = 1,
 ) =>
-  qs.stringify(
+  strapiQuery(
     {
       filters: {
         [dateField]: {
@@ -74,7 +73,6 @@ export const buildQueryCost = (
         pageSize: PAGE_SIZE,
       },
     },
-    { encodeValuesOnly: true },
   )
 
 // Все записи коллекции за период (деньги месяца) — с пагинацией.
@@ -105,9 +103,8 @@ export const fetchDayDrafts = async <T>(
     dateField === 'start'
       ? { start: { $gte: `${dateStr}T00:00:00.000Z`, $lte: `${dateStr}T23:59:59.999Z` } }
       : { date: { $eq: dateStr } }
-  const query = qs.stringify(
+  const query = strapiQuery(
     { filters, fields, populate, pagination: { page: 1, pageSize: 200 }, status: 'draft' },
-    { encodeValuesOnly: true },
   )
   return await Axios.get(`${endpoint}?${query}`)
 }

@@ -32,8 +32,24 @@ import {
   PayrollCard,
   PublishSection,
 } from './components/shiftClose'
-import DatePicker from 'react-datepicker'
-import 'react-datepicker/dist/react-datepicker.css'
+// 🟥 Нативное поле даты вместо react-datepicker: библиотека тянула 207 KB плюс
+// свой CSS ради ОДНОГО поля на этой странице. В календаре нативное поле давно
+// используется, у чешской локали браузер сам рисует dd.mm.yyyy, а на телефоне
+// открывается системный пикер.
+//
+// ⚠️ Значение разбирается ТОЛЬКО локальным конструктором: `new Date('2026-09-08')`
+// — это полночь UTC, и в отрицательном часовом поясе сверка смены уехала бы на
+// день назад (та же гоча, что чинили в графике месяца, s182). Дальше по коду
+// дата идёт в `checkShift`, где форматируется локальным `format(date,'yyyy-MM-dd')`.
+const toDateInput = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+const fromDateInput = (v: string): Date | null => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v)
+  if (!m) return null
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  return Number.isNaN(d.getTime()) ? null : d
+}
 
 export default function ShiftClosePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -236,12 +252,15 @@ export default function ShiftClosePage() {
           <div className="flex items-end gap-3 flex-wrap">
             <div>
               <label className={labelCls}>Datum</label>
-              <DatePicker
-                selected={selectedDate}
-                onChange={(date: Date | null) => date && setSelectedDate(date)}
-                dateFormat="dd.MM.yyyy"
-                className={`${inputBaseCls} rounded-lg px-3 py-[9px] text-[14px] w-[140px]`}
-                maxDate={new Date()}
+              <input
+                type="date"
+                value={toDateInput(selectedDate)}
+                max={toDateInput(new Date())}
+                onChange={(e) => {
+                  const d = fromDateInput(e.target.value)
+                  if (d) setSelectedDate(d)
+                }}
+                className={`${inputBaseCls} rounded-lg px-3 py-[9px] text-[14px] w-[165px]`}
               />
             </div>
             <button type="button" onClick={handleCheck} disabled={loading} className={btnPinkCls}>

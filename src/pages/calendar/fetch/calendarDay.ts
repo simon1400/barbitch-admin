@@ -191,11 +191,20 @@ export async function fetchEmployees(): Promise<CalendarEmployee[]> {
 // Сохранение порядка колонок: personal.calendarOrder пишется в ОБЕ версии
 // (draft + published — календарь читает published; паттерн каталога s101).
 // Мутации идут через admin-Axios (интерсептор подставляет токен сессии на PUT).
+// ⚠️ Мастера пишутся ПАРАЛЛЕЛЬНО, а две версии одного мастера — по-прежнему
+// последовательно. Раньше цикл был полностью последовательным: 19 мастеров = 38
+// запросов один за другим, и модал «Pořadí» висел несколько секунд на ровном месте.
+// Записи независимы (у каждого мастера своя строка), поэтому порядок между
+// мастерами не важен; порядок draft → published внутри мастера сохранён как был.
 export async function saveEmployeesOrder(items: { docId: string; order: number }[]): Promise<void> {
-  for (const it of items) {
-    await Axios.put(`/api/personals/${it.docId}`, { data: { calendarOrder: it.order } })
-    await Axios.put(`/api/personals/${it.docId}?status=published`, { data: { calendarOrder: it.order } })
-  }
+  await Promise.all(
+    items.map(async (it) => {
+      await Axios.put(`/api/personals/${it.docId}`, { data: { calendarOrder: it.order } })
+      await Axios.put(`/api/personals/${it.docId}?status=published`, {
+        data: { calendarOrder: it.order },
+      })
+    }),
+  )
 }
 
 // История клиента: все его брони (прошлые + будущие) для секции в drawer.

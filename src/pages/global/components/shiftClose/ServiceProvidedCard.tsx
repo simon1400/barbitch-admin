@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { memo, useMemo } from 'react'
 import {
   FLAG_META,
   VERIFY_FLAGS,
@@ -229,7 +230,10 @@ const FlagChip = ({ flag, item }: { flag: VerifyFlag; item: any }) => {
   )
 }
 
-export const ServiceProvidedCard = ({
+// memo: самая тяжёлая карточка сверки (матчинг с календарём + таблица дня).
+// Владелец печатает суммы в форме закрытия внизу страницы, и без memo каждое
+// нажатие клавиши перерисовывало её целиком.
+export const ServiceProvidedCard = memo(({
   data,
   calendarBookings,
   shiftDate,
@@ -240,7 +244,14 @@ export const ServiceProvidedCard = ({
   shiftDate: string
 }) => {
   const visibleCounters = VERIFY_FLAGS.filter((f) => data.flagCounts[f] > 0)
-  const offerMatches = buildOfferMatches(data.items, calendarBookings)
+  // Сопоставление записей смены с бронями календаря — перебор по двум спискам
+  // дня. Зависит только от данных сверки, поэтому считается один раз на загрузку,
+  // а не на каждый ре-рендер страницы (владелец печатает сумму по карте в форме
+  // закрытия — раньше каждое нажатие клавиши гоняло этот матчинг заново).
+  const offerMatches = useMemo(
+    () => buildOfferMatches(data.items, calendarBookings),
+    [data.items, calendarBookings],
+  )
   const mismatchCount = [...offerMatches.values()].filter((m) => m.status === 'mismatch').length
   const voucherCount = data.items.filter((i: any) => hasVoucher(i)).length
 
@@ -386,4 +397,5 @@ export const ServiceProvidedCard = ({
       )}
     </CheckCard>
   )
-}
+})
+ServiceProvidedCard.displayName = 'ServiceProvidedCard'

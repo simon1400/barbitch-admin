@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { memo } from 'react'
 import type { ShiftCheckResult } from '../../fetch/shiftClose'
 import { CheckCard } from './CheckCard'
 import { CommentPopover, hasComment } from './CommentPopover'
@@ -7,7 +8,7 @@ import { CommentPopover, hasComment } from './CommentPopover'
 const hasText = (raw: unknown) =>
   typeof raw === 'string' && raw.trim().length > 0
 
-export const CashCard = ({ data }: { data: ShiftCheckResult['cash'] }) => (
+export const CashCard = memo(({ data }: { data: ShiftCheckResult['cash'] }) => (
   <CheckCard title="Pokladna (Cash)" found={data.found} count={data.count}>
     {data.found && data.items.length > 0 && (
       <div className="mt-2 space-y-3">
@@ -47,9 +48,10 @@ export const CashCard = ({ data }: { data: ShiftCheckResult['cash'] }) => (
       </div>
     )}
   </CheckCard>
-)
+))
+CashCard.displayName = 'CashCard'
 
-export const WorkTimeCard = ({ data }: { data: ShiftCheckResult['workTime'] }) => (
+export const WorkTimeCard = memo(({ data }: { data: ShiftCheckResult['workTime'] }) => (
   <CheckCard title="Pracovní doba (Work Time)" found={data.found} count={data.count}>
     {data.found && data.items.length > 0 && (
       <div className="mt-2 space-y-1">
@@ -67,9 +69,10 @@ export const WorkTimeCard = ({ data }: { data: ShiftCheckResult['workTime'] }) =
       </div>
     )}
   </CheckCard>
-)
+))
+WorkTimeCard.displayName = 'WorkTimeCard'
 
-export const PayrollCard = ({ data }: { data: ShiftCheckResult['payroll'] }) => (
+export const PayrollCard = memo(({ data }: { data: ShiftCheckResult['payroll'] }) => (
   <CheckCard title="Výplaty (Payroll)" found={data.found} count={data.count}>
     {data.found && data.items.length > 0 && (
       <div className="mt-2 space-y-1">
@@ -82,4 +85,5 @@ export const PayrollCard = ({ data }: { data: ShiftCheckResult['payroll'] }) => 
       </div>
     )}
   </CheckCard>
-)
+))
+PayrollCard.displayName = 'PayrollCard'

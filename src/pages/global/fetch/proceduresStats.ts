@@ -1,4 +1,4 @@
-import qs from 'qs'
+import { strapiQuery } from '../../../lib/strapiQuery'
 import { authHeaders } from '../../../lib/authHeaders'
 
 import { Axios } from '../../../lib/api'
@@ -47,7 +47,7 @@ export interface ProceduresStatsResult {
 export const getProceduresStats = async (month: number, year: number): Promise<ProceduresStatsResult> => {
   const { firstDay, lastDay } = getMonthRange(year, month)
 
-  const query = qs.stringify(
+  const query = strapiQuery(
     {
       filters: {
         date: {
@@ -69,7 +69,6 @@ export const getProceduresStats = async (month: number, year: number): Promise<P
         pageSize: 2000,
       },
     },
-    { encodeValuesOnly: true },
   )
 
   try {

@@ -263,16 +263,23 @@ export const applyMasterAssignment = async (
   selectedMasterIds: Set<string>,
   masters: MasterOption[],
 ): Promise<number> => {
-  let changed = 0
-  for (const m of masters) {
-    const has = m.serviceDocIds.includes(serviceDocId)
-    const wants = selectedMasterIds.has(m.documentId)
-    if (has === wants) continue
-    const next = wants
-      ? [...m.serviceDocIds, serviceDocId]
-      : m.serviceDocIds.filter((id) => id !== serviceDocId)
-    await setMasterServices(m.documentId, next)
-    changed += 1
-  }
-  return changed
+  // Сначала считаем, кого вообще надо трогать, потом пишем ПАРАЛЛЕЛЬНО: у каждого
+  // мастера своя строка, записи независимы. Раньше запросы шли по одному, и снятие
+  // услуги у десятка мастеров занимало столько же кругов до сервера, сколько мастеров.
+  const updates = masters
+    .map((m) => {
+      const has = m.serviceDocIds.includes(serviceDocId)
+      const wants = selectedMasterIds.has(m.documentId)
+      if (has === wants) return null
+      return {
+        documentId: m.documentId,
+        next: wants
+          ? [...m.serviceDocIds, serviceDocId]
+          : m.serviceDocIds.filter((id) => id !== serviceDocId),
+      }
+    })
+    .filter((u): u is { documentId: string; next: string[] } => u !== null)
+
+  await Promise.all(updates.map((u) => setMasterServices(u.documentId, u.next)))
+  return updates.length
 }

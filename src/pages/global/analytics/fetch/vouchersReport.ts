@@ -1,4 +1,4 @@
-import qs from 'qs'
+import { strapiQuery } from '../../../../lib/strapiQuery'
 import { Axios } from '../../../../lib/api'
 
 // Отчёт по ваучерам (Strapi коллекция vouchers).
@@ -48,14 +48,13 @@ const fetchAllVouchers = async (): Promise<VoucherRecord[]> => {
   const result: VoucherRecord[] = []
   let page = 1
   for (;;) {
-    const query = qs.stringify(
+    const query = strapiQuery(
       {
         fields: ['name', 'for', 'sum', 'dateOrder', 'datePay', 'dateRealized', 'idVoucher'],
         sort: ['dateOrder:desc'],
         pagination: { page, pageSize: 500 },
       },
-      { encodeValuesOnly: true },
-    )
+  )
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = await Axios.get<any>(`/api/vouchers?${query}`)
     const data: Array<Record<string, unknown>> = Array.isArray(res) ? res : []

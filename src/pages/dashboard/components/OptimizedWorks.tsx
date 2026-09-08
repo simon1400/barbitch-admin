@@ -8,7 +8,7 @@ import {
 } from '../../../ui/kit'
 import { useAppContext } from '../../../context/AppContext'
 import { formatDate } from '../../../utils/parseDate'
-import { useCallback, useEffect, useState, useMemo } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState, useMemo } from 'react'
 
 import { blockStatsItems } from '../data'
 import { getWorks } from '../fetch/works'
@@ -16,7 +16,16 @@ import { getWorks } from '../fetch/works'
 import { BlocksContent } from './BlocksContent'
 import { Cell } from './Cell'
 import { Select } from './Select'
-import { GlobalLineChart } from '../../global/charts/components/GlobalLineChart'
+// 🟥 recharts = отдельный чанк на 291 KB, и это САМЫЙ большой кусок дашборда
+// мастера — ради одного графика «Moje rezervace». Мастера открывают дашборд с
+// телефона, поэтому чанк грузится лениво: страница с зарплатой и таблицей уже
+// работает, пока график только скачивается. График к тому же рисуется не всегда
+// (только если в месяце есть услуги) — тогда чанк не запрашивается вовсе.
+const GlobalLineChart = lazy(() =>
+  import('../../global/charts/components/GlobalLineChart').then((m) => ({
+    default: m.GlobalLineChart,
+  })),
+)
 import { TableWrapper } from '../../global/components/TableWrapper'
 import { CHART } from '../../../ui/chartColors'
 
@@ -149,15 +158,23 @@ const OptimizedWorks = () => {
         {/* Chart Section - показываем только если есть услуги */}
         {data?.offersDone && data.offersDone.length > 0 && (
           <div className={'mb-3.5'}>
-            <GlobalLineChart
-              data={displayChartData}
-              title={'Moje rezervace'}
-              lines={[
-                { dataKey: 'countPayed', stroke: CHART.brand, name: 'Rezervace' },
-                { dataKey: 'countCanceled', stroke: CHART.ink, name: 'Zrušené' },
-                { dataKey: 'countNoshow', stroke: 'orange', name: 'Nepřišli' },
-              ]}
-            />
+            {/* заглушка той же высоты, что и график (300px + заголовок) —
+                чтобы страница не прыгала, когда чанк догрузится */}
+            <Suspense
+              fallback={
+                <div className={'h-[344px] w-full rounded-xl border border-line bg-white shadow-panel'} />
+              }
+            >
+              <GlobalLineChart
+                data={displayChartData}
+                title={'Moje rezervace'}
+                lines={[
+                  { dataKey: 'countPayed', stroke: CHART.brand, name: 'Rezervace' },
+                  { dataKey: 'countCanceled', stroke: CHART.ink, name: 'Zrušené' },
+                  { dataKey: 'countNoshow', stroke: 'orange', name: 'Nepřišli' },
+                ]}
+              />
+            </Suspense>
           </div>
         )}
 

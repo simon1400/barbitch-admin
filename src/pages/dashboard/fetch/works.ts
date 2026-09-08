@@ -1,5 +1,5 @@
 import { getMonthRange } from '../../../utils/getMonthRange'
-import { fetchMirrorBookingsRange } from '../../../lib/mirror'
+import { engineCalendarWeek } from '../../calendar/fetch/engineApi'
 
 import {
   buildQuery,
@@ -113,11 +113,16 @@ export const getWorks = async (name: string, month: number, year: number) => {
     try {
       const dayStr = (d: Date) =>
         `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-      const bookings = await fetchMirrorBookingsRange(
+      // 🟥 Не `/api/bookings`: с s182 эта коллекция закрыта для роли master (403),
+      // и график «Moje rezervace» у мастеров молча оставался ПУСТЫМ — ошибка
+      // только в консоли. Поймано при проверке в браузере (s183).
+      // Ручка движка мастеру разрешена и сама подставляет ЕГО id, чужие брони
+      // получить нельзя; диапазон произвольный, поэтому месяц берём одним запросом.
+      const bookings = (await engineCalendarWeek(
         dayStr(firstDay),
         dayStr(lastDay),
-        `&filters[noonaEmployeeId][$eq]=${noonaEmployeeId}`,
-      )
+        noonaEmployeeId,
+      )) as { status?: string; endsAt?: string | null }[]
       const toMetric = (status: 'other' | 'cancelled' | 'noshow'): InputItemReservation[] =>
         bookings
           .filter((b) =>

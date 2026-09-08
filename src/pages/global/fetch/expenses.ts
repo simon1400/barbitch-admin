@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import qs from 'qs'
+import { strapiQuery } from '../../../lib/strapiQuery'
 import { getMonthRange } from '../../../utils/getMonthRange'
 import { Axios } from '../../../lib/api'
 
@@ -16,7 +16,7 @@ export interface IExpenseItem {
 export const getExpenses = async (month: number, year: number): Promise<IExpenseItem[]> => {
   const { firstDay, lastDay } = getMonthRange(year, month)
 
-  const query = qs.stringify(
+  const query = strapiQuery(
     {
       filters: {
         date: {
@@ -31,7 +31,6 @@ export const getExpenses = async (month: number, year: number): Promise<IExpense
         pageSize: 500,
       },
     },
-    { encodeValuesOnly: true }
   )
 
   try {
