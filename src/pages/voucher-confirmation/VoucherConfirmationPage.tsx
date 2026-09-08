@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { hintCls, kickerCls, pageShellCls } from '../../ui/kit'
 import { Axios } from '../../lib/api'
-const clientUrl = import.meta.env.VITE_CLIENT_URL;
+import { sendVoucherConfirmation } from '../../lib/campaignApi'
 
 interface FormData {
   email: string
@@ -104,32 +104,23 @@ const VoucherConfirmationPage = () => {
     setMessage(null)
 
     try {
-      const response = await fetch(`${clientUrl}/api/send-confirmation-voucher`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+      await sendVoucherConfirmation(formData)
+      setMessage({ type: 'success', text: 'Email byl úspěšně odeslán!' })
+      // Reset form
+      setFormData({
+        email: '',
+        buyerName: '',
+        recipientName: '',
+        voucherId: '',
+        validUntil: '',
       })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setMessage({ type: 'success', text: 'Email byl úspěšně odeslán!' })
-        // Reset form
-        setFormData({
-          email: '',
-          buyerName: '',
-          recipientName: '',
-          voucherId: '',
-          validUntil: '',
-        })
-      } else {
-        setMessage({ type: 'error', text: data.error || 'Nepodařilo se odeslat email' })
-      }
     } catch (error) {
       console.error('Error sending email:', error)
-      setMessage({ type: 'error', text: 'Chyba při odesílání emailu' })
+      // сервер объясняет причину (нет прав / битый адрес / секрет не настроен)
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Chyba při odesílání emailu',
+      })
     } finally {
       setLoading(false)
     }

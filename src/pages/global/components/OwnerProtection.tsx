@@ -2,6 +2,7 @@ import { useAppContext } from '../../../context/AppContext'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { rolesForPathname } from '../../../moduleAccess'
+import { getSessionRole } from '../../../services/auth'
 
 // Внутристраничный гейт доступа. Разрешённые роли берутся из ЕДИНОГО реестра
 // src/moduleAccess.ts по текущему pathname; страница вне реестра = только владелец.
@@ -13,10 +14,11 @@ export const OwnerProtection = ({ children }: { children: React.ReactNode }) => 
   const [isChecking, setIsChecking] = useState(true)
 
   useEffect(() => {
-    // Проверяем роль из localStorage против реестра модулей
-    const storedRole = localStorage.getItem('userRole')
+    // Роль берём из ПОДПИСАННОГО токена сессии, а не из localStorage-ключа:
+    // ключ пользователь может переписать сам (s181, п. 1.5).
+    const sessionRole = getSessionRole()
     const allowedRoles = rolesForPathname(location.pathname)
-    const allowed = !!storedRole && (allowedRoles as string[]).includes(storedRole)
+    const allowed = !!sessionRole && (allowedRoles as string[]).includes(sessionRole)
 
     if (!allowed) {
       navigate('/')

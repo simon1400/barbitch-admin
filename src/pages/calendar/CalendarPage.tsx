@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getSessionRole } from '../../services/auth'
+import { getSession, getSessionRole } from '../../services/auth'
 import type {
   AdminRoster,
   BlockedRange,
@@ -205,7 +205,9 @@ export default function CalendarPage() {
       .then((emps) => {
         setEmployees(emps)
         if (isMaster) {
-          const uname = (localStorage.getItem('usernameLocalData') || '').trim().toLowerCase()
+          // имя из подписанного токена: по localStorage-ключу мастер мог бы
+          // выдать себя за коллегу и увидеть его цены и историю (s181, п. 1.5)
+          const uname = (getSession()?.username || '').trim().toLowerCase()
           const own = emps.find((e) => e.name.trim().toLowerCase() === uname) || null
           setOwnEmp(own)
           setWeekEmpId(own?.id || '')

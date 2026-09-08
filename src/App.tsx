@@ -13,7 +13,6 @@ const VoucherConfirmationPage = lazy(() => import('./pages/voucher-confirmation/
 const EmailCampaignPage = lazy(() => import('./pages/email-campaign/EmailCampaignPage'))
 const AdministratorCabinetPage = lazy(() => import('./pages/administrator/AdministratorCabinetPage'))
 const ShiftClosePage = lazy(() => import('./pages/global/ShiftClosePage'))
-const BlogAIPage = lazy(() => import('./pages/global/BlogAIPage'))
 const ReviewSyncPage = lazy(() => import('./pages/global/ReviewSyncPage'))
 const ErrorLogsPage = lazy(() => import('./pages/global/ErrorLogsPage'))
 const ClientDuplicatesPage = lazy(() => import('./pages/global/ClientDuplicatesPage'))
@@ -127,13 +126,10 @@ function App() {
   // Проверяем статус пользователя каждые 30 секунд
   useEffect(() => {
     const checkStatus = async () => {
-      const userId = localStorage.getItem('userId')
-      if (userId) {
-        const status = await checkUserStatus(userId)
-        if (status && !status.isActive) {
-          console.log('User has been deactivated, logging out...')
-          logout()
-        }
+      const status = await checkUserStatus()
+      if (status && !status.isActive) {
+        console.log('User has been deactivated, logging out...')
+        logout()
       }
     }
 
@@ -315,18 +311,6 @@ function App() {
                 <ModuleRoute module="/global/shift-close">
                   <AdminLayout>
                     <ShiftClosePage />
-                  </AdminLayout>
-                </ModuleRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/global/blog-ai"
-            element={
-              <ProtectedRoute>
-                <ModuleRoute module="/global/blog-ai">
-                  <AdminLayout>
-                    <BlogAIPage />
                   </AdminLayout>
                 </ModuleRoute>
               </ProtectedRoute>

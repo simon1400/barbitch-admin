@@ -32,17 +32,14 @@ Axios.interceptors.response.use(
   async (response) => {
     // Проверяем статус пользователя при каждом успешном запросе
     if (!isCheckingStatus) {
-      const userId = localStorage.getItem('userId')
-      if (userId) {
-        isCheckingStatus = true
-        const status = await checkUserStatus(userId)
-        isCheckingStatus = false
+      isCheckingStatus = true
+      const status = await checkUserStatus()
+      isCheckingStatus = false
 
-        if (status && !status.isActive) {
-          console.log('User has been deactivated, logging out...')
-          logout()
-          return Promise.reject(new Error('User account has been deactivated'))
-        }
+      if (status && !status.isActive) {
+        console.log('User has been deactivated, logging out...')
+        logout()
+        return Promise.reject(new Error('User account has been deactivated'))
       }
     }
 

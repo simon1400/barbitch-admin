@@ -35,7 +35,6 @@ export const MODULES: ModuleDef[] = [
     roles: ['owner', 'administrator'],
     more: true,
   },
-  { path: '/global/blog-ai', label: 'Blog AI', roles: ['owner'], more: true },
   { path: '/global/reviews', label: 'Google Reviews', roles: ['owner'], more: true },
   { path: '/global/error-logs', label: 'Error Logs', roles: ['owner'], more: true },
 ]

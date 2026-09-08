@@ -91,12 +91,22 @@ export async function loginUser(
   }
 }
 
-export async function checkUserStatus(userId: string): Promise<{ isActive: boolean } | null> {
+// Статус СВОЕЙ учётки (деактивирована ли). id берём из токена, а не из
+// отдельного localStorage-ключа; сервер всё равно смотрит только на сессию.
+export async function checkUserStatus(): Promise<{ isActive: boolean } | null> {
   try {
     const token = getToken()
     if (!token) return null
+    // Токен есть, но разобрать/срок вышел — разлогиниваем сразу. Раньше это
+    // делал ответ 401 от сервера; без явной ветки истёкшая сессия молча висела
+    // бы на странице до первой неудачной загрузки данных.
+    const session = getSession()
+    if (!session) {
+      logout()
+      return null
+    }
 
-    const response = await fetch(`${API_URL}/api/admin-users/check-status/${userId}`, {
+    const response = await fetch(`${API_URL}/api/admin-users/check-status/${session.id}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
 
@@ -116,6 +126,7 @@ export async function checkUserStatus(userId: string): Promise<{ isActive: boole
 }
 
 export function logout() {
+  // первые три ключа больше не пишутся (s182), удаляем ради старых сессий
   localStorage.removeItem('usernameLocalData')
   localStorage.removeItem('userRole')
   localStorage.removeItem('userId')

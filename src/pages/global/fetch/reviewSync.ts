@@ -1,4 +1,5 @@
 import { Axios } from '../../../lib/api'
+import { authHeaders } from '../../../lib/authHeaders'
 
 const strapiUrl = import.meta.env.VITE_API_URL || 'http://localhost:1337'
 
@@ -20,7 +21,12 @@ export async function fetchGoogleReviews(): Promise<GoogleReview[]> {
 }
 
 export async function syncReviews(): Promise<{ created: number; skipped: number; filtered: number; total: number }> {
-  const res = await fetch(`${strapiUrl}/api/review-sync/sync`, { method: 'POST' })
+  // Bearer обязателен: с s182 ручка на сервере гейтится ролью владельца
+  // (раньше синк Google Places мог дёрнуть кто угодно — квота и запись в БД).
+  const res = await fetch(`${strapiUrl}/api/review-sync/sync`, {
+    method: 'POST',
+    headers: { ...authHeaders() },
+  })
   const data = await res.json()
   if (!res.ok) throw new Error(data?.error?.message || 'Sync failed')
   return data

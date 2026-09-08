@@ -62,6 +62,31 @@ export async function sendCampaign(
   return data as CampaignSendResult
 }
 
+export interface VoucherConfirmationInput {
+  email: string
+  buyerName: string
+  recipientName: string
+  voucherId: string
+  validUntil: string
+}
+
+// Письмо «voucher zaplacen» покупателю. Раньше страница «Potvrzení voucheru»
+// POST-ила прямо на barbitch.cz/api/send-confirmation-voucher, а тот роут был
+// открыт в интернет без авторизации (s181, п. 1.3). Теперь тот же путь, что у
+// рассылок: сюда → Strapi (JWT владельца) → client-роут с серверным секретом.
+export async function sendVoucherConfirmation(input: VoucherConfirmationInput): Promise<void> {
+  const res = await fetch(`${strapiUrl}/api/campaign/voucher-confirmation`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${getToken() || ''}`,
+    },
+    body: JSON.stringify(input),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data?.error?.message || 'Nepodařilo se odeslat email')
+}
+
 // «отписался 2, в чёрном списке 1» — короткая сводка для плашки в UI
 export const skippedSummary = (s: CampaignSkipped | undefined): string => {
   if (!s) return ''

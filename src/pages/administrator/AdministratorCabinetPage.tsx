@@ -9,6 +9,8 @@ import { GlobalLineChart } from '../global/charts/components/GlobalLineChart'
 import { rateInfoForDate } from '../dashboard/fetch/allAdminsHours'
 import { useGlobalMonthData } from '../dashboard/hooks/useGlobalMonthData'
 import { CHART } from '../../ui/chartColors'
+import { getSession } from '../../services/auth'
+import { authHeaders } from '../../lib/authHeaders'
 
 interface ServiceProvided {
   id: number
@@ -134,7 +136,7 @@ const AdministratorCabinetPage = () => {
   const [workTimesPage, setWorkTimesPage] = useState(1)
   const workTimesPerPage = 10
 
-  const username = localStorage.getItem('usernameLocalData')
+  const username = getSession()?.username ?? null
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:1337'
 
   // Получаем глобальные данные для графиков
@@ -149,10 +151,9 @@ const AdministratorCabinetPage = () => {
       }
 
       try {
-        const token = localStorage.getItem('userJwt')
         const response = await fetch(
-          `${API_URL}/api/admin-users/administrator-data/${username}`,
-          token ? { headers: { Authorization: `Bearer ${token}` } } : undefined,
+          `${API_URL}/api/admin-users/administrator-data/${encodeURIComponent(username)}`,
+          { headers: { ...authHeaders() } },
         )
 
         if (!response.ok) {

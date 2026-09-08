@@ -50,10 +50,9 @@ const Login = () => {
         return
       }
 
-      // Сохраняем данные пользователя
-      localStorage.setItem('usernameLocalData', result.username)
-      localStorage.setItem('userRole', result.role)
-      localStorage.setItem('userId', result.id.toString())
+      // Храним ТОЛЬКО подписанный токен: имя, роль и id читаются из него
+      // (getSession). Отдельные localStorage-ключи убраны — их можно было
+      // переписать руками и разъехаться с реальной сессией (s181, п. 1.5).
       localStorage.setItem('userJwt', result.jwt)
 
       // Перенаправляем в зависимости от роли

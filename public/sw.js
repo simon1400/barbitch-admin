@@ -31,7 +31,16 @@ self.addEventListener('notificationclick', (event) => {
   // target несёт query (?date=…&highlight=…) → уже открытое окно ФОКУСИРУЕМ И
   // НАВИГИРУЕМ на него (полная перезагрузка SPA — календарь прочитает параметры
   // на старте и подсветит бронь); закрытое — открываем сразу с параметрами
-  const target = (event.notification.data && event.notification.data.url) || '/calendar'
+  // URL приходит из payload push-сообщения — открываем только СВОЙ origin,
+  // иначе чужой push увёл бы мастера на постороннюю страницу (s181, п. 1.7).
+  const raw = (event.notification.data && event.notification.data.url) || '/calendar'
+  let target = '/calendar'
+  try {
+    const u = new URL(raw, self.location.origin)
+    if (u.origin === self.location.origin) target = u.pathname + u.search + u.hash
+  } catch (e) {
+    target = '/calendar'
+  }
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       const c = list.find((w) => 'focus' in w)

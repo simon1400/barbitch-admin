@@ -1,4 +1,24 @@
+import DOMPurify from 'dompurify'
 import { useEffect, useRef, useState } from 'react'
+
+// 🟥 Комментарии приходят из CKEditor-полей service-provided.comment и
+// work-time.comment, которые может ПЕРЕЗАПИСАТЬ любая сессия сотрудника
+// (после s175 сессия = права API-токена). Без очистки `<img src=x onerror=…>`
+// выполнялся бы у ВЛАДЕЛЬЦА на /global/shift-close, где в localStorage лежит
+// его JWT, а CSP на admin.barbitch.cz нет.
+// Allowlist ровно под то, что CKEditor реально даёт в этих полях; ссылки
+// оставлены, но DOMPurify сам режет javascript:/data: в href.
+const ALLOWED_TAGS = [
+  'p', 'br', 'b', 'strong', 'i', 'em', 'u', 's',
+  'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'span', 'a',
+]
+const sanitize = (html: string) =>
+  DOMPurify.sanitize(html, {
+    ALLOWED_TAGS,
+    ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
+    // никаких data:/blob:, только обычные ссылки и почта
+    ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|tel:)/i,
+  })
 
 // True if the (possibly HTML) string has any visible text once tags are stripped.
 export const hasComment = (raw: unknown) => {
@@ -39,7 +59,7 @@ export const CommentPopover = ({ html }: { html: string }) => {
         >
           <span
             className="block prose prose-sm max-w-none [&_*]:m-0 [&_p]:my-1"
-            dangerouslySetInnerHTML={{ __html: html }}
+            dangerouslySetInnerHTML={{ __html: sanitize(html) }}
           />
         </span>
       )}

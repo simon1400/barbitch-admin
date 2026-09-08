@@ -3,7 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import type { UserRole } from '../types/admin'
 import { modulesForRole, type ModuleDef } from '../moduleAccess'
 import { subnavForPathname } from '../subnav'
-import { logout } from '../services/auth'
+import { getSessionRole, logout } from '../services/auth'
 import { LogoIcon } from '../icons/Logo'
 import { IconAnalytics, IconCalendar, IconCatalog, IconHome, IconTeam } from '../icons/nav'
 import { CHART } from '../ui/chartColors'
@@ -48,7 +48,7 @@ const pillCls = (on: boolean, iconOnly = false) =>
 
 export const AdminHeader = ({ userName }: { userName: string }) => {
   const location = useLocation()
-  const role = localStorage.getItem('userRole') as UserRole | null
+  const role = getSessionRole()
   const [moreOpen, setMoreOpen] = useState(false)
   const moreRef = useRef<HTMLDivElement>(null)
 
