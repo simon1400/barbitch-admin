@@ -1,9 +1,4 @@
-import {
-  fetchMirrorBookingsRange,
-  fetchMirrorEmployees,
-  fetchSalonHoursRange,
-  fetchTimeBlocksRange,
-} from '../../../../lib/mirror'
+import { getTeamRangeData } from './teamRangeData'
 
 // Загрузка мастеров по слотам за месяц. own-booking фаза 4: источники — НАША БД
 // (salon-hour / time-block / booking / personal), Noona API не участвует.
@@ -75,13 +70,9 @@ export const getMasterLoad = (month: number, year: number): Promise<MasterLoadRe
 export const getMasterLoadRange = async (
   fromStr: string,
   toStr: string,
+  force = false,
 ): Promise<MasterLoadResult> => {
-  const [employees, hours, blocks, bookings] = await Promise.all([
-    fetchMirrorEmployees(),
-    fetchSalonHoursRange(fromStr, toStr),
-    fetchTimeBlocksRange(fromStr, toStr),
-    fetchMirrorBookingsRange(fromStr, toStr),
-  ])
+  const { employees, hours, blocks, bookings } = await getTeamRangeData(fromStr, toStr, force)
 
   // Часы салона по дням (сумма окон; fallback close−open)
   const openMinByDate = new Map<string, number>()

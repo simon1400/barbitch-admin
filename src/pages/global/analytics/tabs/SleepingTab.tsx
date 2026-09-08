@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { memo, useState, useEffect, useCallback, useMemo } from 'react'
 import { Cell } from '../../../dashboard/components/Cell'
 import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
+import { Pagination } from '../../../../components/Pagination'
 import { getSleepingCandidates, buildCsv, type SleepingClient } from '../fetch/sleepingClients'
 import {
   CAMPAIGN_TEMPLATES,
@@ -26,6 +27,7 @@ const DAY_OPTIONS = [60, 90, 120, 180, 365]
 const MAX_DAY_OPTIONS = [0, 120, 180, 365]
 const VISIT_OPTIONS = [1, 2, 3, 5]
 const SKIP_RECENT_OPTIONS = [0, 30, 60, 90] // не слать тем, кому писали недавно
+const PAGE_SIZE = 50
 
 const fmtDate = (d: string) => {
   const [y, m, day] = d.split('-')
@@ -51,6 +53,7 @@ export default function SleepingTab() {
   const [copied, setCopied] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [modalOpen, setModalOpen] = useState(false)
+  const [page, setPage] = useState(1)
   const [expandedCampaign, setExpandedCampaign] = useState<string | null>(null)
 
   const load = useCallback(async (force = false) => {
@@ -92,6 +95,18 @@ export default function SleepingTab() {
     return new Set([...selected].filter((id) => visible.has(id)))
   }, [rows, selected])
 
+  // Таблица рисуется страницами: без этого сотни строк перерисовывались
+  // целиком на каждый клик по чекбоксу (аудит s184, п. 3.2).
+  const pagedRows = useMemo(
+    () => rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [rows, page],
+  )
+
+  // Смена фильтра меняет состав списка — страница 7 может перестать существовать.
+  useEffect(() => {
+    setPage(1)
+  }, [minDays, maxDays, minVisits])
+
   const emailableRows = useMemo(() => rows.filter((r) => r.email), [rows])
   const allEmailableChecked =
     emailableRows.length > 0 && emailableRows.every((r) => visibleSelected.has(r.customerId))
@@ -101,12 +116,17 @@ export default function SleepingTab() {
     else setSelected(new Set(emailableRows.map((r) => r.customerId)))
   }
 
-  const toggleOne = (id: string) => {
-    const next = new Set(selected)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    setSelected(next)
-  }
+  // Стабильная ссылка (функциональный setState вместо замыкания на selected):
+  // иначе каждая строка получала бы новый onToggle и memo не спасал бы от
+  // перерисовки всей таблицы на один клик по чекбоксу.
+  const toggleOne = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
 
   const totalSpent = useMemo(() => rows.reduce((a, r) => a + r.spent, 0), [rows])
   const phones = useMemo(() => rows.map((r) => r.phone).filter(Boolean), [rows])
@@ -312,58 +332,24 @@ export default function SleepingTab() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((r) => {
-                      const sent = lastSent.get(r.customerId)
-                      return (
-                        <tr
-                          key={r.customerId}
-                          className={`hover:bg-surface-hover transition-colors ${
-                            visibleSelected.has(r.customerId) ? 'bg-pink-50/50' : ''
-                          }`}
-                        >
-                          <td className="p-4 border-b border-line-soft">
-                            <input
-                              type="checkbox"
-                              checked={visibleSelected.has(r.customerId)}
-                              onChange={() => toggleOne(r.customerId)}
-                              disabled={!r.email}
-                              className="w-4 h-4 accent-pink-600 cursor-pointer disabled:opacity-30"
-                              title={r.email ? r.email : 'Нет email'}
-                            />
-                          </td>
-                          <td className="p-4 border-b border-line-soft">
-                            <span className="block font-sans text-sm font-medium text-ink">
-                              {r.name}
-                            </span>
-                            {r.email && <span className="text-xs text-ink-faint">{r.email}</span>}
-                          </td>
-                          <Cell title={r.phone || '—'} />
-                          <Cell title={String(r.visits)} />
-                          <td className="p-4 border-b border-line-soft">
-                            <span className="block font-sans text-sm font-medium text-ink">
-                              {fmtDate(r.lastVisit)}{' '}
-                              <span className="text-xs text-ink-faint">({r.daysSince} дн.)</span>
-                            </span>
-                          </td>
-                          <Cell title={r.lastMaster || '—'} />
-                          <Cell title={`${fmtMoney(r.spent)} Kč`} className="text-brand" />
-                          <td className="p-4 border-b border-line-soft">
-                            {sent ? (
-                              <span
-                                className="px-2 py-0.5 rounded text-xs font-semibold bg-info-bg text-info whitespace-nowrap"
-                                title={`Шаблон: ${sent.template}`}
-                              >
-                                {fmtDateTime(sent.lastSentAt)} ({daysSinceIso(sent.lastSentAt)} дн.)
-                              </span>
-                            ) : (
-                              <span className="text-xs text-gray-300">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
+                    {pagedRows.map((r) => (
+                      <SleepingRow
+                        key={r.customerId}
+                        row={r}
+                        sent={lastSent.get(r.customerId)}
+                        checked={visibleSelected.has(r.customerId)}
+                        onToggle={toggleOne}
+                      />
+                    ))}
                   </tbody>
                 </table>
+                <Pagination
+                  page={page}
+                  total={rows.length}
+                  pageSize={PAGE_SIZE}
+                  onPage={setPage}
+                  unit={"клиентов"}
+                />
               </TableWrapper>
             )}
           </>
@@ -386,6 +372,60 @@ export default function SleepingTab() {
     </>
   )
 }
+
+// Строка таблицы спящих. memo + стабильный onToggle: клик по одному чекбоксу
+// перерисовывает ТОЛЬКО свою строку, а не весь список.
+const SleepingRow = memo(function SleepingRow({
+  row: r,
+  sent,
+  checked,
+  onToggle,
+}: {
+  row: SleepingClient
+  sent: SentInfo | undefined
+  checked: boolean
+  onToggle: (id: string) => void
+}) {
+  return (
+    <tr className={`hover:bg-surface-hover transition-colors ${checked ? 'bg-pink-50/50' : ''}`}>
+      <td className="p-4 border-b border-line-soft">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={() => onToggle(r.customerId)}
+          disabled={!r.email}
+          className="w-4 h-4 accent-pink-600 cursor-pointer disabled:opacity-30"
+          title={r.email ? r.email : 'Нет email'}
+        />
+      </td>
+      <td className="p-4 border-b border-line-soft">
+        <span className="block font-sans text-sm font-medium text-ink">{r.name}</span>
+        {r.email && <span className="text-xs text-ink-faint">{r.email}</span>}
+      </td>
+      <Cell title={r.phone || '—'} />
+      <Cell title={String(r.visits)} />
+      <td className="p-4 border-b border-line-soft">
+        <span className="block font-sans text-sm font-medium text-ink">
+          {fmtDate(r.lastVisit)} <span className="text-xs text-ink-faint">({r.daysSince} дн.)</span>
+        </span>
+      </td>
+      <Cell title={r.lastMaster || '—'} />
+      <Cell title={`${fmtMoney(r.spent)} Kč`} className="text-brand" />
+      <td className="p-4 border-b border-line-soft">
+        {sent ? (
+          <span
+            className="px-2 py-0.5 rounded text-xs font-semibold bg-info-bg text-info whitespace-nowrap"
+            title={`Шаблон: ${sent.template}`}
+          >
+            {fmtDateTime(sent.lastSentAt)} ({daysSinceIso(sent.lastSentAt)} дн.)
+          </span>
+        ) : (
+          <span className="text-xs text-gray-300">—</span>
+        )}
+      </td>
+    </tr>
+  )
+})
 
 function CampaignRow({
   result,

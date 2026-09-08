@@ -79,10 +79,6 @@ const BOOKING_FIELDS = [
 const CLIENT_POPULATE =
   'populate[client][fields][0]=name&populate[client][fields][1]=noonaCustomerId'
 
-/** ВСЯ история броней (с клиентом) — фундамент кэша аналитики. */
-export const fetchMirrorBookingsAll = (): Promise<MirrorBooking[]> =>
-  fetchAllPagesStrapi<MirrorBooking>(`/api/bookings?${BOOKING_FIELDS}&${CLIENT_POPULATE}&sort=date:asc`)
-
 /** Брони диапазона дат (включительно). extra — доп. query-фрагмент. */
 export const fetchMirrorBookingsRange = (
   fromStr: string,
@@ -106,21 +102,63 @@ export const countBookingsCreatedBetween = async (fromIso: string, toIso: string
   return res.meta?.pagination?.total || 0
 }
 
-// ── клиенты ──
+// ── сжатые выгрузки движка (аналитика) ──
+//
+// Вся история броней и весь список клиентов раньше собирались тут постранично
+// из `/api/bookings` и `/api/clients` — ~10 и ~4 запроса, ~2.9 МБ и ~370 КБ JSON.
+// Теперь проекция делается на сервере, а сюда приходит колоночный массив одним
+// ответом (strapi/src/api/booking-engine/services/admin-analytics.ts).
 
-export interface MirrorClient {
-  documentId: string
-  name: string
-  phone: string | null
-  email: string | null
-  noonaCustomerId: string | null
-  blacklisted: boolean
+const getEngine = async <T>(pathWithQuery: string): Promise<T> => {
+  const res = await fetch(`${API_URL}${pathWithQuery}`, { headers: authHeaders() })
+  if (!res.ok) throw new Error(`Strapi GET ${pathWithQuery} → ${res.status}`)
+  return res.json() as Promise<T>
 }
 
-export const fetchMirrorClients = (): Promise<MirrorClient[]> =>
-  fetchAllPagesStrapi<MirrorClient>(
-    `/api/clients?fields[0]=name&fields[1]=phone&fields[2]=email&fields[3]=noonaCustomerId&fields[4]=blacklisted`,
-  )
+/** Ответ `/engine/admin/analytics/history`. Порядок колонок задаёт сервер. */
+export interface CompactHistory {
+  cols: string[]
+  events: Array<Array<string | number>>
+  empNames: Array<[string, string]>
+}
+
+export const fetchAnalyticsHistory = (): Promise<CompactHistory> =>
+  getEngine<CompactHistory>('/api/engine/admin/analytics/history')
+
+// ── клиенты ──
+
+/** Клиент в аналитике. `customer` — уже готовый стабильный ключ (clientKey с сервера). */
+export interface MirrorClient {
+  customer: string
+  name: string
+  phone: string
+  email: string
+}
+
+interface CompactClients {
+  cols: string[]
+  clients: string[][]
+}
+
+export const fetchMirrorClients = async (): Promise<MirrorClient[]> => {
+  const res = await getEngine<CompactClients>('/api/engine/admin/analytics/clients')
+  return (res.clients || []).map((r) => ({
+    customer: r[0] ?? '',
+    name: r[1] ?? '',
+    phone: r[2] ?? '',
+    email: r[3] ?? '',
+  }))
+}
+
+/** Только «ключ → имя»: контакты почти двух тысяч клиентов там, где нужны имена, лишние. */
+export const fetchMirrorClientNames = async (): Promise<Map<string, string>> => {
+  const res = await getEngine<CompactClients>('/api/engine/admin/analytics/clients?contacts=0')
+  const map = new Map<string, string>()
+  for (const r of res.clients || []) {
+    if (r[0] && r[1]) map.set(r[0], r[1])
+  }
+  return map
+}
 
 /** Стабильный id клиента в аналитике: noonaCustomerId (историческая совместимость
  * с email-campaign-log) или documentId для клиентов, созданных уже нашим движком. */

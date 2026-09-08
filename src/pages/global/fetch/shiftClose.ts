@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Axios } from '../../../lib/api'
-import { clientKey, fetchMirrorBookingsRange, fetchMirrorClients } from '../../../lib/mirror'
+import { clientKey, fetchMirrorBookingsRange, fetchMirrorClientNames } from '../../../lib/mirror'
 import { format } from 'date-fns'
 import { getMoney } from '../../dashboard/fetch/costs'
 import { getAdminsHours } from '../../dashboard/fetch/allAdminsHours'
@@ -311,12 +311,8 @@ const fetchCalendarBookings = async (dateStr: string) => {
 // но остаётся страховкой при опечатках в clientName записей Strapi.
 const fetchCurrentClientNames = async (): Promise<Map<string, string>> => {
   try {
-    const clients = await fetchMirrorClients()
-    const map = new Map<string, string>()
-    for (const c of clients) {
-      if (c.name) map.set(clientKey(c), c.name)
-    }
-    return map
+    // только «ключ → имя»: телефоны и адреса всех клиентов салона этой странице не нужны
+    return await fetchMirrorClientNames()
   } catch (e) {
     console.error('fetchCurrentClientNames error:', e)
     return new Map()

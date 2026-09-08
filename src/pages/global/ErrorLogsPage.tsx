@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { h1Cls, hintCls, kickerCls, pageShellCls } from '../../ui/kit'
 import { OwnerProtection } from './components/OwnerProtection'
+import { Pagination } from '../../components/Pagination'
 import type { ClientErrorLog, ErrorFilter } from './fetch/errorLogs'
 import {
   fetchErrorLogs,
@@ -8,6 +9,11 @@ import {
   deleteErrorLog,
   deleteAllResolved,
 } from './fetch/errorLogs'
+
+// Журнал приходит целиком (до 200 записей) и раньше рисовался одним списком
+// карточек. Рисуем страницами — раскрытие одной карточки не заставляет браузер
+// пересчитывать разметку всей ленты (аудит s184, п. 3.2).
+const PAGE_SIZE = 50
 
 const SOURCE_LABELS: Record<ClientErrorLog['source'], string> = {
   'window-error': 'window.onerror',
@@ -53,6 +59,7 @@ export default function ErrorLogsPage() {
   const [filter, setFilter] = useState<ErrorFilter>('unresolved')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [actionMsg, setActionMsg] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -69,6 +76,16 @@ export default function ErrorLogsPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  const pagedLogs = useMemo(
+    () => logs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [logs, page],
+  )
+
+  // Смена фильтра меняет длину списка — текущая страница может исчезнуть.
+  useEffect(() => {
+    setPage(1)
+  }, [filter])
 
   const toggleExpand = (id: string) => {
     setExpanded((prev) => {
@@ -178,7 +195,7 @@ export default function ErrorLogsPage() {
             </div>
           ) : (
             <div className="grid gap-2">
-              {logs.map((log) => {
+              {pagedLogs.map((log) => {
                 const isOpen = expanded.has(log.documentId)
                 return (
                   <div
@@ -289,6 +306,13 @@ export default function ErrorLogsPage() {
                   </div>
                 )
               })}
+              <Pagination
+                page={page}
+                total={logs.length}
+                pageSize={PAGE_SIZE}
+                onPage={setPage}
+                unit={'záznamů'}
+              />
             </div>
           )}
       </div>

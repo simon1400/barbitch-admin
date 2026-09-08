@@ -1,4 +1,4 @@
-import { clientKey, fetchMirrorClients } from '../../../../lib/mirror'
+import { fetchMirrorClients } from '../../../../lib/mirror'
 import {
   getEventsHistory,
   fetchEmployeeNames,
@@ -31,7 +31,7 @@ export const getSleepingCandidates = async (force = false): Promise<SleepingClie
     fetchEmployeeNames(),
   ])
   const customers = mirrorClients.map((c) => ({
-    id: clientKey(c),
+    id: c.customer,
     name: c.name,
     email: c.email || '',
     phone: c.phone || '',

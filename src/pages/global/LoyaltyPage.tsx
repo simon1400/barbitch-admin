@@ -566,6 +566,16 @@ const TABS: { id: LoyaltyTab; label: string }[] = [
   { id: 'adjust', label: 'Корректировка' },
 ]
 
+// Набор данных, который тянет вкладка сверх обязательного `core`.
+type Bucket = 'core' | 'cabinet' | 'metrics' | 'rewards'
+const TAB_NEEDS: Record<LoyaltyTab, Bucket[]> = {
+  accounts: [],
+  cabinet: ['cabinet'],
+  metrics: ['metrics', 'rewards'],
+  rewards: ['rewards'],
+  adjust: [],
+}
+
 export default function LoyaltyPage() {
   const cardYear = new Date().getFullYear()
   const [accounts, setAccounts] = useState<LoyaltyAccount[]>([])
@@ -583,34 +593,65 @@ export default function LoyaltyPage() {
   const [accPage, setAccPage] = useState(1)
   const [redPage, setRedPage] = useState(1)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [acc, cab, rw, rd, mt] = await Promise.all([
-        fetchLoyaltyAccounts(cardYear),
-        fetchCabinetClients(),
-        fetchRewards(),
-        fetchRedemptions('available'),
-        fetchLoyaltyMetrics(cardYear),
-      ])
-      setAccounts(acc)
-      setCabinetAccounts(cab)
-      setRewards(rw)
-      setRedemptions(rd)
-      setMetrics(mt)
-      setAccPage(1)
-      setRedPage(1)
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setLoading(false)
-    }
-  }, [cardYear])
+  // Загрузка по вкладкам (аудит s184). Раньше монтирование страницы тянуло ВСЕ
+  // пять наборов — ~12 запросов, из которых семь нужны вкладкам, куда владелец
+  // может и не зайти. `core` (аккаунты + активные награды) нужен всегда: обе
+  // цифры стоят в плашках над вкладками.
+  const fetchBucket = useCallback(
+    async (b: Bucket) => {
+      if (b === 'core') {
+        const [acc, rd] = await Promise.all([
+          fetchLoyaltyAccounts(cardYear),
+          fetchRedemptions('available'),
+        ])
+        setAccounts(acc)
+        setRedemptions(rd)
+        setAccPage(1)
+        setRedPage(1)
+        return
+      }
+      if (b === 'cabinet') return setCabinetAccounts(await fetchCabinetClients())
+      if (b === 'metrics') return setMetrics(await fetchLoyaltyMetrics(cardYear))
+      if (b === 'rewards') return setRewards(await fetchRewards())
+    },
+    [cardYear],
+  )
 
+  const loadedRef = useRef<Set<Bucket>>(new Set())
+
+  const load = useCallback(
+    async (buckets: Bucket[], force = false) => {
+      const need = [...new Set(buckets)].filter((b) => force || !loadedRef.current.has(b))
+      if (!need.length) return
+      setLoading(true)
+      setError(null)
+      try {
+        await Promise.all(need.map(fetchBucket))
+        for (const b of need) loadedRef.current.add(b)
+      } catch (e) {
+        setError((e as Error).message)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [fetchBucket],
+  )
+
+  // Монтирование и переключение вкладки: уже загруженное не перезапрашивается.
   useEffect(() => {
-    void load()
-  }, [load])
+    void load(['core', ...TAB_NEEDS[tab]])
+  }, [load, tab])
+
+  // Кнопка «Обновить» и записи (награда / ручная корректировка) перечитывают то,
+  // что видно сейчас, а зависящие наборы помечают устаревшими — иначе владелец
+  // открыл бы «Метрики» с цифрами, посчитанными до правки.
+  const refresh = useCallback(
+    (invalidate: Bucket[] = []) => {
+      for (const b of invalidate) loadedRef.current.delete(b)
+      void load(['core', ...TAB_NEEDS[tab]], true)
+    },
+    [load, tab],
+  )
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -652,7 +693,9 @@ export default function LoyaltyPage() {
     setBusy(true)
     try {
       await markRedemptionUsed(r.documentId)
-      await load()
+      // список активных наград поменялся; метрики (разбивка по статусам) — тоже
+      loadedRef.current.delete('metrics')
+      await load(['core'], true)
     } catch (e) {
       window.alert(`Ошибка: ${(e as Error).message}`)
     } finally {
@@ -668,7 +711,7 @@ export default function LoyaltyPage() {
             <h1 className={h1Cls}>Лояльность — bitchcard {cardYear}</h1>
             <button
               type={'button'}
-              onClick={() => void load()}
+              onClick={() => refresh()}
               disabled={loading}
               className={`${btnNeutralCls} mb-[18px]`}
             >
@@ -717,11 +760,11 @@ export default function LoyaltyPage() {
             <MetricsSection metrics={metrics} accounts={accounts} rewards={rewards} />
           )}
 
-          {tab === 'adjust' && <ManualAdjustment cardYear={cardYear} onDone={() => void load()} />}
+          {tab === 'adjust' && <ManualAdjustment cardYear={cardYear} onDone={() => refresh(['metrics'])} />}
 
           {tab === 'rewards' && (
             <>
-              <RewardsSection rewards={rewards} onChanged={() => void load()} />
+              <RewardsSection rewards={rewards} onChanged={() => refresh(['metrics'])} />
 
               <div className={'mb-6'}>
                 <div className={'mb-3 flex items-center justify-between gap-3 flex-wrap'}>

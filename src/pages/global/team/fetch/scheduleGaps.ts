@@ -1,9 +1,4 @@
-import {
-  fetchMirrorBookingsRange,
-  fetchMirrorEmployees,
-  fetchSalonHoursRange,
-  fetchTimeBlocksRange,
-} from '../../../../lib/mirror'
+import { getTeamRangeData } from './teamRangeData'
 
 // «Окна» (дыры) в расписании мастеров: свободные интервалы внутри рабочего
 // времени (часы салона − блокировки) между бронями. «Мёртвое окно» = 15–90 мин —
@@ -78,13 +73,9 @@ const subtract = (window: Interval, busy: Interval[]): Interval[] => {
 export const getScheduleGaps = async (
   fromStr: string,
   toStr: string,
+  force = false,
 ): Promise<MasterGapsRow[]> => {
-  const [employees, hours, blocks, bookings] = await Promise.all([
-    fetchMirrorEmployees(),
-    fetchSalonHoursRange(fromStr, toStr),
-    fetchTimeBlocksRange(fromStr, toStr),
-    fetchMirrorBookingsRange(fromStr, toStr),
-  ])
+  const { employees, hours, blocks, bookings } = await getTeamRangeData(fromStr, toStr, force)
 
   // Часы салона по дням: окна как в Noona (windows json), fallback open/close
   const opening: Record<string, Array<{ starts_at?: string; ends_at?: string }>> = {}

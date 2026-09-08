@@ -317,7 +317,7 @@ const ensureSlow = async (force: boolean): Promise<SlowCache> => {
     ])
     const contacts = new Map<string, { email: string; name: string }>()
     for (const c of clients) {
-      contacts.set(clientKey(c), { email: c.email ?? '', name: c.name ?? '' })
+      contacts.set(c.customer, { email: c.email ?? '', name: c.name ?? '' })
     }
     const juniorIds = new Set<string>()
     const empDocIds = new Map<string, string>()
@@ -419,7 +419,7 @@ export const getWindowCrossSellCandidates = async (
 
   const [byClientDay, gaps, logs] = await Promise.all([
     groupByClientDay(d1, d2),
-    getScheduleGaps(d1, d2),
+    getScheduleGaps(d1, d2, force),
     fetchOfferLogs(),
   ])
   const sentSet = new Set(logs.map((l) => l.bookingEventId))
