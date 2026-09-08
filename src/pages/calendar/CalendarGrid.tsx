@@ -265,6 +265,15 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
   })
   const touchDraggedId = touchDrag.active?.item.documentId
 
+  // Подсветка по ссылке (?highlight= из пуша / из закрытия смены): карточка может
+  // быть за пределами видимой области грида (вечерняя бронь, дальняя колонка) —
+  // докручиваем к ней, как только день загружен и карточка отрисована.
+  useEffect(() => {
+    if (!highlightId || !day) return
+    const el = scrollRef.current?.querySelector<HTMLElement>(`[data-booking-id="${highlightId}"]`)
+    el?.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' })
+  }, [highlightId, day])
+
   return (
     // Скролл-контейнер (обе оси): sticky ось/шапки липнут к нему; snap-x —
     // горизонтальный свайп примагничивается к границам колонок
@@ -514,6 +523,7 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                   return (
                     <button
                       key={p.booking.documentId}
+                      data-booking-id={p.booking.documentId}
                       type="button"
                       draggable={draggable}
                       onMouseEnter={stacked ? () => setFrontCardId(p.booking.documentId) : undefined}

@@ -319,6 +319,7 @@ export default function ShiftClosePage() {
                 <ServiceProvidedCard
                   data={result.serviceProvided}
                   calendarBookings={result.calendar.events}
+                  shiftDate={result.date}
                 />
                 <WorkTimeCard data={result.workTime} />
                 <PayrollCard data={result.payroll} />

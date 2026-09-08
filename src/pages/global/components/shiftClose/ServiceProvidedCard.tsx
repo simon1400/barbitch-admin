@@ -21,6 +21,12 @@ const STRAPI_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost
 const strapiLink = (documentId: string) =>
   `${STRAPI_URL}/admin/content-manager/collection-types/api::service-provided.service-provided/${documentId}?status=draft`
 
+// Ссылка в календарь админки на конкретную бронь: CalendarPage читает
+// ?date=YYYY-MM-DD&highlight=<bookingDocId> при загрузке (тот же контракт, что у
+// push-уведомлений) — открывает нужный день, докручивает к карточке и мигает ею.
+const calendarLink = (bookingDocId: string, date: string) =>
+  `/calendar?date=${encodeURIComponent(date)}&highlight=${encodeURIComponent(bookingDocId)}`
+
 // Header icon for the "offer vs calendar service" comparison column.
 const CompareIcon = () => (
   <svg
@@ -142,17 +148,31 @@ const CalendarGlyph = () => (
   </svg>
 )
 
-const OfferMatchChip = ({ match }: { match: OfferMatch | undefined }) => {
+const OfferMatchChip = ({ match, shiftDate }: { match: OfferMatch | undefined; shiftDate: string }) => {
   if (!match) return <span className="text-ink-faint">—</span>
   // Запись закрыта прямо из календаря → сравнивать нечего (услуга взята из самой
   // брони). Зелёная «галка сверки» тут вводила бы в заблуждение — показываем
   // нейтральную иконку календаря; услуга/čas/cena — в тултипе при наведении.
+  // Иконка — ссылка на саму бронь в календаре (новая вкладка, чтобы не терять
+  // загруженную сверку смены). Дата — из брони, фолбэк — день смены.
   if (match.source === 'booking') {
+    const chipCls =
+      'inline-flex items-center justify-center min-w-[28px] h-6 px-1.5 rounded bg-sky-100 text-sky-700'
+    if (match.bookingDocId) {
+      return (
+        <a
+          href={calendarLink(match.bookingDocId, match.bookingDate || shiftDate)}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`${offerMatchTitle(match)}\nOtevřít v kalendáři`}
+          className={`${chipCls} hover:bg-sky-200 hover:text-sky-900 transition-colors`}
+        >
+          <CalendarGlyph />
+        </a>
+      )
+    }
     return (
-      <span
-        title={offerMatchTitle(match)}
-        className="inline-flex items-center justify-center min-w-[28px] h-6 px-1.5 rounded bg-sky-100 text-sky-700 cursor-default"
-      >
+      <span title={offerMatchTitle(match)} className={`${chipCls} cursor-default`}>
         <CalendarGlyph />
       </span>
     )
@@ -212,9 +232,12 @@ const FlagChip = ({ flag, item }: { flag: VerifyFlag; item: any }) => {
 export const ServiceProvidedCard = ({
   data,
   calendarBookings,
+  shiftDate,
 }: {
   data: ShiftCheckResult['serviceProvided']
   calendarBookings: any[]
+  /** день смены (YYYY-MM-DD) — фолбэк даты для ссылки в календарь */
+  shiftDate: string
 }) => {
   const visibleCounters = VERIFY_FLAGS.filter((f) => data.flagCounts[f] > 0)
   const offerMatches = buildOfferMatches(data.items, calendarBookings)
@@ -299,7 +322,7 @@ export const ServiceProvidedCard = ({
                     </td>
                     <td className="py-2 pr-3">{item.personal?.name || '—'}</td>
                     <td className="py-2 pr-3">
-                      <OfferMatchChip match={offerMatches.get(item)} />
+                      <OfferMatchChip match={offerMatches.get(item)} shiftDate={shiftDate} />
                     </td>
                     <td className="py-2 pr-3">
                       {Number((toNum(item.salonSalaries) + toNum(item.staffSalaries)).toFixed(2))} Kč

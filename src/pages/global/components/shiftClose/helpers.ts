@@ -113,6 +113,9 @@ export interface OfferMatch {
   /** время и цена брони — показываются в тултипе чипа (отдельной таблицы броней нет) */
   time?: string
   price?: number | null
+  /** бронь в календаре — чип ведёт в /calendar?date=&highlight= прямо на неё */
+  bookingDocId?: string
+  bookingDate?: string
 }
 
 // Map keyed by the service-provided item object itself (rows get re-sorted in
@@ -136,6 +139,8 @@ export const buildOfferMatches = (items: any[], events: any[]): Map<any, OfferMa
       source: 'booking',
       time: typeof item?.time === 'string' ? item.time : '',
       price: rawPrice == null ? null : Number(rawPrice),
+      bookingDocId: typeof item?.booking?.documentId === 'string' ? item.booking.documentId : undefined,
+      bookingDate: typeof item?.booking?.date === 'string' ? item.booking.date : undefined,
     })
   }
 
