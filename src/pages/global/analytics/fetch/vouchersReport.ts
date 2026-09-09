@@ -1,5 +1,5 @@
 import { strapiQuery } from '../../../../lib/strapiQuery'
-import { monthLabelRu, ym } from '../../../../utils/date'
+import { monthLabelRu, todayDate, ym } from '../../../../utils/date'
 import { fetchAllPagesAxios } from '../../../../lib/strapiPaginate'
 
 // Отчёт по ваучерам (Strapi коллекция vouchers).
@@ -117,7 +117,7 @@ export const getVouchersReport = async (): Promise<VouchersReport> => {
   outstanding.sort((a, b) => (a.datePay! < b.datePay! ? -1 : 1)) // старые сверху
 
   // последние 12 месяцев включая текущий
-  const now = new Date()
+  const now = todayDate()
   const byMonth: VoucherMonthRow[] = []
   for (let i = 11; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)

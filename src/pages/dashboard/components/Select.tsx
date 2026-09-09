@@ -1,3 +1,4 @@
+import { todayDate } from '../../../utils/date'
 import { iconBtnCls, selectCls } from '../../../ui/kit'
 import { monthLabels } from '../data'
 
@@ -13,7 +14,7 @@ export const Select = ({
   setYear?: (year: number) => void
 }) => {
   // Generate year options from 2024 to current year + 1
-  const currentYear = new Date().getFullYear()
+  const currentYear = todayDate().getFullYear()
   const years = Array.from({ length: currentYear - 2023 }, (_, i) => 2024 + i)
 
   const handlePreviousMonth = () => {

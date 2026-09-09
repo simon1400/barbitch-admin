@@ -1,4 +1,4 @@
-import { daysInMonth, monthLabelRu, ym as ymOfDate } from '../../../../utils/date'
+import { daysInMonth, monthLabelRu, todayDate, ym as ymOfDate } from '../../../../utils/date'
 import { getEventsHistory, isAttended, isActive, todayStr } from './eventsHistory'
 import { getExpenses } from '../../fetch/expenses'
 
@@ -32,7 +32,7 @@ export interface ForecastData {
 const ym = (d: string) => d.slice(0, 7)
 
 export const getForecast = async (force = false): Promise<ForecastData> => {
-  const now = new Date()
+  const now = todayDate()
   const year = now.getFullYear()
   const month = now.getMonth()
   const today = todayStr()

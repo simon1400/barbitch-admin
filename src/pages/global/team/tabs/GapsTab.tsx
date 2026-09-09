@@ -58,7 +58,7 @@ export default function GapsTab() {
   const [mode, setMode] = useState<Mode>('week')
   const [month, setMonth] = useState<number>(now.getMonth())
   const [year, setYear] = useState<number>(now.getFullYear())
-  const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(new Date()))
+  const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(todayDate()))
   const [rows, setRows] = useState<MasterGapsRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -230,7 +230,7 @@ export default function GapsTab() {
               {!isCurrentWeek && (
                 <button
                   type="button"
-                  onClick={() => setWeekStart(startOfWeek(new Date()))}
+                  onClick={() => setWeekStart(startOfWeek(todayDate()))}
                   className={btnNeutralCls}
                 >
                   Текущая

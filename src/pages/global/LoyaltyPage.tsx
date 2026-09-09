@@ -2,6 +2,7 @@
 // визиты/последний вход в кабинет + развёртка транзакций), ручная корректировка
 // ±Kč, CRUD наград (трек), список активных redemption.
 
+import { todayDate } from '../../utils/date'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { btnNeutralCls, h1Cls, kickerCls, pageShellCls } from '../../ui/kit'
@@ -577,7 +578,7 @@ const TAB_NEEDS: Record<LoyaltyTab, Bucket[]> = {
 }
 
 export default function LoyaltyPage() {
-  const cardYear = new Date().getFullYear()
+  const cardYear = todayDate().getFullYear()
   const [accounts, setAccounts] = useState<LoyaltyAccount[]>([])
   const [cabinetAccounts, setCabinetAccounts] = useState<CabinetAccount[]>([])
   const [rewards, setRewards] = useState<Reward[]>([])

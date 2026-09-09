@@ -1,4 +1,4 @@
-import { ymd } from '../../utils/date'
+import { todayDate, todayYmd, ymd } from '../../utils/date'
 import { useState } from 'react'
 import {
   btnPinkCls,
@@ -52,7 +52,9 @@ const fromDateInput = (v: string): Date | null => {
 }
 
 export default function ShiftClosePage() {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  // 🟥 День САЛОНА, не браузера: из Нью-Йорка в ночь на 1 сентября страница
+  // открывалась на 31 августа — поймано проверкой в браузере (s186).
+  const [selectedDate, setSelectedDate] = useState<Date>(todayDate)
   const [result, setResult] = useState<ShiftCheckResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -255,7 +257,7 @@ export default function ShiftClosePage() {
               <input
                 type="date"
                 value={toDateInput(selectedDate)}
-                max={toDateInput(new Date())}
+                max={todayYmd()}
                 onChange={(e) => {
                   const d = fromDateInput(e.target.value)
                   if (d) setSelectedDate(d)

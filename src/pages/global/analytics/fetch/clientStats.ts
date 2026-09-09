@@ -1,4 +1,4 @@
-import { DOW_RU_FULL, monthLabelRu, todayYmd, ym as monthKey, ymd } from '../../../../utils/date'
+import { DOW_RU_FULL, monthLabelRu, todayDate, todayYmd, ym as monthKey, ymd } from '../../../../utils/date'
 import { getEventsHistory } from './eventsHistory'
 
 // Статистика клиентов: новые vs повторные по месяцам + загрузка по дням недели.
@@ -98,7 +98,7 @@ export const getClientStats = async (force = false): Promise<ClientStats> => {
     }
   }
 
-  const now = new Date()
+  const now = todayDate()
   const months: string[] = []
   for (let i = 6; i >= 1; i--) {
     months.push(monthKey(new Date(now.getFullYear(), now.getMonth() - i, 1)))

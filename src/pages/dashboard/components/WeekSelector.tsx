@@ -1,3 +1,4 @@
+import { todayDate } from '../../../utils/date'
 import { useState } from 'react'
 
 import { iconBtnCls } from '../../../ui/kit'
@@ -11,7 +12,7 @@ export const WeekSelector = ({ onWeekChange, currentWeekRange }: WeekSelectorPro
   const [weekOffset, setWeekOffset] = useState(0)
 
   const getWeekDates = (offset: number) => {
-    const today = new Date()
+    const today = todayDate()
     const dayOfWeek = today.getDay()
 
     // Вычисляем разницу до понедельника

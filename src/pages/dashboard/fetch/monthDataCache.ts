@@ -1,3 +1,4 @@
+import { todayDate } from '../../../utils/date'
 import type { IFilteredAdminsData } from './allAdminsHours'
 import type { IFilteredData } from './allWorks'
 import type { GroupedSum, OutputMetrictsItem } from './fetchHelpers'
@@ -119,12 +120,12 @@ const keyOf = (month: number, year: number) => `${PREFIX}${year}_${month}`
 const endOfMonthTs = (month: number, year: number) => new Date(year, month + 1, 1).getTime()
 
 const isCurrentMonth = (month: number, year: number) => {
-  const now = new Date()
+  const now = todayDate()
   return now.getFullYear() === year && now.getMonth() === month
 }
 
 const isFutureMonth = (month: number, year: number) => {
-  const now = new Date()
+  const now = todayDate()
   return year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth())
 }
 

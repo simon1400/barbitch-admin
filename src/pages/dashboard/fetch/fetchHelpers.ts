@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { daysInMonth as daysInMonthOf } from '../../../utils/date'
+import { daysInMonth as daysInMonthOf, todayDate } from '../../../utils/date'
 import { strapiQuery } from '../../../lib/strapiQuery'
 
 import { Axios } from '../../../lib/api'
@@ -200,7 +200,7 @@ export function groupCountReservationByDate(
 
   // берём любую дату как базу (первый массив)
   const allItems = Object.values(datasets).flat()
-  const baseDate = allItems.length ? new Date(allItems[0].ends_at) : new Date()
+  const baseDate = allItems.length ? new Date(allItems[0].ends_at) : todayDate()
   const year = baseDate.getFullYear()
   const month = baseDate.getMonth()
   const daysInMonth = daysInMonthOf(year, month)

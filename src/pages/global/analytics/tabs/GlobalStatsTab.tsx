@@ -1,3 +1,4 @@
+import { todayDate } from '../../../../utils/date'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 
 import { Cell } from '../../../dashboard/components/Cell'
@@ -44,7 +45,7 @@ const formatAgo = (ts: number): string => {
 }
 
 export default function GlobalStatsTab() {
-  const now = new Date()
+  const now = todayDate()
   // По умолчанию — последние 6 месяцев.
   const initial = lastNMonths(6)
   const [from, setFrom] = useState<MonthKey>(initial[0])

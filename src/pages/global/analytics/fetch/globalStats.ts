@@ -1,4 +1,4 @@
-import { daysInMonth } from '../../../../utils/date'
+import { daysInMonth, todayDate } from '../../../../utils/date'
 import { getGlobalMonthData, type GlobalMonthData } from '../../../dashboard/fetch/monthDataCache'
 
 // Агрегация показателей «Финансового обзора»/«Резерваций» за ПРОИЗВОЛЬНЫЙ период
@@ -59,7 +59,7 @@ export interface GlobalStatsResult {
 // Сколько «активных» дней в месяце для индекса: текущий месяц — до сегодня,
 // прошлый — все дни месяца, будущий — 0. Зеркало логики `day` в getEvents.ts.
 const activeDaysForMonth = (month: number, year: number): number => {
-  const today = new Date()
+  const today = todayDate()
   if (today.getFullYear() === year && today.getMonth() === month) return today.getDate()
   // будущий месяц
   if (year > today.getFullYear() || (year === today.getFullYear() && month > today.getMonth())) {
@@ -119,7 +119,7 @@ export const monthsInRange = (from: MonthKey, to: MonthKey): MonthKey[] => {
 
 // Последние n месяцев включая текущий (по возрастанию).
 export const lastNMonths = (n: number): MonthKey[] => {
-  const now = new Date()
+  const now = todayDate()
   const from = new Date(now.getFullYear(), now.getMonth() - (n - 1), 1)
   return monthsInRange(
     { month: from.getMonth(), year: from.getFullYear() },

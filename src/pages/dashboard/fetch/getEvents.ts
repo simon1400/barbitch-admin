@@ -1,7 +1,7 @@
 import type { InputItemReservation } from './fetchHelpers'
 
 import { isBefore, isEqual, parseISO } from 'date-fns'
-import { daysInMonth, ymd } from '../../../utils/date'
+import { daysInMonth, todayDate, ymd } from '../../../utils/date'
 import { getMonthRange } from '../../../utils/getMonthRange'
 import { fetchMirrorBookingsRange, countBookingsCreatedBetween } from '../../../lib/mirror'
 import type { MirrorBooking } from '../../../lib/mirror'
@@ -18,7 +18,7 @@ import { groupCountReservationByDate } from './fetchHelpers'
 export const getEvents = async (month: number, year: number) => {
   const { firstDay, lastDay } = getMonthRange(year, month)
 
-  const today = new Date()
+  const today = todayDate()
   let day = today.getDate()
   if (today.getMonth() !== month || today.getFullYear() !== year) {
     day = daysInMonth(year, month)

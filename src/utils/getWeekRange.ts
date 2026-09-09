@@ -1,6 +1,7 @@
+import { todayDate } from './date'
 // Диапазон текущей недели (понедельник..воскресенье) в UTC.
 // Единственный потребитель — dashboard/hooks/useGlobalWeekData.ts.
-export const getCurrentWeekRange = (date: Date = new Date()) => {
+export const getCurrentWeekRange = (date: Date = todayDate()) => {
   const currentDate = new Date(date)
 
   // Получаем день недели (0 = воскресенье, 1 = понедельник, ...)
