@@ -1,7 +1,7 @@
 import { todayDate } from '../../../utils/date'
 import { useState } from 'react'
 
-import { iconBtnCls } from '../../../ui/kit'
+import { bodyBoldCls, iconBtnCls } from '../../../ui/kit'
 
 interface WeekSelectorProps {
   onWeekChange: (startDate: Date, endDate: Date) => void
@@ -71,7 +71,7 @@ export const WeekSelector = ({ onWeekChange, currentWeekRange }: WeekSelectorPro
         </button>
 
         <div>
-          <p className={'text-[13px] font-bold text-ink-body whitespace-nowrap'}>
+          <p className={`${bodyBoldCls} whitespace-nowrap`}>
             {currentWeekRange.firstDay.toLocaleDateString('cs-CZ', { timeZone: 'UTC' })} -{' '}
             {currentWeekRange.lastDay.toLocaleDateString('cs-CZ', { timeZone: 'UTC' })}
           </p>

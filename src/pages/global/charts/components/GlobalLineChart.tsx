@@ -9,6 +9,7 @@ import {
   YAxis,
 } from 'recharts'
 import { CHART } from '../../../../ui/chartColors'
+import { chartCardCls } from '../../../../ui/kit'
 
 // Строки графика: у каждой ключ date + числовые серии, имена которых задаёт
 // вызывающий через lines[].dataKey. Конкретные интерфейсы строк у страниц свои,
@@ -31,7 +32,7 @@ export const GlobalLineChart = ({ data, lines, title }: Props) => (
         {title}
       </h3>
     )}
-    <div className={'bg-white border border-line rounded-xl shadow-panel p-4 pl-0'}>
+    <div className={chartCardCls}>
       <ResponsiveContainer width={'100%'} height={300}>
         <LineChart data={data}>
           <CartesianGrid stroke={CHART.grid} strokeDasharray={'4 4'} />

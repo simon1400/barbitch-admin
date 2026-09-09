@@ -6,11 +6,12 @@ import { getClientStats, type ClientStats } from '../fetch/clientStats'
 import { Cell } from '../../../dashboard/components/Cell'
 import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
+import { tileLabelCls, tileValueAccentCls, tileValueCls } from '../../../../ui/kit'
 
 const SummaryCard = ({ label, value, accent }: { label: string; value: string; accent?: boolean }) => (
   <div className={'bg-white rounded-xl shadow-md p-4 flex-1 min-w-[140px]'}>
-    <div className={'text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-soft mb-[5px]'}>{label}</div>
-    <div className={`text-[21px] font-extrabold leading-[1.15] ${accent ? 'text-brand-dark' : 'text-ink'}`}>{value}</div>
+    <div className={tileLabelCls}>{label}</div>
+    <div className={accent ? tileValueAccentCls : tileValueCls}>{value}</div>
   </div>
 )
 

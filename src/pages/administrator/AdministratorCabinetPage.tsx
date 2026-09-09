@@ -1,9 +1,18 @@
 import { kcNum, dec, parseMoney } from '../../utils/money'
+import { Pagination } from '../../components/Pagination'
 import { useMonthYear } from '../../hooks/useMonthYear'
 import { API_URL } from '../../lib/config'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { errMsg } from '../../lib/errMsg'
-import { h1Cls, kickerCls, pageShellCls, toolbarCardCls } from '../../ui/kit'
+import {
+  h1Cls,
+  kickerCls,
+  pageShellCls,
+  resultCardCls,
+  resultValueCls,
+  tileLabelAccentCls,
+  toolbarCardCls,
+} from '../../ui/kit'
 import { useState, useEffect, useMemo } from 'react'
 import { Cell } from '../dashboard/components/Cell'
 import { TableWrapper } from '../global/components/TableWrapper'
@@ -265,10 +274,6 @@ const AdministratorCabinetPage = () => {
     return filteredData.workTimes.slice(startIndex, startIndex + workTimesPerPage)
   }, [filteredData, workTimesPage])
 
-  const workTimesTotalPages = useMemo(() => {
-    if (!filteredData) return 0
-    return Math.ceil(filteredData.workTimes.length / workTimesPerPage)
-  }, [filteredData])
 
   // Рассчитываем заработок мастера (если есть данные мастера)
   // ВАЖНО: useMemo должен быть до условных return
@@ -454,11 +459,11 @@ const AdministratorCabinetPage = () => {
             </div>
 
             {/* Общий итог */}
-            <div className={'mt-3.5 bg-brand-tint border border-brand-line rounded-xl px-6 py-5'}>
-              <div className={'text-[10.5px] font-bold tracking-[0.06em] uppercase text-brand-dark mb-[5px]'}>
+            <div className={`mt-3.5 ${resultCardCls}`}>
+              <div className={tileLabelAccentCls}>
                 Общий результат (Администратор + Мастер)
               </div>
-              <div className={'text-[26px] font-extrabold text-brand-dark leading-[1.15]'}>
+              <div className={resultValueCls}>
                 {kcNum(totalCombinedResult)} Kč
               </div>
             </div>
@@ -521,31 +526,13 @@ const AdministratorCabinetPage = () => {
           </TableWrapper>
 
           {/* Pagination for Work Times */}
-          {workTimesTotalPages > 1 && (
-            <div className={'flex justify-center gap-2 mt-4'}>
-              <button
-                onClick={() => setWorkTimesPage((p) => Math.max(1, p - 1))}
-                disabled={workTimesPage === 1}
-                className={
-                  'px-4 py-2 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-line-soft'
-                }
-              >
-                Назад
-              </button>
-              <span className={'px-4 py-2'}>
-                Страница {workTimesPage} из {workTimesTotalPages}
-              </span>
-              <button
-                onClick={() => setWorkTimesPage((p) => Math.min(workTimesTotalPages, p + 1))}
-                disabled={workTimesPage === workTimesTotalPages}
-                className={
-                  'px-4 py-2 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed hover:bg-line-soft'
-                }
-              >
-                Вперед
-              </button>
-            </div>
-          )}
+          <Pagination
+            page={workTimesPage}
+            total={filteredData.workTimes.length}
+            pageSize={workTimesPerPage}
+            onPage={setWorkTimesPage}
+            unit={'записей'}
+          />
         </StatSection>
 
         {/* Bonuses Section */}

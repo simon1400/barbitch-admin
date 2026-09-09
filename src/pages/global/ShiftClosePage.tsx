@@ -1,11 +1,13 @@
 import { todayDate, todayYmd, ymd } from '../../utils/date'
 import { useState } from 'react'
 import {
+  badgePlainCls,
   btnPinkCls,
   h1Cls,
   inputBaseCls,
   kickerCls,
   labelCls,
+  mutedCls,
   pageShellCls,
   toolbarCardCls,
 } from '../../ui/kit'
@@ -313,7 +315,7 @@ export default function ShiftClosePage() {
                     <p className="m-0 text-[14px] font-extrabold text-ink">
                       {overallMessages[overall]}
                     </p>
-                    <p className="m-0 mt-0.5 text-[12.5px] font-semibold text-ink-faint">
+                    <p className={`m-0 mt-0.5 ${mutedCls}`}>
                       Datum: {result.date}
                     </p>
                     {(() => {
@@ -328,13 +330,13 @@ export default function ShiftClosePage() {
                           {visible.map((f) => (
                             <span
                               key={f}
-                              className="text-[11px] font-bold rounded-md px-[7px] py-0.5 bg-white text-ink-body"
+                              className={badgePlainCls}
                             >
                               {FLAG_META[f].emoji} {FLAG_META[f].label}: {fc[f]}
                             </span>
                           ))}
                           {hasUnverified && (
-                            <span className="text-[11px] font-bold rounded-md px-[7px] py-0.5 bg-white text-ink-body">
+                            <span className={badgePlainCls}>
                               Neověřeno: {result.serviceProvided.unverified}
                             </span>
                           )}

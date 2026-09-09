@@ -4,7 +4,9 @@ import { Cell } from '../../../dashboard/components/Cell'
 import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
 import {
+  badgeNeutralCls,
   badgePosCls,
+  bodyBoldCls,
   btnNeutralCls,
   btnPinkCls,
   hintCls,
@@ -27,7 +29,7 @@ const fmtDay = (date: string) => {
 }
 
 // Нейтральный серый чип («отправлено»)
-const neutralChipCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-ink-soft bg-surface-input'
+const neutralChipCls = badgeNeutralCls
 
 export default function CrossSellTab() {
   const [cands, setCands] = useState<CrossSellCandidate[]>([])
@@ -97,7 +99,7 @@ export default function CrossSellTab() {
     <>
       <div className={toolbarCardCls}>
         <div className="flex items-center gap-3 flex-wrap">
-          <label className="flex items-center gap-2 text-[13px] font-bold text-ink-body">
+          <label className={`flex items-center gap-2 ${bodyBoldCls}`}>
             Скидка в письме:
             <input
               type="text"

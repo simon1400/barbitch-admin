@@ -6,6 +6,7 @@ import { getForecast, type ForecastData } from '../fetch/forecast'
 import {
   badgeNegCls,
   badgePosCls,
+  bodyBoldCls,
   btnNeutralCls,
   cardCls,
   cardPadCls,
@@ -13,7 +14,9 @@ import {
   hintCls,
   mutedCls,
   pillCls,
+  tileAccentCls,
   tileCls,
+  tileLabelAccentCls,
   tileLabelCls,
   tileSubCls,
 } from '../../../../ui/kit'
@@ -119,7 +122,7 @@ export default function ForecastTab() {
       {/* Герой-карточка: формула прогноза */}
       <div className={cardPadCls}>
         <div className='flex items-center justify-between gap-3 mb-2'>
-          <span className='text-[13px] font-bold text-ink-body'>
+          <span className={bodyBoldCls}>
             День {data.daysPassed} из {data.daysTotal}
           </span>
           <span className={mutedCls}>{monthProgress} % месяца прошло</span>
@@ -148,8 +151,8 @@ export default function ForecastTab() {
             <div className={tileSubCls}>{data.futureVisits} активных броней</div>
           </div>
           <span className='text-[18px] font-bold text-ink-disabled text-center'>＝</span>
-          <div className='bg-brand-tint border border-brand-line rounded-[10px] px-4 py-[13px]'>
-            <div className='text-[10.5px] font-bold tracking-[0.06em] uppercase text-brand-dark mb-[5px]'>
+          <div className={tileAccentCls}>
+            <div className={tileLabelAccentCls}>
               Прогноз минимум
             </div>
             <div className='flex items-center gap-2 flex-wrap'>

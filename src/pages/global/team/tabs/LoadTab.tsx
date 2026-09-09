@@ -4,8 +4,11 @@ import { Cell } from '../../../dashboard/components/Cell'
 import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
 import {
+  badgeFaintCls,
   badgeNegCls,
   badgePosCls,
+  badgeWarnCls,
+  bodyBoldCls,
   btnNeutralCls,
   cardCls,
   hintCls,
@@ -32,9 +35,9 @@ import {
 } from '../../../../utils/date'
 
 const pctBadgeCls = (pct: number | null): string => {
-  if (pct === null) return 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-ink-faint bg-surface-input'
+  if (pct === null) return badgeFaintCls
   if (pct >= 75) return badgePosCls
-  if (pct >= 45) return 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-warn bg-warn-bg'
+  if (pct >= 45) return badgeWarnCls
   return badgeNegCls
 }
 
@@ -116,7 +119,7 @@ export default function LoadTab() {
               >
                 ‹
               </button>
-              <span className="text-[13px] font-bold text-ink-body whitespace-nowrap min-w-[150px] text-center">
+              <span className={`${bodyBoldCls} whitespace-nowrap min-w-[150px] text-center`}>
                 {fmtCsShort(weekStart)} – {fmtCsShort(weekEnd)}.{weekEnd.getFullYear()}
               </span>
               <button

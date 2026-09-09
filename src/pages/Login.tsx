@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react'
 import { loginUser } from '../services/auth'
 import { LogoIcon } from '../icons/Logo'
 import { CHART } from '../ui/chartColors'
-import { inputBaseCls, labelCls } from '../ui/kit'
+import { inputBaseCls, labelCls, mutedCls } from '../ui/kit'
 
 // Редизайн страницы логина по макету «Логин — редизайн» (Claude Design, s167):
 // розовая полоска 3px сверху → по центру бренд-блок (лого + кикер) → белая карточка
@@ -99,7 +99,7 @@ const Login = () => {
             <h1 className={'m-0 mb-1 text-[19px] font-extrabold text-ink text-center'}>
               {'Přihlášení do systému'}
             </h1>
-            <p className={'m-0 mb-[22px] text-[12.5px] font-semibold text-ink-faint text-center'}>
+            <p className={`m-0 mb-[22px] ${mutedCls} text-center`}>
               {'Zadejte své přihlašovací údaje'}
             </p>
 

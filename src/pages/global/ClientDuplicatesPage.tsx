@@ -8,6 +8,10 @@ import { errMsg as sharedErrMsg } from '../../lib/errMsg'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
+  badgeMutedCls,
+  badgeNegCls,
+  badgePosCls,
+  badgeWarnCls,
   btnDangerCls,
   btnNeutralCls,
   btnPinkCls,
@@ -24,6 +28,7 @@ import {
   tileValueCls,
   tileValueNegCls,
 } from '../../ui/kit'
+import { Pagination } from '../../components/Pagination'
 import { OwnerProtection } from './components/OwnerProtection'
 import type { ClientPatch, DedupeGroupsResponse, DupClient, DupGroup, MergeLogEntry } from './fetch/clientDedupe'
 import {
@@ -48,10 +53,10 @@ const fmtDay = (s: string | null) =>
 const errMsg = (e: unknown) => sharedErrMsg(e, 'Неизвестная ошибка')
 
 // чипы-бейджи (11px/700)
-const chipInfoCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-ink-muted bg-surface-input'
-const chipWarnCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-warn bg-warn-bg'
-const chipDangerCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-neg bg-neg-bg'
-const chipPosCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-pos bg-pos-bg'
+const chipInfoCls = badgeMutedCls
+const chipWarnCls = badgeWarnCls
+const chipDangerCls = badgeNegCls
+const chipPosCls = badgePosCls
 
 const flashOkCls = 'rounded-lg bg-pos-bg text-pos text-[13px] font-semibold px-4 py-2.5'
 const flashErrCls = 'rounded-lg bg-neg-bg text-neg text-[13px] font-semibold px-4 py-2.5'
@@ -368,32 +373,6 @@ function GroupCard({
   )
 }
 
-// ── пагинация ──
-
-function Pagination({ page, total, onPage }: { page: number; total: number; onPage: (p: number) => void }) {
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  if (pageCount <= 1) return null
-  const from = (page - 1) * PAGE_SIZE + 1
-  const to = Math.min(page * PAGE_SIZE, total)
-  return (
-    <div className={'mt-4 flex items-center justify-between'}>
-      <span className={mutedCls}>
-        {from}–{to} из {total} групп
-      </span>
-      <div className={'flex items-center gap-2'}>
-        <button className={btnNeutralCls} disabled={page <= 1} onClick={() => onPage(page - 1)}>
-          ← Назад
-        </button>
-        <span className={'text-[13px] font-semibold text-ink-muted'}>
-          {page} / {pageCount}
-        </span>
-        <button className={btnNeutralCls} disabled={page >= pageCount} onClick={() => onPage(page + 1)}>
-          Дальше →
-        </button>
-      </div>
-    </div>
-  )
-}
 
 // ── история ──
 
@@ -419,8 +398,8 @@ function HistorySection() {
       </button>
       {open && (
         <div className={cardPadCls + ' mt-2.5'}>
-          {logs === null && <p className={'m-0 text-[12.5px] font-semibold text-ink-faint'}>Загрузка…</p>}
-          {logs?.length === 0 && <p className={'m-0 text-[12.5px] font-semibold text-ink-faint'}>Пока пусто</p>}
+          {logs === null && <p className={`m-0 ${mutedCls}`}>Загрузка…</p>}
+          {logs?.length === 0 && <p className={`m-0 ${mutedCls}`}>Пока пусто</p>}
           {logs?.map((l, i) => (
             <div
               key={l.documentId}
@@ -599,7 +578,7 @@ const ClientDuplicatesPage = () => {
           ))}
         </div>
 
-        <Pagination page={safePage} total={groups.length} onPage={gotoPage} />
+        <Pagination page={safePage} total={groups.length} pageSize={PAGE_SIZE} onPage={gotoPage} unit={'групп'} />
 
         <HistorySection />
       </div>

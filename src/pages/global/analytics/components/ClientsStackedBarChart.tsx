@@ -9,6 +9,7 @@ import {
   YAxis,
 } from 'recharts'
 import { CHART } from '../../../../ui/chartColors'
+import { chartCardCls } from '../../../../ui/kit'
 
 interface Props {
   data: {
@@ -26,7 +27,7 @@ export const ClientsStackedBarChart = ({ data, title }: Props) => (
         {title}
       </h3>
     )}
-    <div className={'bg-white border border-line rounded-xl shadow-panel p-4 pl-0'}>
+    <div className={chartCardCls}>
       <ResponsiveContainer width={'100%'} height={340}>
         <BarChart data={data}>
           <CartesianGrid stroke={CHART.grid} strokeDasharray={'4 4'} />

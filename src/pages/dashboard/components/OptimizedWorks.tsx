@@ -4,10 +4,15 @@ import { daysInMonth as daysInMonthOf } from '../../../utils/date'
 import type { IDataWorks, IExtraProfitItem } from '../fetch/works'
 
 import {
+  bodyBoldCls,
   cardPadCls,
+  cardTitleCls,
   h1Cls,
   kickerCls,
   pageShellCls,
+  resultCardCls,
+  resultValueCls,
+  tileLabelAccentCls,
 } from '../../../ui/kit'
 import { useAppContext } from '../../../context/useAppContext'
 import { formatDate } from '../../../utils/parseDate'
@@ -144,15 +149,15 @@ const OptimizedWorks = () => {
         </div>
 
         {/* Výsledek za měsíc — акцент-карточка (розовый тинт вместо градиента) */}
-        <div className={'bg-brand-tint border border-brand-line rounded-xl px-6 py-5 mb-3.5'}>
+        <div className={`${resultCardCls} mb-3.5`}>
           <div
             className={
-              'text-[10.5px] font-bold tracking-[0.06em] uppercase text-brand-dark mb-[5px]'
+              tileLabelAccentCls
             }
           >
             {'Výsledek za měsíc'}
           </div>
-          <div className={'text-[26px] font-extrabold text-brand-dark leading-[1.15]'}>
+          <div className={resultValueCls}>
             {kcNum(result)} {'Kč'}
           </div>
         </div>
@@ -183,7 +188,7 @@ const OptimizedWorks = () => {
         {/* Table Section */}
         <div className={cardPadCls}>
           <div className={'flex justify-between flex-col md:flex-row md:items-center gap-3 mb-3.5'}>
-            <h2 className={'m-0 text-[15px] font-extrabold text-ink'}>
+            <h2 className={cardTitleCls}>
               {'Historie prací'}
             </h2>
             <Select month={month} setMonth={setMonth} year={year} setYear={setYear} />
@@ -250,7 +255,7 @@ const OptimizedWorks = () => {
                 'pt-3 mt-1 flex flex-col md:flex-row justify-between md:items-center gap-2'
               }
             >
-              <span className={'flex items-center gap-3 text-[13px] font-bold text-ink-body'}>
+              <span className={`flex items-center gap-3 ${bodyBoldCls}`}>
                 <span>{'Celkem prací: '}</span>
                 <span className={'text-[18px] font-extrabold text-ink'}>{data.offersDone.length}</span>
               </span>

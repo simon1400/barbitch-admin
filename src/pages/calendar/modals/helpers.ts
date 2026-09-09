@@ -113,6 +113,13 @@ export const weekdayOf = (d: string): number => new Date(`${d}T00:00:00Z`).getUT
 export const blokPlural = (n: number): string =>
   n === 1 ? 'blok' : n >= 2 && n <= 4 ? 'bloky' : 'bloků'
 
+// ⚠️ Это ПАРАЛЛЕЛЬНАЯ ui/kit система классов, и она оставлена намеренно
+// (этап 5.3 аудита, решение владельца s188). Причина: модалы календаря живут
+// в тёмной теме (s122) и держат `dark:`-варианты, а `ui/kit` светлый и на
+// брендовых токенах — dark-варианты ему неизвестны вовсе. Свести их значило бы
+// завести в kit вторую тему и переписать ежедневный рабочий экран мастеров, не
+// имея за спиной ни одного бага. Поэтому: kit — для светлых страниц админки,
+// этот файл — для тёмных модалов календаря. Не смешивать.
 export const inputCls =
   'w-full min-h-11 rounded-md border border-gray-300 px-2 py-1.5 text-sm sm:min-h-0 dark:border-[#3f3f3d] dark:bg-[#2a2a28] dark:text-gray-100 dark:[color-scheme:dark] dark:placeholder:text-gray-500'
 export const labelCls = 'mb-1 block text-xs font-semibold text-gray-500 dark:text-gray-400'

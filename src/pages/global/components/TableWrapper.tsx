@@ -2,6 +2,8 @@
 // внутри белой карточки-секции (StatSection/карточка страницы), сама даёт только
 // горизонтальный скролл + итоговую строку по макету.
 
+import { bodyBoldCls, mutedCls, totalRowCls, totalValueCls } from '../../../ui/kit'
+
 interface TableWrapperProps {
   children: React.ReactNode
   totalSum?: string
@@ -22,11 +24,11 @@ export const TableWrapper = ({ children, totalSum, totalLabel, additionalInfo }:
       </div>
 
       {totalSum && (
-        <div className={'flex justify-between items-center pt-3 mt-1'}>
-          <span className={'text-[13px] font-bold text-ink-body'}>
+        <div className={totalRowCls}>
+          <span className={bodyBoldCls}>
             {totalLabel || 'Общая сумма'}
           </span>
-          <span className={'text-[18px] font-extrabold text-brand-dark whitespace-nowrap'}>
+          <span className={totalValueCls}>
             {totalSum}
           </span>
         </div>
@@ -34,7 +36,7 @@ export const TableWrapper = ({ children, totalSum, totalLabel, additionalInfo }:
 
       {additionalInfo && (
         <div className={'pt-2'}>
-          <span className={'text-[12.5px] font-semibold text-ink-faint'}>{additionalInfo}</span>
+          <span className={mutedCls}>{additionalInfo}</span>
         </div>
       )}
     </div>

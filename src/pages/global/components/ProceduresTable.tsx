@@ -5,6 +5,7 @@ import type { ProcedureStats } from '../fetch/proceduresStats'
 
 import { Cell } from '../../dashboard/components/Cell'
 import { TableWrapper } from './TableWrapper'
+import { colHeadCls } from '../../../ui/kit'
 
 type SortField = 'name' | 'count' | 'totalRevenue'
 type SortDirection = 'asc' | 'desc'
@@ -87,7 +88,7 @@ export const ProceduresTable = ({ data, totalCount, totalRevenue, loading }: Pro
               className="px-3 py-[7px] text-left border-b border-line cursor-pointer select-none"
               onClick={() => handleSort('name')}
             >
-              <p className="flex items-center gap-2 text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-label whitespace-nowrap">
+              <p className={`flex items-center gap-2 ${colHeadCls} whitespace-nowrap`}>
                 Название процедуры
                 <span className="text-[10px]">{getSortIcon('name')}</span>
               </p>
@@ -96,7 +97,7 @@ export const ProceduresTable = ({ data, totalCount, totalRevenue, loading }: Pro
               className="w-px whitespace-nowrap px-3 py-[7px] text-left border-b border-line cursor-pointer select-none"
               onClick={() => handleSort('count')}
             >
-              <p className="flex items-center gap-2 text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-label whitespace-nowrap">
+              <p className={`flex items-center gap-2 ${colHeadCls} whitespace-nowrap`}>
                 Количество
                 <span className="text-[10px]">{getSortIcon('count')}</span>
               </p>
@@ -105,13 +106,13 @@ export const ProceduresTable = ({ data, totalCount, totalRevenue, loading }: Pro
               className="w-px whitespace-nowrap px-3 py-[7px] text-left border-b border-line cursor-pointer select-none"
               onClick={() => handleSort('totalRevenue')}
             >
-              <p className="flex items-center gap-2 text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-label whitespace-nowrap">
+              <p className={`flex items-center gap-2 ${colHeadCls} whitespace-nowrap`}>
                 Общая выручка
                 <span className="text-[10px]">{getSortIcon('totalRevenue')}</span>
               </p>
             </th>
             <th className="w-px whitespace-nowrap px-3 py-[7px] text-left border-b border-line">
-              <p className="text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-label whitespace-nowrap">
+              <p className={`${colHeadCls} whitespace-nowrap`}>
                 Ср. чек
               </p>
             </th>

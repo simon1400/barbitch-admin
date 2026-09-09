@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { errMsg } from '../../lib/errMsg'
 import { sendCampaign, skippedSummary } from '../../lib/campaignApi'
-import { hintCls, kickerCls, pageShellCls } from '../../ui/kit'
+import { formCardCls, hintCls, kickerCls, pageShellCls } from '../../ui/kit'
 
 // Example emails list for bulk
 const exampleBulkEmails = `example1@email.com
@@ -141,7 +141,7 @@ const EmailCampaignPage = () => {
             Odeslat marketingové emaily zákazníkům s personalizací nebo hromadně
           </p>
 
-          <div className="bg-white border border-line rounded-xl shadow-panel px-6 py-[22px] max-w-4xl">
+          <div className={`${formCardCls} max-w-4xl`}>
             <form onSubmit={handleSendEmails} className="space-y-6">
               {/* Mode Selection */}
               <div>

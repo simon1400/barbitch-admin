@@ -15,6 +15,12 @@ export const cardCls =
 /** Карточка с типовыми отступами секции (20px 24px) + интервал между карточками. */
 export const cardPadCls = `${cardCls} px-6 py-5 mb-3.5`
 
+/** Карточка под график recharts (левый паддинг снят — ось Y рисует свой). */
+export const chartCardCls = `${cardCls} p-4 pl-0`
+
+/** Карточка-обёртка длинной формы. Ширину (`max-w-*`) страница задаёт сама. */
+export const formCardCls = `${cardCls} px-6 py-[22px]`
+
 /** Заголовок внутри карточки (h2). */
 export const cardTitleCls = 'm-0 text-[15px] font-extrabold text-ink'
 
@@ -32,8 +38,15 @@ export const pageShellCls = 'max-w-[1024px] mx-auto box-border px-5 pt-7 pb-[60p
 export const countBadgeCls =
   'text-[11px] font-bold text-brand-dark bg-brand-tint rounded-full px-2 py-0.5'
 
+/**
+ * Геометрия микро-заголовка (10.5px/700, разрядка, uppercase) БЕЗ цвета.
+ * Цвет и отступ добавляются производными ниже — в проекте эта геометрия
+ * встречается в трёх цветах, и склеивать их в одну константу нельзя.
+ */
+export const headMicroCls = 'text-[10.5px] font-bold tracking-[0.06em] uppercase'
+
 /** Заголовок колонки таблицы. */
-export const colHeadCls = 'text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-label'
+export const colHeadCls = `${headMicroCls} text-ink-label`
 
 /** Подпись над полем формы. */
 export const labelCls =
@@ -81,25 +94,51 @@ export const selectCls =
 /** Тулбар-карточка над контентом (селекты периода + кнопки). */
 export const toolbarCardCls = `${cardCls} px-4 py-3 mb-3.5 flex items-center justify-between gap-3.5 flex-wrap`
 
+/** Геометрия плитки-показателя (скругление + отступы) БЕЗ фона. */
+export const tileGeomCls = 'rounded-[10px] px-4 py-[13px]'
+
 /** Плитка-показатель (нейтральная). */
-export const tileCls = 'rounded-[10px] px-4 py-[13px] bg-surface-tile'
+export const tileCls = `${tileGeomCls} bg-surface-tile`
 
-/** @public Плитка-показатель (розовый акцент). Пока не подключена — см. этап 5.3 аудита. */
-export const tileAccentCls = 'rounded-[10px] px-4 py-[13px] bg-brand-tint border border-brand-line'
+/** Плитка-показатель (розовый акцент). */
+export const tileAccentCls = `${tileGeomCls} bg-brand-tint border border-brand-line`
 
-export const tileLabelCls =
-  'text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-soft mb-[5px]'
-export const tileValueCls = 'text-[21px] font-extrabold leading-[1.15] text-ink'
-export const tileValueNegCls = 'text-[21px] font-extrabold leading-[1.15] text-neg'
-/** @public Пока не подключено — литеральные копии в страницах, см. этап 5.3 аудита. */
-export const tileValueAccentCls = 'text-[21px] font-extrabold leading-[1.15] text-brand-dark'
+export const tileLabelCls = `${headMicroCls} text-ink-soft mb-[5px]`
+/** Подпись плитки в розовом акценте («Výsledek za měsíc», «Прогноз минимум»). */
+export const tileLabelAccentCls = `${headMicroCls} text-brand-dark mb-[5px]`
+
+/** Геометрия крупного значения плитки (21px/800) БЕЗ цвета. */
+export const tileValueBaseCls = 'text-[21px] font-extrabold leading-[1.15]'
+export const tileValueCls = `${tileValueBaseCls} text-ink`
+export const tileValueNegCls = `${tileValueBaseCls} text-neg`
+export const tileValueAccentCls = `${tileValueBaseCls} text-brand-dark`
 export const tileSubCls = 'text-[11.5px] font-semibold text-ink-faint mt-[3px]'
 
+/**
+ * Геометрия бейджа-чипа (11px/700) БЕЗ цвета. В проекте эта геометрия носит
+ * СЕМЬ разных цветовых пар, поэтому общая только она — цвет всегда отдельно.
+ */
+export const badgeBaseCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5'
+
 /** Зелёный/красный процент-бейдж. */
-export const badgePosCls =
-  'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-pos bg-pos-bg'
-export const badgeNegCls =
-  'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-neg bg-neg-bg'
+export const badgePosCls = `${badgeBaseCls} text-pos bg-pos-bg`
+export const badgeNegCls = `${badgeBaseCls} text-neg bg-neg-bg`
+/** Жёлтый бейдж (частичная загрузка, «похоже»). */
+export const badgeWarnCls = `${badgeBaseCls} text-warn bg-warn-bg`
+/** Нейтральные серые бейджи — три оттенка текста на одном фоне. */
+export const badgeNeutralCls = `${badgeBaseCls} text-ink-soft bg-surface-input`
+export const badgeMutedCls = `${badgeBaseCls} text-ink-muted bg-surface-input`
+export const badgeFaintCls = `${badgeBaseCls} text-ink-faint bg-surface-input`
+/** Бейдж на цветной подложке (белый фон поверх карточки сверки смены). */
+export const badgePlainCls = `${badgeBaseCls} bg-white text-ink-body`
+
+/**
+ * Акцент-карточка итога («Výsledek za měsíc», «Общий результат»).
+ * Внешний отступ у неё разный (mb-3.5 / mt-3.5) — задаётся на месте.
+ */
+export const resultCardCls = 'bg-brand-tint border border-brand-line rounded-xl px-6 py-5'
+/** Крупное значение в акцент-карточке итога (26px). */
+export const resultValueCls = 'text-[26px] font-extrabold text-brand-dark leading-[1.15]'
 
 /** Розовая информационная карточка («Jak to funguje»). */
 export const pinkCardCls = 'bg-brand-card border border-brand-line-soft rounded-xl px-6 py-[18px] mb-3.5'
@@ -143,7 +182,10 @@ export const RESULT_CELL = 'text-right !text-brand-dark'
  * Пока не подключено — литеральные копии в страницах, см. этап 5.3 аудита.
  */
 export const totalRowCls = 'flex justify-between items-center pt-3 mt-1'
-/** @public Пока не подключено — литеральные копии в страницах, см. этап 5.3 аудита. */
-export const totalLabelCls = 'text-[13px] font-bold text-ink-body'
-/** @public Пока не подключено — литеральные копии в страницах, см. этап 5.3 аудита. */
+/**
+ * Обычный жирный текст интерфейса (13px/700): подпись итога, подпись чекбокса,
+ * заголовок над полем. Имя намеренно НЕЙТРАЛЬНОЕ — прежний `totalLabelCls`
+ * врал бы в половине мест, где эта же строка используется не в строке итога.
+ */
+export const bodyBoldCls = 'text-[13px] font-bold text-ink-body'
 export const totalValueCls = 'text-[18px] font-extrabold text-brand-dark whitespace-nowrap'

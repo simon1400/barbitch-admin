@@ -4,7 +4,9 @@ import { Cell } from '../../../dashboard/components/Cell'
 import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
 import {
+  badgeNeutralCls,
   badgePosCls,
+  bodyBoldCls,
   btnNeutralCls,
   btnPinkCls,
   cardCls,
@@ -49,7 +51,7 @@ const fmtDay = (date: string) => {
 }
 
 // Нейтральный серый чип (напр. «нет» / «отправлено»)
-const neutralChipCls = 'text-[11px] font-bold rounded-md px-[7px] py-0.5 text-ink-soft bg-surface-input'
+const neutralChipCls = badgeNeutralCls
 
 type Mode = 'month' | 'week'
 
@@ -216,7 +218,7 @@ export default function GapsTab() {
               >
                 ‹
               </button>
-              <span className="text-[13px] font-bold text-ink-body whitespace-nowrap min-w-[150px] text-center">
+              <span className={`${bodyBoldCls} whitespace-nowrap min-w-[150px] text-center`}>
                 {fmtCsShort(weekStart)} – {fmtCsShort(weekEnd)}.{weekEnd.getFullYear()}
               </span>
               <button
@@ -356,7 +358,7 @@ export default function GapsTab() {
             </div>
 
             <div className="flex items-center gap-3 mb-4 flex-wrap">
-              <label className="flex items-center gap-2 text-[13px] font-bold text-ink-body">
+              <label className={`flex items-center gap-2 ${bodyBoldCls}`}>
                 {isJuniorFill ? 'Скидка за дозапись:' : 'Скидка:'}
                 <input
                   type="text"

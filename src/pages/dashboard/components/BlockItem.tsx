@@ -2,6 +2,8 @@
 // tone: 'accent' — розовая плитка (главный показатель), 'neg' — красное значение.
 // Значение, начинающееся с минуса, краснеет автоматически.
 
+import { headMicroCls, tileGeomCls, tileSubCls, tileValueBaseCls } from '../../../ui/kit'
+
 const isNegative = (value: string): boolean => /^\s*[−-]/.test(value)
 
 export const BlockItem = ({
@@ -21,13 +23,13 @@ export const BlockItem = ({
   return (
     <div
       className={
-        'rounded-[10px] px-4 py-[13px] w-full ' +
+        `${tileGeomCls} w-full ` +
         (accent ? 'bg-brand-tint border border-brand-line' : 'bg-surface-tile')
       }
     >
       <span
         className={
-          'block text-[10.5px] font-bold tracking-[0.06em] uppercase mb-[5px] ' +
+          `block ${headMicroCls} mb-[5px] ` +
           (accent ? 'text-brand-dark' : 'text-ink-soft')
         }
       >
@@ -35,14 +37,14 @@ export const BlockItem = ({
       </span>
       <span
         className={
-          'block text-[21px] font-extrabold leading-[1.15] ' +
+          `block ${tileValueBaseCls} ` +
           (accent ? 'text-brand-dark' : neg ? 'text-neg' : 'text-ink')
         }
       >
         {content}
       </span>
       {addContent && (
-        <span className={'block text-[11.5px] font-semibold text-ink-faint mt-[3px]'}>
+        <span className={`block ${tileSubCls}`}>
           {addContent}
         </span>
       )}

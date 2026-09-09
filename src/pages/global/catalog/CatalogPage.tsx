@@ -9,7 +9,7 @@
 
 import { errMsg } from '../../../lib/errMsg'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { cardCls, colHeadCls, labelCls } from '../../../ui/kit'
+import { bodyBoldCls, cardCls, cardTitleCls, colHeadCls, labelCls } from '../../../ui/kit'
 import { palette } from '../../../ui/palette'
 import type {
   CatalogModifier,
@@ -114,7 +114,7 @@ const Toggle = ({
         style={{ left: checked ? 17.5 : 2.5 }}
       />
     </span>
-    <span className="text-[13px] font-bold text-ink-body">{label}</span>
+    <span className={bodyBoldCls}>{label}</span>
   </button>
 )
 
@@ -953,7 +953,7 @@ const CatalogPage = () => {
         return (
           <div key={cat} className={`${cardCls} pt-[18px] px-6 pb-2.5 mb-3.5`}>
             <div className="flex items-center gap-2.5 pb-3">
-              <h2 className="m-0 text-[15px] font-extrabold text-ink">{cat}</h2>
+              <h2 className={cardTitleCls}>{cat}</h2>
               <CountBadge n={items.length} />
             </div>
             <div className="overflow-x-auto">

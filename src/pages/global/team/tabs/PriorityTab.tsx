@@ -3,6 +3,7 @@ import { errMsg } from '../../../../lib/errMsg'
 import {
   cardPadCls,
   cardTitleCls,
+  headMicroCls,
   hintCls,
   inputBaseCls,
   pinkCardCls,
@@ -96,7 +97,7 @@ export default function PriorityTab() {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-soft">
+                    <span className={`${headMicroCls} text-ink-soft`}>
                       Priorita
                     </span>
                     <input

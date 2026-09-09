@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Cell } from '../../../dashboard/components/Cell'
 import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
-import { hintCls } from '../../../../ui/kit'
+import { badgeBaseCls, hintCls } from '../../../../ui/kit'
 import { getRetention, type RetentionResult, type RetentionRow } from '../fetch/retention'
 
 const pctBadge = (pct: number | null): string => {
@@ -14,7 +14,7 @@ const pctBadge = (pct: number | null): string => {
 
 const PctChip = ({ w }: { w: { eligible: number; returned: number; pct: number | null } }) => (
   <span
-    className={`inline-block text-[11px] font-bold rounded-md px-[7px] py-0.5 whitespace-nowrap ${pctBadge(w.pct)}`}
+    className={`inline-block ${badgeBaseCls} whitespace-nowrap ${pctBadge(w.pct)}`}
     title={`вернулись ${w.returned} из ${w.eligible}`}
   >
     {w.pct === null ? '—' : `${w.pct} % · ${w.returned}`}

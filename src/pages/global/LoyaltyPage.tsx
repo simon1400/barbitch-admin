@@ -3,6 +3,7 @@
 // ±Kč, CRUD наград (трек), список активных redemption.
 
 import { todayDate } from '../../utils/date'
+import { Pagination } from '../../components/Pagination'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { btnNeutralCls, h1Cls, kickerCls, pageShellCls } from '../../ui/kit'
@@ -60,44 +61,6 @@ const fmtDay = (s: string | null) =>
 
 const PAGE_SIZE = 25
 
-function Pagination({
-  page,
-  total,
-  onPage,
-}: {
-  page: number
-  total: number
-  onPage: (p: number) => void
-}) {
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  if (pageCount <= 1) return null
-  const from = (page - 1) * PAGE_SIZE + 1
-  const to = Math.min(page * PAGE_SIZE, total)
-  const btn = 'px-3 py-1 rounded-lg border border-line-btn bg-white shadow-sm disabled:opacity-40'
-  return (
-    <div className={'flex items-center justify-between mt-3 text-sm'}>
-      <span className={'text-ink-soft'}>
-        {from}–{to} из {total}
-      </span>
-      <div className={'flex items-center gap-2'}>
-        <button type={'button'} disabled={page <= 1} onClick={() => onPage(page - 1)} className={btn}>
-          ←
-        </button>
-        <span className={'text-ink-muted'}>
-          {page} / {pageCount}
-        </span>
-        <button
-          type={'button'}
-          disabled={page >= pageCount}
-          onClick={() => onPage(page + 1)}
-          className={btn}
-        >
-          →
-        </button>
-      </div>
-    </div>
-  )
-}
 
 const EMPTY_REWARD: RewardInput = {
   title: '',
@@ -546,7 +509,7 @@ function CabinetSection({ accounts }: { accounts: CabinetAccount[] }) {
           </table>
         </TableWrapper>
       )}
-      <Pagination page={page} total={filtered.length} onPage={setPage} />
+      <Pagination page={page} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} unit={'операций'} />
       <p className={'mt-3 text-xs text-ink-soft'}>
         «Зарегистрирован» = клиент подтвердил e-mail и завёл цифровой аккаунт. «Последний вход» пуст,
         если аккаунт создан, но в кабинет пока не заходили.
@@ -836,7 +799,7 @@ export default function LoyaltyPage() {
                     </table>
                   </TableWrapper>
                 )}
-                <Pagination page={redPage} total={filteredRedemptions.length} onPage={setRedPage} />
+                <Pagination page={redPage} total={filteredRedemptions.length} pageSize={PAGE_SIZE} onPage={setRedPage} unit={'наград'} />
               </div>
             </>
           )}
@@ -920,7 +883,7 @@ export default function LoyaltyPage() {
                   </table>
                 </TableWrapper>
               )}
-              <Pagination page={accPage} total={filtered.length} onPage={setAccPage} />
+              <Pagination page={accPage} total={filtered.length} pageSize={PAGE_SIZE} onPage={setAccPage} unit={'аккаунтов'} />
             </>
           )}
       </div>

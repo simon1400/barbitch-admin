@@ -1,4 +1,5 @@
 import React from 'react'
+import { colHeadCls } from '../../../ui/kit'
 
 // Ячейка таблиц админки в новом стиле (s165): заголовки — uppercase 10.5px ink-label,
 // данные — 13.5px/600 ink-body. className прокидывается для выравнивания/акцентов.
@@ -19,7 +20,7 @@ export const Cell = React.memo(
       <th className={`px-3 py-[7px] text-left border-b border-line ${className}`}>
         <p
           className={
-            'block text-[10.5px] font-bold tracking-[0.06em] uppercase text-ink-label whitespace-nowrap'
+            `block ${colHeadCls} whitespace-nowrap`
           }
         >
           {title}

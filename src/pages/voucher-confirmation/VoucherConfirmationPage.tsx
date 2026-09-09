@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { errMsg } from '../../lib/errMsg'
-import { hintCls, kickerCls, pageShellCls } from '../../ui/kit'
+import { formCardCls, hintCls, kickerCls, pageShellCls } from '../../ui/kit'
 import { Axios } from '../../lib/api'
 import { sendVoucherConfirmation } from '../../lib/campaignApi'
 
@@ -138,7 +138,7 @@ const VoucherConfirmationPage = () => {
             Odeslat email klientovi s potvrzením, že voucher byl zaplacen a je aktivní
           </p>
 
-          <div className="bg-white border border-line rounded-xl shadow-panel px-6 py-[22px] max-w-3xl">
+          <div className={`${formCardCls} max-w-3xl`}>
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Voucher Select */}
               <div>

@@ -21,6 +21,7 @@ interface Props {
 }
 
 import { kc } from '../../../../utils/money'
+import { chartCardCls } from '../../../../ui/kit'
 
 // Кастомный тултип: выручка + визиты. Визиты НЕ рисуются второй линией со своей осью —
 // двойная ось Y (деньги слева, штуки справа) делала линии визуально сопоставимыми,
@@ -52,7 +53,7 @@ export const RevenueBarChart = ({ data, title }: Props) => (
         {title}
       </h3>
     )}
-    <div className={'bg-white border border-line rounded-xl shadow-panel p-4 pl-0'}>
+    <div className={chartCardCls}>
       <ResponsiveContainer width={'100%'} height={340}>
         <LineChart data={data}>
           <CartesianGrid stroke={CHART.grid} strokeDasharray={'4 4'} />
