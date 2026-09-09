@@ -18,7 +18,7 @@ import {
   tileSubCls,
 } from '../../../../ui/kit'
 
-const fmtMoney = (n: number) => `${n.toLocaleString('cs-CZ')} Kč`
+import { kc } from '../../../../utils/money'
 
 // Прирост в % против базы; null когда база 0 (сравнивать не с чем)
 const growthPct = (cur: number, base: number): number | null =>
@@ -86,7 +86,7 @@ export default function ForecastTab() {
   const runRateVsPrev = growthPct(data.forecastRunRate, data.prevMonthTotal)
   const bookedVsPrev = growthPct(data.forecastBooked, data.prevMonthTotal)
   const monthProgress = Math.round((data.daysPassed / data.daysTotal) * 100)
-  const vsPrevTitle = `против итога прошлого месяца: ${fmtMoney(data.prevMonthTotal)}`
+  const vsPrevTitle = `против итога прошлого месяца: ${kc(data.prevMonthTotal)}`
 
   // ---- Динамика за период (история = все полные месяцы, срез выбирается кнопками) ----
   const history = data.history
@@ -135,7 +135,7 @@ export default function ForecastTab() {
           <div>
             <div className={tileLabelCls}>Уже заработано (факт)</div>
             <div className='text-[22px] font-extrabold text-ink'>
-              {fmtMoney(data.actualToDate)}
+              {kc(data.actualToDate)}
             </div>
             <div className={tileSubCls}>{data.visitsToDate} визитов с 1-го числа</div>
           </div>
@@ -143,7 +143,7 @@ export default function ForecastTab() {
           <div>
             <div className={tileLabelCls}>Забронировано до конца</div>
             <div className='text-[22px] font-extrabold text-ink'>
-              {fmtMoney(data.futureBooked)}
+              {kc(data.futureBooked)}
             </div>
             <div className={tileSubCls}>{data.futureVisits} активных броней</div>
           </div>
@@ -154,7 +154,7 @@ export default function ForecastTab() {
             </div>
             <div className='flex items-center gap-2 flex-wrap'>
               <span className='text-[22px] font-extrabold text-brand-dark whitespace-nowrap'>
-                {fmtMoney(data.forecastBooked)}
+                {kc(data.forecastBooked)}
               </span>
               {bookedVsPrev !== null && <PctBadge pct={bookedVsPrev} title={vsPrevTitle} />}
             </div>
@@ -171,7 +171,7 @@ export default function ForecastTab() {
           <div className={tileLabelCls}>Прогноз по темпу записей</div>
           <div className='flex items-center gap-2 flex-wrap'>
             <span className='text-[20px] font-extrabold text-ink whitespace-nowrap'>
-              {fmtMoney(data.forecastRunRate)}
+              {kc(data.forecastRunRate)}
             </span>
             {runRateVsPrev !== null && <PctBadge pct={runRateVsPrev} title={vsPrevTitle} />}
           </div>
@@ -183,12 +183,12 @@ export default function ForecastTab() {
           <div className={tileLabelCls}>Прошлый месяц на эту же дату</div>
           <div className='flex items-center gap-2 flex-wrap'>
             <span className='text-[20px] font-extrabold text-ink whitespace-nowrap'>
-              {fmtMoney(data.prevMonthToSameDay)}
+              {kc(data.prevMonthToSameDay)}
             </span>
             {tempo !== null && (
               <PctBadge
                 pct={tempo}
-                title={`наш факт ${fmtMoney(data.actualToDate)} против ${fmtMoney(data.prevMonthToSameDay)} к ${data.daysPassed}-му дню прошлого месяца`}
+                title={`наш факт ${kc(data.actualToDate)} против ${kc(data.prevMonthToSameDay)} к ${data.daysPassed}-му дню прошлого месяца`}
               />
             )}
           </div>
@@ -199,14 +199,14 @@ export default function ForecastTab() {
         <div className={`${cardCls} px-5 py-4`}>
           <div className={tileLabelCls}>Прошлый месяц (итог)</div>
           <div className='text-[20px] font-extrabold text-ink'>
-            {fmtMoney(data.prevMonthTotal)}
+            {kc(data.prevMonthTotal)}
           </div>
           <div className={tileSubCls}>вся выручка по броням за месяц</div>
         </div>
         <div className={`${cardCls} px-5 py-4`}>
           <div className={tileLabelCls}>Затраты месяца</div>
           <div className='text-[20px] font-extrabold text-ink'>
-            {fmtMoney(data.expensesMonth)}
+            {kc(data.expensesMonth)}
           </div>
           <div className={tileSubCls}>из коллекции «Затраты» (текущий месяц)</div>
         </div>
@@ -249,19 +249,19 @@ export default function ForecastTab() {
                 <div className={tileLabelCls}>Выручка за период</div>
                 <div className='flex items-center gap-[7px] flex-wrap'>
                   <span className='text-[19px] font-extrabold text-ink whitespace-nowrap'>
-                    {fmtMoney(periodRevenue)}
+                    {kc(periodRevenue)}
                   </span>
                   {hasPrevPeriod && (
                     <GrowthBadge
                       cur={periodRevenue}
                       base={prevRevenue}
-                      title={`против предыдущих ${periodN} мес: ${fmtMoney(prevRevenue)}`}
+                      title={`против предыдущих ${periodN} мес: ${kc(prevRevenue)}`}
                     />
                   )}
                 </div>
                 <div className={tileSubCls}>
                   {hasPrevPeriod
-                    ? `пред. ${periodN} мес: ${fmtMoney(prevRevenue)}`
+                    ? `пред. ${periodN} мес: ${kc(prevRevenue)}`
                     : 'сравнить не с чем — не хватает истории'}
                 </div>
               </div>
@@ -307,7 +307,7 @@ export default function ForecastTab() {
               <div className={tileCls}>
                 <div className={tileLabelCls}>Средний месяц</div>
                 <div className='text-[19px] font-extrabold text-ink'>
-                  {fmtMoney(avgMonthRevenue)}
+                  {kc(avgMonthRevenue)}
                 </div>
                 <div className={tileSubCls}>выручка ÷ {period.length} мес</div>
               </div>
@@ -342,7 +342,7 @@ export default function ForecastTab() {
                         <Cell title={String(h.visits)} />
                         <td className='p-4 border-b border-line-soft'>
                           <span className='text-[13.5px] font-bold text-brand-dark whitespace-nowrap'>
-                            {fmtMoney(h.revenue)}
+                            {kc(h.revenue)}
                           </span>
                         </td>
                         <td className='p-4 border-b border-line-soft'>
@@ -350,7 +350,7 @@ export default function ForecastTab() {
                             <GrowthBadge
                               cur={h.revenue}
                               base={prevRow.revenue}
-                              title={`${prevRow.label}: ${fmtMoney(prevRow.revenue)}`}
+                              title={`${prevRow.label}: ${kc(prevRow.revenue)}`}
                             />
                           ) : (
                             <span className='text-ink-disabled'>—</span>
@@ -361,7 +361,7 @@ export default function ForecastTab() {
                             <GrowthBadge
                               cur={h.revenue}
                               base={first.revenue}
-                              title={`против ${first.label}: ${fmtMoney(first.revenue)}`}
+                              title={`против ${first.label}: ${kc(first.revenue)}`}
                             />
                           ) : (
                             <span className='text-ink-disabled'>—</span>
@@ -375,7 +375,7 @@ export default function ForecastTab() {
                     <Cell title={String(periodVisits)} className='font-bold' />
                     <td className='p-4 border-b border-line-soft'>
                       <span className='text-[14px] font-extrabold text-brand-dark whitespace-nowrap'>
-                        {fmtMoney(periodRevenue)}
+                        {kc(periodRevenue)}
                       </span>
                     </td>
                     <td className='p-4 border-b border-line-soft' />

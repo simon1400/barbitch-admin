@@ -1,3 +1,4 @@
+import { parseMoney } from '../../../utils/money'
 import type { PersonalSumData } from './fetchHelpers'
 
 import { getMonthRange } from '../../../utils/getMonthRange'
@@ -66,9 +67,9 @@ function summarizeWorks(
     const name = item.personal?.name
     if (!name) return
 
-    const staff = Number.parseFloat(item.staffSalaries || '0')
-    const salon = Number.parseFloat(item.salonSalaries || '0')
-    const tip = Number.parseFloat(item.tip || '0')
+    const staff = parseMoney(item.staffSalaries)
+    const salon = parseMoney(item.salonSalaries)
+    const tip = parseMoney(item.tip)
 
     globalFlow += staff + salon + tip
     totalStaffSalaries += staff

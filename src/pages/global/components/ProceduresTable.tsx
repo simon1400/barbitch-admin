@@ -1,3 +1,4 @@
+import { kcNum, num } from '../../../utils/money'
 import { useState, useMemo } from 'react'
 
 import type { ProcedureStats } from '../fetch/proceduresStats'
@@ -70,8 +71,8 @@ export const ProceduresTable = ({ data, totalCount, totalRevenue, loading }: Pro
 
   return (
     <TableWrapper
-      totalSum={`${totalRevenue.toLocaleString()} Kč`}
-      totalLabel={`Всего процедур: ${totalCount.toLocaleString()}`}
+      totalSum={`${kcNum(totalRevenue)} Kč`}
+      totalLabel={`Всего процедур: ${num(totalCount)}`}
     >
       {/* Названия комбо-услуг из снапшота брони («Gel lak manikúra + Francouzská
           manikúra + Posílení nehtů + …») длиннее экрана → min-w-max растягивал
@@ -123,12 +124,12 @@ export const ProceduresTable = ({ data, totalCount, totalRevenue, loading }: Pro
             return (
               <tr key={`${item.name}-${index}`} className="hover:bg-surface-hover transition-colors">
                 <Cell className="break-words" title={item.name} />
-                <Cell className="whitespace-nowrap" title={item.count.toLocaleString()} />
+                <Cell className="whitespace-nowrap" title={num(item.count)} />
                 <Cell
                   className="whitespace-nowrap text-brand-dark font-extrabold"
-                  title={`${item.totalRevenue.toLocaleString()} Kč`}
+                  title={`${kcNum(item.totalRevenue)} Kč`}
                 />
-                <Cell className="whitespace-nowrap" title={`${averageCheck.toLocaleString()} Kč`} />
+                <Cell className="whitespace-nowrap" title={`${kcNum(averageCheck)} Kč`} />
               </tr>
             )
           })}

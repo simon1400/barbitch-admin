@@ -35,7 +35,7 @@ const fmtDate = fmtCsDate
 // Момент отправки письма → день САЛОНА (раньше день брался по поясу браузера).
 const fmtDateTime = (iso: string) => fmtCsDate(ymdPrague(iso))
 
-const fmtMoney = (n: number) => n.toLocaleString('cs-CZ')
+import { kcNum } from '../../../../utils/money'
 
 export default function SleepingTab() {
   const [all, setAll] = useState<SleepingClient[]>([])
@@ -265,7 +265,7 @@ export default function SleepingTab() {
               <div className="bg-white rounded-lg shadow-sm px-4 py-3">
                 <div className="text-xs text-ink-faint">Принесли всего</div>
                 <div className="text-2xl font-bold text-ink">
-                  {fmtMoney(totalSpent)} Kč
+                  {kcNum(totalSpent)} Kč
                 </div>
               </div>
               <div className="bg-white rounded-lg shadow-sm px-4 py-3">
@@ -406,7 +406,7 @@ const SleepingRow = memo(function SleepingRow({
         </span>
       </td>
       <Cell title={r.lastMaster || '—'} />
-      <Cell title={`${fmtMoney(r.spent)} Kč`} className="text-brand" />
+      <Cell title={`${kcNum(r.spent)} Kč`} className="text-brand" />
       <td className="p-4 border-b border-line-soft">
         {sent ? (
           <span
@@ -508,7 +508,7 @@ function CampaignRow({
                               <span className="text-xs text-gray-300">—</span>
                             )}
                           </td>
-                          <Cell title={`${fmtMoney(c.spent)} Kč`} className="text-brand" />
+                          <Cell title={`${kcNum(c.spent)} Kč`} className="text-brand" />
                           <Cell title={fmtDate(c.bookingDate)} />
                           <td className="p-4 border-b border-line-soft">
                             <span

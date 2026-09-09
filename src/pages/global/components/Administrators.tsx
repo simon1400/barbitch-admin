@@ -1,3 +1,4 @@
+import { kcNum, dec } from '../../../utils/money'
 import type { IFilteredAdminsData } from '../../dashboard/fetch/allAdminsHours'
 
 import { findCommonZeroKeys } from '../../../utils/findCommonZeroKeys'
@@ -32,9 +33,9 @@ export const Administrators = ({
 
   return (
     <TableWrapper
-      totalSum={`${sumAdmins.toLocaleString()} Kč`}
+      totalSum={`${kcNum(sumAdmins)} Kč`}
       totalLabel={'Общая сумма'}
-      additionalInfo={totalExcess > 0 ? `Общее превышение: ${totalExcess.toLocaleString()} Kč` : undefined}
+      additionalInfo={totalExcess > 0 ? `Общее превышение: ${kcNum(totalExcess)} Kč` : undefined}
     >
       <table className={'w-full text-left min-w-[720px]'}>
         <thead>
@@ -71,41 +72,41 @@ export const Administrators = ({
                   className={NAME_CELL}
                   onClick={() => navigator.clipboard.writeText(item.name)}
                 />
-                <Cell title={`${item.sum.toLocaleString()} hod`} className={NUM_CELL} />
-                <Cell title={`${item.earned.toLocaleString()}`} className={NUM_CELL} />
+                <Cell title={`${dec(item.sum)} hod`} className={NUM_CELL} />
+                <Cell title={`${kcNum(item.earned)}`} className={NUM_CELL} />
                 {!emptyKeys.has('penalty') && (
-                  <Cell title={item.penalty ? `-${item.penalty.toLocaleString()}` : ''} className={NEG_CELL} />
+                  <Cell title={item.penalty ? `-${kcNum(item.penalty)}` : ''} className={NEG_CELL} />
                 )}
                 {!emptyKeys.has('extraProfit') && (
-                  <Cell title={item.extraProfit ? `${item.extraProfit.toLocaleString()}` : ''} className={NUM_CELL} />
+                  <Cell title={item.extraProfit ? `${kcNum(item.extraProfit)}` : ''} className={NUM_CELL} />
                 )}
                 {!emptyKeys.has('payrolls') && (
-                  <Cell title={item.payrolls ? `-${item.payrolls.toLocaleString()}` : ''} className={NEG_CELL} />
+                  <Cell title={item.payrolls ? `-${kcNum(item.payrolls)}` : ''} className={NEG_CELL} />
                 )}
                 <Cell
                   className={RESULT_CELL}
-                  title={`${result.toLocaleString()}`}
+                  title={`${kcNum(result)}`}
                 />
                 {!emptyKeys.has('advance') && (
-                  <Cell title={item.advance ? `-${item.advance.toLocaleString()}` : ''} className={NEG_CELL} />
+                  <Cell title={item.advance ? `-${kcNum(item.advance)}` : ''} className={NEG_CELL} />
                 )}
                 {!emptyKeys.has('salaries') && (
-                  <Cell title={item.salaries ? `-${item.salaries.toLocaleString()}` : ''} className={NEG_CELL} />
+                  <Cell title={item.salaries ? `-${kcNum(item.salaries)}` : ''} className={NEG_CELL} />
                 )}
                 {totalExcess > 0 && (
                   <Cell
                     className={excess > 0 ? `${NUM_CELL} text-warn font-bold` : NUM_CELL}
-                    title={excess > 0 ? `+${excess.toLocaleString()}` : '-'}
+                    title={excess > 0 ? `+${kcNum(excess)}` : '-'}
                   />
                 )}
                 {(!emptyKeys.has('advance') || !emptyKeys.has('salaries')) && (
                   <Cell
                     className={RESULT_CELL}
-                    title={`${remaining.toLocaleString()}`}
+                    title={`${kcNum(remaining)}`}
                   />
                 )}
                 {!emptyKeys.has('taxes') && (
-                  <Cell title={item.taxes ? `${item.taxes.toLocaleString()}` : ''} className={NUM_CELL} />
+                  <Cell title={item.taxes ? `${kcNum(item.taxes)}` : ''} className={NUM_CELL} />
                 )}
               </tr>
             )

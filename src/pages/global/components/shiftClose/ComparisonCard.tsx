@@ -1,3 +1,4 @@
+import { kcNum, parseMoney } from '../../../../utils/money'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { fmtTimePrague } from '../../../../utils/date'
 import type { ShiftCheckResult } from '../../fetch/shiftClose'
@@ -52,8 +53,8 @@ export const ComparisonCard = ({ result }: { result: ShiftCheckResult }) => {
                     <span className="font-medium">{item.clientName}</span>
                     <span className="text-orange-500">
                       — {item.personal?.name || '—'},{' '}
-                      {(Number(item.salonSalaries) || 0) +
-                        (Number(item.staffSalaries) || 0)}{' '}
+                      {kcNum(parseMoney(item.salonSalaries) + parseMoney(item.staffSalaries))}
+                      {' '}
                       Kč
                     </span>
                     {/* Запись из календаря, но её брони среди активных нет —

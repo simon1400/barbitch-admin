@@ -1,3 +1,4 @@
+import { kcNum } from '../../../utils/money'
 import { useMonthYear } from '../../../hooks/useMonthYear'
 import { daysInMonth as daysInMonthOf } from '../../../utils/date'
 import type { IDataWorks, IExtraProfitItem } from '../fetch/works'
@@ -152,7 +153,7 @@ const OptimizedWorks = () => {
             {'Výsledek za měsíc'}
           </div>
           <div className={'text-[26px] font-extrabold text-brand-dark leading-[1.15]'}>
-            {result.toLocaleString()} {'Kč'}
+            {kcNum(result)} {'Kč'}
           </div>
         </div>
 
@@ -254,7 +255,7 @@ const OptimizedWorks = () => {
                 <span className={'text-[18px] font-extrabold text-ink'}>{data.offersDone.length}</span>
               </span>
               <span className={'text-[18px] font-extrabold text-brand-dark'}>
-                {(salary + tipSum).toLocaleString()} {'Kč'}
+                {kcNum((salary + tipSum))} {'Kč'}
               </span>
             </div>
           )}
@@ -265,7 +266,7 @@ const OptimizedWorks = () => {
           <div className={cardPadCls}>
             <h2 className={'m-0 mb-3.5 text-[15px] font-extrabold text-ink'}>{'Přídavný výdělek'}</h2>
             <TableWrapper
-              totalSum={`${extraProfit.toLocaleString()} Kč`}
+              totalSum={`${kcNum(extraProfit)} Kč`}
               totalLabel={'Celkem přídavný výdělek'}
             >
               <table className={'w-full text-left min-w-[620px]'}>
@@ -281,7 +282,7 @@ const OptimizedWorks = () => {
                     <tr key={bonus.id} className={'hover:bg-surface-hover transition-colors'}>
                       <Cell title={formatDate(bonus.date)} />
                       <Cell
-                        title={`+${Number(bonus.sum).toLocaleString()} Kč`}
+                        title={`+${kcNum(Number(bonus.sum))} Kč`}
                         className={'text-pos font-semibold'}
                       />
                       <Cell title={bonus.title || '-'} />

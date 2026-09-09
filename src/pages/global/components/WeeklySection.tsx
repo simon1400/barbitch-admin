@@ -1,3 +1,4 @@
+import { kcNum } from '../../../utils/money'
 import { useCallback, useState } from 'react'
 
 import { BlocksContent } from '../../dashboard/components/BlocksContent'
@@ -39,19 +40,19 @@ export const WeeklySection = () => {
           items={[
             {
               title: 'Средний чек',
-              value: `${data.averageCheck.toLocaleString()} Kč`,
+              value: `${kcNum(data.averageCheck)} Kč`,
             },
             {
               title: 'Средний поток/день',
-              value: `${avgPerDay.flow.toLocaleString()} Kč`,
+              value: `${kcNum(avgPerDay.flow)} Kč`,
             },
             {
               title: 'Средняя з/п мастеров/услуга',
-              value: `${data.averageMasterSalary.toLocaleString()} Kč`,
+              value: `${kcNum(data.averageMasterSalary)} Kč`,
             },
             {
               title: 'Средняя з/п админов/день',
-              value: `${avgPerDay.admins.toLocaleString()} Kč`,
+              value: `${kcNum(avgPerDay.admins)} Kč`,
             },
             {
               title: 'Средний клиентов/день',

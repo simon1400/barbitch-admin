@@ -1,3 +1,4 @@
+import { kcNum } from '../../../utils/money'
 import {
   BarChart,
   Bar,
@@ -52,7 +53,7 @@ export const ExpensesBarChart = ({ data, title }: Props) => {
                 borderRadius: '10px',
               fontSize: '12px',
               }}
-              formatter={(value: number) => `${value.toLocaleString()} Kč`}
+              formatter={(value: number) => `${kcNum(value)} Kč`}
             />
             <Legend align={'center'} verticalAlign={'top'} wrapperStyle={{ paddingBottom: '10px' }} />
             <Bar dataKey={'sum'} name={'Сумма'} radius={[8, 8, 0, 0]}>

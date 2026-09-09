@@ -20,7 +20,7 @@ interface Props {
   title?: string
 }
 
-const fmtMoney = (n: number) => `${n.toLocaleString('cs-CZ')} Kč`
+import { kc } from '../../../../utils/money'
 
 // Кастомный тултип: выручка + визиты. Визиты НЕ рисуются второй линией со своей осью —
 // двойная ось Y (деньги слева, штуки справа) делала линии визуально сопоставимыми,
@@ -39,7 +39,7 @@ const ChartTooltip = ({
   return (
     <div className={'bg-white border border-line rounded-[10px] px-3 py-2 shadow-pop'}>
       <div className={'text-[12px] font-extrabold text-ink mb-1'}>{label}</div>
-      <div className={'text-[12px] font-bold text-brand'}>{fmtMoney(row.revenue)}</div>
+      <div className={'text-[12px] font-bold text-brand'}>{kc(row.revenue)}</div>
       <div className={'text-[11px] font-semibold text-ink-soft'}>{row.visits} визитов</div>
     </div>
   )

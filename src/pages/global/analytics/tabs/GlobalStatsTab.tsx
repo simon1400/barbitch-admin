@@ -6,7 +6,7 @@ import { BlocksContent } from '../../../dashboard/components/BlocksContent'
 import { Select } from '../../../dashboard/components/Select'
 import { monthLabels } from '../../../dashboard/data'
 import { getGlobalMonthData } from '../../../dashboard/fetch/monthDataCache'
-import { toLocalStringDigits, toLocalStringInt } from '../../../../utils/toLocalString'
+import { kcExact, kcNum } from '../../../../utils/money'
 import { GlobalLineChart } from '../../charts/components/GlobalLineChart'
 import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
@@ -308,18 +308,18 @@ export default function GlobalStatsTab() {
                             title={`${monthLabels[r.month]} ${r.year}${isCurrent ? ' (идёт)' : ''}`}
                             className="font-medium"
                           />
-                          <Cell title={`${toLocalStringInt(d.globalFlow)} Kč`} />
+                          <Cell title={`${kcNum(d.globalFlow)} Kč`} />
                           <td className="p-4 border-b border-line-soft">
                             <span
                               className={`font-sans text-sm font-medium ${
                                 monthResult >= 0 ? 'text-pos' : 'text-neg'
                               }`}
                             >
-                              {toLocalStringDigits(monthResult)}
+                              {kcExact(monthResult)}
                             </span>
                           </td>
-                          <Cell title={toLocalStringInt(salaries)} />
-                          <Cell title={toLocalStringInt(d.noDphCosts)} />
+                          <Cell title={kcNum(salaries)} />
+                          <Cell title={kcNum(d.noDphCosts)} />
                           <Cell title={String(d.clients.all)} />
                           <td className="p-4 border-b border-line-soft">
                             <button

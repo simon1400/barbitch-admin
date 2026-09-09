@@ -1,3 +1,4 @@
+import { kcNum } from '../../../../utils/money'
 import { Axios } from '../../../../lib/api'
 
 // ============================================================================
@@ -380,12 +381,12 @@ export const computeEmployee = (
   const netActual = netWork + sickComp
   if (input.net > 0 && netActual !== input.net) {
     warnings.push(
-      `Přesně ${input.net.toLocaleString('cs-CZ')} Kč čistého nelze dosáhnout — počítáno z nejbližší ${netActual.toLocaleString('cs-CZ')} Kč`,
+      `Přesně ${kcNum(input.net)} Kč čistého nelze dosáhnout — počítáno z nejbližší ${kcNum(netActual)} Kč`,
     )
   }
 
   if (input.contract === 'dpp' && gross >= p.dppThreshold) {
-    warnings.push(`DPP nad limit ${p.dppThreshold.toLocaleString('cs-CZ')} Kč → полные odvody`)
+    warnings.push(`DPP nad limit ${kcNum(p.dppThreshold)} Kč → полные odvody`)
   }
   if (input.contract === 'dpp' && !input.dppAboveLimit && dppAmbiguous(targetNetWork, input, p)) {
     warnings.push('Ту же čistou даёт и вариант «nad limitem» — включи галку, если это он')

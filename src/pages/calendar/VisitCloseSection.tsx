@@ -28,7 +28,7 @@ import {
 import { FLAG_META, type VerifyFlag, parseSaleRate } from '../../lib/verifyFlags'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
-const fmtKc = (n: number) => `${round2(n)} Kč`
+import { kc2 } from '../../utils/money'
 
 const inputCls =
   'w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-primary focus:outline-none dark:border-[#3f3f3d] dark:bg-[#2a2a28] dark:text-gray-300 dark:placeholder:text-gray-500'
@@ -366,7 +366,7 @@ export const VisitCloseSection = ({
               <span className="text-gray-600 dark:text-gray-400">
                 {discountParts.length ? (
                   <>
-                    Cena služeb <b className="text-gray-800 dark:text-gray-200">{fmtKc(hint.fullPrice)}</b>
+                    Cena služeb <b className="text-gray-800 dark:text-gray-200">{kc2(hint.fullPrice)}</b>
                     {` · ${discountParts.join(' · ')}`}
                   </>
                 ) : (
@@ -374,7 +374,7 @@ export const VisitCloseSection = ({
                 )}
               </span>
               <span className="text-gray-600 dark:text-gray-400">
-                K zaplacení <b className="text-sm text-primary">{fmtKc(hint.paidExpected - saleKc)}</b>
+                K zaplacení <b className="text-sm text-primary">{kc2(hint.paidExpected - saleKc)}</b>
               </span>
             </div>
           )}

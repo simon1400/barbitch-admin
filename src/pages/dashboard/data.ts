@@ -1,3 +1,4 @@
+import { kcNum } from '../../utils/money'
 // Měsíce
 export const monthLabels = [
   'Leden',
@@ -25,23 +26,23 @@ export const blockStatsItems = (
 ) => [
   {
     title: 'Vyděláno za klienty',
-    value: `${salary.toLocaleString()} Kč`,
+    value: `${kcNum(salary)} Kč`,
   },
   {
     title: 'Spropitné',
-    value: `${tipSum.toLocaleString()} Kč`,
+    value: `${kcNum(tipSum)} Kč`,
   },
   {
     title: 'Přídavný výdělek',
-    value: `${extraProfit.toLocaleString()} Kč`,
+    value: `${kcNum(extraProfit)} Kč`,
   },
   {
     title: 'Pokuty',
-    value: `-${penalty.toLocaleString()} Kč`,
+    value: `-${kcNum(penalty)} Kč`,
   },
   {
     title: 'Odpis za služby',
-    value: `-${payrolls.toLocaleString()} Kč`,
+    value: `-${kcNum(payrolls)} Kč`,
   },
   {
     title: 'Počet klientů',

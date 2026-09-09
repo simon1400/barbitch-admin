@@ -5,7 +5,7 @@ import { TableWrapper } from '../../components/TableWrapper'
 import { fmtCsDate } from '../../../../utils/date'
 import { getVouchersReport, type VouchersReport } from '../fetch/vouchersReport'
 
-const fmtMoney = (n: number) => `${n.toLocaleString('cs-CZ')} Kč`
+import { kc } from '../../../../utils/money'
 const fmtDate = fmtCsDate
 const ageDays = (d: string) => {
   const [y, m, day] = d.split('-').map(Number)
@@ -42,18 +42,18 @@ export default function VouchersTab() {
         <div className="bg-white rounded-lg shadow-sm px-4 py-3">
           <div className="text-xs text-ink-faint">Продано (оплачено) всего</div>
           <div className="text-2xl font-bold text-ink">{data.paidTotalCount}</div>
-          <div className="text-xs text-ink-faint mt-1">{fmtMoney(data.paidTotalSum)}</div>
+          <div className="text-xs text-ink-faint mt-1">{kc(data.paidTotalSum)}</div>
         </div>
         <div className="bg-white rounded-lg shadow-sm px-4 py-3">
           <div className="text-xs text-ink-faint">Реализовано</div>
           <div className="text-2xl font-bold text-pos">{data.realizedTotalCount}</div>
-          <div className="text-xs text-ink-faint mt-1">{fmtMoney(data.realizedTotalSum)}</div>
+          <div className="text-xs text-ink-faint mt-1">{kc(data.realizedTotalSum)}</div>
         </div>
         <div className="bg-white rounded-lg shadow-sm px-4 py-3">
           <div className="text-xs text-ink-faint">Висит (оплачен, не использован)</div>
           <div className="text-2xl font-bold text-brand">{data.outstandingCount}</div>
           <div className="text-xs text-ink-faint mt-1">
-            обязательство {fmtMoney(data.outstandingSum)}
+            обязательство {kc(data.outstandingSum)}
           </div>
         </div>
       </div>
@@ -78,11 +78,11 @@ export default function VouchersTab() {
                   <Cell title={m.orderedCount ? String(m.orderedCount) : '—'} />
                   <Cell title={m.paidCount ? String(m.paidCount) : '—'} />
                   <Cell
-                    title={m.paidSum ? fmtMoney(m.paidSum) : '—'}
+                    title={m.paidSum ? kc(m.paidSum) : '—'}
                     className={m.paidSum ? 'text-brand' : ''}
                   />
                   <Cell title={m.realizedCount ? String(m.realizedCount) : '—'} />
-                  <Cell title={m.realizedSum ? fmtMoney(m.realizedSum) : '—'} />
+                  <Cell title={m.realizedSum ? kc(m.realizedSum) : '—'} />
                 </tr>
               ))}
             </tbody>
@@ -117,7 +117,7 @@ export default function VouchersTab() {
                       <Cell title={v.idVoucher} className="font-mono text-xs" />
                       <Cell title={v.name} className="font-medium" />
                       <Cell title={v.forWhom || '—'} />
-                      <Cell title={fmtMoney(v.sum)} className="text-brand" />
+                      <Cell title={kc(v.sum)} className="text-brand" />
                       <Cell title={fmtDate(v.datePay)} />
                       <Cell
                         title={`${age} дн.`}

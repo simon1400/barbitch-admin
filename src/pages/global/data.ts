@@ -1,4 +1,4 @@
-import { toLocalStringDigits, toLocalStringInt } from "../../utils/toLocalString"
+import { kcExact, kcNum } from "../../utils/money"
 
 // Единый источник формулы «Результат за месяц» (без DPH) — используется и в
 // blockStateItems (главная), и в помесячной разбивке «Глобальной статистики».
@@ -49,12 +49,12 @@ export const blockStateItems = (
   const items = [
     {
       title: 'Оборот',
-      value: `${toLocalStringInt(globalFlow)} Kč`,
+      value: `${kcNum(globalFlow)} Kč`,
       tone: 'accent' as const,
     },
     {
       title: 'Результат за месяц',
-      value: `${toLocalStringDigits(
+      value: `${kcExact(
         computeMonthResult({
           cashMoney,
           cardExtraIncome,
@@ -67,34 +67,34 @@ export const blockStateItems = (
           taxesSum,
         })
       )}`,
-      addValue: `${toLocalStringDigits(cashMoney + cardMoney + qrMoney + cardExtraIncome - sumMasters - sumAdmins - sumCombined - dphCosts - taxesSum)} - s DPH`,
+      addValue: `${kcExact(cashMoney + cardMoney + qrMoney + cardExtraIncome - sumMasters - sumAdmins - sumCombined - dphCosts - taxesSum)} - s DPH`,
     },
     {
       title: 'Разниця',
-      value: `${toLocalStringInt(cardMoney + cardExtraIncome + cashMoney + payrollSum + voucherRealized + qrMoney - globalFlow - extraMoney - voucherPayed)} Kč`,
+      value: `${kcNum(cardMoney + cardExtraIncome + cashMoney + payrollSum + voucherRealized + qrMoney - globalFlow - extraMoney - voucherPayed)} Kč`,
     },
     {
       title: 'Затраты на салон',
-      value: `${toLocalStringInt(noDphCosts)}`,
+      value: `${kcNum(noDphCosts)}`,
     },
     {
       title: 'Зарплаты мастерам',
-      value: `${toLocalStringInt(sumMasters)}`,
+      value: `${kcNum(sumMasters)}`,
     },
     {
       title: 'Зарплаты админам',
-      value: `${toLocalStringInt(sumAdmins)}`,
+      value: `${kcNum(sumAdmins)}`,
     },
     ...(sumCombined !== 0
-      ? [{ title: 'Зарплаты совместителям', value: `${toLocalStringInt(sumCombined)}` }]
+      ? [{ title: 'Зарплаты совместителям', value: `${kcNum(sumCombined)}` }]
       : []),
     {
       title: 'Налоги',
-      value: `${toLocalStringInt(taxesSum)}`,
+      value: `${kcNum(taxesSum)}`,
     },
     {
       title: 'Результат по услугам',
-      value: `${toLocalStringDigits(salonSalariesCash + cardExtraIncome + salonSalariesCard - sumAdmins - combinedAdminEarnings - noDphCosts)}`,
+      value: `${kcExact(salonSalariesCash + cardExtraIncome + salonSalariesCard - sumAdmins - combinedAdminEarnings - noDphCosts)}`,
     },
   ]
 

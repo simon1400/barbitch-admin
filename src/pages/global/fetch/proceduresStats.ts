@@ -1,3 +1,4 @@
+import { parseMoney } from '../../../utils/money'
 import { strapiQuery } from '../../../lib/strapiQuery'
 import { authHeaders } from '../../../lib/authHeaders'
 
@@ -91,9 +92,9 @@ export const getProceduresStats = async (month: number, year: number): Promise<P
       // показываем первое встреченное «человеческое» написание.
       const key = normalizeTitle(title) || NO_SERVICE
       const revenue =
-        Number.parseFloat(item.staffSalaries || '0') +
-        Number.parseFloat(item.salonSalaries || '0') +
-        Number.parseFloat(item.tip || '0')
+        parseMoney(item.staffSalaries) +
+        parseMoney(item.salonSalaries) +
+        parseMoney(item.tip)
 
       totalCount += 1
       totalRevenue += revenue

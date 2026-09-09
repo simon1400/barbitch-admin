@@ -1,6 +1,6 @@
 import type { PublishFailure, RevertResult, ShiftDelta } from '../../fetch/shiftClose'
 import { StatSection } from '../StatSection'
-import { fmt } from './helpers'
+import { kcNum } from '../../../../utils/money'
 
 // The two result boxes — reused for the post-close result and for the (unsaved) preview.
 const ProfitDeltaBoxes = ({ delta, preview }: { delta: ShiftDelta; preview: boolean }) => {
@@ -24,14 +24,14 @@ const ProfitDeltaBoxes = ({ delta, preview }: { delta: ShiftDelta; preview: bool
               }`}
             >
               {delta.after - delta.before >= 0 ? '+' : ''}
-              {fmt(delta.after - delta.before)} Kč
+              {kcNum(delta.after - delta.before)} Kč
             </p>
           </div>
           <div className="text-right">
             <p className="text-xs text-ink-soft">Rezultát za měsíc</p>
             <p className="text-sm text-ink-soft">
-              {fmt(delta.before)} →{' '}
-              <span className="font-semibold text-ink">{fmt(delta.after)} Kč</span>
+              {kcNum(delta.before)} →{' '}
+              <span className="font-semibold text-ink">{kcNum(delta.after)} Kč</span>
             </p>
           </div>
         </div>
@@ -46,19 +46,19 @@ const ProfitDeltaBoxes = ({ delta, preview }: { delta: ShiftDelta; preview: bool
           <div>
             <p className="text-sm text-ink-muted">Rozdíl proti minulé směně (nedostatek)</p>
             <p className={`text-3xl font-bold ${ok ? 'text-pos' : 'text-neg'}`}>
-              {ok ? '✓ Sedí (0 Kč)' : `${shiftDiff > 0 ? '+' : ''}${fmt(shiftDiff)} Kč`}
+              {ok ? '✓ Sedí (0 Kč)' : `${shiftDiff > 0 ? '+' : ''}${kcNum(shiftDiff)} Kč`}
             </p>
           </div>
           <div className="text-right">
             <p className="text-xs text-ink-soft">Celkový rozdíl za měsíc</p>
             <p className="text-sm text-ink-soft">
-              {fmt(delta.diffBefore)} →{' '}
+              {kcNum(delta.diffBefore)} →{' '}
               <span
                 className={`font-semibold ${
                   delta.diffAfter === 0 ? 'text-pos' : 'text-neg'
                 }`}
               >
-                {fmt(delta.diffAfter)} Kč
+                {kcNum(delta.diffAfter)} Kč
               </span>
             </p>
           </div>

@@ -1,3 +1,4 @@
+import { kcNum } from '../../utils/money'
 import { useMonthYear } from '../../hooks/useMonthYear'
 import { useState, useEffect, useMemo } from 'react'
 import { h1Cls, kickerCls, pageShellCls, toolbarCardCls } from '../../ui/kit'
@@ -83,9 +84,9 @@ const ExpensesPage = () => {
             </div>
           ) : (
             <TableWrapper
-              totalSum={`Всего: ${totalSum.toLocaleString()} Kč`}
+              totalSum={`Всего: ${kcNum(totalSum)} Kč`}
               totalLabel={'Общая сумма'}
-              additionalInfo={`Без DPH: ${totalNoDph.toLocaleString()} Kč`}
+              additionalInfo={`Без DPH: ${kcNum(totalNoDph)} Kč`}
             >
               <table className={'w-full text-left min-w-[620px]'}>
                 <thead>
@@ -107,11 +108,11 @@ const ExpensesPage = () => {
                       />
                       <Cell title={expense.comment || '-'} className={'text-ink-soft'} />
                       <Cell
-                        title={`${expense.sum.toLocaleString()} Kč`}
+                        title={`${kcNum(expense.sum)} Kč`}
                         className={'text-right text-[14px] font-extrabold text-brand-dark'}
                       />
                       <Cell
-                        title={expense.noDph ? `${expense.noDph.toLocaleString()} Kč` : '-'}
+                        title={expense.noDph ? `${kcNum(expense.noDph)} Kč` : '-'}
                         className={'text-right text-ink-soft'}
                       />
                     </tr>

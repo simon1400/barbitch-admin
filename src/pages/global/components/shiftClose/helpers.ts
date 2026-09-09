@@ -1,9 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ShiftCheckResult } from '../../fetch/shiftClose'
 
-export const fmt = (n: number) =>
-  n.toLocaleString('cs-CZ', { maximumFractionDigits: 0 })
-
 const normalize = (name: string) =>
   name
     .normalize('NFD')

@@ -7,7 +7,7 @@ import { TableWrapper } from '../../components/TableWrapper'
 import { fmtCsDate } from '../../../../utils/date'
 import { getCancellations, type CancellationsData } from '../fetch/cancellations'
 
-const fmtMoney = (n: number) => `${Math.round(n).toLocaleString('cs-CZ')} Kč`
+import { kc } from '../../../../utils/money'
 const fmtH = (min: number) => `${Math.round((min / 60) * 10) / 10} ч`
 const fmtDate = fmtCsDate
 
@@ -53,14 +53,14 @@ export default function CancellationsTab() {
               <div className="text-xs text-ink-faint">No-show</div>
               <div className="text-2xl font-bold text-neg">{data.noshow.count}</div>
               <div className="text-xs text-ink-faint mt-1">
-                {fmtH(data.noshow.lostMin)} · {fmtMoney(data.noshow.lostMoney)}
+                {fmtH(data.noshow.lostMin)} · {kc(data.noshow.lostMoney)}
               </div>
             </div>
             <div className="bg-white rounded-lg shadow-sm px-4 py-3">
               <div className="text-xs text-ink-faint">Отмены</div>
               <div className="text-2xl font-bold text-warn">{data.cancelled.count}</div>
               <div className="text-xs text-ink-faint mt-1">
-                {fmtH(data.cancelled.lostMin)} · {fmtMoney(data.cancelled.lostMoney)}
+                {fmtH(data.cancelled.lostMin)} · {kc(data.cancelled.lostMoney)}
               </div>
             </div>
             <div className="bg-white rounded-lg shadow-sm px-4 py-3">
@@ -102,11 +102,11 @@ export default function CancellationsTab() {
                           className={m.noshow.count ? 'text-neg font-semibold' : ''}
                         />
                         <Cell
-                          title={m.noshow.count ? `${fmtH(m.noshow.lostMin)} · ${fmtMoney(m.noshow.lostMoney)}` : '—'}
+                          title={m.noshow.count ? `${fmtH(m.noshow.lostMin)} · ${kc(m.noshow.lostMoney)}` : '—'}
                         />
                         <Cell title={m.cancelled.count ? String(m.cancelled.count) : '—'} />
                         <Cell
-                          title={m.cancelled.count ? `${fmtH(m.cancelled.lostMin)} · ${fmtMoney(m.cancelled.lostMoney)}` : '—'}
+                          title={m.cancelled.count ? `${fmtH(m.cancelled.lostMin)} · ${kc(m.cancelled.lostMoney)}` : '—'}
                         />
                       </tr>
                     ))}
@@ -140,7 +140,7 @@ export default function CancellationsTab() {
                           className={c.noshowCount ? 'text-neg font-semibold' : ''}
                         />
                         <Cell title={c.cancelledCount ? String(c.cancelledCount) : '—'} />
-                        <Cell title={fmtMoney(c.lostMoney)} />
+                        <Cell title={kc(c.lostMoney)} />
                         <Cell title={fmtDate(c.lastDate)} />
                       </tr>
                     ))}

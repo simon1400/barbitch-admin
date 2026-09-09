@@ -61,7 +61,7 @@ const num = (s: string): number => {
   return Number.isFinite(n) && n > 0 ? n : 0
 }
 
-const kc = (n: number): string => `${Math.round(n).toLocaleString('cs-CZ')} Kč`
+import { kc } from '../../../../utils/money'
 
 // Инпут формы во всю ширину (кит + w-full)
 const fieldCls = `${inputCls} w-full`

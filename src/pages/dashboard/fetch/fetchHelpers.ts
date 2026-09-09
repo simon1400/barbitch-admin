@@ -1,3 +1,4 @@
+import { parseMoney } from '../../../utils/money'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { daysInMonth as daysInMonthOf, todayDate } from '../../../utils/date'
 import { strapiQuery } from '../../../lib/strapiQuery'
@@ -103,7 +104,7 @@ export const summarizeGeneric = (
   for (const item of data) {
     const name = item.personal?.name
     if (!name || !base.has(name) || excludeNames.includes(name)) continue
-    const sum = Number.parseFloat(item.sum || '0')
+    const sum = parseMoney(item.sum)
     base.get(name)![field] += sum
   }
 }

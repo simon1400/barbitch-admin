@@ -1,3 +1,4 @@
+import { kcNum } from '../../utils/money'
 // Drawer с деталями брони: кнопки статусов (пишут в движок), кастомный лейбл,
 // инлайн-подтверждение отмены с уведомлением, услуги (+ «Změnit službu»),
 // секция «Historie klienta» (все брони клиента, клик → переход на её день).
@@ -120,7 +121,7 @@ const ClientHistory = ({
 
 // Лейбл награды bitchcard: «Sleva 20 %» / «Sleva 400 Kč» уже в title — добавляем порог
 const redemptionRewardLabel = (r: BookingRedemption) =>
-  `${r.reward.title} (od ${r.reward.thresholdKc.toLocaleString('cs-CZ')} Kč)`
+  `${r.reward.title} (od ${kcNum(r.reward.thresholdKc)} Kč)`
 
 // Карточка «Bitchcard» в drawer (walk-in флоу К4): награды available у клиента
 // брони + применённая к этой брони. Свой fetch (паттерн ClientHistory); рефетч
@@ -188,7 +189,7 @@ const LoyaltyCard = ({
         <div className="mb-1.5 text-xs text-gray-600 dark:text-gray-400">
           Letos utraceno:{' '}
           <b className="text-gray-800 dark:text-gray-200">
-            {progress.balanceKc.toLocaleString('cs-CZ')} Kč
+            {kcNum(progress.balanceKc)} Kč
           </b>
           {progress.nextReward ? (
             <>
@@ -196,7 +197,7 @@ const LoyaltyCard = ({
               {progress.nextReward.title}
               {'“ zbývá '}
               <b className="text-primary">
-                {progress.nextReward.remainingKc.toLocaleString('cs-CZ')} Kč
+                {kcNum(progress.nextReward.remainingKc)} Kč
               </b>
             </>
           ) : (

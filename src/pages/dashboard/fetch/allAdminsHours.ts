@@ -1,3 +1,4 @@
+import { parseMoney } from '../../../utils/money'
 import type { PersonalSumData } from './fetchHelpers'
 
 import { getMonthRange } from '../../../utils/getMonthRange'
@@ -123,7 +124,7 @@ function summarizeAdmins(
     const { sum, personal } = item
     const name = personal?.name
     if (!name) return
-    const hours = Number.parseFloat(sum || '0')
+    const hours = parseMoney(sum)
     const rates = personal?.rates as unknown as RateItem[]
     if (!resultMap.has(name)) {
       // «Текущая» ставка на конец периода — информационно (в деньгах не участвует).

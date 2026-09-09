@@ -1,3 +1,4 @@
+import { kcNum } from '../../../utils/money'
 import type { IFilteredData } from '../../dashboard/fetch/allWorks'
 
 import { findCommonZeroKeys } from '../../../utils/findCommonZeroKeys'
@@ -32,9 +33,9 @@ export const Masters = ({
 
   return (
     <TableWrapper
-      totalSum={`${sumMasters.toLocaleString()} Kč`}
+      totalSum={`${kcNum(sumMasters)} Kč`}
       totalLabel={'Общая сумма'}
-      additionalInfo={totalExcess > 0 ? `Общее превышение: ${totalExcess.toLocaleString()} Kč` : undefined}
+      additionalInfo={totalExcess > 0 ? `Общее превышение: ${kcNum(totalExcess)} Kč` : undefined}
     >
       <table className={'w-full text-left min-w-[720px]'}>
         <thead>
@@ -75,57 +76,57 @@ export const Masters = ({
                   onClick={() => navigator.clipboard.writeText(item.name)}
                 />
                 <Cell title={`${item.countClient}`} className={NUM_CELL} />
-                <Cell title={`${item.sum.toLocaleString()}`} className={NUM_CELL} />
+                <Cell title={`${kcNum(item.sum)}`} className={NUM_CELL} />
                 {!emptyKeys.has('sumTip') && (
                   <Cell
-                    title={item.sumTip ? `${item.sumTip.toLocaleString()}` : ''}
+                    title={item.sumTip ? `${kcNum(item.sumTip)}` : ''}
                     className={NUM_CELL}
                   />
                 )}
                 {!emptyKeys.has('penalty') && (
                   <Cell
-                    title={item.penalty ? `-${item.penalty.toLocaleString()}` : ''}
+                    title={item.penalty ? `-${kcNum(item.penalty)}` : ''}
                     className={NEG_CELL}
                   />
                 )}
                 {!emptyKeys.has('extraProfit') && (
                   <Cell
-                    title={item.extraProfit ? `${item.extraProfit.toLocaleString()}` : ''}
+                    title={item.extraProfit ? `${kcNum(item.extraProfit)}` : ''}
                     className={NUM_CELL}
                   />
                 )}
                 {!emptyKeys.has('payrolls') && (
                   <Cell
-                    title={item.payrolls ? `-${item.payrolls.toLocaleString()}` : ''}
+                    title={item.payrolls ? `-${kcNum(item.payrolls)}` : ''}
                     className={NEG_CELL}
                   />
                 )}
-                <Cell className={RESULT_CELL} title={`${result.toLocaleString()}`} />
+                <Cell className={RESULT_CELL} title={`${kcNum(result)}`} />
 
                 {!emptyKeys.has('advance') && (
                   <Cell
-                    title={item.advance ? `-${item.advance.toLocaleString()}` : ''}
+                    title={item.advance ? `-${kcNum(item.advance)}` : ''}
                     className={NEG_CELL}
                   />
                 )}
                 {!emptyKeys.has('salaries') && (
                   <Cell
-                    title={item.salaries ? `-${item.salaries.toLocaleString()}` : ''}
+                    title={item.salaries ? `-${kcNum(item.salaries)}` : ''}
                     className={NEG_CELL}
                   />
                 )}
                 {totalExcess > 0 && (
                   <Cell
                     className={excess > 0 ? `${NUM_CELL} text-warn font-bold` : NUM_CELL}
-                    title={excess > 0 ? `+${excess.toLocaleString()}` : '-'}
+                    title={excess > 0 ? `+${kcNum(excess)}` : '-'}
                   />
                 )}
                 {(!emptyKeys.has('advance') || !emptyKeys.has('salaries')) && (
-                  <Cell className={RESULT_CELL} title={`${remaining.toLocaleString()}`} />
+                  <Cell className={RESULT_CELL} title={`${kcNum(remaining)}`} />
                 )}
                 {!emptyKeys.has('taxes') && (
                   <Cell
-                    title={item.taxes ? `${item.taxes.toLocaleString()}` : ''}
+                    title={item.taxes ? `${kcNum(item.taxes)}` : ''}
                     className={NUM_CELL}
                   />
                 )}

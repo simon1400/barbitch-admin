@@ -1,3 +1,4 @@
+import { kcNum, dec, parseMoney } from '../../utils/money'
 import { useMonthYear } from '../../hooks/useMonthYear'
 import { API_URL } from '../../lib/config'
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -276,11 +277,11 @@ const AdministratorCabinetPage = () => {
     if (!filteredMasterData || !data?.masterData) return null
 
     const staffSalaries = filteredMasterData.servicesProvided.reduce(
-      (sum, sp) => sum + Number(sp.staffSalaries || 0),
+      (sum, sp) => sum + parseMoney(sp.staffSalaries),
       0
     )
     const tips = filteredMasterData.servicesProvided.reduce(
-      (sum, sp) => sum + Number(sp.tip || 0),
+      (sum, sp) => sum + parseMoney(sp.tip),
       0
     )
     // Результат мастера = только заработок за услуги + чаевые
@@ -378,42 +379,42 @@ const AdministratorCabinetPage = () => {
             <div className={'bg-white p-6 rounded-lg shadow-md border border-line'}>
               <div className={'text-sm text-ink-muted'}>Отработано часов</div>
               <div className={'text-2xl font-bold text-ink mt-2'}>
-                {totalHours.toLocaleString()} hod
+                {dec(totalHours)} hod
               </div>
             </div>
 
             <div className={'bg-white p-6 rounded-lg shadow-md border border-line'}>
               <div className={'text-sm text-ink-muted'}>Заработок</div>
               <div className={'text-2xl font-bold text-brand mt-2'}>
-                {totalEarnings.toLocaleString()} Kč
+                {kcNum(totalEarnings)} Kč
               </div>
             </div>
 
             <div className={'bg-white p-6 rounded-lg shadow-md border border-line'}>
               <div className={'text-sm text-ink-muted'}>Штрафы</div>
               <div className={'text-2xl font-bold text-neg mt-2'}>
-                -{totalPenalties.toLocaleString()} Kč
+                -{kcNum(totalPenalties)} Kč
               </div>
             </div>
 
             <div className={'bg-white p-6 rounded-lg shadow-md border border-line'}>
               <div className={'text-sm text-ink-muted'}>Премии</div>
               <div className={'text-2xl font-bold text-pos mt-2'}>
-                +{totalBonuses.toLocaleString()} Kč
+                +{kcNum(totalBonuses)} Kč
               </div>
             </div>
 
             <div className={'bg-white p-6 rounded-lg shadow-md border border-line'}>
               <div className={'text-sm text-ink-muted'}>Списывания</div>
               <div className={'text-2xl font-bold text-warn mt-2'}>
-                -{totalPayrolls.toLocaleString()} Kč
+                -{kcNum(totalPayrolls)} Kč
               </div>
             </div>
 
             <div className={'bg-white p-6 rounded-lg shadow-md border border-line'}>
               <div className={'text-sm text-ink-muted'}>Результат</div>
               <div className={'text-2xl font-bold text-brand mt-2'}>
-                {result.toLocaleString()} Kč
+                {kcNum(result)} Kč
               </div>
             </div>
           </div>
@@ -433,21 +434,21 @@ const AdministratorCabinetPage = () => {
               <div className={'bg-white p-6 rounded-lg shadow-md border border-line'}>
                 <div className={'text-sm text-ink-muted'}>Заработок за услуги</div>
                 <div className={'text-2xl font-bold text-brand mt-2'}>
-                  {masterEarnings.staffSalaries.toLocaleString()} Kč
+                  {kcNum(masterEarnings.staffSalaries)} Kč
                 </div>
               </div>
 
               <div className={'bg-white p-6 rounded-lg shadow-md border border-line'}>
                 <div className={'text-sm text-ink-muted'}>Чаевые</div>
                 <div className={'text-2xl font-bold text-info mt-2'}>
-                  +{masterEarnings.tips.toLocaleString()} Kč
+                  +{kcNum(masterEarnings.tips)} Kč
                 </div>
               </div>
 
               <div className={'bg-white p-6 rounded-lg shadow-md border border-line'}>
                 <div className={'text-sm text-ink-muted'}>Итого за мастера</div>
                 <div className={'text-2xl font-bold text-purple-600 mt-2'}>
-                  {masterEarnings.result.toLocaleString()} Kč
+                  {kcNum(masterEarnings.result)} Kč
                 </div>
               </div>
             </div>
@@ -458,7 +459,7 @@ const AdministratorCabinetPage = () => {
                 Общий результат (Администратор + Мастер)
               </div>
               <div className={'text-[26px] font-extrabold text-brand-dark leading-[1.15]'}>
-                {totalCombinedResult.toLocaleString()} Kč
+                {kcNum(totalCombinedResult)} Kč
               </div>
             </div>
           </StatSection>
@@ -483,7 +484,7 @@ const AdministratorCabinetPage = () => {
         {/* Work Times Section with Pagination */}
         <StatSection title={'Рабочие часы'} id={'work-times'} defaultOpen>
           <TableWrapper
-            totalSum={`${totalHours.toLocaleString()} часов`}
+            totalSum={`${dec(totalHours)} часов`}
             totalLabel={'Всего отработано'}
           >
             <table className={'w-full text-left min-w-[620px]'}>
@@ -505,7 +506,7 @@ const AdministratorCabinetPage = () => {
                         wt.startTime && wt.endTime ? `${wt.startTime}–${wt.endTime}` : '-'
                       }
                     />
-                    <Cell className={'whitespace-nowrap'} title={`${Number(wt.sum).toLocaleString()} hod`} />
+                    <Cell className={'whitespace-nowrap'} title={`${dec(Number(wt.sum))} hod`} />
                     <Cell
                       title={
                         wt.comment
@@ -551,7 +552,7 @@ const AdministratorCabinetPage = () => {
         {filteredData.extraProfits.length > 0 && (
           <StatSection title={'Премии'} id={'bonuses'}>
             <TableWrapper
-              totalSum={`${totalBonuses.toLocaleString()} Kč`}
+              totalSum={`${kcNum(totalBonuses)} Kč`}
               totalLabel={'Всего премий'}
             >
               <table className={'w-full text-left min-w-[620px]'}>
@@ -567,7 +568,7 @@ const AdministratorCabinetPage = () => {
                     <tr key={bonus.id} className={'hover:bg-surface-hover transition-colors'}>
                       <Cell title={new Date(bonus.date).toLocaleDateString('ru-RU')} />
                       <Cell
-                        title={`+${Number(bonus.sum).toLocaleString()} Kč`}
+                        title={`+${kcNum(Number(bonus.sum))} Kč`}
                         className={'text-pos font-semibold'}
                       />
                       <Cell title={bonus.title || '-'} />
@@ -583,7 +584,7 @@ const AdministratorCabinetPage = () => {
         {filteredData.penalties.length > 0 && (
           <StatSection title={'Штрафы'} id={'penalties'}>
             <TableWrapper
-              totalSum={`${totalPenalties.toLocaleString()} Kč`}
+              totalSum={`${kcNum(totalPenalties)} Kč`}
               totalLabel={'Всего штрафов'}
             >
               <table className={'w-full text-left min-w-[620px]'}>
@@ -599,7 +600,7 @@ const AdministratorCabinetPage = () => {
                     <tr key={penalty.id} className={'hover:bg-surface-hover transition-colors'}>
                       <Cell title={new Date(penalty.date).toLocaleDateString('ru-RU')} />
                       <Cell
-                        title={`-${Number(penalty.sum).toLocaleString()} Kč`}
+                        title={`-${kcNum(Number(penalty.sum))} Kč`}
                         className={'text-neg font-semibold'}
                       />
                       <Cell title={penalty.comment || '-'} />
@@ -615,7 +616,7 @@ const AdministratorCabinetPage = () => {
         {filteredData.payrolls.length > 0 && (
           <StatSection title={'Списывания с зарплаты'} id={'payrolls'}>
             <TableWrapper
-              totalSum={`${totalPayrolls.toLocaleString()} Kč`}
+              totalSum={`${kcNum(totalPayrolls)} Kč`}
               totalLabel={'Всего списано'}
             >
               <table className={'w-full text-left min-w-[620px]'}>
@@ -631,7 +632,7 @@ const AdministratorCabinetPage = () => {
                     <tr key={payroll.id} className={'hover:bg-surface-hover transition-colors'}>
                       <Cell title={fmtDayMonth(payroll.date)} />
                       <Cell
-                        title={`-${Number(payroll.sum).toLocaleString()} Kč`}
+                        title={`-${kcNum(Number(payroll.sum))} Kč`}
                         className={'text-warn font-semibold'}
                       />
                       <Cell title={payroll.comment || '-'} />
@@ -647,7 +648,7 @@ const AdministratorCabinetPage = () => {
         {allPayments.length > 0 && (
           <StatSection title={'Выплаты (Авансы и Зарплаты)'} id={'payments'}>
             <TableWrapper
-              totalSum={`${totalPayments.toLocaleString()} Kč`}
+              totalSum={`${kcNum(totalPayments)} Kč`}
               totalLabel={'Всего выплачено'}
             >
               <table className={'w-full text-left min-w-[620px]'}>
@@ -665,7 +666,7 @@ const AdministratorCabinetPage = () => {
                       <Cell title={new Date(payment.date).toLocaleDateString('ru-RU')} />
                       <Cell title={getPaymentTypeLabel(payment.type)} />
                       <Cell
-                        title={`${Number(payment.sum).toLocaleString()} Kč`}
+                        title={`${kcNum(Number(payment.sum))} Kč`}
                         className={`${getPaymentTypeColor(payment.type)} font-semibold`}
                       />
                       <Cell title={payment.comment || '-'} />
@@ -681,7 +682,7 @@ const AdministratorCabinetPage = () => {
         {filteredMasterData && filteredMasterData.servicesProvided.length > 0 && (
           <StatSection title={'Оказанные услуги (Мастер)'} id={'master-services'}>
             <TableWrapper
-              totalSum={`${masterEarnings?.staffSalaries.toLocaleString() || 0} Kč`}
+              totalSum={`${kcNum(masterEarnings?.staffSalaries) || 0} Kč`}
               totalLabel={'Всего заработано за услуги'}
             >
               <table className={'w-full text-left min-w-[620px]'}>
@@ -701,11 +702,11 @@ const AdministratorCabinetPage = () => {
                       <Cell title={service.clientName || '-'} />
                       <Cell title={service.offer?.title || '-'} />
                       <Cell
-                        title={`${Number(service.staffSalaries || 0).toLocaleString()} Kč`}
+                        title={`${kcNum(parseMoney(service.staffSalaries))} Kč`}
                         className={'text-brand font-semibold'}
                       />
                       <Cell
-                        title={Number(service.tip || 0) > 0 ? `+${Number(service.tip).toLocaleString()} Kč` : '-'}
+                        title={parseMoney(service.tip) > 0 ? `+${kcNum(parseMoney(service.tip))} Kč` : '-'}
                         className={'text-info'}
                       />
                     </tr>

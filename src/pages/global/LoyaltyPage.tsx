@@ -42,7 +42,7 @@ const REASON_LABELS: Record<string, string> = {
 const DISCOUNT_LABEL = (r: Reward) =>
   r.discountType === 'percent' ? `−${r.discountValue} %` : `−${r.discountValue} Kč`
 
-const fmtKc = (n: number) => `${Math.round(n).toLocaleString('cs-CZ')} Kč`
+import { kc, num } from '../../utils/money'
 
 const fmtDate = (s: string | null) =>
   s
@@ -275,20 +275,20 @@ function MetricsSection({
 
       <p className={'text-sm font-semibold text-ink-muted mb-2'}>Охват</p>
       <div className={'grid grid-cols-2 md:grid-cols-4 gap-3 mb-5'}>
-        <StatTile label={'Клиентов в базе'} value={clientTotal.toLocaleString('cs-CZ')} />
+        <StatTile label={'Клиентов в базе'} value={num(clientTotal)} />
         <StatTile
           label={'С цифровым аккаунтом'}
-          value={clientVerified.toLocaleString('cs-CZ')}
+          value={num(clientVerified)}
           sub={`${pct(clientVerified, clientTotal)} % базы (e-mail подтверждён)`}
         />
         <StatTile
           label={'Заходили в кабинет'}
-          value={clientLoggedIn.toLocaleString('cs-CZ')}
+          value={num(clientLoggedIn)}
           sub={`${pct(clientLoggedIn, clientVerified)} % аккаунтов`}
         />
         <StatTile
           label={`Копилка ≥ ${minThreshold} Kč`}
-          value={withEnoughBalance.toLocaleString('cs-CZ')}
+          value={num(withEnoughBalance)}
           sub={'достигли первой награды'}
         />
       </div>
@@ -297,7 +297,7 @@ function MetricsSection({
       <div className={'grid grid-cols-2 md:grid-cols-4 gap-3 mb-5'}>
         <StatTile
           label={'Применено скидок'}
-          value={fmtKc(discountUsedKc)}
+          value={kc(discountUsedKc)}
           sub={`за ${metrics.cardYear} год (использованные награды)`}
         />
         <StatTile label={'Выдано наград'} value={String(redemptionsByStatus.available)} sub={'доступны'} />
@@ -332,7 +332,7 @@ function MetricsSection({
                     <Cell title={String(t.available)} />
                     <Cell title={String(t.used)} className={'font-medium'} />
                     <Cell title={String(t.expired)} className={'text-ink-faint'} />
-                    <Cell title={fmtKc(t.discountUsedKc)} className={'text-brand'} />
+                    <Cell title={kc(t.discountUsedKc)} className={'text-brand'} />
                   </tr>
                 ))}
               </tbody>
@@ -731,7 +731,7 @@ export default function LoyaltyPage() {
               Аккаунтов с копилкой: <b>{accounts.length}</b>
             </span>
             <span className={'px-3 py-1.5 rounded-lg bg-white shadow-sm text-sm'}>
-              Σ копилок: <b>{fmtKc(totalBalance)}</b>
+              Σ копилок: <b>{kc(totalBalance)}</b>
             </span>
             <span className={'px-3 py-1.5 rounded-lg bg-white shadow-sm text-sm'}>
               Активных наград: <b>{redemptions.length}</b>
@@ -882,7 +882,7 @@ export default function LoyaltyPage() {
                           >
                             <Cell title={a.name} className={'text-brand'} />
                             <Cell title={a.email || '—'} className={'text-ink-muted'} />
-                            <Cell title={fmtKc(a.balanceKc)} className={'font-bold'} />
+                            <Cell title={kc(a.balanceKc)} className={'font-bold'} />
                             <Cell title={'●'.repeat(Math.min(a.stamps, 8)) || '—'} />
                             <Cell title={String(a.visits)} />
                             <Cell title={a.cabinetLastLoginAt ? fmtDay(a.cabinetLastLoginAt) : '—'} />
