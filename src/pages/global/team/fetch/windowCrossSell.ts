@@ -1,19 +1,22 @@
-import { addDays, hhmmToMin, isoToMinPrague, minToHHMM, todayDate, ymd } from '../../../../utils/date'
-import { strapiQuery } from '../../../../lib/strapiQuery'
-import { fetchAllPagesAxios } from '../../../../lib/strapiPaginate'
-import { Axios } from '../../../../lib/api'
-import { sendCampaign } from '../../../../lib/campaignApi'
-import { type CampaignSendResult, type CampaignSkipped, emptyCampaignSkipped } from '../../../../lib/campaignApi'
 import {
   clientKey,
   fetchMirrorBookingsRange,
   fetchMirrorClients,
   fetchMirrorEmployees,
 } from '../../../../lib/mirror'
-import { fetchAllPagesStrapi } from '../../../../lib/strapiRest'
 import { getScheduleGaps, type MasterGapsRow } from './scheduleGaps'
 import { getEventsHistory, isActive } from '../../analytics/fetch/eventsHistory'
+import { addDays, hhmmToMin, minToHHMM, todayDate, ymd } from '../../../../utils/date'
 import { isActiveStatus } from '../../../../lib/bookingStatus'
+import { type Bucket, ALL_BUCKETS, classifyTitle } from './crossSell/buckets'
+import { isoToMin } from './crossSell/format'
+// 🟥 Публичная поверхность модуля НЕ менялась распилом: вкладки «Дозапись» и
+// «Окна» импортируют BUCKET_LABEL и отправку именно отсюда.
+export { BUCKET_LABEL } from './crossSell/buckets'
+export type { Bucket } from './crossSell/buckets'
+import { type CatalogSvc, fetchOfferableServices } from './crossSell/catalog'
+import { type WindowOfferLog, fetchOfferLogs } from './crossSell/offerLogs'
+export { sendCrossSellOffers, type SendResult } from './crossSell/send'
 
 // ─── Cross-sell «дозапись в окно» ──────────────────────────────────────────────
 // Идея: клиент уже записан в категории X (брови / ресницы / маникюр). Если у
@@ -41,204 +44,6 @@ export const WINDOW_TOLERANCE_MIN = 15
 // Длинные процедуры под дозапись в окно не предлагаем.
 export const MAX_OFFER_SERVICE_MIN = 60
 
-export type Bucket = 'manicure' | 'brows' | 'lashes'
-const ALL_BUCKETS: Bucket[] = ['manicure', 'brows', 'lashes']
-
-export const BUCKET_LABEL: Record<Bucket, string> = {
-  manicure: 'Маникюр',
-  brows: 'Брови',
-  lashes: 'Ресницы',
-}
-// Для текста письма (чешский, в нижнем регистре — встраивается в предложение)
-const BUCKET_LABEL_CS: Record<Bucket, string> = {
-  manicure: 'manikúra',
-  brows: 'obočí',
-  lashes: 'řasy',
-}
-
-// Классификация по названию услуги/категории каталога. Покрывает и снапшоты услуг
-// в бронях (services[].title). Порядок важен: «řas» (ресницы) проверяем до «obočí»,
-// маникюр — последним. ⚠️ При новых категориях каталога — дополнить ключевые слова.
-const classifyTitle = (raw: string): Bucket | null => {
-  const t = raw.toLowerCase()
-  if (t.includes('řas') || t.includes('rias') || t.includes('lash')) return 'lashes'
-  // Брови: многие услуги БЕЗ слова «obočí» (Laminace, Úprava tvaru, Korekce…).
-  // «laminace»/«úprava tvaru» здесь безопасны — ресничные ловятся выше по «řas».
-  if (
-    t.includes('obočí') ||
-    t.includes('oboci') ||
-    t.includes('brow') ||
-    t.includes('barvení a péče') ||
-    t.includes('laminace') ||
-    t.includes('úprava tvaru') ||
-    t.includes('uprava tvaru')
-  )
-    return 'brows'
-  const nailKeys = [
-    'nehty',
-    'manikúra',
-    'manikura',
-    'gel lak',
-    'prodloužení neht',
-    'nano',
-    'sundání',
-    'hygienick',
-    'ibx',
-  ]
-  if (nailKeys.some((k) => t.includes(k))) return 'manicure'
-  return null
-}
-
-// НЕ предлагаем для дозаписи не-базовые услуги: снятия/удаления (Sundání,
-// Odstranění) и доливы/коррекции (Doplnění, Korekce — делаются поверх существующей
-// работы, не подходят как самостоятельное предложение). Фильтр применяется только
-// к ПРЕДЛАГАЕМЫМ услугам, не к классификации текущей брони клиента.
-const NON_BASE_KEYWORDS = [
-  'sundání',
-  'sundani',
-  'odstranění',
-  'odstraneni',
-  'doplnění',
-  'doplneni',
-  'korekce',
-]
-const isExcludedOfferService = (title: string): boolean => {
-  const t = title.toLowerCase()
-  return NON_BASE_KEYWORDS.some((k) => t.includes(k))
-}
-
-// ─── Время ──────────────────────────────────────────────────────────────────
-// 🟥 Было `d.getHours()` — часы БРАУЗЕРА, см. тот же разбор в scheduleGaps:
-// предложение «окна» клиенту уезжало бы на часовой пояс владельца (s186).
-const isoToMin = (iso: string): number => isoToMinPrague(iso) ?? 0
-// '2026-06-16' → '16. 6. 2026' — текст письма, НЕ 'DD.MM.YYYY' из utils/date
-const fmtCsDateLong = (dateStr: string): string => {
-  const [y, m, d] = dateStr.split('-').map(Number)
-  return `${d}. ${m}. ${y}`
-}
-
-// ─── Каталог: услуги + назначенные мастера (salon-service) ────────────────────
-interface CatalogSvc {
-  docId: string
-  title: string
-  bucket: Bucket
-  durationMin: number
-  masterIds: Set<string> // noonaEmployeeId назначенных мастеров (personal.services)
-}
-
-interface RawSalonService {
-  documentId: string
-  title?: string
-  category?: string
-  durationMin?: number
-  active?: boolean
-  onlineBookable?: boolean
-  personals?: Array<{ documentId?: string; noonaEmployeeId?: string | null }>
-}
-
-// Активные онлайн-услуги каталога с назначенными мастерами. Категория каталога →
-// bucket (фолбэк — по названию услуги). populate personals может отдать дубли
-// (draft+published строки personal) — masterIds это Set, дубль безвреден.
-const fetchOfferableServices = async (): Promise<CatalogSvc[]> => {
-  const raw = await fetchAllPagesStrapi<RawSalonService>(
-    '/api/salon-services?fields[0]=title&fields[1]=category&fields[2]=durationMin' +
-      '&fields[3]=active&fields[4]=onlineBookable&populate[personals][fields][0]=noonaEmployeeId',
-    200,
-  )
-  const out: CatalogSvc[] = []
-  for (const s of raw) {
-    if (s.active === false || s.onlineBookable === false) continue
-    const title = s.title ?? ''
-    const durationMin = Number(s.durationMin ?? 0)
-    if (!title || durationMin <= 0 || isExcludedOfferService(title)) continue
-    const bucket = classifyTitle(s.category ?? '') ?? classifyTitle(title)
-    if (!bucket) continue
-    const masterIds = new Set<string>()
-    for (const p of s.personals ?? []) {
-      if (p?.noonaEmployeeId) masterIds.add(p.noonaEmployeeId)
-    }
-    out.push({ docId: s.documentId, title, bucket, durationMin, masterIds })
-  }
-  return out
-}
-
-// ─── Лог предложений (дедуп) ────────────────────────────────────────────────
-interface WindowOfferLog {
-  documentId: string
-  bookingEventId: string
-  offeredCategory: string
-  customerId: string
-  customerName: string
-  email: string
-  masterId: string
-  masterName: string
-  serviceTitle: string
-  anchorDate: string
-  windowTime: string
-  discount: string
-  sentAt: string
-}
-
-const fetchOfferLogs = async (): Promise<WindowOfferLog[]> => {
-  const buildQuery = (page: number) =>
-    strapiQuery(
-      {
-        fields: [
-          'bookingEventId',
-          'offeredCategory',
-          'customerId',
-          'customerName',
-          'email',
-          'masterId',
-          'masterName',
-          'serviceTitle',
-          'anchorDate',
-          'windowTime',
-          'discount',
-          'sentAt',
-        ],
-        sort: ['sentAt:desc'],
-        pagination: { page, pageSize: 200 },
-      },
-    )
-
-  // 🟥 Сбой страницы НЕ должен молча прерывать сбор: журнал вернулся бы
-  // НЕПОЛНЫМ, и клиент, которому предложение уже уходило, снова попал бы в
-  // подборку — то есть получил бы второе письмо. Отказываем явно.
-  const data = await fetchAllPagesAxios<Record<string, unknown>>(
-    '/api/window-offer-logs',
-    buildQuery,
-    {
-      pageSize: 200,
-      onPageError: (e, page) => {
-        console.error('fetchOfferLogs: страница', page, 'не загрузилась', e)
-        throw new Error(
-          'Nepodařilo se načíst historii nabídek — seznam by byl neúplný a někdo by dostal nabídku dvakrát.',
-        )
-      },
-    },
-  )
-
-  const logs: WindowOfferLog[] = []
-  for (const l of data) {
-    logs.push({
-      documentId: String(l.documentId ?? ''),
-      bookingEventId: String(l.bookingEventId ?? ''),
-      offeredCategory: String(l.offeredCategory ?? ''),
-      customerId: String(l.customerId ?? ''),
-      customerName: String(l.customerName ?? ''),
-      email: String(l.email ?? ''),
-      masterId: String(l.masterId ?? ''),
-      masterName: String(l.masterName ?? ''),
-      serviceTitle: String(l.serviceTitle ?? ''),
-      anchorDate: String(l.anchorDate ?? ''),
-      windowTime: String(l.windowTime ?? ''),
-      discount: String(l.discount ?? ''),
-      sentAt: String(l.sentAt ?? ''),
-    })
-  }
-  return logs
-}
 
 // ─── Кандидат ──────────────────────────────────────────────────────────────
 // Вариант услуги для выбора (используется в модале «дозапись в окно»)
@@ -607,120 +412,6 @@ export const getWindowFillCandidates = async (
       : a.customerName.localeCompare(b.customerName, 'cs'),
   )
   return candidates
-}
-
-// ─── Отправка + лог ───────────────────────────────────────────────────────────
-// skipped — разбивка отсева от Strapi (отписался / чёрный список / без согласия);
-// суммируется по обоим шаблонам (senior + junior).
-// Итог отправки, сложенный по ДВУМ шаблонам (senior + junior): счётчики те же,
-// что у одного батча, а поадресных полей (skippedDetail, acceptedEmails) у суммы
-// быть не может — они разбираются на месте, до сложения.
-export type SendResult = Pick<CampaignSendResult, 'total' | 'successful' | 'failed' | 'skipped'>
-
-const emptySkipped = emptyCampaignSkipped
-
-const TEMPLATE = 'window-cross-sell'
-const TEMPLATE_JUNIOR = 'window-cross-sell-junior'
-const SUBJECT = 'Hned po vaší návštěvě máme volný termín — se slevou 💕'
-const SUBJECT_JUNIOR = 'Zkuste nehty u naší junior mistrové — výhodně 💅'
-
-// Параметры атрибуции в ссылку: src=win (метка письма), disc (числом), d (дата →
-// клиент сразу попадает на нужный день). На клиенте src/disc сохраняются в
-// localStorage (bb_offer) и попадают в комментарий брони.
-const offerUrl = (c: CrossSellCandidate, discount: string): string => {
-  const discNum = discount.match(/\d+/)?.[0] ?? ''
-  return `${c.bookingUrl}?src=win&d=${c.date}${discNum ? `&disc=${discNum}` : ''}`
-}
-
-// Один батч писем (один шаблон). Возвращает счётчики Resend.
-const postBulk = async (
-  template: string,
-  subject: string,
-  cands: CrossSellCandidate[],
-  discount: string,
-): Promise<CampaignSendResult> => {
-  // Через Strapi (api::campaign): гейт владельца + отсев отписавшихся и
-  // заблокированных. Напрямую в client-роут больше не ходим — он закрыт
-  // серверным секретом (s175).
-  return sendCampaign(
-    template,
-    subject,
-    cands.map((c) => ({
-      email: c.email,
-      variables: {
-        name: c.customerName,
-        anchorLabel: BUCKET_LABEL_CS[c.anchorBucket],
-        offerLabel: BUCKET_LABEL_CS[c.offerBucket], // категория предложения (manikúra/obočí/řasy)
-        date: fmtCsDateLong(c.date),
-        time: c.windowStartHHMM,
-        service: c.serviceTitle,
-        master: c.masterName,
-        discount,
-        bookingUrl: offerUrl(c, discount),
-      },
-    })),
-    'window-cross-sell',
-  )
-}
-
-export const sendCrossSellOffers = async (
-  cands: CrossSellCandidate[],
-  discount: string,
-): Promise<SendResult> => {
-  if (!cands.length) return { total: 0, successful: 0, failed: 0, skipped: emptySkipped() }
-
-  // Junior получают ДРУГОЕ письмо (−20% уже в цене + −discount за дозапись).
-  const senior = cands.filter((c) => !c.isJunior)
-  const junior = cands.filter((c) => c.isJunior)
-  const parts = await Promise.all([
-    senior.length ? postBulk(TEMPLATE, SUBJECT, senior, discount) : Promise.resolve(null),
-    junior.length
-      ? postBulk(TEMPLATE_JUNIOR, SUBJECT_JUNIOR, junior, discount)
-      : Promise.resolve(null),
-  ])
-  const agg: SendResult = { total: 0, successful: 0, failed: 0, skipped: emptySkipped() }
-  // адреса, которые Strapi реально принял (остальные отсеяны как отписавшиеся,
-  // заблокированные и т.п.) — по ним же пишем лог предложений
-  const accepted = new Set<string>()
-  for (const p of parts) {
-    if (!p) continue
-    agg.total += p.total
-    agg.successful += p.successful
-    agg.failed += p.failed
-    for (const k of Object.keys(agg.skipped) as Array<keyof CampaignSkipped>) {
-      agg.skipped[k] += p.skipped?.[k] ?? 0
-    }
-    for (const e of p.acceptedEmails || []) accepted.add(e.toLowerCase())
-  }
-
-  // Лог ТОЛЬКО по реально отправленным: иначе отписавшийся клиент считался бы
-  // «уже получившим предложение» и выпал бы из будущих подборок ни за что.
-  const sentAt = new Date().toISOString()
-  await Promise.all(
-    cands
-      .filter((c) => accepted.has(String(c.email || '').toLowerCase()))
-      .map((c) =>
-      Axios.post('/api/window-offer-logs', {
-        data: {
-          bookingEventId: c.bookingEventId,
-          offeredCategory: c.isJunior ? 'manicure-junior' : c.offerBucket,
-          customerId: c.customerId,
-          customerName: c.customerName,
-          email: c.email,
-          masterId: c.masterId,
-          masterName: c.masterName,
-          serviceId: c.serviceId,
-          serviceTitle: c.serviceTitle,
-          anchorDate: c.date,
-          windowTime: c.windowStartHHMM,
-          discount,
-          sentAt,
-        },
-      }).catch(() => null),
-    ),
-  )
-
-  return agg
 }
 
 // ─── Статистика: кто записался после отправленного предложения ─────────────────
