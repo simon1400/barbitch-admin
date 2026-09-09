@@ -24,6 +24,7 @@ import { useGlobalMonthData } from '../dashboard/hooks/useGlobalMonthData'
 import { CHART } from '../../ui/chartColors'
 import { getSession } from '../../services/auth'
 import { authHeaders } from '../../lib/authHeaders'
+import { htmlToText } from '../../lib/htmlText'
 
 interface ServiceProvided {
   id: number
@@ -515,7 +516,7 @@ const AdministratorCabinetPage = () => {
                     <Cell
                       title={
                         wt.comment
-                          ? wt.comment.replace(/<[^>]*>/g, '').substring(0, 100)
+                          ? htmlToText(wt.comment).substring(0, 100)
                           : '-'
                       }
                     />

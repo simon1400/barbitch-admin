@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ShiftCheckResult } from '../../fetch/shiftClose'
+import { hasVisibleText } from '../../../../lib/htmlText'
 
 const normalize = (name: string) =>
   name
@@ -271,10 +272,9 @@ export const getDiff = (result: ShiftCheckResult) => {
   return { strapiExtra, calendarExtra }
 }
 
-// Есть ли в (возможно HTML) строке видимый текст после срезания тегов.
+// Есть ли в (возможно HTML) строке видимый текст.
 // Жил в CommentPopover.tsx — переехал сюда: файл с компонентом обязан
-// экспортировать только компоненты (react-refresh).
-export const hasComment = (raw: unknown) => {
-  if (!raw || typeof raw !== 'string') return false
-  return raw.replace(/<[^>]*>/g, '').trim().length > 0
-}
+// экспортировать только компоненты (react-refresh). Сам разбор HTML — общий
+// (lib/htmlText): раньше три места снимали теги по-своему и одинаково теряли
+// сущности, из-за чего «&nbsp;» считался видимым текстом.
+export const hasComment = hasVisibleText

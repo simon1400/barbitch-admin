@@ -22,6 +22,7 @@ export type { VerifyFlag } from '../../../lib/verifyFlags'
 export { VERIFY_FLAGS, FLAG_META } from '../../../lib/verifyFlags'
 import { VERIFY_FLAGS, type VerifyFlag, parseSaleRate } from '../../../lib/verifyFlags'
 import { isAttendedStatus } from '../../../lib/bookingStatus'
+import { hasVisibleText } from '../../../lib/htmlText'
 
 // 🟥 Без токена Strapi санитизирует populate по правам роли Public, а у коллекции
 // `booking` их нет (PII) → `populate=*` МОЛЧА выкидывает relation booking из ответа.
@@ -521,10 +522,10 @@ const REQUIRED_FIELDS: Record<string, { name: string; type: FieldType; alt?: str
   ],
 }
 
-const isEmptyHtml = (s: unknown): boolean => {
-  if (typeof s !== 'string') return true
-  return s.replace(/<[^>]*>/g, '').trim().length === 0
-}
+// ⚠️ Денежный путь: по этому «пусто» блокируется закрытие смены. Разбор HTML
+// общий (lib/htmlText) — комментарий из одного «&nbsp;» теперь считается
+// пустым, каким он и выглядит. На боевых данных таких записей нет (проверено).
+const isEmptyHtml = (s: unknown): boolean => !hasVisibleText(s)
 
 // Returns array of human-readable issues; empty array = record valid.
 const validateDraft = (collectionKey: string, item: any): string[] => {
