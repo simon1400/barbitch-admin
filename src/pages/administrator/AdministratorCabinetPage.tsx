@@ -1,8 +1,6 @@
 import { kcNum, dec, parseMoney } from '../../utils/money'
 import { Pagination } from '../../components/Pagination'
 import { useMonthYear } from '../../hooks/useMonthYear'
-import { API_URL } from '../../lib/config'
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { errMsg } from '../../lib/errMsg'
 import {
   h1Cls,
@@ -23,123 +21,16 @@ import { rateInfoForDate } from '../dashboard/fetch/allAdminsHours'
 import { useGlobalMonthData } from '../dashboard/hooks/useGlobalMonthData'
 import { CHART } from '../../ui/chartColors'
 import { getSession } from '../../services/auth'
-import { authHeaders } from '../../lib/authHeaders'
 import { htmlToText } from '../../lib/htmlText'
-
-interface ServiceProvided {
-  id: number
-  date: string
-  staffSalaries: string | number
-  salonSalaries: string | number
-  tip: string | number
-  clientName?: string
-  offer?: {
-    id: number
-    title: string
-  }
-}
-
-interface MasterData {
-  personalId: number
-  name: string
-  ratePercent: number
-  excessThreshold: number
-  servicesProvided: ServiceProvided[]
-  penalties: Array<{
-    id: number
-    sum: number
-    date: string
-    comment: string
-  }>
-  payrolls: Array<{
-    id: number
-    sum: number
-    date: string
-    comment: string
-  }>
-  advances: Array<{
-    id: number
-    sum: number
-    date: string
-    comment: string
-  }>
-  extraProfits: Array<{
-    id: number
-    sum: number | string
-    date: string
-    title: string
-  }>
-  salaries: Array<{
-    id: number
-    sum: number
-    date: string
-    comment: string
-  }>
-}
-
-interface AdministratorData {
-  username: string
-  role: string
-  personal: {
-    name: string
-    position: string
-    excessThreshold: number
-    rates: any[]
-    ratePercent: number
-  }
-  penalties: Array<{
-    id: number
-    sum: number
-    date: string
-    comment: string
-  }>
-  payrolls: Array<{
-    id: number
-    sum: number
-    date: string
-    comment: string
-  }>
-  workTimes: Array<{
-    id: number
-    date: string
-    startTime: string
-    endTime: string
-    sum: number
-    comment: string
-  }>
-  advances: Array<{
-    id: number
-    sum: number
-    date: string
-    comment: string
-  }>
-  salaries: Array<{
-    id: number
-    sum: number
-    date: string
-    comment: string
-  }>
-  extraProfits: Array<{
-    id: number
-    sum: number | string
-    date: string
-    title: string
-  }>
-  masterData: MasterData | null
-}
-
-interface Payment {
-  id: number
-  sum: number | string
-  date: string
-  comment?: string
-  title?: string
-  type: 'advance' | 'salary' | 'bonus'
-}
-
-/** Дата без года — таблицы всегда показывают один выбранный месяц. */
-const fmtDayMonth = (iso: string): string =>
-  new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })
+import { fetchAdministratorData } from './cabinet/fetchAdministratorData'
+import { fmtDayMonth } from './cabinet/format'
+import type { AdministratorData, Payment } from './cabinet/types'
+import {
+  buildPayments,
+  computeMasterEarnings,
+  selectMasterMonthly,
+  selectMonthly,
+} from './cabinet/derive'
 
 const AdministratorCabinetPage = () => {
   const [data, setData] = useState<AdministratorData | null>(null)
@@ -161,7 +52,7 @@ const AdministratorCabinetPage = () => {
   const { data: globalData } = useGlobalMonthData(selectedMonth, selectedYear)
 
   useEffect(() => {
-    const fetchData = async () => {
+    const loadData = async () => {
       if (!username) {
         setError('Пользователь не авторизован')
         setLoading(false)
@@ -169,17 +60,7 @@ const AdministratorCabinetPage = () => {
       }
 
       try {
-        const response = await fetch(
-          `${API_URL}/api/admin-users/administrator-data/${encodeURIComponent(username)}`,
-          { headers: { ...authHeaders() } },
-        )
-
-        if (!response.ok) {
-          throw new Error('Не удалось загрузить данные')
-        }
-
-        const result = await response.json()
-        setData(result)
+        setData(await fetchAdministratorData(username))
       } catch (err) {
         setError(errMsg(err, 'Произошла ошибка'))
       } finally {
@@ -187,86 +68,29 @@ const AdministratorCabinetPage = () => {
       }
     }
 
-    fetchData()
+    loadData()
   }, [username])
 
   // Фильтрация данных по выбранному месяцу и году
-  const filteredData = useMemo(() => {
-    if (!data) return null
-
-    const filterByMonth = (items: any[], dateField: string) => {
-      return items.filter((item) => {
-        const itemDate = new Date(item[dateField])
-        return itemDate.getMonth() === selectedMonth && itemDate.getFullYear() === selectedYear
-      })
-    }
-
-    return {
-      workTimes: filterByMonth(data.workTimes, 'date').sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      ),
-      penalties: filterByMonth(data.penalties, 'date').sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      ),
-      payrolls: filterByMonth(data.payrolls, 'date').sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      ),
-      advances: filterByMonth(data.advances, 'date').sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      ),
-      salaries: filterByMonth(data.salaries, 'date').sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      ),
-      extraProfits: filterByMonth(data.extraProfits, 'date').sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      ),
-    }
-  }, [data, selectedMonth, selectedYear])
+  const filteredData = useMemo(
+    () => (data ? selectMonthly(data, selectedMonth, selectedYear) : null),
+    [data, selectedMonth, selectedYear],
+  )
 
   // Фильтрация данных мастера по выбранному месяцу и году
-  const filteredMasterData = useMemo(() => {
-    if (!data?.masterData) return null
-
-    const filterByMonth = (items: any[], dateField: string) => {
-      return items.filter((item) => {
-        const itemDate = new Date(item[dateField])
-        return itemDate.getMonth() === selectedMonth && itemDate.getFullYear() === selectedYear
-      })
-    }
-
-    return {
-      servicesProvided: filterByMonth(data.masterData.servicesProvided, 'date').sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      ),
-      penalties: filterByMonth(data.masterData.penalties, 'date').sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      ),
-      payrolls: filterByMonth(data.masterData.payrolls, 'date').sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      ),
-      advances: filterByMonth(data.masterData.advances, 'date').sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      ),
-      extraProfits: filterByMonth(data.masterData.extraProfits, 'date').sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      ),
-      salaries: filterByMonth(data.masterData.salaries, 'date').sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      ),
-    }
-  }, [data, selectedMonth, selectedYear])
+  const filteredMasterData = useMemo(
+    () =>
+      data?.masterData
+        ? selectMasterMonthly(data.masterData, selectedMonth, selectedYear)
+        : null,
+    [data, selectedMonth, selectedYear],
+  )
 
   // Объединенные выплаты (только авансы и зарплаты, без премий)
-  const allPayments = useMemo(() => {
-    if (!filteredData) return []
-
-    const payments: Payment[] = [
-      ...filteredData.advances.map((a) => ({ ...a, type: 'advance' as const })),
-      ...filteredData.salaries.map((s) => ({ ...s, type: 'salary' as const })),
-    ]
-
-    return payments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [filteredData])
+  const allPayments = useMemo<Payment[]>(
+    () => (filteredData ? buildPayments(filteredData) : []),
+    [filteredData],
+  )
 
   // Пагинация для рабочих часов
   const paginatedWorkTimes = useMemo(() => {
@@ -275,31 +99,16 @@ const AdministratorCabinetPage = () => {
     return filteredData.workTimes.slice(startIndex, startIndex + workTimesPerPage)
   }, [filteredData, workTimesPage])
 
-
   // Рассчитываем заработок мастера (если есть данные мастера)
   // ВАЖНО: useMemo должен быть до условных return
   // Премии и штрафы НЕ включаем - они уже учтены в основном финансовом обзоре (один человек)
-  const masterEarnings = useMemo(() => {
-    if (!filteredMasterData || !data?.masterData) return null
-
-    const staffSalaries = filteredMasterData.servicesProvided.reduce(
-      (sum, sp) => sum + parseMoney(sp.staffSalaries),
-      0
-    )
-    const tips = filteredMasterData.servicesProvided.reduce(
-      (sum, sp) => sum + parseMoney(sp.tip),
-      0
-    )
-    // Результат мастера = только заработок за услуги + чаевые
-    const totalResult = staffSalaries + tips
-
-    return {
-      staffSalaries,
-      tips,
-      result: totalResult,
-      servicesCount: filteredMasterData.servicesProvided.length,
-    }
-  }, [filteredMasterData, data?.masterData])
+  const masterEarnings = useMemo(
+    () =>
+      filteredMasterData && data?.masterData
+        ? computeMasterEarnings(filteredMasterData)
+        : null,
+    [filteredMasterData, data?.masterData],
+  )
 
   if (loading) {
     return (
