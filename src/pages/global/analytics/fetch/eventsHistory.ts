@@ -1,5 +1,6 @@
 import { todayYmd } from '../../../../utils/date'
 import { fetchAnalyticsHistory, fetchMirrorEmployees } from '../../../../lib/mirror'
+import { isActiveStatus, isAttendedStatus } from '../../../../lib/bookingStatus'
 
 // Общий кэш ВСЕЙ истории броней — используется табами «Спящие», «Возвращаемость»,
 // «Прогноз», «Отмены», «Клиенты», результатами кампаний/дозаписей. Один fetch на 5 минут.
@@ -84,10 +85,9 @@ const loadHistory = async (force: boolean) => {
 export const getEventsHistory = async (force = false): Promise<HistEvent[]> =>
   (await loadHistory(force)).events
 
-// «Состоявшийся визит» — не отменён и не no-show
-export const isAttended = (e: HistEvent) => e.status !== 'cancelled' && e.status !== 'noshow'
-// Активная бронь (для будущего): просто не отменена
-export const isActive = (e: HistEvent) => e.status !== 'cancelled'
+// Обёртки над общими предикатами (lib/bookingStatus) под форму HistEvent.
+export const isAttended = (e: HistEvent) => isAttendedStatus(e.status)
+export const isActive = (e: HistEvent) => isActiveStatus(e.status)
 
 // «Сегодня» здесь сравнивается с `event_date` броней, а это день САЛОНА.
 // Раньше считалось по поясу браузера — у владельца в поездке «спящие»,

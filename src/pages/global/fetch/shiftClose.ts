@@ -21,6 +21,7 @@ import { authHeaders } from '../../../lib/authHeaders'
 export type { VerifyFlag } from '../../../lib/verifyFlags'
 export { VERIFY_FLAGS, FLAG_META } from '../../../lib/verifyFlags'
 import { VERIFY_FLAGS, type VerifyFlag, parseSaleRate } from '../../../lib/verifyFlags'
+import { isAttendedStatus } from '../../../lib/bookingStatus'
 
 // 🟥 Без токена Strapi санитизирует populate по правам роли Public, а у коллекции
 // `booking` их нет (PII) → `populate=*` МОЛЧА выкидывает relation booking из ответа.
@@ -200,17 +201,23 @@ const errText = (e: any): string => {
   return e?.message ? String(e.message) : 'neznámá chyba'
 }
 
-// Fetch cash records for a specific date
-const fetchCash = async (dateStr: string) => {
+// Черновики одной коллекции за конкретный день. Три выборки сверки (касса,
+// рабочее время, выплаты) отличались ТОЛЬКО адресом и чешской подписью ошибки —
+// сам запрос, разбор ответа и обработка сбоя были расписаны трижды дословно.
+//
+// ⚠️ Подпись ошибки обязательна и у каждой своя: страница показывает её списком
+// и по ней блокирует кнопку «Uzavřít směnu». Общего текста тут быть не может —
+// владелец должен видеть, ИМЕННО КАКАЯ выборка не доехала.
+const fetchDayDraftsOf = async (endpoint: string, label: string, dateStr: string) => {
   try {
     const res = await Axios.get(
-      `/api/cashs?filters[date][$eq]=${dateStr}&populate=*&pagination[pageSize]=100&status=draft`,
+      `/api/${endpoint}?filters[date][$eq]=${dateStr}&populate=*&pagination[pageSize]=100&status=draft`,
     )
     const items = Array.isArray(res) ? res : (res as any)?.data || []
     return { found: items.length > 0, count: items.length, items }
   } catch (e) {
-    console.error('fetchCash error:', e)
-    return { found: false, count: 0, items: [], error: `pokladna: ${errText(e)}` }
+    console.error(`fetch ${endpoint} error:`, e)
+    return { found: false, count: 0, items: [], error: `${label}: ${errText(e)}` }
   }
 }
 
@@ -249,34 +256,6 @@ const fetchServiceProvided = async (dateStr: string) => {
   }
 }
 
-// Fetch work-time records for a specific date (date field — exact-day match)
-const fetchWorkTime = async (dateStr: string) => {
-  try {
-    const res = await Axios.get(
-      `/api/work-times?filters[date][$eq]=${dateStr}&populate=*&pagination[pageSize]=100&status=draft`,
-    )
-    const items = Array.isArray(res) ? res : (res as any)?.data || []
-    return { found: items.length > 0, count: items.length, items }
-  } catch (e) {
-    console.error('fetchWorkTime error:', e)
-    return { found: false, count: 0, items: [], error: `pracovní doba: ${errText(e)}` }
-  }
-}
-
-// Fetch payroll records for a specific date
-const fetchPayroll = async (dateStr: string) => {
-  try {
-    const res = await Axios.get(
-      `/api/payrolls?filters[date][$eq]=${dateStr}&populate=*&pagination[pageSize]=100&status=draft`,
-    )
-    const items = Array.isArray(res) ? res : (res as any)?.data || []
-    return { found: items.length > 0, count: items.length, items }
-  } catch (e) {
-    console.error('fetchPayroll error:', e)
-    return { found: false, count: 0, items: [], error: `výplaty: ${errText(e)}` }
-  }
-}
-
 // Брони дня из НАШЕГО календаря (booking-коллекция) для сверки со
 // services-provided. Форма событий историческая (customer_name /
 // event_types[0].title / employee.name) — вся логика сверки (diffByName,
@@ -286,7 +265,7 @@ const fetchCalendarBookings = async (dateStr: string) => {
   try {
     const bookings = await fetchMirrorBookingsRange(dateStr, dateStr)
     const activeEvents = bookings
-      .filter((b) => b.status !== 'cancelled' && b.status !== 'noshow')
+      .filter((b) => isAttendedStatus(b.status))
       .map((b) => ({
         id: b.documentId,
         customer_name: b.client?.name || b.clientNameRaw || '',
@@ -876,10 +855,10 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
   const dateStr = format(date, 'yyyy-MM-dd')
 
   const [cash, serviceProvided, workTime, payroll, calendar] = await Promise.all([
-    fetchCash(dateStr),
+    fetchDayDraftsOf('cashs', 'pokladna', dateStr),
     fetchServiceProvided(dateStr),
-    fetchWorkTime(dateStr),
-    fetchPayroll(dateStr),
+    fetchDayDraftsOf('work-times', 'pracovní doba', dateStr),
+    fetchDayDraftsOf('payrolls', 'výplaty', dateStr),
     fetchCalendarBookings(dateStr),
   ])
 

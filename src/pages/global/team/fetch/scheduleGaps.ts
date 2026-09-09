@@ -1,5 +1,6 @@
 import { hhmmToMin, isoToMinPrague, minToHHMM } from '../../../../utils/date'
 import { getTeamRangeData } from './teamRangeData'
+import { isActiveStatus } from '../../../../lib/bookingStatus'
 
 // «Окна» (дыры) в расписании мастеров: свободные интервалы внутри рабочего
 // времени (часы салона − блокировки) между бронями. «Мёртвое окно» = 15–90 мин —
@@ -94,7 +95,7 @@ export const getScheduleGaps = async (
     push(`${b.noonaEmployeeId}|${b.date}`, { start: isoToMin(b.startsAt), end: isoToMin(b.endsAt) })
   }
   for (const e of bookings) {
-    if (!e.noonaEmployeeId || !e.date || e.status === 'cancelled') continue
+    if (!e.noonaEmployeeId || !e.date || !isActiveStatus(e.status)) continue
     if (!e.startsAt || !e.endsAt) continue
     const iv = { start: isoToMin(e.startsAt), end: isoToMin(e.endsAt) }
     const key = `${e.noonaEmployeeId}|${e.date}`

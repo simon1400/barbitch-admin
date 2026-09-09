@@ -14,6 +14,9 @@ import {
   WEEKDAYS_CS,
 } from '../../../utils/date'
 import { engineCalendarDay, engineCalendarWeek, engineClientHistory } from './engineApi'
+import type { MirrorSalonHour, MirrorTimeBlock } from '../../../lib/mirror'
+import { type ActivePersonal, fetchActivePersonals } from '../../../lib/personals'
+import type { BookingStatus } from '../../../lib/bookingStatus'
 
 
 interface CalendarService {
@@ -34,7 +37,7 @@ export interface CalendarBooking {
   date: string
   startsAt: string | null
   endsAt: string | null
-  status: 'active' | 'checkedOut' | 'cancelled' | 'noshow'
+  status: BookingStatus
   // клиент dorazil (промежуточный шаг перед checkedOut) — зелёный лейбл на карточке
   arrived?: boolean
   services: CalendarService[] | null
@@ -111,15 +114,8 @@ export interface MasterColumn {
   showNow?: boolean // рисовать линию текущего времени в этой колонке
 }
 
-export interface CalendarEmployee {
-  id: string
-  docId: string
-  name: string
-  tier: 'senior' | 'junior'
-  calendarOrder: number
-  // процент мастера от цены услуги (для показа его доли в календаре мастера)
-  ratePercent: number | null
-}
+// Мастер-колонка календаря — та же форма, что у общего загрузчика мастеров.
+export type CalendarEmployee = ActivePersonal
 
 export interface CalendarDay {
   openMin: number
@@ -133,56 +129,20 @@ const isoToMin = isoToMinPrague
 const DEFAULT_OPEN = 9 * 60
 const DEFAULT_CLOSE = 20 * 60
 
-interface RawPersonal {
-  documentId: string
-  name: string
-  noonaEmployeeId: string | null
-  tier: 'senior' | 'junior' | null
-  calendarOrder: number | null
-  ratePercent: number | null
-}
-
-interface MirrorSalonHour {
-  date: string
-  openMin: number | null
-  closeMin: number | null
-}
-interface MirrorTimeBlock {
-  documentId: string
-  noonaEmployeeId: string
-  noonaKey: string | null
+// Формы записей расписания живут в lib/mirror (там же их читают «Загрузка» и
+// «Окна»). Здесь календарю нужны те же поля ПЛЮС подтверждение владельцем и
+// авторство — поэтому не вторая копия, а расширение общей формы.
+interface CalendarTimeBlock extends MirrorTimeBlock {
   noonaBlockedId?: string | null
-  title: string | null
-  date: string
-  startsAt: string | null
-  endsAt: string | null
   createdAt?: string | null
   createdByName?: string | null
   approvalStatus?: BlockApproval | null
   approvedByName?: string | null
 }
 
-// Активные мастера из НАШЕЙ базы (personal). Ключ колонки = noonaEmployeeId
-// (стабильный id сотрудника в наших данных); docId — для write-операций движка.
-// Порядок колонок = personal.calendarOrder (меньше — левее), fallback алфавит.
-export async function fetchEmployees(): Promise<CalendarEmployee[]> {
-  const res = (await Axios.get(
-    `/api/personals?filters[isActive][$eq]=true&fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=position&fields[3]=tier&fields[4]=calendarOrder&fields[5]=ratePercent&pagination[pageSize]=100`,
-    { headers: authHeaders() },
-  )) as RawPersonal[]
-  // Запрос уже фильтрует isActive=true; здесь только отсекаем без noona-id и ❌
-  return (res || [])
-    .filter((p) => p.noonaEmployeeId && !p.name.startsWith('❌'))
-    .map((p) => ({
-      id: p.noonaEmployeeId as string,
-      docId: p.documentId,
-      name: p.name.trim(),
-      tier: p.tier === 'junior' ? ('junior' as const) : ('senior' as const),
-      calendarOrder: p.calendarOrder ?? 0,
-      ratePercent: p.ratePercent ?? null,
-    }))
-    .sort((a, b) => a.calendarOrder - b.calendarOrder || a.name.localeCompare(b.name, 'cs'))
-}
+// Активные мастера из НАШЕЙ базы (personal) — общий загрузчик lib/personals.
+// Ключ колонки = noonaEmployeeId; порядок = personal.calendarOrder, fallback алфавит.
+export const fetchEmployees = fetchActivePersonals
 
 // Сохранение порядка колонок: personal.calendarOrder пишется в ОБЕ версии
 // (draft + published — календарь читает published; паттерн каталога s101).
@@ -243,7 +203,7 @@ async function fetchSchedule(
     >,
     Axios.get(`/api/time-blocks?filters[date][$eq]=${dateStr}&pagination[pageSize]=300`, {
       headers: authHeaders(),
-    }) as Promise<MirrorTimeBlock[]>,
+    }) as Promise<CalendarTimeBlock[]>,
   ])
   const hour = (hourRes || [])[0]
 
@@ -265,7 +225,7 @@ async function fetchSchedule(
   return { openMin, closeMin, blocksByEmp }
 }
 
-const toBlockedRange = (b: MirrorTimeBlock, startMin: number, endMin: number): BlockedRange => ({
+const toBlockedRange = (b: CalendarTimeBlock, startMin: number, endMin: number): BlockedRange => ({
   startMin,
   endMin,
   documentId: b.documentId,
@@ -467,7 +427,7 @@ export async function fetchCalendarWeek(
     Axios.get(
       `/api/time-blocks?filters[date][$gte]=${monday}&filters[date][$lte]=${sunday}&filters[noonaEmployeeId][$eq]=${employee.id}&pagination[pageSize]=100`,
       { headers: authHeaders() },
-    ) as Promise<MirrorTimeBlock[]>,
+    ) as Promise<CalendarTimeBlock[]>,
   ])
 
   const bookings = bookingsRes || []

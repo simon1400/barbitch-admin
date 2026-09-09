@@ -3,7 +3,7 @@ import { fetchAllPagesAxios } from '../../../../lib/strapiPaginate'
 import { Axios } from '../../../../lib/api'
 import { sendCampaign } from '../../../../lib/campaignApi'
 import type { CampaignSendResult } from '../../../../lib/campaignApi'
-import { getEventsHistory, isAttended, todayStr } from './eventsHistory'
+import { getEventsHistory, isActive, isAttended, todayStr } from './eventsHistory'
 
 // Отправка win-back кампаний из таба «Спящие» + лог рассылок.
 // Лог: Strapi `email-campaign-log`, ОДНА запись = ОДНА кампания
@@ -242,7 +242,7 @@ export const getCampaignResults = async (logs: CampaignLog[]): Promise<CampaignR
   }
   const byCustomer = new Map<string, CustStats>()
   for (const e of events) {
-    if (!e.customer || e.status === 'cancelled') continue
+    if (!e.customer || !isActive(e)) continue
     let s = byCustomer.get(e.customer)
     if (!s) {
       s = { activeDates: [], visits: 0, lastVisit: '', spent: 0 }

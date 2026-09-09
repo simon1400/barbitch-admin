@@ -3,7 +3,7 @@ import { strapiQuery } from '../../../../lib/strapiQuery'
 import { fetchAllPagesAxios } from '../../../../lib/strapiPaginate'
 import { Axios } from '../../../../lib/api'
 import { sendCampaign } from '../../../../lib/campaignApi'
-import type { CampaignSendResult, CampaignSkipped } from '../../../../lib/campaignApi'
+import { type CampaignSendResult, type CampaignSkipped, emptyCampaignSkipped } from '../../../../lib/campaignApi'
 import {
   clientKey,
   fetchMirrorBookingsRange,
@@ -13,6 +13,7 @@ import {
 import { fetchAllPagesStrapi } from '../../../../lib/strapiRest'
 import { getScheduleGaps, type MasterGapsRow } from './scheduleGaps'
 import { getEventsHistory, isActive } from '../../analytics/fetch/eventsHistory'
+import { isActiveStatus } from '../../../../lib/bookingStatus'
 
 // ─── Cross-sell «дозапись в окно» ──────────────────────────────────────────────
 // Идея: клиент уже записан в категории X (брови / ресницы / маникюр). Если у
@@ -369,7 +370,7 @@ const groupByClientDay = async (
   const map = new Map<string, ClientDayGroup>()
   for (const b of bookings) {
     if (!b.client || !b.date) continue
-    if (b.status === 'cancelled') continue
+    if (!isActiveStatus(b.status)) continue
     if (!b.startsAt || !b.endsAt) continue
     const buckets: Bucket[] = []
     for (const s of b.services ?? []) {
@@ -611,20 +612,12 @@ export const getWindowFillCandidates = async (
 // ─── Отправка + лог ───────────────────────────────────────────────────────────
 // skipped — разбивка отсева от Strapi (отписался / чёрный список / без согласия);
 // суммируется по обоим шаблонам (senior + junior).
-export interface SendResult {
-  total: number
-  successful: number
-  failed: number
-  skipped: CampaignSkipped
-}
+// Итог отправки, сложенный по ДВУМ шаблонам (senior + junior): счётчики те же,
+// что у одного батча, а поадресных полей (skippedDetail, acceptedEmails) у суммы
+// быть не может — они разбираются на месте, до сложения.
+export type SendResult = Pick<CampaignSendResult, 'total' | 'successful' | 'failed' | 'skipped'>
 
-const emptySkipped = (): CampaignSkipped => ({
-  invalid: 0,
-  duplicate: 0,
-  optOut: 0,
-  blacklisted: 0,
-  noConsent: 0,
-})
+const emptySkipped = emptyCampaignSkipped
 
 const TEMPLATE = 'window-cross-sell'
 const TEMPLATE_JUNIOR = 'window-cross-sell-junior'

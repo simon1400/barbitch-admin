@@ -10,6 +10,7 @@ import {
   type InputItemReservation,
   PAGE_SIZE,
 } from './fetchHelpers'
+import { isAttendedStatus } from '../../../lib/bookingStatus'
 
 export interface IDataWorks {
   name: string
@@ -125,7 +126,7 @@ export const getWorks = async (name: string, month: number, year: number) => {
       const toMetric = (status: 'other' | 'cancelled' | 'noshow'): InputItemReservation[] =>
         bookings
           .filter((b) =>
-            status === 'other' ? b.status !== 'cancelled' && b.status !== 'noshow' : b.status === status,
+            status === 'other' ? isAttendedStatus(b.status ?? '') : b.status === status,
           )
           .filter((b) => b.endsAt)
           .map((b) => ({ ends_at: b.endsAt as string }))

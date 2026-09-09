@@ -1,5 +1,6 @@
 import { DOW_RU_FULL, monthLabelRu, todayDate, todayYmd, ym as monthKey, ymd } from '../../../../utils/date'
 import { getEventsHistory } from './eventsHistory'
+import { isActiveStatus } from '../../../../lib/bookingStatus'
 
 // Статистика клиентов: новые vs повторные по месяцам + загрузка по дням недели.
 // own-booking фаза 4: источник — общий кэш истории броней из НАШЕЙ БД
@@ -61,7 +62,7 @@ const fetchAllEvents = async (force: boolean): Promise<RawEvent[]> => {
 
 export const getClientStats = async (force = false): Promise<ClientStats> => {
   const events = await fetchAllEvents(force)
-  const valid = events.filter((e) => e.status !== 'cancelled' && e.event_date && e.customer)
+  const valid = events.filter((e) => isActiveStatus(e.status ?? '') && e.event_date && e.customer)
 
   // Первый визит каждого клиента за всю историю (по дате визита)
   const firstDate = new Map<string, string>()

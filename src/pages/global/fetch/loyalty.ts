@@ -6,6 +6,7 @@ import { fetchAllPagesStrapi as fetchAllPages, getJson, sendJson } from '../../.
 
 import { getSession } from '../../../services/auth'
 
+import { clientSearchFilters, type ClientSearchHit } from '../../../lib/clientSearch'
 
 
 
@@ -60,12 +61,7 @@ export interface Redemption {
   reward: { documentId: string; title: string; thresholdKc: number } | null
 }
 
-export interface ClientHit {
-  documentId: string
-  name: string
-  email: string | null
-  phone: string | null
-}
+export type ClientHit = ClientSearchHit
 
 // ── аккаунты (агрегат по транзакциям карточного года) ──
 
@@ -136,12 +132,8 @@ export async function fetchCabinetClients(): Promise<CabinetAccount[]> {
 export async function searchLoyaltyClients(q: string, limit = 8): Promise<ClientHit[]> {
   const query = q.trim()
   if (!query) return []
-  const digits = query.replace(/[\s()-]/g, '')
-  const phoneQ = /^\+?\d{3,}$/.test(digits) ? digits : query
   const res = await getJson<ClientHit>(
-    `/api/clients?filters[$or][0][name][$containsi]=${encodeURIComponent(query)}` +
-      `&filters[$or][1][email][$containsi]=${encodeURIComponent(query)}` +
-      `&filters[$or][2][phone][$containsi]=${encodeURIComponent(phoneQ)}` +
+    `/api/clients?${clientSearchFilters(query)}` +
       `&fields[0]=name&fields[1]=email&fields[2]=phone&pagination[pageSize]=${limit}`,
   )
   return res.data || []

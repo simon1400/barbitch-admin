@@ -42,6 +42,7 @@ import {
   type SendResult,
   type OfferResultsSummary,
 } from '../fetch/windowCrossSell'
+import { emptyCampaignSkipped } from '../../../../lib/campaignApi'
 
 const fmtH = (min: number) => `${Math.round((min / 60) * 10) / 10} ч`
 
@@ -156,7 +157,7 @@ export default function GapsTab() {
         total: fillSelected.length,
         successful: 0,
         failed: fillSelected.length,
-        skipped: { invalid: 0, duplicate: 0, optOut: 0, blacklisted: 0, noConsent: 0 },
+        skipped: emptyCampaignSkipped(),
       })
     } finally {
       setFillSending(false)

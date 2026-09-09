@@ -1,5 +1,6 @@
 import { daysInMonth, hhmmToMin, todayYmd, ymd } from '../../../../utils/date'
 import { getTeamRangeData } from './teamRangeData'
+import { isActiveStatus } from '../../../../lib/bookingStatus'
 
 // Загрузка мастеров по слотам за месяц. own-booking фаза 4: источники — НАША БД
 // (salon-hour / time-block / booking / personal), Noona API не участвует.
@@ -92,7 +93,7 @@ export const getMasterLoadRange = async (
   const bookedMin = new Map<string, number>()
   const bookedCount = new Map<string, number>()
   for (const e of bookings) {
-    if (!e.noonaEmployeeId || !e.date || e.status === 'cancelled') continue
+    if (!e.noonaEmployeeId || !e.date || !isActiveStatus(e.status)) continue
     if (!e.startsAt || !e.endsAt) continue
     const dur = Math.max(0, (new Date(e.endsAt).getTime() - new Date(e.startsAt).getTime()) / 60000)
     const key = `${e.noonaEmployeeId}|${e.date}`

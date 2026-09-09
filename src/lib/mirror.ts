@@ -1,6 +1,8 @@
 import { API_URL } from './config'
 import { authHeaders } from './authHeaders'
 import { fetchAllPagesStrapi, getJson } from './strapiRest'
+import { fetchActivePersonals } from './personals'
+import type { BookingStatus } from './bookingStatus'
 // Общий data-слой ЗЕРКАЛА (собственные коллекции Strapi: booking / client /
 // salon-hour / time-block / personal) для аналитики и дашбордов admin-апки.
 // Заменяет прямые обращения к Noona API (own-booking фаза 4).
@@ -18,7 +20,7 @@ export interface MirrorBooking {
   date: string
   startsAt: string | null
   endsAt: string | null
-  status: 'active' | 'checkedOut' | 'cancelled' | 'noshow'
+  status: BookingStatus
   services: Array<{ title?: string; price?: number | null; durationMin?: number | null }> | null
   totalPrice: number | string | null
   origin: string | null
@@ -144,26 +146,16 @@ export interface MirrorEmployee {
   tier: 'senior' | 'junior'
 }
 
-interface RawPersonal {
-  documentId: string
-  name: string
-  noonaEmployeeId: string | null
-  tier: string | null
-}
-
-/** Активные мастера из НАШЕЙ базы (personal, published, isActive). */
+/**
+ * Активные мастера из НАШЕЙ базы (personal, published, isActive).
+ *
+ * ⚠️ Порядок ЗДЕСЬ по имени, а не по calendarOrder, и это не мелочь: строки
+ * «Загрузки», «Окон» и таблиц аналитики выводятся в порядке этого списка.
+ */
 export const fetchMirrorEmployees = async (): Promise<MirrorEmployee[]> => {
-  const res = await getJson<RawPersonal>(
-    `/api/personals?filters[isActive][$eq]=true&fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=tier&pagination[pageSize]=100&status=published`,
-  )
-  return (res.data || [])
-    .filter((p) => p.noonaEmployeeId && !p.name.startsWith('❌'))
-    .map((p) => ({
-      id: p.noonaEmployeeId as string,
-      docId: p.documentId,
-      name: p.name.trim(),
-      tier: p.tier === 'junior' ? ('junior' as const) : ('senior' as const),
-    }))
+  const all = await fetchActivePersonals()
+  return all
+    .map(({ id, docId, name, tier }) => ({ id, docId, name, tier }))
     .sort((a, b) => a.name.localeCompare(b.name, 'cs'))
 }
 

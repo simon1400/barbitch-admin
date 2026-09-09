@@ -25,6 +25,15 @@ export interface CampaignSkipped {
   noConsent: number
 }
 
+/** Пустая разбивка отсева — стартовое значение аккумуляторов и ветка «отправка не удалась». */
+export const emptyCampaignSkipped = (): CampaignSkipped => ({
+  invalid: 0,
+  duplicate: 0,
+  optOut: 0,
+  blacklisted: 0,
+  noConsent: 0,
+})
+
 export interface CampaignSendResult {
   total: number
   successful: number

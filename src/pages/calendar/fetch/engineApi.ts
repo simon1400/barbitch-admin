@@ -7,6 +7,8 @@ import { makeApiFetch } from '../../../lib/apiFetch'
 
 import { Axios } from '../../../lib/api'
 import { authHeaders } from '../../../lib/authHeaders'
+import { clientSearchFilters, type ClientSearchHit } from '../../../lib/clientSearch'
+import type { BookingStatus } from '../../../lib/bookingStatus'
 
 
 
@@ -110,7 +112,7 @@ export interface EnginePatchInput {
   date?: string
   time?: string
   employee?: string // personal documentId
-  status?: 'active' | 'checkedOut' | 'cancelled' | 'noshow'
+  status?: BookingStatus
   // «клиент dorazil» — промежуточный шаг перед checkedOut (Proběhla)
   arrived?: boolean
   comment?: string
@@ -493,11 +495,7 @@ export function calcCombo(
 
 // ── поиск клиентов (автокомплит модала «+ Rezervace») ──
 
-export interface ClientHit {
-  documentId: string
-  name: string
-  phone: string | null
-  email: string | null
+export interface ClientHit extends ClientSearchHit {
   blacklisted: boolean
 }
 
@@ -509,14 +507,13 @@ export async function updateClientBlacklist(clientDocId: string, blacklisted: bo
 }
 
 export async function searchClients(q: string, limit = 8): Promise<ClientHit[]> {
-  let query = q.trim()
+  const query = q.trim()
+  // от одной буквы не ищем: подсказка вернула бы полсалона
   if (query.length < 2) return []
-  // телефон в БД хранится слитно (+420777111222), а вводят часто с пробелами —
-  // чисто цифровой запрос нормализуем (пробелы вон), чтобы contains матчился
-  if (/^[\d\s+]+$/.test(query)) query = query.replace(/\s+/g, '')
-  const enc = encodeURIComponent(query)
   const res = (await Axios.get(
-    `/api/clients?filters[$or][0][name][$containsi]=${enc}&filters[$or][1][phone][$containsi]=${enc}&filters[$or][2][email][$containsi]=${enc}&fields[0]=name&fields[1]=phone&fields[2]=email&fields[3]=blacklisted&pagination[pageSize]=${limit}&sort=name:asc`,
+    `/api/clients?${clientSearchFilters(query)}` +
+      `&fields[0]=name&fields[1]=phone&fields[2]=email&fields[3]=blacklisted` +
+      `&pagination[pageSize]=${limit}&sort=name:asc`,
     { headers: authHeaders() },
   )) as ClientHit[]
   return res || []
