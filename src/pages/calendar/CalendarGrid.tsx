@@ -7,155 +7,19 @@
 // бронь, клик по блоку → управление блоком.
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { BlockedRange, CalendarBooking, CalendarDay, MasterColumn } from './fetch/calendarDay'
+import type { CalendarBooking, MasterColumn } from './fetch/calendarDay'
 import { packColumn, nowMinPrague } from './fetch/calendarDay'
-import { createLiveValue, useLiveValue, type LiveValue } from './liveValue'
+import { createLiveValue } from './liveValue'
 import { masterShare } from './pricing'
 import { useCoarsePointer, useIsNarrow } from './useMediaQuery'
-import { useTouchDrag, type TouchPoint } from './useTouchDrag'
+import { useTouchDrag } from './useTouchDrag'
 import { fmtHM } from './utils'
 import { LogoIcon } from '../../icons/Logo'
+import { AXIS_W, COL_W, COL_W_NARROW, EDGE_SCROLL_PX, EDGE_SCROLL_STEP, EXTRA_MIN, HEADER_H, MOBILE_BOTTOM_PAD, OVERLAP_STEP_PCT, PX_PER_MIN, PX_PER_MIN_NARROW, RIGHT_GUTTER_PCT, SNAP_MIN, bookingLabel, cardStyle, type HoverSlot } from './grid/geometry'
+import { LabelMark, SlotHighlight, TouchGhost } from './grid/parts'
+import type { CalendarGridProps } from './grid/props'
 
-const COL_W = 150 // ширина колонки (десктоп)
-const COL_W_NARROW = 128 // ширина колонки на телефоне (видно ~2.5 мастера + ось)
-
-const PX_PER_MIN = 1.0 // высота минуты; 60 мин = 60px (компактный масштаб как в Noona)
-// Телефон: базовый масштаб считается АДАПТИВНО — весь день влезает в высоту экрана
-// (низ грида у нижней панели), zoomFactor умножается поверх. Эта константа — только
-// фолбэк до первого замера контейнера.
-const PX_PER_MIN_NARROW = 1.0
-const MOBILE_BOTTOM_PAD = 80 // = pb-20 контента грида (клиренс нижней панели управления)
-const HEADER_H = 44 // высота шапки колонок
-const AXIS_W = 56 // ширина оси времени
-const SNAP_MIN = 30 // снап клика/переноса по гриду; точное время (шаг 15) задаётся в модале
-const EXTRA_MIN = 60 // запас шкалы: ±1 час до открытия и после закрытия (s121: было ±2ч, лишние пустые часы)
-const RIGHT_GUTTER_PCT = 10 // полоса справа от ВСЕХ карточек для клика/дозаписи на занятое время
-const OVERLAP_STEP_PCT = 10 // каскад пересекающихся карточек (как в Noona): нижняя выглядывает справа полоской этой ширины
-const EDGE_SCROLL_PX = 52 // зона у края грида, в которой перенос пальцем сам подкручивает скролл
-const EDGE_SCROLL_STEP = 10 // px за тик автоскролла (~16мс)
-
-// Цвет карточки: бренд красно-розовый для всех статусов (как в Noona), junior —
-// фиолетовый. Статус различается ЛЕЙБЛОМ (закладка в углу), отменённые — полупрозрачные,
-// noshow — полупрозрачные ЖЁЛТЫЕ (в тон их авто-лейбла «Nedostavil/a se» #f59e0b).
-const cardStyle = (
-  booking: CalendarBooking,
-  tier?: 'senior' | 'junior',
-): { bg: string; border: string; text: string; opacity: number } => {
-  if (booking.status === 'noshow') {
-    return { bg: '#f59e0b', border: '#d97706', text: '#ffffff', opacity: 0.45 }
-  }
-  const base =
-    tier === 'junior'
-      ? { bg: '#a78bfa', border: '#8b5cf6', text: '#ffffff' } // junior — фиолетовый
-      : { bg: '#fd80cc', border: '#f45bb8', text: '#ffffff' } // бренд розовый
-  return { ...base, opacity: booking.status === 'cancelled' ? 0.45 : 1 }
-}
-
-// Авто-лейбл по статусу (как stavy в Noona); active → кастомный лейбл брони (если задан)
-const bookingLabel = (b: CalendarBooking): { name: string; color: string } | null => {
-  switch (b.status) {
-    case 'checkedOut':
-      return { name: 'Zpracováno', color: '#3b82f6' }
-    case 'cancelled':
-      return { name: 'Zrušeno', color: '#ef4444' }
-    case 'noshow':
-      return { name: 'Nedostavil/a se', color: '#f59e0b' }
-    default:
-      // active + arrived (клиент dorazil) → зелёный лейбл; иначе кастомный лейбл брони
-      if (b.arrived) return { name: 'Dorazila', color: '#22c55e' }
-      return b.label?.name && b.label?.color ? { name: b.label.name, color: b.label.color } : null
-  }
-}
-
-// Подсвеченный слот: колонка + минута начала получасовой клетки под курсором/пальцем
-type HoverSlot = { colId: string; min: number } | null
-
-// Подсветка слота в ОДНОЙ колонке. Отдельный компонент, потому что подписан на
-// hover напрямую: пока курсор ходит по гриду, перерисовываются только эти
-// прямоугольники, а не весь день с карточками (см. liveValue.ts).
-const SlotHighlight = ({
-  live,
-  colId,
-  dispOpen,
-  pxPerMin,
-}: {
-  live: LiveValue<HoverSlot>
-  colId: string
-  dispOpen: number
-  pxPerMin: number
-}) => {
-  const hover = useLiveValue(live)
-  if (hover?.colId !== colId) return null
-  return (
-    <div
-      className="pointer-events-none absolute left-0 right-0 z-[5] flex items-center justify-center bg-[#e71e6e40]"
-      style={{ top: (hover.min - dispOpen) * pxPerMin, height: SNAP_MIN * pxPerMin }}
-    >
-      <span className="absolute left-1 top-0.5 rounded bg-primary px-1 text-[10px] font-bold text-white">
-        {fmtHM(hover.min)}
-      </span>
-      <span className="text-[18px] font-normal leading-none text-primary">+</span>
-    </div>
-  )
-}
-
-// Призрак под пальцем при переносе. Координаты и подпись времени тоже подписные:
-// иначе каждое событие touchmove перерисовывало бы весь грид.
-const TouchGhost = ({
-  point,
-  hover,
-  name,
-}: {
-  point: LiveValue<TouchPoint>
-  hover: LiveValue<HoverSlot>
-  name: string
-}) => {
-  const { x, y } = useLiveValue(point)
-  const slot = useLiveValue(hover)
-  return (
-    <div
-      className="pointer-events-none fixed z-50 whitespace-nowrap rounded-md bg-primary px-2 py-1 text-[12px] font-bold text-white shadow-lg"
-      style={{ left: x, top: y, transform: 'translate(-50%, -170%)' }}
-    >
-      {slot ? `${fmtHM(slot.min)} · ` : ''}
-      {name}
-    </div>
-  )
-}
-
-// Закладка-лейбл (bookmark, как в Noona)
-const LabelMark = ({ color, name }: { color: string; name: string }) => (
-  <svg
-    viewBox="0 0 24 24"
-    className="h-3.5 w-3 shrink-0 drop-shadow-sm"
-    fill={color}
-    aria-label={name}
-  >
-    <path d="M6 2h12a1 1 0 0 1 1 1v19l-7-4-7 4V3a1 1 0 0 1 1-1z" />
-  </svg>
-)
-
-interface Props {
-  day: CalendarDay
-  onSelect: (b: CalendarBooking) => void
-  // documentId брони, которую подсветить (мигание при переходе из истории клиента)
-  highlightId?: string | null
-  // множитель вертикального масштаба (кнопки зума на мобиле, как в Noona)
-  zoomFactor?: number
-  // клик по имени мастера в шапке → недельный вид этого мастера (только дневной режим)
-  onSelectMaster?: (col: MasterColumn) => void
-  // write-операции (не переданы → грид read-only)
-  onEmptyCell?: (col: MasterColumn, startMin: number) => void
-  onMoveBooking?: (b: CalendarBooking, target: MasterColumn, startMin: number) => void
-  onSelectBlock?: (block: BlockedRange, col: MasterColumn) => void
-  // процент мастера (режим master): на карточках показывается ЕГО доля, а не полная цена
-  masterRate?: number | null
-  // 🟥 Гейт денег (режим master): цена рисуется ТОЛЬКО у броней этого мастера
-  // (noonaEmployeeId). null = без ограничения (owner/administrator видят всё).
-  priceEmployeeId?: string | null
-}
-
-export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectMaster, onEmptyCell, onMoveBooking, onSelectBlock, masterRate, priceEmployeeId = null }: Props) => {
+export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectMaster, onEmptyCell, onMoveBooking, onSelectBlock, masterRate, priceEmployeeId = null }: CalendarGridProps) => {
   const { openMin, closeMin, columns } = day
   // Адаптивный масштаб: телефон — уже колонки, крупнее минуты; тач — без HTML5 DnD
   const isNarrow = useIsNarrow()
@@ -714,3 +578,6 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
     </div>
   )
 }
+
+
+
