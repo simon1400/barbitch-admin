@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { monthEndYmd, ymdToDate } from '../../../utils/date'
 import { Axios } from '../../../lib/api'
-import { clientKey, fetchMirrorBookingsRange, fetchMirrorClientNames } from '../../../lib/mirror'
 import { format } from 'date-fns'
 import { getMoney } from '../../dashboard/fetch/costs'
 import { getAdminsHours } from '../../dashboard/fetch/allAdminsHours'
@@ -9,7 +8,25 @@ import { getAllWorks } from '../../dashboard/fetch/allWorks'
 import { splitTeam } from '../../dashboard/fetch/teamSplit'
 import { invalidateGlobalMonthData } from '../../dashboard/fetch/monthDataCache'
 import { computeShiftDiff } from '../components/shiftClose/helpers'
-import { authHeaders } from '../../../lib/authHeaders'
+import {
+  authCfg,
+  fetchCalendarBookings,
+  fetchCurrentClientNames,
+  fetchDayDraftsOf,
+  fetchServiceProvided,
+  findMonthlyCardProfit,
+} from './shift/drafts'
+import {
+  COLLECTION_LABEL,
+  buildLabel,
+  extractErrorMessage,
+  validateDraft,
+  type PublishFailure,
+} from './shift/validate'
+// Реэкспорт публичной поверхности: эти имена импортируют ИЗ shiftClose
+// (ServiceProvidedCard — флаги, PublishSection и ShiftClosePage — PublishFailure).
+export { getItemFlags, getFlagDelta } from './shift/flags'
+export type { PublishFailure } from './shift/validate'
 
 // Verify-флаги (метаданные + разбор скидки) живут в отдельном лёгком модуле
 // lib/verifyFlags — их переиспользует и drawer календаря, которому весь shiftClose
@@ -20,138 +37,7 @@ import { authHeaders } from '../../../lib/authHeaders'
 // брони/redemption) — клиентские пересчёты ниже его просто не добавляют.
 export type { VerifyFlag } from '../../../lib/verifyFlags'
 export { VERIFY_FLAGS, FLAG_META } from '../../../lib/verifyFlags'
-import { VERIFY_FLAGS, type VerifyFlag, parseSaleRate } from '../../../lib/verifyFlags'
-import { isAttendedStatus } from '../../../lib/bookingStatus'
-import { hasVisibleText } from '../../../lib/htmlText'
-
-// 🟥 Без токена Strapi санитизирует populate по правам роли Public, а у коллекции
-// `booking` их нет (PII) → `populate=*` МОЛЧА выкидывает relation booking из ответа.
-// Записи чекаута из календаря выглядели непривязанными: янтарный «—» в колонке
-// услуги и pre-flight «offer/booking: chybí vazba», блокирующий закрытие смены.
-// Явный Bearer на запросах services-provided сохраняет booking в ответе.
-const authCfg = () => ({ headers: authHeaders() })
-
-// Цены хранятся строками; junior-цены (−20%) бывают с запятой ("237,6").
-// Number("237,6") = NaN → 0. Нормализуем запятую перед парсом.
-const toNum = (v: unknown): number => {
-  const n = Number(String(v ?? '').replace(',', '.').replace(/\s/g, ''))
-  return Number.isFinite(n) ? n : 0
-}
-
-const computeMustValues = (
-  offerPrice: number,
-  ratePercent: number,
-  sale: unknown,
-) => {
-  const discountRate = parseSaleRate(sale, offerPrice)
-  const hasSale = discountRate > 0
-  const mustStaff = offerPrice * (ratePercent / 100)
-  const mustSalonNow = hasSale
-    ? offerPrice * (1 - discountRate) - mustStaff
-    : offerPrice - mustStaff
-  return { mustStaff, mustSalonNow, hasSale }
-}
-
-const computeFlagsFromValues = (
-  offerPrice: number,
-  ratePercent: number,
-  staffSalaries: number,
-  salonSalaries: number,
-  sale: unknown,
-  internal: boolean,
-): VerifyFlag[] => {
-  const { mustStaff, mustSalonNow, hasSale } = computeMustValues(offerPrice, ratePercent, sale)
-  // Round to whole crowns before comparing — kills float noise (e.g. 1112*0.3 =
-  // 333.59999999999997) that otherwise makes an exact 333.6 false-flag mistr_up/ztrata.
-  const r = (n: number) => Math.round(n * 100) / 100
-
-  // Internal worker-to-worker service: salon profit 0 is normal → only check master %.
-  if (internal) {
-    const flags: VerifyFlag[] = ['internal']
-    if (r(staffSalaries) > r(mustStaff)) flags.push('mistr_up')
-    if (r(staffSalaries) < r(mustStaff)) flags.push('mistr_down')
-    return flags
-  }
-
-  const flags: VerifyFlag[] = []
-  if (r(staffSalaries) > r(mustStaff)) flags.push('mistr_up')
-  if (r(staffSalaries) < r(mustStaff)) flags.push('mistr_down')
-  if (r(salonSalaries) > r(mustSalonNow)) flags.push('salon_up')
-  if (r(salonSalaries) < r(mustSalonNow)) flags.push('ztrata')
-  if (hasSale) flags.push('sleva')
-  if (flags.length === 0) flags.push('ok')
-  return flags
-}
-
-// A required money field that was never filled (null / "" / whitespace). A genuine
-// zero ("0", e.g. internal service) is NOT blank.
-const isBlankMoney = (v: unknown): boolean => v == null || String(v).trim() === ''
-
-// Resolve flags for a service-provided item.
-// Priority: recompute-when-incomplete → stored verifyFlags → recompute (legacy) → empty
-export const getItemFlags = (item: any): VerifyFlag[] => {
-  const offerPrice = Number(item?.offer?.price)
-  const ratePercent = Number(item?.personal?.ratePercent)
-  const canRecompute =
-    Number.isFinite(offerPrice) && Number.isFinite(ratePercent) && offerPrice > 0
-
-  // 🟥 Never show a green tick for a record whose master/salon price was left empty.
-  // A partial publish could have overwritten verifyFlags with ['ok'], so when a
-  // required money field is blank (and it's not an internal service) recompute live
-  // from the populated relations — an empty field parses to 0 and surfaces the real
-  // ztráta/mistr_down instead of trusting the stale stored flag.
-  const internal = Boolean(item?.internal)
-  const incomplete =
-    !internal &&
-    (isBlankMoney(item?.staffSalaries) || isBlankMoney(item?.salonSalaries))
-  if (incomplete && canRecompute) {
-    return computeFlagsFromValues(
-      offerPrice,
-      ratePercent,
-      toNum(item?.staffSalaries),
-      toNum(item?.salonSalaries),
-      item?.sale,
-      internal,
-    )
-  }
-
-  if (Array.isArray(item?.verifyFlags) && item.verifyFlags.length > 0) {
-    return item.verifyFlags.filter((f: unknown): f is VerifyFlag =>
-      typeof f === 'string' && (VERIFY_FLAGS as string[]).includes(f),
-    )
-  }
-  // Legacy fallback: recompute from raw data if relations were populated
-  if (canRecompute) {
-    return computeFlagsFromValues(
-      offerPrice,
-      ratePercent,
-      toNum(item?.staffSalaries),
-      toNum(item?.salonSalaries),
-      item?.sale,
-      internal,
-    )
-  }
-  return []
-}
-
-// Numeric delta for the given flag — used in tooltips, e.g. "+50 Kč" / "−30 Kč"
-export const getFlagDelta = (item: any, flag: VerifyFlag): number | null => {
-  const offerPrice = Number(item?.offer?.price)
-  const ratePercent = Number(item?.personal?.ratePercent)
-  if (!Number.isFinite(offerPrice) || !Number.isFinite(ratePercent) || offerPrice <= 0) return null
-  const { mustStaff, mustSalonNow } = computeMustValues(offerPrice, ratePercent, item?.sale)
-  const r = (n: number) => Math.round(n * 100) / 100
-  const staffDelta = r(toNum(item?.staffSalaries) - mustStaff)
-  const salonDelta = r(toNum(item?.salonSalaries) - mustSalonNow)
-  switch (flag) {
-    case 'salon_up': return salonDelta
-    case 'ztrata':   return salonDelta
-    case 'mistr_up': return staffDelta
-    case 'mistr_down': return staffDelta
-    case 'sleva':    return null // informational tag, no delta
-    default: return null
-  }
-}
+import { type VerifyFlag } from '../../../lib/verifyFlags'
 
 export interface ShiftCheckResult {
   date: string
@@ -195,129 +81,6 @@ export interface ShiftCheckResult {
   errors: string[]
 }
 
-// Короткое человекочитаемое описание сбоя выборки (HTTP-код или текст).
-const errText = (e: any): string => {
-  const status = e?.response?.status
-  if (status) return `HTTP ${status}`
-  return e?.message ? String(e.message) : 'neznámá chyba'
-}
-
-// Черновики одной коллекции за конкретный день. Три выборки сверки (касса,
-// рабочее время, выплаты) отличались ТОЛЬКО адресом и чешской подписью ошибки —
-// сам запрос, разбор ответа и обработка сбоя были расписаны трижды дословно.
-//
-// ⚠️ Подпись ошибки обязательна и у каждой своя: страница показывает её списком
-// и по ней блокирует кнопку «Uzavřít směnu». Общего текста тут быть не может —
-// владелец должен видеть, ИМЕННО КАКАЯ выборка не доехала.
-const fetchDayDraftsOf = async (endpoint: string, label: string, dateStr: string) => {
-  try {
-    const res = await Axios.get(
-      `/api/${endpoint}?filters[date][$eq]=${dateStr}&populate=*&pagination[pageSize]=100&status=draft`,
-    )
-    const items = Array.isArray(res) ? res : (res as any)?.data || []
-    return { found: items.length > 0, count: items.length, items }
-  } catch (e) {
-    console.error(`fetch ${endpoint} error:`, e)
-    return { found: false, count: 0, items: [], error: `${label}: ${errText(e)}` }
-  }
-}
-
-// Fetch service-provided records for a specific date
-const fetchServiceProvided = async (dateStr: string) => {
-  try {
-    const res = await Axios.get(
-      `/api/services-provided?filters[date][$eq]=${dateStr}&populate=*&pagination[pageSize]=100&status=draft`,
-      authCfg(),
-    )
-    const items = Array.isArray(res) ? res : (res as any)?.data || []
-    // Counters are per-flag (one item with multiple flags is counted in each)
-    const flagCounts: Record<VerifyFlag, number> = {
-      ok: 0, sleva: 0, ztrata: 0, salon_up: 0, mistr_up: 0, mistr_down: 0, internal: 0, sleva_bez_karty: 0,
-    }
-    let unverified = 0
-    for (const i of items as any[]) {
-      const flags = getItemFlags(i)
-      if (flags.length === 0) {
-        unverified++
-        continue
-      }
-      for (const f of flags) flagCounts[f]++
-    }
-    return { found: items.length > 0, count: items.length, flagCounts, unverified, items }
-  } catch (e) {
-    console.error('fetchServiceProvided error:', e)
-    return {
-      found: false,
-      count: 0,
-      flagCounts: { ok: 0, sleva: 0, ztrata: 0, salon_up: 0, mistr_up: 0, mistr_down: 0, internal: 0, sleva_bez_karty: 0 },
-      unverified: 0,
-      items: [],
-      error: `provedené služby: ${errText(e)}`,
-    }
-  }
-}
-
-// Брони дня из НАШЕГО календаря (booking-коллекция) для сверки со
-// services-provided. Форма событий историческая (customer_name /
-// event_types[0].title / employee.name) — вся логика сверки (diffByName,
-// buildOfferMatches) на неё завязана. customer_name
-// берётся ТЕКУЩИЙ (client relation) — устаревших снимков имён нет по построению.
-const fetchCalendarBookings = async (dateStr: string) => {
-  try {
-    const bookings = await fetchMirrorBookingsRange(dateStr, dateStr)
-    const activeEvents = bookings
-      .filter((b) => isAttendedStatus(b.status))
-      .map((b) => ({
-        id: b.documentId,
-        customer_name: b.client?.name || b.clientNameRaw || '',
-        customer: b.client ? clientKey(b.client) : '',
-        status: b.status,
-        starts_at: b.startsAt,
-        ends_at: b.endsAt,
-        event_types: (b.services || []).map((s) => ({
-          title: s.title || '',
-          price: { amount: s.price ?? null },
-        })),
-        employee: { name: b.employeeNameRaw || '' },
-      }))
-    return { found: activeEvents.length > 0, count: activeEvents.length, events: activeEvents }
-  } catch (e) {
-    console.error('fetchCalendarBookings error:', e)
-    return { found: false, count: 0, events: [], error: `rezervace z kalendáře: ${errText(e)}` }
-  }
-}
-
-// Карта id клиента → текущее имя (из НАШЕЙ коллекции client). Ленивый фолбэк
-// пере-матча имён (s97) — с текущими именами из relation почти не срабатывает,
-// но остаётся страховкой при опечатках в clientName записей Strapi.
-const fetchCurrentClientNames = async (): Promise<Map<string, string>> => {
-  try {
-    // только «ключ → имя»: телефоны и адреса всех клиентов салона этой странице не нужны
-    return await fetchMirrorClientNames()
-  } catch (e) {
-    console.error('fetchCurrentClientNames error:', e)
-    return new Map()
-  }
-}
-
-// Find card-profit record for the month of the given date (one record per month)
-const findMonthlyCardProfit = async (dateStr: string) => {
-  const [year, month] = dateStr.split('-')
-  const monthStart = `${year}-${month}-01`
-  const monthEnd = monthEndYmd(Number(year), Number(month) - 1)
-
-  // Search both published and draft
-  const [published, drafts] = await Promise.all([
-    Axios.get(`/api/card-profits?filters[date][$gte]=${monthStart}&filters[date][$lte]=${monthEnd}&pagination[pageSize]=1`),
-    Axios.get(`/api/card-profits?filters[date][$gte]=${monthStart}&filters[date][$lte]=${monthEnd}&pagination[pageSize]=1&status=draft`),
-  ])
-  const pubItems = Array.isArray(published) ? published : []
-  const draftItems = Array.isArray(drafts) ? drafts : []
-  return draftItems[0] || pubItems[0] || null
-}
-
-// Read the current published monthly card-profit (sum + extraIncome) for pre-filling
-// the close form. Returns null if no card-profit exists yet for that month.
 export const getMonthlyCardProfit = async (
   dateStr: string,
 ): Promise<{ sum: number; extraIncome: number } | null> => {
@@ -425,150 +188,6 @@ export const previewShiftResult = async (
   }
 }
 
-export interface PublishFailure {
-  collection: string  // human-readable section name
-  label: string       // identifier of the record (client name, master+time, etc.)
-  message: string     // Strapi validation message
-  documentId?: string
-}
-
-// Parse Strapi error response into a readable message.
-const extractErrorMessage = (e: any): string => {
-  const details = e?.response?.data?.error?.details?.errors
-  if (Array.isArray(details) && details.length > 0) {
-    return details
-      .map((d: any) => {
-        const path = Array.isArray(d?.path) ? d.path.join('.') : d?.path
-        return path ? `${path}: ${d?.message ?? 'invalid'}` : (d?.message ?? 'invalid')
-      })
-      .join('; ')
-  }
-  return (
-    e?.response?.data?.error?.message ||
-    e?.message ||
-    'Neznámá chyba'
-  )
-}
-
-// Build a human label for each collection so the user can find the offending record.
-const buildLabel = (collectionKey: string, item: any): string => {
-  switch (collectionKey) {
-    case 'services-provided':
-      return [item?.clientName, item?.personal?.name].filter(Boolean).join(' — ') || `ID ${item?.id ?? '?'}`
-    case 'cashs': {
-      const sum = item?.sum ?? item?.amount
-      return sum != null ? `Cash ${sum} Kč` : `Cash ID ${item?.id ?? '?'}`
-    }
-    case 'work-times': {
-      const name = item?.personal?.name
-      return [name, item?.startTime].filter(Boolean).join(' ') || `Work-time ID ${item?.id ?? '?'}`
-    }
-    case 'payrolls': {
-      const name = item?.personal?.name
-      const sum = item?.sum ?? item?.amount
-      return [name, sum != null ? `${sum} Kč` : null].filter(Boolean).join(' — ') || `Payroll ID ${item?.id ?? '?'}`
-    }
-    case 'card-profits':
-      return `Card profit ${item?.date ?? ''}`.trim()
-    case 'vouchers': {
-      const idv = item?.idVoucher
-      return [item?.name, idv ? `#${idv}` : null].filter(Boolean).join(' ') || `Voucher ID ${item?.id ?? '?'}`
-    }
-    default:
-      return `ID ${item?.id ?? '?'}`
-  }
-}
-
-const COLLECTION_LABEL: Record<string, string> = {
-  'cashs': 'Cash',
-  'services-provided': 'Provedené služby',
-  'work-times': 'Work-time',
-  'payrolls': 'Payroll',
-  'card-profits': 'Card profit',
-  'vouchers': 'Voucher',
-}
-
-// Required-field map (mirrors strapi schema.json `required: true`).
-// Used for pre-flight validation so we never half-publish a shift.
-type FieldType = 'string' | 'html' | 'relation' | 'array' | 'date' | 'number' | 'boolean'
-const REQUIRED_FIELDS: Record<string, { name: string; type: FieldType; alt?: string }[]> = {
-  'cashs': [
-    { name: 'date', type: 'date' },
-    { name: 'sum', type: 'string' },
-    { name: 'profit', type: 'string' },
-    { name: 'flow', type: 'array' },
-  ],
-  'work-times': [
-    { name: 'date', type: 'date' },
-    { name: 'startTime', type: 'string' },
-    { name: 'endTime', type: 'string' },
-    { name: 'sum', type: 'number' },
-    { name: 'comment', type: 'html' },
-  ],
-  'payrolls': [
-    { name: 'date', type: 'date' },
-    { name: 'sum', type: 'number' },
-  ],
-  'services-provided': [
-    { name: 'clientName', type: 'string' },
-    { name: 'staffSalaries', type: 'string' },
-    { name: 'salonSalaries', type: 'string' },
-    { name: 'date', type: 'date' },
-    { name: 'cash', type: 'boolean' },
-    { name: 'personal', type: 'relation' },
-    // услуга: legacy-записи несут `offer`, записи чекаута из календаря (D2) — `booking`;
-    // достаточно любой из двух связей
-    { name: 'offer', type: 'relation', alt: 'booking' },
-  ],
-}
-
-// ⚠️ Денежный путь: по этому «пусто» блокируется закрытие смены. Разбор HTML
-// общий (lib/htmlText) — комментарий из одного «&nbsp;» теперь считается
-// пустым, каким он и выглядит. На боевых данных таких записей нет (проверено).
-const isEmptyHtml = (s: unknown): boolean => !hasVisibleText(s)
-
-// Returns array of human-readable issues; empty array = record valid.
-const validateDraft = (collectionKey: string, item: any): string[] => {
-  const fields = REQUIRED_FIELDS[collectionKey]
-  if (!fields) return []
-  const issues: string[] = []
-  for (const f of fields) {
-    const v = item?.[f.name]
-    let issue: string | null = null
-    switch (f.type) {
-      case 'string':
-        if (v == null || (typeof v === 'string' && v.trim() === '')) issue = `${f.name}: prázdné`
-        break
-      case 'html':
-        if (isEmptyHtml(v)) issue = `${f.name}: prázdné`
-        break
-      case 'relation': {
-        const hasRel = (r: any) => !!r && typeof r === 'object' && (r.id != null || r.documentId != null)
-        if (!hasRel(v) && !(f.alt && hasRel(item?.[f.alt]))) {
-          issue = `${f.alt ? `${f.name}/${f.alt}` : f.name}: chybí vazba`
-        }
-        break
-      }
-      case 'array':
-        if (!Array.isArray(v) || v.length === 0) issue = `${f.name}: prázdný seznam`
-        break
-      case 'date':
-        if (!v) issue = `${f.name}: chybí`
-        break
-      case 'number':
-        if (v == null || v === '') issue = `${f.name}: chybí`
-        else if (typeof v === 'number' && !Number.isFinite(v)) issue = `${f.name}: neplatné`
-        break
-      case 'boolean':
-        if (v == null) issue = `${f.name}: chybí`
-        break
-    }
-    if (issue) issues.push(issue)
-  }
-  return issues
-}
-
-// Publish all draft records for a specific date + save/update card profit
 export const publishShift = async (
   dateStr: string,
   cardSum: number,
