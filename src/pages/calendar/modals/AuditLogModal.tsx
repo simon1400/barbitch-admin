@@ -3,7 +3,7 @@
 // создание / изменение / удаление блока). Только чтение; открывается кнопкой в
 // тулбаре календаря, видной ТОЛЬКО владельцу. Записи создаёт движок booking-engine.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { deleteCalendarLog, fetchCalendarLogs, type CalendarLog } from '../fetch/calendarLog'
 import { ModalShell } from './ui'
 import { inputCls, parseSummary } from './helpers'
@@ -28,6 +28,44 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
 
 const actionMeta = (a: string) =>
   ACTION_META[a] || { label: a, cls: 'bg-gray-200 text-gray-600 dark:bg-[#3a3a38] dark:text-gray-300' }
+
+// Решение владельца по блоку показываем НЕ отдельной записью, а строкой внутри
+// карточки «Nový blok»: «завели → и что с ним стало» читается одним куском.
+// Ключ склейки — entityDocId: движок пишет его и на создании блока, и на решении
+// (booking-engine: block_create → created[0].documentId, block_approve/reject → blockDocId).
+const APPROVAL_ACTIONS = new Set(['block_approve', 'block_reject'])
+const PENDING_NOTE = 'čeká na schválení'
+
+interface LogGroup {
+  log: CalendarLog
+  approval: CalendarLog | null
+}
+
+// rows приходят createdAt:desc → первое встреченное решение по блоку и есть последнее по времени.
+// Склеиваем ТОЛЬКО пару create ↔ approve/reject: правка и удаление блока остаются
+// отдельными записями, иначе действие спряталось бы внутри чужой карточки.
+// Пара не сошлась (решение на соседней странице выдачи, серия с прошедшим первым днём —
+// у неё владелец подтверждает не created[0]) → обе записи показываются как раньше.
+const groupLogs = (rows: CalendarLog[]): LogGroup[] => {
+  const latest = new Map<string, CalendarLog>()
+  for (const r of rows) {
+    if (APPROVAL_ACTIONS.has(r.action) && r.entityDocId && !latest.has(r.entityDocId)) {
+      latest.set(r.entityDocId, r)
+    }
+  }
+  const attached = new Map<string, CalendarLog>() // documentId создания → решение
+  const consumed = new Set<string>() // documentId решений, ушедших внутрь карточки
+  for (const r of rows) {
+    if (r.action !== 'block_create' || !r.entityDocId) continue
+    const a = latest.get(r.entityDocId)
+    if (!a || consumed.has(a.documentId)) continue
+    attached.set(r.documentId, a)
+    consumed.add(a.documentId)
+  }
+  return rows
+    .filter((r) => !consumed.has(r.documentId))
+    .map((r) => ({ log: r, approval: attached.get(r.documentId) || null }))
+}
 
 // Относительное время «před 5 min» + полная дата в title
 const relTime = (iso: string): string => {
@@ -79,6 +117,7 @@ const DetailBlock = ({ log }: { log: CalendarLog }) => {
 
 const LogRow = ({
   log,
+  approval,
   open,
   onToggle,
   confirming,
@@ -88,6 +127,7 @@ const LogRow = ({
   onConfirmDelete,
 }: {
   log: CalendarLog
+  approval: CalendarLog | null
   open: boolean
   onToggle: () => void
   confirming: boolean
@@ -98,6 +138,10 @@ const LogRow = ({
 }) => {
   const meta = actionMeta(log.action)
   const p = parseSummary(log.summary)
+  // «čeká na schválení» приходит примечанием в summary — рисуем его цветным
+  // статусом внизу карточки, а не серой строкой среди прочих примечаний
+  const pending = log.action === 'block_create' && p.notes.includes(PENDING_NOTE)
+  const notes = pending ? p.notes.filter((n) => n !== PENDING_NOTE) : p.notes
   // строку не удалось разложить (нестандартный формат) — показываем как есть
   const bare = !p.subject && !p.when && !p.changes.length && !p.notes.length
   return (
@@ -155,11 +199,36 @@ const LogRow = ({
           </div>
         ))}
 
-        {p.notes.map((n) => (
+        {notes.map((n) => (
           <div key={n} className="mt-[5px] text-[12px] font-medium leading-[17px] text-gray-500 dark:text-gray-400">
             {n}
           </div>
         ))}
+
+        {/* stav bloku: решение владельца прямо в карточке заявки */}
+        {approval ? (
+          <div
+            title={fullTime(approval.createdAt)}
+            className={`mt-[7px] inline-flex max-w-full items-center gap-1.5 rounded px-1.5 py-[3px] text-[11px] font-semibold ${
+              approval.action === 'block_approve'
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300'
+                : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300'
+            }`}
+          >
+            <span className="shrink-0">{approval.action === 'block_approve' ? '✓' : '✕'}</span>
+            <span className="truncate">
+              {approval.action === 'block_approve' ? 'Schváleno' : 'Zamítnuto'}
+              {approval.actorName ? ` · ${approval.actorName}` : ''} · {relTime(approval.createdAt)}
+            </span>
+          </div>
+        ) : (
+          pending && (
+            <div className="mt-[7px] inline-flex max-w-full items-center gap-1.5 rounded bg-amber-100 px-1.5 py-[3px] text-[11px] font-semibold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+              <span className="shrink-0">⏳</span>
+              <span className="truncate">Čeká na schválení</span>
+            </div>
+          )
+        )}
 
         {open && <DetailBlock log={log} />}
       </button>
@@ -178,7 +247,9 @@ const LogRow = ({
 
       {confirming && (
         <div className="flex items-center justify-end gap-1.5 border-t border-gray-200 px-3 py-1.5 dark:border-[#3f3f3d]">
-          <span className="mr-auto text-[11px] text-gray-500 dark:text-gray-400">Smazat záznam z deníku?</span>
+          <span className="mr-auto text-[11px] text-gray-500 dark:text-gray-400">
+            {approval ? 'Smazat oba záznamy z deníku?' : 'Smazat záznam z deníku?'}
+          </span>
           <button
             type="button"
             onClick={onCancelDelete}
@@ -260,20 +331,32 @@ export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
     load(1, false)
   }, [load])
 
-  const handleDelete = useCallback(async (documentId: string) => {
-    setDeletingId(documentId)
+  // Крестик убирает карточку целиком: у склеенной пары это ДВЕ записи журнала
+  // (заявка + решение) — иначе решение осталось бы висеть сиротой.
+  // Если второе удаление не прошло — из списка уходит только реально удалённое.
+  const handleDelete = useCallback(async (docIds: string[]) => {
+    setDeletingId(docIds[0])
     setDelError(null)
+    const done: string[] = []
     try {
-      await deleteCalendarLog(documentId)
-      setRows((prev) => prev.filter((r) => r.documentId !== documentId))
-      setTotal((t) => Math.max(0, t - 1))
+      for (const id of docIds) {
+        await deleteCalendarLog(id)
+        done.push(id)
+      }
       setConfirmId(null)
     } catch (e) {
       setDelError((e as Error).message)
     } finally {
+      if (done.length) {
+        setRows((prev) => prev.filter((r) => !done.includes(r.documentId)))
+        setTotal((t) => Math.max(0, t - done.length))
+      }
       setDeletingId(null)
     }
   }, [])
+
+  // заявка на блок и решение владельца по нему — одна карточка
+  const groups = useMemo(() => groupLogs(rows), [rows])
 
   const tabBtn = (t: EntityTab, label: string) => (
     <button
@@ -311,10 +394,11 @@ export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
         {!error && rows.length === 0 && !loading && (
           <p className="text-[12px] text-gray-400 dark:text-gray-500">Žádné akce.</p>
         )}
-        {rows.map((log) => (
+        {groups.map(({ log, approval }) => (
           <LogRow
             key={log.documentId}
             log={log}
+            approval={approval}
             open={open === log.documentId}
             onToggle={() => setOpen((cur) => (cur === log.documentId ? null : log.documentId))}
             confirming={confirmId === log.documentId}
@@ -324,7 +408,9 @@ export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
               setConfirmId(log.documentId)
             }}
             onCancelDelete={() => setConfirmId(null)}
-            onConfirmDelete={() => handleDelete(log.documentId)}
+            onConfirmDelete={() =>
+              handleDelete(approval ? [log.documentId, approval.documentId] : [log.documentId])
+            }
           />
         ))}
         {loading && <p className="text-[12px] text-gray-400 dark:text-gray-500">Načítám…</p>}
