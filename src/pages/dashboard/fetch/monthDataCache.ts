@@ -183,7 +183,7 @@ const computeGlobalMonthData = async (
   // Совместители (мастер+администратор) выносятся в отдельную группу. Инвариант
   // splitTeam: sumMasters + sumAdmins + sumCombined === старый (sumMasters + sumAdmins),
   // поэтому «Результат за месяц» не меняется численно.
-  const team = splitTeam(worksRes.summary, adminsRes.summary)
+  const team = splitTeam(worksRes.summary, adminsRes.summary, `${year}-${String(month + 1).padStart(2, '0')}`)
 
   return {
     works: team.masters,

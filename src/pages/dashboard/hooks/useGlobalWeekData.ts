@@ -3,6 +3,7 @@ import type { GroupedSum } from '../fetch/fetchHelpers'
 
 import { useCallback, useEffect, useState } from 'react'
 
+import { ym } from '../../../utils/date'
 import { getCurrentWeekRange } from '../../../utils/getWeekRange'
 import { getAdminsHoursByDateRange } from '../fetch/allAdminsHours'
 import { getAllWorksByDateRange } from '../fetch/allWorks'
@@ -47,7 +48,7 @@ export const useGlobalWeekData = (params: WeekDataParams = {}) => {
 
     // Совместителей убираем из «чистых» админов; их админ-часы добавляем как админ-расход
     // (з/п админов/день должна учитывать и совместителей, но без двойного учёта корректировок).
-    const team = splitTeam(worksRes.summary, adminsRes.summary)
+    const team = splitTeam(worksRes.summary, adminsRes.summary, ym(firstDay))
 
     setData({
         sumClientsDone: worksRes.sumClientsDone,

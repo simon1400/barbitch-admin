@@ -119,7 +119,7 @@ export const fetchMonthlyResult = async (
   // sumMasters и sumAdmins оба их содержат). Инвариант splitTeam:
   // sumMasters + sumAdmins + sumCombined === старый (sumMasters + sumAdmins) →
   // результат закрытия смены численно прежний.
-  const team = splitTeam(worksRes.summary, adminsRes.summary)
+  const team = splitTeam(worksRes.summary, adminsRes.summary, `${year}-${String(month + 1).padStart(2, '0')}`)
   const totalLabor = team.sumMasters + team.sumAdmins + team.sumCombined
 
   const result =

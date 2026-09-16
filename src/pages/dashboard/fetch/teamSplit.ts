@@ -10,7 +10,23 @@ import type { Result } from './allWorks'
 // ⚠️ Раньше это кодировалось тремя разрозненными списками-исключениями
 // (ADMIN_MASTERS в Masters.tsx, excludeFromMasters в allWorks.ts, excludeFromAdmins
 // в allAdminsHours.ts). Теперь это ОДИН источник истины. Новый совместитель → добавить сюда.
-const DUAL_ROLE_WORKERS = ['Mariia Medvedeva', 'Oleksandra Fishchuk']
+//
+// `until` — последний месяц совмещения ('YYYY-MM', включительно). Роли в базе дат не
+// хранят, поэтому граница живёт здесь: снять человека из списка целиком нельзя —
+// в прошлых месяцах, где у него есть и часы, и услуги, он попал бы в обе таблицы,
+// и штрафы/списывания вычлись бы дважды (итог месяца задним числом изменился бы).
+// После `until` сотрудник — обычный мастер/админ; итог месяца от этого не меняется,
+// пока у него нет часов во второй роли.
+const DUAL_ROLE_WORKERS: { name: string; until?: string }[] = [
+  // С 07.2026 только мастер (последние часы администратора — июнь 2026).
+  { name: 'Mariia Medvedeva', until: '2026-06' },
+  { name: 'Oleksandra Fishchuk' },
+]
+
+// periodStart — первый месяц периода ('YYYY-MM'). Период, задевающий хотя бы один
+// месяц совмещения, считается совместительским: там могут быть часы во второй роли.
+export const dualRoleNames = (periodStart: string): Set<string> =>
+  new Set(DUAL_ROLE_WORKERS.filter((w) => !w.until || periodStart <= w.until).map((w) => w.name))
 
 export interface CombinedResult {
   name: string
@@ -43,8 +59,8 @@ export interface TeamSplit {
 // 🟢 ИНВАРИАНТ: sumMasters + sumAdmins + sumCombined === (старый sumMasters + sumAdmins).
 // Это значит, что «Результат за месяц» и закрытие смены остаются численно прежними —
 // мы лишь перегруппировали те же деньги, не потеряв и не задвоив ничего.
-export function splitTeam(works: Result[], admins: ResultAdmins[]): TeamSplit {
-  const dual = new Set(DUAL_ROLE_WORKERS)
+export function splitTeam(works: Result[], admins: ResultAdmins[], periodStart: string): TeamSplit {
+  const dual = dualRoleNames(periodStart)
   const masterByName = new Map(works.map((w) => [w.name, w]))
   const adminByName = new Map(admins.map((a) => [a.name, a]))
 
