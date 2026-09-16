@@ -3,6 +3,9 @@
 import { kc } from '../../utils/money'
 import type { UpsellMode, UpsellOffer, UpsellService, UpsellState } from './fetch/upsellApi'
 
+/** Якорь секции «Мои дозаписи за месяц» — ссылка «Список» из полосы месяца. */
+export const MINE_SECTION_ID = 'upsell-month'
+
 export const MODE_LABEL: Record<UpsellMode, string> = { after: 'hned po', before: 'před' }
 
 export const STATE_LABEL: Record<UpsellState, string> = {
@@ -11,6 +14,34 @@ export const STATE_LABEL: Record<UpsellState, string> = {
   confirmed: 'подтверждено',
   cancelled: 'отменена',
   no_commission: 'без комиссии',
+}
+
+/** Русское склонение по числу: plural(3, ['мастер', 'мастера', 'мастеров']). */
+export const plural = (n: number, forms: [string, string, string]): string => {
+  const a = Math.abs(n) % 100
+  const b = a % 10
+  if (a > 10 && a < 20) return forms[2]
+  if (b > 1 && b < 5) return forms[1]
+  if (b === 1) return forms[0]
+  return forms[2]
+}
+
+/** «2 мастера свободны» — подпись в заголовке группы режима. */
+export const freeMastersLabel = (n: number): string =>
+  `${n} ${plural(n, ['мастер свободен', 'мастера свободны', 'мастеров свободны'])}`
+
+/** «3 дозаписи» — подпись в полосе месяца. */
+export const upsellCountLabel = (n: number): string => `${n} ${plural(n, ['дозапись', 'дозаписи', 'дозаписей'])}`
+
+/** Инициалы клиента для аватара: «Tereza Nováková» → «TN». */
+export const initials = (name: string): string => {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  const s = parts
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join('')
+    .toUpperCase()
+  return s || '?'
 }
 
 /** Текст подтверждения перед дозаписью — всё, что уйдёт в бронь, одним взглядом. */

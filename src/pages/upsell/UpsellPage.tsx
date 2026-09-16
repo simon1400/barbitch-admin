@@ -1,4 +1,4 @@
-// Модуль «Дозаписи администраторов» (/upsell, owner + administrator), s197.
+// Модуль «Дозаписи администраторов» (/upsell, owner + administrator), s197; редизайн s198.
 //
 // Администратор видит клиентов дня — кто сейчас в салоне и кто придёт позже — и
 // варианты дозаписи услуги другой категории «сразу после» или «сразу перед» их
@@ -9,19 +9,11 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { errMsg } from '../../lib/errMsg'
 import { getSessionRole } from '../../services/auth'
-import {
-  btnNeutralCls,
-  h1Cls,
-  hintCls,
-  iconBtnCls,
-  kickerCls,
-  mutedCls,
-  pageShellCls,
-  pinkCardCls,
-  toolbarCardCls,
-} from '../../ui/kit'
-import { addDaysYmd, fmtCsDate, todayYmd } from '../../utils/date'
+import { btnNeutralCls, cardCls, countBadgeCls, h1Cls, headMicroCls, hintCls, iconBtnCls, mutedCls, pageShellCls } from '../../ui/kit'
+import { WEEKDAYS_CS, addDaysYmd, dowOfYmd, fmtCsDate, todayYmd } from '../../utils/date'
+import { kc } from '../../utils/money'
 import { ClientCard } from './components/ClientCard'
+import { ChevronDown, ChevronLeft, ChevronRight, RefreshIcon } from './components/icons'
 import { MineSection } from './components/MineSection'
 import {
   createUpsell,
@@ -33,7 +25,10 @@ import {
   type UpsellOffer,
   type UpsellService,
 } from './fetch/upsellApi'
-import { confirmText } from './labels'
+import { MINE_SECTION_ID, confirmText, upsellCountLabel } from './labels'
+
+const sepCls = 'text-ink-disabled'
+const stripLabelCls = `${headMicroCls} text-ink-muted`
 
 export default function UpsellPage() {
   const isOwner = getSessionRole() === 'owner'
@@ -118,11 +113,13 @@ export default function UpsellPage() {
   const inSalon = clients.filter((c) => c.inSalon)
   const later = clients.filter((c) => !c.inSalon)
 
-  const renderGroup = (title: string, list: UpsellClient[], key: string) =>
+  const renderGroup = (title: string, list: UpsellClient[], key: string, dot: string) =>
     list.length > 0 && (
-      <section data-group={key} className="mb-2">
-        <div className={kickerCls}>
-          {title} · {list.length}
+      <section data-group={key} data-count={list.length} className="mb-4">
+        <div className="flex items-center gap-2 mb-2.5">
+          <span className={`w-2 h-2 rounded-full ${dot}`} />
+          <span className="text-[11px] font-bold tracking-[0.08em] uppercase text-ink-muted">{title}</span>
+          <span className={countBadgeCls}>{list.length}</span>
         </div>
         {list.map((c) => (
           <ClientCard key={c.clientDocId} client={c} busyKey={busyKey} onBook={book} />
@@ -132,48 +129,84 @@ export default function UpsellPage() {
 
   return (
     <div className={pageShellCls}>
-      <h1 className={h1Cls}>Дозаписи</h1>
-
-      <div className={pinkCardCls}>
-        <div className={hintCls}>
-          Клиенту −{day?.discountPercent ?? 10} %, вам {day?.commissionPercent ?? 5} % от полной цены услуги. Комиссия
-          попадает в «Ожидается» и становится «Подтверждено», когда владелец закрывает смену. Отмена или неявка дозаписи
-          комиссию снимает.
+      {/* Голова: заголовок + правило одной строкой слева, навигация по дню справа */}
+      <div className="flex items-end justify-between gap-6 flex-wrap mb-4">
+        <div className="flex flex-col gap-1.5">
+          <h1 className={`${h1Cls} !mb-0`}>Дозаписи</h1>
+          <div className="text-[12.5px] font-semibold text-ink-muted flex items-center gap-2 flex-wrap">
+            <span>
+              Клиенту <b className="text-ink">−{day?.discountPercent ?? 10} %</b>
+            </span>
+            <span className={sepCls}>·</span>
+            <span>
+              вам <b className="text-pos">+{day?.commissionPercent ?? 5} %</b> от полной цены
+            </span>
+            <span className={sepCls}>·</span>
+            <span>подтверждается при закрытии смены</span>
+            <span className={sepCls}>·</span>
+            <span>отмена или неявка снимает комиссию</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button type="button" className={iconBtnCls} onClick={() => setDate(addDaysYmd(date, -1))} aria-label="Предыдущий день">
+            <ChevronLeft />
+          </button>
+          <div className="h-[34px] px-3.5 rounded-lg border border-line-btn bg-white inline-flex items-center gap-2" data-date={date}>
+            <span className={`${headMicroCls} text-ink-muted`}>{WEEKDAYS_CS[dowOfYmd(date)]}</span>
+            <span className="text-[14px] font-extrabold text-ink">{fmtCsDate(date)}</span>
+            {isToday ? (
+              <span className={countBadgeCls}>сегодня</span>
+            ) : (
+              <button type="button" className={`${countBadgeCls} border-0 cursor-pointer hover:bg-brand-wash`} onClick={() => setDate(today)}>
+                Сегодня
+              </button>
+            )}
+          </div>
+          <button type="button" className={iconBtnCls} onClick={() => setDate(addDaysYmd(date, 1))} aria-label="Следующий день">
+            <ChevronRight />
+          </button>
+          <span className="w-px h-[22px] bg-line-btn mx-1" />
+          {day?.now && (
+            <span className={mutedCls}>
+              сейчас <b className="text-ink">{day.now}</b>
+            </span>
+          )}
+          <button type="button" className={`${btnNeutralCls} !px-3 inline-flex items-center gap-1.5`} disabled={dayLoading} onClick={() => loadDay(date)}>
+            <RefreshIcon />
+            Обновить
+          </button>
         </div>
       </div>
 
-      <div className={toolbarCardCls}>
-        <div className="flex items-center gap-2">
-          <button type="button" className={iconBtnCls} onClick={() => setDate(addDaysYmd(date, -1))} aria-label="Предыдущий день">
-            ←
-          </button>
-          <span className="text-[14px] font-extrabold text-ink min-w-[96px] text-center" data-date={date}>
-            {fmtCsDate(date)}
+      {/* Полоса месяца: мои дозаписи одним взглядом, подробности — внизу */}
+      <div className={`${cardCls} px-5 py-3 mb-6 flex items-center justify-between gap-4 flex-wrap`} data-strip>
+        <span className={stripLabelCls}>{isOwner ? 'Дозаписи администраторов' : 'Мои дозаписи'}</span>
+        <div className="flex items-center gap-7 flex-wrap">
+          <span className="flex items-baseline gap-2">
+            <span className={stripLabelCls}>Ожидается</span>
+            <span className="text-[18px] font-extrabold text-ink">{mine ? kc(mine.expectedKc) : '—'}</span>
+            {mine && mine.rows.length > 0 && <span className="text-[12px] font-semibold text-ink-muted">· {upsellCountLabel(mine.rows.length)}</span>}
           </span>
-          <button type="button" className={iconBtnCls} onClick={() => setDate(addDaysYmd(date, 1))} aria-label="Следующий день">
-            →
-          </button>
-          {!isToday && (
-            <button type="button" className={btnNeutralCls} onClick={() => setDate(today)}>
-              Сегодня
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          {day?.now && <span className={mutedCls}>сейчас {day.now}</span>}
-          <button type="button" className={btnNeutralCls} disabled={dayLoading} onClick={() => loadDay(date)}>
-            Обновить
-          </button>
+          <span className="flex items-baseline gap-2">
+            <span className={`${headMicroCls} text-brand-dark`}>Подтверждено</span>
+            <span className="text-[18px] font-extrabold text-brand-dark">{mine ? kc(mine.confirmedKc) : '—'}</span>
+          </span>
+          <a href={`#${MINE_SECTION_ID}`} className="text-[12.5px] font-bold text-brand-dark inline-flex items-center gap-1">
+            Список
+            <ChevronDown />
+          </a>
         </div>
       </div>
 
       {notice && (
         <div
           role="status"
-          className={`${pinkCardCls} ${notice.ok ? '' : '!bg-neg-bg !border-neg-line text-neg'}`}
+          className={`${cardCls} px-5 py-3 mb-4 text-[13px] font-bold ${
+            notice.ok ? '!bg-pos-bg !border-pos-line text-pos' : '!bg-neg-bg !border-neg-line text-neg'
+          }`}
           data-notice={notice.ok ? 'ok' : 'error'}
         >
-          <div className="text-[13px] font-bold">{notice.text}</div>
+          {notice.text}
         </div>
       )}
 
@@ -186,11 +219,11 @@ export default function UpsellPage() {
 
       {isToday ? (
         <>
-          {renderGroup('Сейчас в салоне', inSalon, 'in-salon')}
-          {renderGroup('Позже сегодня', later, 'later')}
+          {renderGroup('Сейчас в салоне', inSalon, 'in-salon', 'bg-pos')}
+          {renderGroup('Позже сегодня', later, 'later', 'bg-warn')}
         </>
       ) : (
-        renderGroup('Клиенты дня', clients, 'day')
+        renderGroup('Клиенты дня', clients, 'day', 'bg-ink-muted')
       )}
 
       <MineSection month={month} onMonth={setMonth} data={mine} loading={mineLoading} error={mineError} isOwner={isOwner} />
