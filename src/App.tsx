@@ -42,11 +42,11 @@ const TeamTimeOffTab = lazy(() => import('./pages/global/team/tabs/TimeOffTab'))
 const TeamTaxesTab = lazy(() => import('./pages/global/team/tabs/TaxesTab'))
 const TeamLoadTab = lazy(() => import('./pages/global/team/tabs/LoadTab'))
 const TeamGapsTab = lazy(() => import('./pages/global/team/tabs/GapsTab'))
-const TeamCrossSellTab = lazy(() => import('./pages/global/team/tabs/CrossSellTab'))
 // Own-booking (фаза 2, каркас): календарь по зеркалу Noona
 const CalendarPage = lazy(() => import('./pages/calendar/CalendarPage'))
 // Own-booking (шаг 6.2): редактор собственного каталога услуг
 const CatalogPage = lazy(() => import('./pages/global/catalog/CatalogPage'))
+const UpsellPage = lazy(() => import('./pages/upsell/UpsellPage'))
 
 // Получить домашнюю страницу в зависимости от роли
 const getHomePageByRole = (role: string | null): string => {
@@ -175,6 +175,18 @@ function App() {
             }
           />
           <Route
+            path="/upsell"
+            element={
+              <ProtectedRoute>
+                <ModuleRoute module="/upsell">
+                  <AdminLayout>
+                    <UpsellPage />
+                  </AdminLayout>
+                </ModuleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/global/catalog"
             element={
               <ProtectedRoute>
@@ -247,7 +259,8 @@ function App() {
             <Route path="taxes" element={<TeamTaxesTab />} />
             <Route path="load" element={<TeamLoadTab />} />
             <Route path="gaps" element={<TeamGapsTab />} />
-            <Route path="cross-sell" element={<TeamCrossSellTab />} />
+            {/* письма «Дозапись в окно» удалены (s197) — старая закладка ведёт в «Окна» */}
+            <Route path="cross-sell" element={<Navigate to="/global/team/gaps" replace />} />
           </Route>
           {/* Legacy URL redirects — old standalone pages now live as Team tabs */}
           <Route

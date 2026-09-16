@@ -52,6 +52,12 @@ export const buildLabel = (collectionKey: string, item: any): string => {
     }
     case 'card-profits':
       return `Card profit ${item?.date ?? ''}`.trim()
+    case 'add-moneys':
+      return (
+        [item?.personal?.name, item?.booking?.clientNameRaw, item?.sum != null ? `${item.sum} Kč` : null]
+          .filter(Boolean)
+          .join(' — ') || `Provize ID ${item?.id ?? '?'}`
+      )
     case 'vouchers': {
       const idv = item?.idVoucher
       return [item?.name, idv ? `#${idv}` : null].filter(Boolean).join(' ') || `Voucher ID ${item?.id ?? '?'}`
@@ -68,6 +74,7 @@ export const COLLECTION_LABEL: Record<string, string> = {
   'payrolls': 'Payroll',
   'card-profits': 'Card profit',
   'vouchers': 'Voucher',
+  'add-moneys': 'Provize za dozápis',
 }
 
 // Required-field map (mirrors strapi schema.json `required: true`).
@@ -101,6 +108,13 @@ const REQUIRED_FIELDS: Record<string, { name: string; type: FieldType; alt?: str
     // услуга: legacy-записи несут `offer`, записи чекаута из календаря (D2) — `booking`;
     // достаточно любой из двух связей
     { name: 'offer', type: 'relation', alt: 'booking' },
+  ],
+  // комиссия администратора за дозапись (s197)
+  'add-moneys': [
+    { name: 'title', type: 'string' },
+    { name: 'date', type: 'date' },
+    { name: 'sum', type: 'string' },
+    { name: 'personal', type: 'relation' },
   ],
 }
 

@@ -34,6 +34,7 @@ import {
   WorkTimeCard,
   PayrollCard,
   PublishSection,
+  UpsellCommissionCard,
 } from './components/shiftClose'
 // 🟥 Нативное поле даты вместо react-datepicker: библиотека тянула 207 KB плюс
 // свой CSS ради ОДНОГО поля на этой странице. В календаре нативное поле давно
@@ -67,6 +68,7 @@ export default function ShiftClosePage() {
   const [published, setPublished] = useState(false)
   const [publishError, setPublishError] = useState<string | null>(null)
   const [publishFailures, setPublishFailures] = useState<PublishFailure[]>([])
+  const [publishSkipped, setPublishSkipped] = useState<PublishFailure[]>([])
   const [profitDelta, setProfitDelta] = useState<{
     before: number
     after: number
@@ -89,6 +91,7 @@ export default function ShiftClosePage() {
     setPublished(false)
     setPublishError(null)
     setPublishFailures([])
+    setPublishSkipped([])
     setProfitDelta(null)
     setRevertResult(null)
     setRevertError(null)
@@ -171,6 +174,7 @@ export default function ShiftClosePage() {
     setPublishing(true)
     setPublishError(null)
     setPublishFailures([])
+    setPublishSkipped([])
     setPublished(false)
     setProfitDelta(null)
     setPreviewDelta(null)
@@ -181,7 +185,8 @@ export default function ShiftClosePage() {
       const year = date.getFullYear()
 
       const before = await fetchMonthlyResult(month, year)
-      const { failures } = await publishShift(result.date, Number(cardSum), Number(extraIncome) || 0)
+      const { failures, skipped } = await publishShift(result.date, Number(cardSum), Number(extraIncome) || 0)
+      setPublishSkipped(skipped)
       const after = await fetchMonthlyResult(month, year)
 
       setProfitDelta({
@@ -363,6 +368,7 @@ export default function ShiftClosePage() {
                 />
                 <WorkTimeCard data={result.workTime} />
                 <PayrollCard data={result.payroll} />
+                <UpsellCommissionCard data={result.upsell} />
               </div>
             </StatSection>
 
@@ -376,6 +382,7 @@ export default function ShiftClosePage() {
               loadErrors={result.errors}
               publishError={publishError}
               publishFailures={publishFailures}
+              publishSkipped={publishSkipped}
               profitDelta={profitDelta}
               onPublish={handlePublishShift}
               reverting={reverting}

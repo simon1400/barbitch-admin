@@ -42,7 +42,6 @@ export const SUBNAV: SubnavDef[] = [
       { to: 'taxes', label: 'Налоги' },
       { to: 'load', label: 'Загрузка' },
       { to: 'gaps', label: 'Окна' },
-      { to: 'cross-sell', label: 'Дозапись в окно' },
     ],
   },
 ]

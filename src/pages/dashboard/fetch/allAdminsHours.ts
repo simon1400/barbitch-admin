@@ -3,7 +3,14 @@ import type { PersonalSumData } from './fetchHelpers'
 
 import { getMonthRange } from '../../../utils/getMonthRange'
 
-import { buildQuery, fetchAllPages, fetchDayDrafts, PAGE_SIZE, summarizeGeneric } from './fetchHelpers'
+import {
+  buildQuery,
+  fetchAllPages,
+  fetchDayDrafts,
+  fetchDayUpsellCommissionDrafts,
+  PAGE_SIZE,
+  summarizeGeneric,
+} from './fetchHelpers'
 
 interface RateItem {
   rate: number | string
@@ -215,10 +222,12 @@ export const getAdminsHours = async (month: number, year: number, previewDay?: s
 
   // Preview: merge the day's draft work-times + payrolls (what a close publishes that
   // feeds admin pay). Rates come populated on the draft work-times just like the month.
+  // + комиссии за дозаписи, которые закрытие опубликует (s197).
   let wtData = data
   let payrollData = payrolls
+  let extrasData = extras
   if (previewDay) {
-    const [draftWt, draftPayrolls] = await Promise.all([
+    const [draftWt, draftPayrolls, draftUpsell] = await Promise.all([
       fetchDayDrafts<PersonalSumData>('/api/work-times', ['date', 'sum'], 'date', previewDay, {
         personal: {
           fields: ['name', 'excessThreshold'],
@@ -228,15 +237,17 @@ export const getAdminsHours = async (month: number, year: number, previewDay?: s
       fetchDayDrafts<PersonalSumData>('/api/payrolls', ['sum'], 'date', previewDay, {
         personal: { fields: ['name'] },
       }),
+      fetchDayUpsellCommissionDrafts(previewDay),
     ])
     wtData = [...data, ...draftWt]
     payrollData = [...payrolls, ...draftPayrolls]
+    extrasData = [...extras, ...draftUpsell]
   }
 
   const { summary, sumAdmins } = summarizeAdmins(
     wtData,
     penalties,
-    extras,
+    extrasData,
     payrollData,
     advance,
     salaries,

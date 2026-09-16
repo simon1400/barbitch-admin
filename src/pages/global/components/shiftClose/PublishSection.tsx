@@ -80,6 +80,8 @@ interface PublishSectionProps {
   loadErrors?: string[]
   publishError: string | null
   publishFailures?: PublishFailure[]
+  // комиссии за дозаписи, которые закрытие НЕ опубликовало (визит не закрыт/отменён), s197
+  publishSkipped?: PublishFailure[]
   profitDelta: {
     before: number
     after: number
@@ -102,6 +104,7 @@ const REVERT_LABELS: Record<string, string> = {
   'services-provided': 'Provedené služby',
   'work-times': 'Pracovní doba',
   payrolls: 'Výplaty',
+  'add-moneys': 'Provize za dozápisy',
 }
 
 export const PublishSection = ({
@@ -114,6 +117,7 @@ export const PublishSection = ({
   loadErrors = [],
   publishError,
   publishFailures = [],
+  publishSkipped = [],
   profitDelta,
   onPublish,
   reverting,
@@ -270,6 +274,24 @@ export const PublishSection = ({
           </ul>
           <p className="text-xs text-ink-muted mt-3">
             Opravte tyto záznamy v Strapi (vyplňte chybějící povinná pole) a klikněte na <b>Uzavřít směnu</b> znovu.
+          </p>
+        </div>
+      )}
+
+      {publishSkipped.length > 0 && (
+        <div className="mt-4 rounded-xl border-2 border-warn-line bg-warn-bg p-4" data-skipped>
+          <p className="text-sm font-semibold text-warn mb-2">
+            Provize za dozápisy nepublikované ({publishSkipped.length}) — směnu neblokují:
+          </p>
+          <ul className="space-y-1">
+            {publishSkipped.map((f, i) => (
+              <li key={f.documentId || i} className="text-sm text-ink-body">
+                <span className="font-semibold">{f.label}</span> — {f.message}
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-ink-muted mt-2">
+            Po uzavření návštěvy v kalendáři zavřete směnu znovu — provize se publikuje. Zrušená návštěva provizi smaže sama.
           </p>
         </div>
       )}

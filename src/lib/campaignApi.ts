@@ -1,8 +1,8 @@
 import { API_URL as strapiUrl } from './config'
 // Единая точка отправки маркетинговых рассылок из админки (s175).
 //
-// Раньше все три пути (страница «Email kampaň», win-back из «Спящих»,
-// cross-sell свободных окон) дёргали client-роут /api/send-bulk-email напрямую.
+// Раньше все пути (страница «Email kampaň», win-back из «Спящих», письма
+// «Дозапись в окно» — удалены в s197) дёргали client-роут /api/send-bulk-email напрямую.
 // Роут был открыт в интернет без авторизации, а получателей никто не проверял:
 // клиент, ответивший NEZASÍLAT, всё равно получал письмо со скидкой.
 //
@@ -24,15 +24,6 @@ export interface CampaignSkipped {
   blacklisted: number
   noConsent: number
 }
-
-/** Пустая разбивка отсева — стартовое значение аккумуляторов и ветка «отправка не удалась». */
-export const emptyCampaignSkipped = (): CampaignSkipped => ({
-  invalid: 0,
-  duplicate: 0,
-  optOut: 0,
-  blacklisted: 0,
-  noConsent: 0,
-})
 
 export interface CampaignSendResult {
   total: number

@@ -14,8 +14,11 @@ import {
   fetchCurrentClientNames,
   fetchDayDraftsOf,
   fetchServiceProvided,
+  fetchUpsellCommissions,
   findMonthlyCardProfit,
+  upsellCommissionsUrl,
 } from './shift/drafts'
+import { upsellCommissionState } from '../../../lib/upsellCommission'
 import {
   COLLECTION_LABEL,
   buildLabel,
@@ -59,6 +62,12 @@ export interface ShiftCheckResult {
     items: any[]
   }
   payroll: {
+    found: boolean
+    count: number
+    items: any[]
+  }
+  // комиссии администраторов за дозаписи (черновики add-money, source=upsell), s197
+  upsell: {
     found: boolean
     count: number
     items: any[]
@@ -192,18 +201,20 @@ export const publishShift = async (
   dateStr: string,
   cardSum: number,
   extraIncome: number,
-): Promise<{ published: number; failures: PublishFailure[] }> => {
+): Promise<{ published: number; failures: PublishFailure[]; skipped: PublishFailure[] }> => {
   const collections: { key: string; url: string }[] = [
     { key: 'cashs', url: `/api/cashs?filters[date][$eq]=${dateStr}&status=draft&populate=*&pagination[pageSize]=100` },
     { key: 'services-provided', url: `/api/services-provided?filters[date][$eq]=${dateStr}&status=draft&populate=*&pagination[pageSize]=100` },
     { key: 'work-times', url: `/api/work-times?filters[date][$eq]=${dateStr}&status=draft&populate=*&pagination[pageSize]=100` },
     { key: 'payrolls', url: `/api/payrolls?filters[date][$eq]=${dateStr}&status=draft&populate=*&pagination[pageSize]=100` },
+    // комиссии за дозаписи (s197): публикуются ТОЛЬКО у закрытых визитов
+    { key: 'add-moneys', url: upsellCommissionsUrl(dateStr) },
   ]
 
   // Fetch all drafts in parallel. authHeaders обязательны: без токена pre-flight
   // не увидел бы relation `booking` (санитизация Public-роли) и ложно завалил бы
   // записи чекаута из календаря на правиле «offer/booking».
-  const allDrafts = await Promise.all(
+  const allDrafts: any[][] = await Promise.all(
     collections.map(async (c) => {
       try {
         const res = await Axios.get(c.url, authCfg())
@@ -211,6 +222,31 @@ export const publishShift = async (
       } catch { return [] }
     }),
   )
+
+  // 🟥 Комиссия за дозапись подтверждается закрытием смены только когда визит
+  // состоялся (checkedOut). Незакрытый, отменённый или удалённый визит смену НЕ
+  // блокирует: такие черновики просто не публикуются и возвращаются списком
+  // skipped — владелец видит их отдельно и решает сам.
+  const skipped: PublishFailure[] = []
+  const amIdx = collections.findIndex((c) => c.key === 'add-moneys')
+  if (amIdx >= 0) {
+    const SKIP_REASON: Record<string, string> = {
+      visit_open: 'návštěva ještě není uzavřená',
+      visit_cancelled: 'návštěva zrušena / nedostavila se',
+      no_booking: 'rezervace neexistuje',
+    }
+    allDrafts[amIdx] = (allDrafts[amIdx] || []).filter((item: any) => {
+      const state = upsellCommissionState(item)
+      if (state === 'ready') return true
+      skipped.push({
+        collection: COLLECTION_LABEL['add-moneys'],
+        label: buildLabel('add-moneys', item),
+        message: SKIP_REASON[state],
+        documentId: item?.documentId,
+      })
+      return false
+    })
+  }
 
   // PRE-FLIGHT VALIDATION — make sure every draft can be published before we touch anything.
   // Strapi REST has no transactions, so we mustn't half-publish.
@@ -233,7 +269,7 @@ export const publishShift = async (
   // Pre-flight failed — bail BEFORE touching anything. User fixes records in Strapi
   // and retries. This keeps the operation atomic without any risky rollback.
   if (validationFailures.length > 0) {
-    return { published: 0, failures: validationFailures }
+    return { published: 0, failures: validationFailures, skipped }
   }
 
   // Build a flat list of publish tasks with context attached for error reporting.
@@ -298,6 +334,7 @@ export const publishShift = async (
           label: `Card profit ${dateStr}`,
           message: extractErrorMessage(e),
         }],
+        skipped,
       }
     }
   }
@@ -386,7 +423,7 @@ export const publishShift = async (
   // обзора»/зарплат/графиков, чтобы при следующем заходе пересчиталось свежее.
   if (published > 0) invalidateGlobalMonthData()
 
-  return { published, failures }
+  return { published, failures, skipped }
 }
 
 export interface RevertResult {
@@ -474,12 +511,13 @@ export const revertShift = async (dateStr: string): Promise<RevertResult> => {
 export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
   const dateStr = format(date, 'yyyy-MM-dd')
 
-  const [cash, serviceProvided, workTime, payroll, calendar] = await Promise.all([
+  const [cash, serviceProvided, workTime, payroll, calendar, upsell] = await Promise.all([
     fetchDayDraftsOf('cashs', 'pokladna', dateStr),
     fetchServiceProvided(dateStr),
     fetchDayDraftsOf('work-times', 'pracovní doba', dateStr),
     fetchDayDraftsOf('payrolls', 'výplaty', dateStr),
     fetchCalendarBookings(dateStr),
+    fetchUpsellCommissions(dateStr),
   ])
 
   // Internal worker-to-worker services are booked through the calendar too (walk-in
@@ -523,6 +561,7 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
     (workTime as any).error,
     (payroll as any).error,
     (calendar as any).error,
+    (upsell as any).error,
   ].filter(Boolean) as string[]
 
   return {
@@ -531,6 +570,7 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
     serviceProvided,
     workTime,
     payroll,
+    upsell,
     calendar: { ...calendar, events },
     comparison,
     errors,

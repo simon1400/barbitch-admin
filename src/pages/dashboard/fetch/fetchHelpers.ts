@@ -2,6 +2,7 @@ import { parseMoney } from '../../../utils/money'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { daysInMonth as daysInMonthOf, todayDate } from '../../../utils/date'
 import { strapiQuery } from '../../../lib/strapiQuery'
+import { isPublishableUpsellCommission } from '../../../lib/upsellCommission'
 
 import { Axios } from '../../../lib/api'
 
@@ -83,6 +84,16 @@ export const fetchDayDrafts = async <T>(
     { filters, fields, populate, pagination: { page: 1, pageSize: 200 }, status: 'draft' },
   )
   return await Axios.get(`${endpoint}?${query}`)
+}
+
+// Комиссии за дозаписи дня, которые закрытие смены ОПУБЛИКУЕТ (s197): тот же
+// предикат, что у publishShift, — иначе предпросмотр разошёлся бы с итогом.
+export const fetchDayUpsellCommissionDrafts = async (dateStr: string): Promise<PersonalSumData[]> => {
+  const rows = await fetchDayDrafts<any>('/api/add-moneys', ['sum', 'source'], 'date', dateStr, {
+    personal: { fields: ['name'] },
+    booking: { fields: ['status'] },
+  })
+  return (Array.isArray(rows) ? rows : []).filter(isPublishableUpsellCommission)
 }
 
 export interface PersonalSumData {

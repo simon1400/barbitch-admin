@@ -4,6 +4,7 @@ import type { ShiftCheckResult } from '../../fetch/shiftClose'
 import { CheckCard } from './CheckCard'
 import { CommentPopover } from './CommentPopover'
 import { hasComment } from './helpers'
+import { upsellCommissionState, type UpsellCommissionState } from '../../../../lib/upsellCommission'
 
 // Plain-text comment (cash.comment, flow.coment) — not HTML, render inline.
 const hasText = (raw: unknown) =>
@@ -88,3 +89,48 @@ export const PayrollCard = memo(({ data }: { data: ShiftCheckResult['payroll'] }
   </CheckCard>
 ))
 PayrollCard.displayName = 'PayrollCard'
+
+// Комиссии администраторов за дозаписи (s197). Публикуются вместе со сменой
+// только у закрытых визитов; остальное — видно здесь и не блокирует закрытие.
+const UPSELL_STATE: Record<UpsellCommissionState, { text: string; cls: string }> = {
+  ready: { text: 'k potvrzení', cls: 'bg-pos-bg text-pos' },
+  visit_open: { text: 'návštěva neuzavřena', cls: 'bg-warn-bg text-warn' },
+  visit_cancelled: { text: 'návštěva zrušena', cls: 'bg-neg-bg text-neg' },
+  no_booking: { text: 'rezervace smazána', cls: 'bg-neg-bg text-neg' },
+}
+
+const bookingServices = (raw: unknown): string => {
+  const arr = Array.isArray(raw) ? raw : []
+  return arr.map((s: any) => s?.title).filter(Boolean).join(' + ')
+}
+
+export const UpsellCommissionCard = memo(({ data }: { data: ShiftCheckResult['upsell'] }) => (
+  <CheckCard title="Dozápisy administrátorů" found={data.found} count={data.count}>
+    {data.items.length === 0 ? (
+      <p className="m-0 text-sm text-ink-soft">Žádné dozápisy</p>
+    ) : (
+      <div className="mt-2 space-y-1.5">
+        {data.items.map((item: any, i: number) => {
+          const state = UPSELL_STATE[upsellCommissionState(item)]
+          return (
+            <div key={item.documentId || i} className="text-sm text-ink-muted flex justify-between gap-3" data-upsell={item.documentId}>
+              <span className="break-words">
+                <span className="font-medium text-ink">{item.personal?.name || '—'}</span>
+                {' · '}
+                {item.booking?.clientNameRaw || '—'}
+                {' · '}
+                {bookingServices(item.booking?.services) || '—'}
+                {item.booking?.employeeNameRaw ? ` u ${item.booking.employeeNameRaw}` : ''}
+              </span>
+              <span className="flex items-center gap-2 whitespace-nowrap">
+                <span className="font-medium">{item.sum} Kč</span>
+                <span className={`rounded-md px-[7px] py-0.5 text-[11px] font-bold ${state.cls}`}>{state.text}</span>
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    )}
+  </CheckCard>
+))
+UpsellCommissionCard.displayName = 'UpsellCommissionCard'

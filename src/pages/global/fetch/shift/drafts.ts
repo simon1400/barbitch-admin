@@ -44,6 +44,27 @@ export const fetchDayDraftsOf = async (endpoint: string, label: string, dateStr:
   }
 }
 
+// Комиссии администраторов за дозаписи (s197): черновики «Доп. заработка» дня с
+// source=upsell. Статус визита нужен сразу — по нему решается, что публикуется.
+// Ручные записи владельца (без source) сюда не попадают: закрытие их не трогает.
+export const upsellCommissionsUrl = (dateStr: string) =>
+  `/api/add-moneys?filters[date][$eq]=${dateStr}&filters[source][$eq]=upsell` +
+  '&populate[personal][fields][0]=name' +
+  '&populate[booking][fields][0]=status&populate[booking][fields][1]=clientNameRaw' +
+  '&populate[booking][fields][2]=employeeNameRaw&populate[booking][fields][3]=services' +
+  '&pagination[pageSize]=100&status=draft'
+
+export const fetchUpsellCommissions = async (dateStr: string) => {
+  try {
+    const res = await Axios.get(upsellCommissionsUrl(dateStr), authCfg())
+    const items = Array.isArray(res) ? res : (res as any)?.data || []
+    return { found: items.length > 0, count: items.length, items }
+  } catch (e) {
+    console.error('fetchUpsellCommissions error:', e)
+    return { found: false, count: 0, items: [], error: `provize za dozápisy: ${errText(e)}` }
+  }
+}
+
 // Fetch service-provided records for a specific date
 export const fetchServiceProvided = async (dateStr: string) => {
   try {

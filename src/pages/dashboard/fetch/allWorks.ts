@@ -7,6 +7,7 @@ import {
   buildQuery,
   fetchAllPages,
   fetchDayDrafts,
+  fetchDayUpsellCommissionDrafts,
   groupAndSumByDateWithGaps,
   PAGE_SIZE,
   summarizeGeneric,
@@ -157,10 +158,13 @@ export const getAllWorks = async (month: number, year: number, previewDay?: stri
 
   // Preview: merge the day's draft services-provided + payrolls (the two collections a
   // close publishes that feed master earnings). Other adjustments aren't part of a close.
+  // + комиссии за дозаписи, которые закрытие опубликует (s197) — у совместителя
+  // они попадают и сюда, как выплаты.
   let serviceData = data
   let payrollData = payrolls
+  let extrasData = extras
   if (previewDay) {
-    const [draftServices, draftPayrolls] = await Promise.all([
+    const [draftServices, draftPayrolls, draftUpsell] = await Promise.all([
       fetchDayDrafts<IDataAllWorks>(
         '/api/services-provided',
         ['staffSalaries', 'salonSalaries', 'tip', 'date', 'cash'],
@@ -171,12 +175,14 @@ export const getAllWorks = async (month: number, year: number, previewDay?: stri
       fetchDayDrafts<PersonalSumData>('/api/payrolls', ['sum'], 'date', previewDay, {
         personal: { fields: ['name'] },
       }),
+      fetchDayUpsellCommissionDrafts(previewDay),
     ])
     serviceData = [...data, ...draftServices]
     payrollData = [...payrolls, ...draftPayrolls]
+    extrasData = [...extras, ...draftUpsell]
   }
 
-  const filteredData = summarizeWorks(serviceData, penalties, extras, payrollData, advance, salaries, taxes)
+  const filteredData = summarizeWorks(serviceData, penalties, extrasData, payrollData, advance, salaries, taxes)
 
   return {
     summary: filteredData.summary.sort((a, b) => b.sum - a.sum),

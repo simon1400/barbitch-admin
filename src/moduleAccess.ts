@@ -23,6 +23,7 @@ const MODULES: ModuleDef[] = [
   { path: '/calendar', label: 'Календарь', roles: ['owner', 'administrator', 'master'] },
   { path: '/global/analytics', label: 'Аналитика', roles: ['owner'], hasTabs: true },
   { path: '/global/team', label: 'Команда', roles: ['owner'], hasTabs: true },
+  { path: '/upsell', label: 'Дозаписи', roles: ['owner', 'administrator'] },
   { path: '/global/catalog', label: 'Каталог услуг', roles: ['owner', 'administrator'] },
   { path: '/global/shift-close', label: 'Uzavření směny', roles: ['owner'] },
   { path: '/voucher-confirmation', label: 'Potvrzení voucheru', roles: ['owner'] },

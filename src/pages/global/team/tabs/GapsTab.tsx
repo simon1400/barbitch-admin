@@ -4,17 +4,12 @@ import { Cell } from '../../../dashboard/components/Cell'
 import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
 import {
-  badgeNeutralCls,
-  badgePosCls,
   bodyBoldCls,
   btnNeutralCls,
-  btnPinkCls,
   cardCls,
   hintCls,
   iconBtnCls,
-  inputCls,
   pillCls,
-  selectCls,
   toolbarCardCls,
 } from '../../../../ui/kit'
 import {
@@ -33,16 +28,6 @@ import {
   DEAD_MIN,
   type MasterGapsRow,
 } from '../fetch/scheduleGaps'
-import {
-  getWindowFillCandidates,
-  sendCrossSellOffers,
-  getOfferResults,
-  BUCKET_LABEL,
-  type CrossSellCandidate,
-  type SendResult,
-  type OfferResultsSummary,
-} from '../fetch/windowCrossSell'
-import { emptyCampaignSkipped } from '../../../../lib/campaignApi'
 
 const fmtH = (min: number) => `${Math.round((min / 60) * 10) / 10} ч`
 
@@ -50,9 +35,6 @@ const fmtDay = (date: string) => {
   const [, m, d] = date.split('-')
   return `${d}.${m} ${DOW_RU_SHORT[dowOfYmd(date)]}`
 }
-
-// Нейтральный серый чип (напр. «нет» / «отправлено»)
-const neutralChipCls = badgeNeutralCls
 
 type Mode = 'month' | 'week'
 
@@ -66,103 +48,6 @@ export default function GapsTab() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
-
-  // Дозапись в конкретное окно (клик по чипу окна)
-  const [fill, setFill] = useState<{
-    employeeId: string
-    name: string
-    date: string
-    start: string
-    end: string
-  } | null>(null)
-  const [fillCands, setFillCands] = useState<CrossSellCandidate[]>([])
-  const [fillLoading, setFillLoading] = useState(false)
-  const [fillSel, setFillSel] = useState<Set<string>>(new Set())
-  const [fillChoice, setFillChoice] = useState<Record<string, string>>({}) // key → serviceId
-  const [fillSending, setFillSending] = useState(false)
-  const [fillResult, setFillResult] = useState<SendResult | null>(null)
-  const [discount, setDiscount] = useState('15 %')
-  const [results, setResults] = useState<OfferResultsSummary | null>(null)
-
-  const loadResults = useCallback(async () => {
-    try {
-      setResults(await getOfferResults())
-    } catch {
-      setResults(null)
-    }
-  }, [])
-  useEffect(() => {
-    loadResults()
-  }, [loadResults])
-
-  const openFill = useCallback(
-    async (employeeId: string, name: string, date: string, start: string, end: string) => {
-      setFill({ employeeId, name, date, start, end })
-      setFillCands([])
-      setFillSel(new Set())
-      setFillResult(null)
-      setFillLoading(true)
-      try {
-        const data = await getWindowFillCandidates(employeeId, name, date, start, end)
-        setFillCands(data)
-        setFillSel(new Set(data.filter((c) => !c.alreadySent).map((c) => c.key)))
-        setFillChoice(Object.fromEntries(data.map((c) => [c.key, c.serviceId])))
-      } catch {
-        setFillCands([])
-      } finally {
-        setFillLoading(false)
-      }
-    },
-    [],
-  )
-
-  const fillSelected = fillCands.filter((c) => fillSel.has(c.key) && !c.alreadySent)
-  // Окно юниора → предлагаем junior-ногти (−20% уже в цене + скидка за дозапись)
-  const isJuniorFill = fillCands.some((c) => c.isJunior)
-  const toggleFill = (key: string) =>
-    setFillSel((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-
-  const doFillSend = async () => {
-    if (!fill || fillSelected.length === 0) return
-    setFillSending(true)
-    try {
-      // подставляем выбранную в выпадашке услугу
-      const toSend = fillSelected.map((c) => {
-        const opt = c.serviceOptions?.find((o) => o.serviceId === fillChoice[c.key])
-        return opt
-          ? {
-              ...c,
-              serviceId: opt.serviceId,
-              serviceTitle: opt.serviceTitle,
-              serviceDurationMin: opt.serviceDurationMin,
-              offerBucket: opt.offerBucket,
-              bookingUrl: opt.bookingUrl,
-            }
-          : c
-      })
-      const r = await sendCrossSellOffers(toSend, discount)
-      setFillResult(r)
-      const data = await getWindowFillCandidates(fill.employeeId, fill.name, fill.date, fill.start, fill.end)
-      setFillCands(data)
-      setFillSel(new Set())
-      loadResults() // обновить статистику
-
-    } catch {
-      setFillResult({
-        total: fillSelected.length,
-        successful: 0,
-        failed: fillSelected.length,
-        skipped: emptyCampaignSkipped(),
-      })
-    } finally {
-      setFillSending(false)
-    }
-  }
 
   const weekEnd = addDays(weekStart, 6)
   const isCurrentWeek = ymd(weekStart) === ymd(startOfWeek(now))
@@ -276,7 +161,6 @@ export default function GapsTab() {
                     row={r}
                     expanded={expanded === r.employeeId}
                     onToggle={() => setExpanded(expanded === r.employeeId ? null : r.employeeId)}
-                    onGapClick={openFill}
                   />
                 ))}
               </tbody>
@@ -285,171 +169,6 @@ export default function GapsTab() {
         )}
       </StatSection>
 
-      {results && results.sent > 0 && (
-        <StatSection title="Результаты дозаписей" id="window-offer-results" defaultOpen={false}>
-          <p className={`m-0 mb-4 ${hintCls}`}>
-            Отправлено: <b>{results.sent}</b> · записалось:{' '}
-            <b className="text-brand">{results.converted}</b> ({results.pct}%). Конверсия —
-            приблизительно (бронь к предложенному мастеру в день предложения или позже); точная
-            отметка — в комментарии брони.
-          </p>
-          <TableWrapper>
-            <table className="w-full text-left">
-              <thead>
-                <tr>
-                  <Cell title="Клиент" asHeader />
-                  <Cell title="Отправлено" asHeader />
-                  <Cell title="Предложено" asHeader />
-                  <Cell title="Скидка" asHeader />
-                  <Cell title="Статус" asHeader />
-                </tr>
-              </thead>
-              <tbody>
-                {results.rows.map((r) => (
-                  <tr key={r.log.documentId} className="hover:bg-surface-hover transition-colors">
-                    <Cell title={r.log.customerName || '—'} className="font-bold text-ink" />
-                    <Cell title={r.log.sentAt ? fmtDay(r.log.sentAt.slice(0, 10)) : '—'} />
-                    <Cell
-                      title={`${r.log.serviceTitle} · ${r.log.masterName}`}
-                      className="text-ink-muted"
-                    />
-                    <Cell title={r.log.discount || '—'} />
-                    <td className="p-4 border-b border-line-soft">
-                      {r.converted ? (
-                        <span className={`whitespace-nowrap ${badgePosCls}`}>
-                          записался{r.bookingDate ? ` · ${fmtDay(r.bookingDate)}` : ''}
-                        </span>
-                      ) : (
-                        <span className={neutralChipCls}>нет</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </TableWrapper>
-        </StatSection>
-      )}
-
-      {fill && (
-        <div className="fixed inset-0 z-50 bg-[rgba(22,22,21,0.45)] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-line shadow-pop w-full max-w-4xl p-6 max-h-[85vh] overflow-y-auto">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <h3 className="text-[17px] font-extrabold text-ink flex items-center gap-2">
-                  {isJuniorFill ? 'Дозапись к юниору' : 'Дозапись в окно'}
-                  {isJuniorFill && (
-                    <span className="text-[11px] font-bold text-junior bg-junior-bg rounded-md px-[7px] py-0.5">
-                      junior −20% в цене
-                    </span>
-                  )}
-                </h3>
-                <p className="text-[13px] font-semibold text-ink-muted mt-0.5">
-                  {fill.name} · {fmtDay(fill.date)} · окно {fill.start}–{fill.end}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setFill(null)}
-                className="w-8 h-8 rounded-lg border-0 bg-transparent text-ink-faint text-[22px] leading-none hover:bg-surface-input hover:text-ink transition-colors inline-flex items-center justify-center shrink-0"
-                aria-label="Закрыть"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3 mb-4 flex-wrap">
-              <label className={`flex items-center gap-2 ${bodyBoldCls}`}>
-                {isJuniorFill ? 'Скидка за дозапись:' : 'Скидка:'}
-                <input
-                  type="text"
-                  value={discount}
-                  onChange={(e) => setDiscount(e.target.value)}
-                  className={`${inputCls} w-[90px]`}
-                />
-              </label>
-              {isJuniorFill && (
-                <span className="text-[12px] font-semibold text-junior">
-                  −20% уже в цене junior + {discount} за дозапись
-                </span>
-              )}
-              <button
-                type="button"
-                disabled={fillSelected.length === 0 || fillSending}
-                onClick={doFillSend}
-                className={`ml-auto ${btnPinkCls}`}
-              >
-                {fillSending ? 'Отправка…' : `Отправить (${fillSelected.length})`}
-              </button>
-            </div>
-
-            {fillResult && (
-              <div className="mb-4 rounded-lg bg-pos-bg text-pos text-[13px] font-semibold px-4 py-2.5">
-                Отправлено: {fillResult.successful} из {fillResult.total}
-                {fillResult.failed > 0 && (
-                  <span className="text-neg"> · ошибок: {fillResult.failed}</span>
-                )}
-              </div>
-            )}
-
-            {fillLoading ? (
-              <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">Načítání…</div>
-            ) : fillCands.length === 0 ? (
-              <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">
-                Нет клиентов, чья процедура заканчивается прямо перед этим окном.
-              </div>
-            ) : (
-              <ul className="border border-line rounded-lg divide-y divide-line-soft">
-                {fillCands.map((c) => (
-                  <li
-                    key={c.key}
-                    className={`flex items-start gap-3 px-3 py-2.5 ${c.alreadySent ? 'opacity-50' : ''}`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="mt-1 accent-brand"
-                      checked={fillSel.has(c.key) && !c.alreadySent}
-                      disabled={c.alreadySent}
-                      onChange={() => toggleFill(c.key)}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[13.5px] font-bold text-ink">{c.customerName}</span>
-                        <span className="text-[11.5px] font-semibold text-ink-faint">{c.email}</span>
-                        {c.alreadySent && <span className={neutralChipCls}>отправлено</span>}
-                      </div>
-                      <div className="text-[12px] font-semibold text-ink-muted mt-1">
-                        Её запись: {BUCKET_LABEL[c.anchorBucket]} до {c.anchorEndHHMM} · дозапись в{' '}
-                        {c.windowStartHHMM}
-                      </div>
-                      <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
-                        <span className="text-[12px] font-semibold text-ink-soft shrink-0">
-                          Предложить:
-                        </span>
-                        <select
-                          value={fillChoice[c.key] ?? c.serviceId}
-                          disabled={c.alreadySent}
-                          onChange={(e) =>
-                            setFillChoice((prev) => ({ ...prev, [c.key]: e.target.value }))
-                          }
-                          className={`${selectCls} flex-1 min-w-0`}
-                        >
-                          {(c.serviceOptions ?? []).map((o) => (
-                            <option key={o.serviceId} value={o.serviceId}>
-                              {o.isJunior ? 'Junior' : BUCKET_LABEL[o.offerBucket]} — {o.serviceTitle}{' '}
-                              ({o.serviceDurationMin} мин)
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      )}
     </>
   )
 }
@@ -458,12 +177,10 @@ function MasterRow({
   row,
   expanded,
   onToggle,
-  onGapClick,
 }: {
   row: MasterGapsRow
   expanded: boolean
   onToggle: () => void
-  onGapClick: (employeeId: string, name: string, date: string, start: string, end: string) => void
 }) {
   return (
     <>
@@ -520,21 +237,16 @@ function MasterRow({
                             ) : (
                               <span className="flex items-center gap-1.5 flex-wrap">
                                 {d.gaps.map((g) => (
-                                  <button
-                                    type="button"
+                                  <span
                                     key={`${d.date}-${g.start}`}
-                                    onClick={() =>
-                                      onGapClick(row.employeeId, row.name, d.date, g.start, g.end)
-                                    }
-                                    className={`rounded-lg px-2.5 py-1 text-[12px] font-bold hover:opacity-80 transition-opacity border ${
+                                    className={`rounded-lg px-2.5 py-1 text-[12px] font-bold border ${
                                       g.dead
                                         ? 'bg-neg-bg text-neg border-neg-line'
                                         : 'bg-pos-bg text-pos border-pos-line'
                                     }`}
-                                    title="Найти клиента для дозаписи в это окно"
                                   >
                                     {g.start}–{g.end} ({g.durationMin} мин)
-                                  </button>
+                                  </span>
                                 ))}
                               </span>
                             )}
