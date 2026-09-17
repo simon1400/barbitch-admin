@@ -29,11 +29,34 @@ export interface UpsellOffer {
   services: UpsellService[]
 }
 
+/**
+ * Результат предложения по клиенту за день (s199).
+ *   booked — дозапись администратора (из брони), site — дозаписалась сама на сайте;
+ *   declined / not_offered — отметка администратора с причиной.
+ */
+export type UpsellOutcome = 'booked' | 'site' | 'declined' | 'not_offered'
+export type UpsellManualOutcome = 'declined' | 'not_offered'
+
+export interface UpsellResult {
+  outcome: UpsellOutcome
+  reason: string | null
+  comment: string
+  adminUsername: string
+  updatedAt: string | null
+  bookingDocId: string | null
+}
+
 export interface UpsellClient {
   clientDocId: string
   clientName: string
   phone: string
   inSalon: boolean
+  /** сегодня хотя бы один визит уже начался — результат обязателен */
+  arrived: boolean
+  /** визиты дня закончились или закрыты */
+  left: boolean
+  result: UpsellResult | null
+  needsResult: boolean
   alreadyRebooked: boolean
   firstStartMin: number
   bookings: {
@@ -54,6 +77,52 @@ export interface UpsellDay {
   commissionPercent: number
   past?: boolean
   clients: UpsellClient[]
+  /** сегодня: уже ушедшие клиенты — остаются в списке ради отметки результата */
+  leftClients: UpsellClient[]
+}
+
+export interface UpsellResultBody {
+  client: string
+  outcome: UpsellManualOutcome
+  reason: string
+  comment: string
+}
+
+/** Отчёт владельца «Контроль предложений» за месяц. */
+export type UpsellReportOutcome = UpsellOutcome | 'missing'
+
+export interface UpsellReport {
+  month: string
+  today: string
+  totals: {
+    visited: number
+    site: number
+    required: number
+    marked: number
+    booked: number
+    declined: number
+    notOffered: number
+    missing: number
+    conversionPct: number | null
+    coveragePct: number | null
+  }
+  byAdmin: { adminUsername: string; booked: number; declined: number; notOffered: number }[]
+  reasons: { outcome: UpsellManualOutcome; reason: string; count: number }[]
+  days: { date: string; duty: string; visited: number; site: number; booked: number; declined: number; notOffered: number; missing: number }[]
+  rows: {
+    date: string
+    time: string
+    clientDocId: string
+    clientName: string
+    employees: string[]
+    services: string[]
+    outcome: UpsellReportOutcome
+    reason: string | null
+    comment: string
+    adminUsername: string
+    updatedAt: string | null
+    duty: string
+  }[]
 }
 
 export interface UpsellCreateBody {
@@ -114,6 +183,12 @@ const CODE_MESSAGES: Record<string, string> = {
   booking_not_found: 'Бронь клиента не найдена — обновите список.',
   bad_date: 'Неверная дата.',
   bad_month: 'Неверный месяц.',
+  result_not_arrived: 'Клиент ещё не пришёл — отметить результат можно после начала визита.',
+  result_auto: 'У клиента уже есть дозапись — результат отмечен сам. Обновите список.',
+  comment_required: 'Для «Другое» напишите, что случилось.',
+  bad_reason: 'Выберите причину.',
+  bad_outcome: 'Выберите результат.',
+  owner_only: 'Отчёт доступен только владельцу.',
 }
 
 const upsellFetch = makeApiFetch('/api', CODE_MESSAGES, (status) => `Ошибка ${status}`)
@@ -123,6 +198,12 @@ export const fetchUpsellDay = (date: string) =>
 
 export const createUpsell = (body: UpsellCreateBody) =>
   upsellFetch<UpsellCreated>('POST', '/engine/admin/upsell', body)
+
+export const saveUpsellResult = (body: UpsellResultBody) =>
+  upsellFetch<{ clientDocId: string; result: UpsellResult }>('POST', '/engine/admin/upsell/result', body)
+
+export const fetchUpsellReport = (month: string) =>
+  upsellFetch<UpsellReport>('GET', `/engine/admin/upsell/report?month=${encodeURIComponent(month)}`)
 
 export const fetchUpsellMine = (month: string) =>
   upsellFetch<UpsellMine>('GET', `/engine/admin/upsell/mine?month=${encodeURIComponent(month)}`)

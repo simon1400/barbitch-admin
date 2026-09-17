@@ -5,27 +5,47 @@
 // визитом. Клиенту −10 %, администратору 5 % от полной цены: комиссия создаётся
 // черновиком «Доп. заработка», владелец подтверждает её на закрытии смены.
 // Пуш мастеру и Telegram салону шлёт сервер; письма клиенту нет — он рядом.
+//
+// s199: по каждому клиенту, который сегодня уже пришёл, администратор закрывает
+// результат — дозаписан / отказ / не предлагали (+ причина). Ушедшие без отметки
+// остаются в группе «Уже ушли». Владелец видит «Контроль предложений» за месяц.
 import { useCallback, useEffect, useState } from 'react'
 
 import { errMsg } from '../../lib/errMsg'
 import { getSessionRole } from '../../services/auth'
-import { btnNeutralCls, cardCls, countBadgeCls, h1Cls, headMicroCls, hintCls, iconBtnCls, mutedCls, pageShellCls } from '../../ui/kit'
+import {
+  badgeWarnCls,
+  btnNeutralCls,
+  cardCls,
+  countBadgeCls,
+  h1Cls,
+  headMicroCls,
+  hintCls,
+  iconBtnCls,
+  mutedCls,
+  pageShellCls,
+} from '../../ui/kit'
 import { WEEKDAYS_CS, addDaysYmd, dowOfYmd, fmtCsDate, todayYmd } from '../../utils/date'
 import { kc } from '../../utils/money'
 import { ClientCard } from './components/ClientCard'
 import { ChevronDown, ChevronLeft, ChevronRight, RefreshIcon } from './components/icons'
 import { MineSection } from './components/MineSection'
+import { ReportSection } from './components/ReportSection'
 import {
   createUpsell,
   fetchUpsellDay,
   fetchUpsellMine,
+  fetchUpsellReport,
+  saveUpsellResult,
   type UpsellClient,
   type UpsellDay,
+  type UpsellManualOutcome,
   type UpsellMine,
   type UpsellOffer,
+  type UpsellReport,
   type UpsellService,
 } from './fetch/upsellApi'
-import { MINE_SECTION_ID, confirmText, upsellCountLabel } from './labels'
+import { MINE_SECTION_ID, confirmText, plural, upsellCountLabel } from './labels'
 
 const sepCls = 'text-ink-disabled'
 const stripLabelCls = `${headMicroCls} text-ink-muted`
@@ -44,6 +64,11 @@ export default function UpsellPage() {
   const [mineLoading, setMineLoading] = useState(true)
   const [mineError, setMineError] = useState<string | null>(null)
 
+  const [report, setReport] = useState<UpsellReport | null>(null)
+  const [reportLoading, setReportLoading] = useState(isOwner)
+  const [reportError, setReportError] = useState<string | null>(null)
+
+  const [savingClient, setSavingClient] = useState<string | null>(null)
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
 
@@ -73,9 +98,26 @@ export default function UpsellPage() {
     }
   }, [])
 
+  const loadReport = useCallback(async (m: string) => {
+    setReportLoading(true)
+    setReportError(null)
+    try {
+      setReport(await fetchUpsellReport(m))
+    } catch (e) {
+      setReport(null)
+      setReportError(errMsg(e, 'Не удалось загрузить отчёт'))
+    } finally {
+      setReportLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     loadDay(date)
   }, [date, loadDay])
+
+  useEffect(() => {
+    if (isOwner) loadReport(month)
+  }, [isOwner, month, loadReport])
 
   useEffect(() => {
     loadMine(month)
@@ -99,7 +141,7 @@ export default function UpsellPage() {
         ok: true,
         text: `Дозапись создана: ${res.clientName} · ${res.serviceTitle} · ${res.employee.name} · ${res.time}–${res.endTime}.${extra}`,
       })
-      await Promise.all([loadDay(date), loadMine(month)])
+      await Promise.all([loadDay(date), loadMine(month), isOwner ? loadReport(month) : null])
     } catch (e) {
       setNotice({ ok: false, text: errMsg(e, 'Не удалось создать дозапись') })
       await loadDay(date)
@@ -108,7 +150,30 @@ export default function UpsellPage() {
     }
   }
 
+  // результат по клиенту: сервер проверяет «уже пришёл» и пишет одну запись на клиента в день
+  const saveResult = async (client: UpsellClient, outcome: UpsellManualOutcome, reason: string, comment: string) => {
+    if (savingClient) return false
+    setSavingClient(client.clientDocId)
+    setNotice(null)
+    try {
+      const res = await saveUpsellResult({ client: client.clientDocId, outcome, reason, comment })
+      const patch = (list: UpsellClient[]) =>
+        list.map((c) => (c.clientDocId === res.clientDocId ? { ...c, result: res.result, needsResult: false } : c))
+      setDay((d) => (d ? { ...d, clients: patch(d.clients), leftClients: patch(d.leftClients || []) } : d))
+      if (isOwner) loadReport(month)
+      return true
+    } catch (e) {
+      setNotice({ ok: false, text: errMsg(e, 'Не удалось сохранить результат') })
+      await loadDay(date)
+      return false
+    } finally {
+      setSavingClient(null)
+    }
+  }
+
   const clients = day?.clients || []
+  const leftClients = day?.leftClients || []
+  const pendingCount = [...clients, ...leftClients].filter((c) => c.needsResult).length
   const isToday = date === today
   const inSalon = clients.filter((c) => c.inSalon)
   const later = clients.filter((c) => !c.inSalon)
@@ -120,9 +185,21 @@ export default function UpsellPage() {
           <span className={`w-2 h-2 rounded-full ${dot}`} />
           <span className="text-[11px] font-bold tracking-[0.08em] uppercase text-ink-muted">{title}</span>
           <span className={countBadgeCls}>{list.length}</span>
+          {list.some((c) => c.needsResult) && (
+            <span className={`${badgeWarnCls} rounded-full`} data-pending={list.filter((c) => c.needsResult).length}>
+              не отмечено: {list.filter((c) => c.needsResult).length}
+            </span>
+          )}
         </div>
         {list.map((c) => (
-          <ClientCard key={c.clientDocId} client={c} busyKey={busyKey} onBook={book} />
+          <ClientCard
+            key={c.clientDocId}
+            client={c}
+            busyKey={busyKey}
+            onBook={book}
+            savingResult={savingClient === c.clientDocId}
+            onSaveResult={saveResult}
+          />
         ))}
       </section>
     )
@@ -210,10 +287,17 @@ export default function UpsellPage() {
         </div>
       )}
 
+      {isToday && pendingCount > 0 && (
+        <div className={`${cardCls} px-5 py-3 mb-4 !bg-warn-bg !border-warn-line text-[13px] font-bold text-warn`} data-pending-total={pendingCount}>
+          Не отмечен результат у {pendingCount} {plural(pendingCount, ['клиента', 'клиентов', 'клиентов'])} — подойдите, предложите дозапись и
+          отметьте, чем закончилось.
+        </div>
+      )}
+
       {dayError && <div className={`${hintCls} text-neg mb-3`}>{dayError}</div>}
       {dayLoading && !day && <div className={mutedCls}>Загрузка…</div>}
       {day?.past && <div className={`${hintCls} mb-3`}>День прошёл — дозаписывать некуда.</div>}
-      {day && !day.past && clients.length === 0 && (
+      {day && !day.past && clients.length === 0 && leftClients.length === 0 && (
         <div className={`${hintCls} mb-3`}>{isToday ? 'Сегодня больше клиентов не ждём.' : 'В этот день клиентов нет.'}</div>
       )}
 
@@ -221,12 +305,15 @@ export default function UpsellPage() {
         <>
           {renderGroup('Сейчас в салоне', inSalon, 'in-salon', 'bg-pos')}
           {renderGroup('Позже сегодня', later, 'later', 'bg-warn')}
+          {renderGroup('Уже ушли', leftClients, 'left', 'bg-ink-muted')}
         </>
       ) : (
         renderGroup('Клиенты дня', clients, 'day', 'bg-ink-muted')
       )}
 
       <MineSection month={month} onMonth={setMonth} data={mine} loading={mineLoading} error={mineError} isOwner={isOwner} />
+
+      {isOwner && <ReportSection key={month} month={month} data={report} loading={reportLoading} error={reportError} />}
     </div>
   )
 }

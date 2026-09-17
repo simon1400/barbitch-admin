@@ -2,15 +2,18 @@
 // дозаписи, сгруппированные по режиму («před» — до визита, «hned po» — сразу после).
 import { badgeBaseCls, badgeNeutralCls, badgePosCls, cardCls, cardTitleCls, headMicroCls } from '../../../ui/kit'
 import { hhmmToMin, minToHHMM } from '../../../utils/date'
-import type { UpsellClient, UpsellMode, UpsellOffer, UpsellService } from '../fetch/upsellApi'
+import type { UpsellClient, UpsellManualOutcome, UpsellMode, UpsellOffer, UpsellService } from '../fetch/upsellApi'
 import { MODE_LABEL, freeMastersLabel, initials } from '../labels'
 import { CheckIcon, ModeArrow } from './icons'
 import { OfferCard } from './OfferCard'
+import { ResultPanel } from './ResultPanel'
 
 interface Props {
   client: UpsellClient
   busyKey: string | null
   onBook: (client: UpsellClient, offer: UpsellOffer, svc: UpsellService) => void
+  savingResult: boolean
+  onSaveResult: (client: UpsellClient, outcome: UpsellManualOutcome, reason: string, comment: string) => Promise<boolean>
 }
 
 const MODES: UpsellMode[] = ['before', 'after']
@@ -42,7 +45,7 @@ const modeEdge = (mode: UpsellMode, offers: UpsellOffer[]): string | null => {
   return Number.isFinite(start) ? `od ${minToHHMM(start)}` : null
 }
 
-export function ClientCard({ client, busyKey, onBook }: Props) {
+export function ClientCard({ client, busyKey, onBook, savingResult, onSaveResult }: Props) {
   const groups = MODES.map((mode) => ({ mode, offers: client.offers.filter((o) => o.mode === mode) })).filter(
     (g) => g.offers.length > 0,
   )
@@ -85,7 +88,9 @@ export function ClientCard({ client, busyKey, onBook }: Props) {
         </div>
         <div className="flex items-center gap-2 shrink-0 text-[11px] font-bold">
           {rebooked && <span className={`${badgePosCls} ${statusChipCls} border-pos-line`}>уже есть дозапись</span>}
-          {client.inSalon ? (
+          {client.left ? (
+            <span className={`${badgeNeutralCls} ${statusChipCls} border-line-btn !text-ink-muted`}>визит окончен</span>
+          ) : client.inSalon ? (
             <span className={`${badgePosCls} ${statusChipCls} border-pos-line`}>v salonu{end ? ` · do ${end}` : ''}</span>
           ) : (
             <span className={`${badgeNeutralCls} ${statusChipCls} border-line-btn !text-ink-body`}>
@@ -94,6 +99,8 @@ export function ClientCard({ client, busyKey, onBook }: Props) {
           )}
         </div>
       </div>
+
+      {client.arrived && <ResultPanel client={client} saving={savingResult} onSave={onSaveResult} />}
 
       {groups.map(({ mode, offers }) => (
         <section key={mode} data-mode={mode}>
@@ -115,7 +122,7 @@ export function ClientCard({ client, busyKey, onBook }: Props) {
         </section>
       ))}
 
-      {groups.length === 0 && !rebooked && (
+      {groups.length === 0 && !rebooked && !client.left && (
         <div className="mt-3 text-[12.5px] font-semibold text-ink-muted">Свободных окон рядом с визитом нет.</div>
       )}
     </div>
