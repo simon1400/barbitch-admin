@@ -52,6 +52,8 @@ export const upsellCommissionsUrl = (dateStr: string) =>
   '&populate[personal][fields][0]=name' +
   '&populate[booking][fields][0]=status&populate[booking][fields][1]=clientNameRaw' +
   '&populate[booking][fields][2]=employeeNameRaw&populate[booking][fields][3]=services' +
+  // date + startsAt — для колонки «Čas» и ссылки в календарь на саму бронь
+  '&populate[booking][fields][4]=date&populate[booking][fields][5]=startsAt' +
   '&pagination[pageSize]=100&status=draft'
 
 export const fetchUpsellCommissions = async (dateStr: string) => {

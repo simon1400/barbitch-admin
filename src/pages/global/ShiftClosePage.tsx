@@ -368,7 +368,7 @@ export default function ShiftClosePage() {
                 />
                 <WorkTimeCard data={result.workTime} />
                 <PayrollCard data={result.payroll} />
-                <UpsellCommissionCard data={result.upsell} />
+                <UpsellCommissionCard data={result.upsell} shiftDate={result.date} />
               </div>
             </StatSection>
 
