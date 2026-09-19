@@ -2,6 +2,7 @@
 import { memo, useMemo } from 'react'
 import type { ShiftCheckResult } from '../../fetch/shiftClose'
 import { CheckCard } from './CheckCard'
+import { CalendarLinkChip } from './CalendarLinkChip'
 import { CommentPopover } from './CommentPopover'
 import { hasComment } from './helpers'
 import { upsellCommissionState, type UpsellCommissionState } from '../../../../lib/upsellCommission'
@@ -106,12 +107,6 @@ const bookingServices = (raw: unknown): string => {
   return arr.map((s: any) => s?.title).filter(Boolean).join(' + ')
 }
 
-// Тот же контракт, что у чипа в ServiceProvidedCard и push-уведомлений:
-// CalendarPage читает ?date=&highlight=<bookingDocId>, открывает день и мигает карточкой.
-// 🟥 Дата — ИМЕННО брони (booking.date); дата смены только как запасной вариант.
-const upsellCalendarLink = (bookingDocId: string, date: string) =>
-  `/calendar?date=${encodeURIComponent(date)}&highlight=${encodeURIComponent(bookingDocId)}`
-
 const svgProps = {
   viewBox: '0 0 24 24',
   fill: 'none',
@@ -121,17 +116,6 @@ const svgProps = {
   strokeLinejoin: 'round' as const,
   'aria-hidden': true,
 }
-
-const CalendarOpenIcon = () => (
-  <svg width="18" height="18" {...svgProps}>
-    <path d="M21 11V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h6" />
-    <path d="M16 2v4" />
-    <path d="M8 2v4" />
-    <path d="M3 10h18" />
-    <path d="M15 21l6-6" />
-    <path d="M16 15h5v5" />
-  </svg>
-)
 
 const ClientIcon = () => (
   <svg width="14" height="14" className="shrink-0" {...svgProps}>
@@ -151,31 +135,6 @@ const MasterIcon = () => (
 
 const UPSELL_GRID =
   'md:grid md:grid-cols-[56px_minmax(0,1fr)_minmax(0,190px)_72px_minmax(0,164px)_44px] md:gap-x-5 md:items-center'
-
-const linkBoxCls = 'flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px]'
-
-const UpsellCalendarLink = ({ item, shiftDate }: { item: any; shiftDate: string }) => {
-  const docId = item.booking?.documentId
-  if (!docId) {
-    return (
-      <span title="Rezervace už neexistuje" className={`${linkBoxCls} border border-dashed border-line-btn text-ink-disabled`}>
-        <CalendarOpenIcon />
-      </span>
-    )
-  }
-  return (
-    <a
-      href={upsellCalendarLink(docId, item.booking?.date || shiftDate)}
-      target="_blank"
-      rel="noopener noreferrer"
-      title="Otevřít v kalendáři"
-      aria-label="Otevřít dozápis v kalendáři"
-      className={`${linkBoxCls} border border-line-btn bg-white text-ink-muted transition-colors hover:border-line-btn-hover hover:text-ink`}
-    >
-      <CalendarOpenIcon />
-    </a>
-  )
-}
 
 export const UpsellCommissionCard = memo(
   ({ data, shiftDate }: { data: ShiftCheckResult['upsell']; shiftDate: string }) => {
@@ -247,7 +206,12 @@ export const UpsellCommissionCard = memo(
                     {state.text}
                   </span>
                   <span className="order-3 md:order-none">
-                    <UpsellCalendarLink item={item} shiftDate={shiftDate} />
+                    <CalendarLinkChip
+                      bookingDocId={item.booking?.documentId}
+                      date={item.booking?.date || shiftDate}
+                      title={item.booking?.documentId ? 'Dozápis' : 'Rezervace už neexistuje'}
+                      muted={!item.booking?.documentId}
+                    />
                   </span>
                   {/* мобильный перенос: админ / сумма / статус — отдельной строкой под услугой */}
                   <span aria-hidden className="order-3 h-0 w-full md:hidden" />

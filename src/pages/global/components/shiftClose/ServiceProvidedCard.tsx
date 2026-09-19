@@ -10,6 +10,7 @@ import {
   type VerifyFlag,
 } from '../../fetch/shiftClose'
 import { CheckCard } from './CheckCard'
+import { CalendarLinkChip } from './CalendarLinkChip'
 import { CommentPopover } from './CommentPopover'
 import { hasComment } from './helpers'
 import {
@@ -23,12 +24,6 @@ import {
 
 const strapiLink = (documentId: string) =>
   `${STRAPI_URL}/admin/content-manager/collection-types/api::service-provided.service-provided/${documentId}?status=draft`
-
-// Ссылка в календарь админки на конкретную бронь: CalendarPage читает
-// ?date=YYYY-MM-DD&highlight=<bookingDocId> при загрузке (тот же контракт, что у
-// push-уведомлений) — открывает нужный день, докручивает к карточке и мигает ею.
-const calendarLink = (bookingDocId: string, date: string) =>
-  `/calendar?date=${encodeURIComponent(date)}&highlight=${encodeURIComponent(bookingDocId)}`
 
 // Header icon for the "offer vs calendar service" comparison column.
 const CompareIcon = () => (
@@ -131,26 +126,6 @@ const offerMatchTitle = (m: OfferMatch): string => {
   }
 }
 
-// Small calendar glyph for records closed straight from the calendar.
-const CalendarGlyph = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M8 2v4" />
-    <path d="M16 2v4" />
-    <rect x="3" y="4" width="18" height="18" rx="2" />
-    <path d="M3 10h18" />
-  </svg>
-)
-
 const OfferMatchChip = ({ match, shiftDate }: { match: OfferMatch | undefined; shiftDate: string }) => {
   if (!match) return <span className="text-ink-faint">—</span>
   // Запись закрыта прямо из календаря → сравнивать нечего (услуга взята из самой
@@ -159,25 +134,8 @@ const OfferMatchChip = ({ match, shiftDate }: { match: OfferMatch | undefined; s
   // Иконка — ссылка на саму бронь в календаре (новая вкладка, чтобы не терять
   // загруженную сверку смены). Дата — из брони, фолбэк — день смены.
   if (match.source === 'booking') {
-    const chipCls =
-      'inline-flex items-center justify-center min-w-[28px] h-6 px-1.5 rounded bg-sky-100 text-sky-700'
-    if (match.bookingDocId) {
-      return (
-        <a
-          href={calendarLink(match.bookingDocId, match.bookingDate || shiftDate)}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={`${offerMatchTitle(match)}\nOtevřít v kalendáři`}
-          className={`${chipCls} hover:bg-sky-200 hover:text-sky-900 transition-colors`}
-        >
-          <CalendarGlyph />
-        </a>
-      )
-    }
     return (
-      <span title={offerMatchTitle(match)} className={`${chipCls} cursor-default`}>
-        <CalendarGlyph />
-      </span>
+      <CalendarLinkChip bookingDocId={match.bookingDocId} date={match.bookingDate || shiftDate} title={offerMatchTitle(match)} />
     )
   }
   const meta = OFFER_MATCH_META[match.status]
