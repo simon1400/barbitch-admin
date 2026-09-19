@@ -25,6 +25,7 @@ export const SUBNAV: SubnavDef[] = [
       { to: 'overview', label: 'Недельный обзор' },
       { to: 'charts', label: 'Недельные графики' },
       { to: 'clients', label: 'Новые vs повторные' },
+      { to: 'sources', label: 'Источники броней' },
       { to: 'sleeping', label: 'Спящие клиенты' },
       { to: 'comeback', label: 'Напоминания о визите' },
       { to: 'retention', label: 'Возвращаемость' },

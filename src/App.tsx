@@ -23,6 +23,7 @@ const AnalyticsOverviewTab = lazy(() => import('./pages/global/analytics/tabs/Ov
 const AnalyticsProceduresTab = lazy(() => import('./pages/global/analytics/tabs/ProceduresTab'))
 const AnalyticsChartsTab = lazy(() => import('./pages/global/analytics/tabs/ChartsTab'))
 const AnalyticsClientsTab = lazy(() => import('./pages/global/analytics/tabs/ClientsTab'))
+const AnalyticsSourcesTab = lazy(() => import('./pages/global/analytics/tabs/SourcesTab'))
 const AnalyticsSleepingTab = lazy(() => import('./pages/global/analytics/tabs/SleepingTab'))
 const AnalyticsComebackTab = lazy(() => import('./pages/global/analytics/tabs/ComebackTab'))
 const AnalyticsRetentionTab = lazy(() => import('./pages/global/analytics/tabs/RetentionTab'))
@@ -219,6 +220,7 @@ function App() {
             <Route path="procedures" element={<AnalyticsProceduresTab />} />
             <Route path="charts" element={<AnalyticsChartsTab />} />
             <Route path="clients" element={<AnalyticsClientsTab />} />
+            <Route path="sources" element={<AnalyticsSourcesTab />} />
             <Route path="sleeping" element={<AnalyticsSleepingTab />} />
             <Route path="comeback" element={<AnalyticsComebackTab />} />
             <Route path="retention" element={<AnalyticsRetentionTab />} />
