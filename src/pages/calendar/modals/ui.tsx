@@ -4,6 +4,7 @@
 import { JUNIOR_DISCOUNT_PERCENT } from '../fetch/engineApi'
 import { useIsNarrow } from '../useMediaQuery'
 import { TIME_OPTIONS, inputCls, type TierRepricePreview } from './helpers'
+import { kcNum } from '../../../utils/money'
 
 // Пикер времени: на телефоне нативный input type=time (работает хорошо),
 // на десктопе обычный select 10:00–19:00 с шагом 15 мин. Нестандартное текущее
@@ -140,6 +141,44 @@ export const OptionRow = ({
 // Подсказка про цену при переносе к мастеру другого тира: junior платит −20 %,
 // движок пересчитывает цену по снапшоту услуг. Розовая — цена изменится,
 // янтарная — сервер её не тронет (ручная цена/скидка или зеркальная бронь).
+// Перенос дозаписи на другой день: −15 % давались за окно «hned po vás», на
+// другом дне его нет → движок скидку снимает. Галочка оставляет её в силе —
+// для переносов по вине салона (решение владельца, s201). По умолчанию снята.
+export const RebookDiscountChoice = ({
+  discount,
+  keep,
+  onChange,
+}: {
+  discount: { percent: number; discountKc: number; originalPrice: number }
+  keep: boolean
+  onChange: (next: boolean) => void
+}) => (
+  <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
+    <div className="flex items-start gap-2">
+      <span className="text-sm leading-none">⚠</span>
+      <span>
+        Na rezervaci je <b>sleva za dozápis −{discount.percent} %</b> ({kcNum(discount.discountKc)} Kč).
+        {keep ? (
+          <> Sleva zůstane v platnosti, cena se nemění.</>
+        ) : (
+          <>
+            {' '}Přesun na jiný den ji ruší — cena se vrátí na <b>{kcNum(discount.originalPrice)} Kč</b>.
+          </>
+        )}
+      </span>
+    </div>
+    <label className="mt-2 flex cursor-pointer items-center gap-2.5 rounded-md border border-amber-300 bg-white px-3 py-2 dark:border-amber-500/40 dark:bg-[#2a2a28]">
+      <input
+        type="checkbox"
+        checked={keep}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 shrink-0 accent-primary"
+      />
+      Ponechat slevu (přesouváme kvůli salonu)
+    </label>
+  </div>
+)
+
 export const RepriceNotice = ({ reprice }: { reprice: TierRepricePreview }) => {
   const kc = (n: number) => `${n} Kč`
   if (reprice.blocked) {

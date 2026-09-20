@@ -9,6 +9,14 @@ import { fmtHM } from '../utils'
 
 export { fmtHM }
 
+// Применённая скидка за дозапись (−15 %) на брони. Перенос на ДРУГОЙ день её
+// снимает (движок, s201) — оба окна переноса по ней рисуют предупреждение
+// и галочку «оставить». applied=false (админ уже снял) считается «скидки нет».
+export const appliedRebookDiscount = (booking: CalendarBooking) => {
+  const d = booking.discount
+  return d && d.type === 'rebook' && d.applied ? d : null
+}
+
 // ── превью пересчёта цены при переносе к мастеру другого тира ──
 // Зеркало серверной логики (adminPatchBooking): цена берётся из seniorPrice снапшота
 // брони, junior платит −20 %. Сервер — источник истины, здесь только подсказка админу.

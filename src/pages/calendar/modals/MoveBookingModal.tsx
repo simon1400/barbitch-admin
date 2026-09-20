@@ -3,8 +3,8 @@
 
 import { useMemo, useState } from 'react'
 import type { CalendarBooking } from '../fetch/calendarDay'
-import { previewTierReprice } from './helpers'
-import { ModalShell, RepriceNotice, Section } from './ui'
+import { appliedRebookDiscount, previewTierReprice } from './helpers'
+import { ModalShell, RebookDiscountChoice, RepriceNotice, Section } from './ui'
 
 export interface MovePending {
   booking: CalendarBooking
@@ -22,13 +22,18 @@ export interface MovePending {
 interface MoveModalProps {
   pending: MovePending
   onClose: () => void
-  onConfirm: (notifyClient: boolean) => void
+  onConfirm: (notifyClient: boolean, keepRebookDiscount: boolean) => void
   busy: boolean
 }
 
 export const MoveBookingModal = ({ pending, onClose, onConfirm, busy }: MoveModalProps) => {
   const hasEmail = Boolean(pending.booking.client?.email?.trim())
   const [notifyClient, setNotifyClient] = useState(hasEmail)
+  // скидка за дозапись: спрашиваем только когда бронь уезжает на ДРУГОЙ день
+  // (перенос внутри дня её не трогает — ни здесь, ни на сервере)
+  const [keepDiscount, setKeepDiscount] = useState(false)
+  const rebookDiscount =
+    pending.date !== pending.booking.date ? appliedRebookDiscount(pending.booking) : null
   // цена при переносе к мастеру другого тира (junior −20 %) — превью до подтверждения
   const reprice = useMemo(
     () =>
@@ -50,6 +55,9 @@ export const MoveBookingModal = ({ pending, onClose, onConfirm, busy }: MoveModa
             <span className="font-semibold text-gray-900 dark:text-gray-300">{pending.toLabel}</span>
           </div>
           {reprice && <RepriceNotice reprice={reprice} />}
+          {rebookDiscount && (
+            <RebookDiscountChoice discount={rebookDiscount} keep={keepDiscount} onChange={setKeepDiscount} />
+          )}
         </div>
 
         {/* уведомление клиента */}
@@ -79,7 +87,7 @@ export const MoveBookingModal = ({ pending, onClose, onConfirm, busy }: MoveModa
           <button
             type="button"
             disabled={busy}
-            onClick={() => onConfirm(notifyClient && hasEmail)}
+            onClick={() => onConfirm(notifyClient && hasEmail, Boolean(rebookDiscount) && keepDiscount)}
             className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
           >
             {busy ? 'Přesouvám…' : 'Přesunout'}

@@ -520,7 +520,7 @@ export default function CalendarPage() {
     })
   }
 
-  const confirmMove = async (notifyClient: boolean) => {
+  const confirmMove = async (notifyClient: boolean, keepRebookDiscount: boolean) => {
     if (!movePending) return
     const m = movePending
     setMutating(true)
@@ -530,6 +530,7 @@ export default function CalendarPage() {
         time: m.time,
         ...(m.masterChanged ? { employee: m.employeeDocId } : {}),
         ...(notifyClient ? { notifyClient: true } : {}),
+        ...(keepRebookDiscount ? { keepRebookDiscount: true } : {}),
       })
       setMovePending(null)
       showRepriceNotice(res?.repricing)

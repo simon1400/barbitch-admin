@@ -125,6 +125,9 @@ export interface EnginePatchInput {
   notifyClient?: boolean
   // кастомный лейбл (снапшот из справочника booking-label); null → снять
   label?: { name: string; color: string } | null
+  // перенос дозаписи на ДРУГОЙ день по умолчанию снимает −15 % за дозапись
+  // (движок, s201); true — админ решил скидку оставить (переносим по вине салона)
+  keepRebookDiscount?: boolean
 }
 
 // Итог пересчёта цены при смене мастера senior↔junior (движок считает по снапшоту

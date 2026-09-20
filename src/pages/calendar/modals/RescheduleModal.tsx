@@ -8,6 +8,7 @@ import type { CalendarBooking, CalendarEmployee } from '../fetch/calendarDay'
 import { enginePatchBooking, type EngineRepricing } from '../fetch/engineApi'
 import { fmtTime } from '../utils'
 import {
+  appliedRebookDiscount,
   btnPrimaryCls,
   btnSecondaryCls,
   inputCls,
@@ -16,7 +17,7 @@ import {
   toMin,
 } from './helpers'
 import type { SlotFitContext } from './NewBookingModal'
-import { ModalShell, RepriceNotice, Section, TimeSelect } from './ui'
+import { ModalShell, RebookDiscountChoice, RepriceNotice, Section, TimeSelect } from './ui'
 
 export const RescheduleModal = ({
   booking,
@@ -41,6 +42,9 @@ export const RescheduleModal = ({
   const [notifyClient, setNotifyClient] = useState(hasEmail)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // скидка за дозапись: вопрос появляется, только пока выбран ДРУГОЙ день
+  const [keepDiscount, setKeepDiscount] = useState(false)
+  const rebookDiscount = date !== booking.date ? appliedRebookDiscount(booking) : null
 
   const masterChanged = Boolean(empDocId) && empDocId !== (curEmp?.docId || '')
   const changed = date !== booking.date || time !== curTime || masterChanged
@@ -85,6 +89,7 @@ export const RescheduleModal = ({
         time,
         ...(masterChanged ? { employee: empDocId } : {}),
         ...(notifyClient && hasEmail ? { notifyClient: true } : {}),
+        ...(rebookDiscount && keepDiscount ? { keepRebookDiscount: true } : {}),
       })
       onMoved(date, res?.repricing ?? null)
     } catch (e) {
@@ -156,6 +161,9 @@ export const RescheduleModal = ({
             </div>
           )}
           {reprice && <RepriceNotice reprice={reprice} />}
+          {rebookDiscount && (
+            <RebookDiscountChoice discount={rebookDiscount} keep={keepDiscount} onChange={setKeepDiscount} />
+          )}
         </Section>
 
         <Section title="Oznámení">
