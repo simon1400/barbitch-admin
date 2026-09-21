@@ -103,6 +103,11 @@ export interface EngineCreateBookingInput {
   comment?: string
   // чекбокс «отправить potvrzení» — письмо клиенту (только e-mail, без Telegram салону)
   notify?: boolean
+  // «Interní rezervace» (s203): запись сотрудника, время мастера не занимает.
+  // Клиент при этом НЕ передаётся и не создаётся — вместо него internalFor
+  // (documentId активного personal, кого обслуживают).
+  internal?: boolean
+  internalFor?: string
 }
 
 export const engineCreateBooking = (input: EngineCreateBookingInput) =>
@@ -246,6 +251,8 @@ export interface VisitCheckout {
   comment: string
   verify: string
   verifyFlags: string[]
+  // 💰 разница ручной цены (s203); null у записей до внедрения
+  manualDeltaKc?: number | null
   published: boolean
   personalName: string
   voucher: { documentId: string; idVoucher: string; sum: string } | null
@@ -261,6 +268,8 @@ export interface VisitCheckoutHint {
   ratePercent: number
   mustStaff: number
   mustSalon: number
+  // бронь интерная (s203): предзаполняет галку «Interní», салону 0
+  internal?: boolean
 }
 
 export interface VisitCheckoutInput {

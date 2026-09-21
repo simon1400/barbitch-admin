@@ -1,5 +1,6 @@
 // Геометрия дневного грида, вид карточки брони и авто-лейбл по статусу.
 // Вынесено из calendar/CalendarGrid.tsx ДОСЛОВНО (этап 6 аудита).
+import { isInternalBooking } from '../fetch/calendarDay'
 import type { CalendarBooking } from '../fetch/calendarDay'
 export const COL_W = 150 // ширина колонки (десктоп)
 export const COL_W_NARROW = 128 // ширина колонки на телефоне (видно ~2.5 мастера + ось)
@@ -29,6 +30,12 @@ export const cardStyle = (
   if (booking.status === 'noshow') {
     return { bg: '#f59e0b', border: '#d97706', text: '#ffffff', opacity: 0.45 }
   }
+  // Интерная бронь (s203) — teal, вариант «C» из макета, утверждён владельцем 21.09.
+  // Ветка ВЫШЕ junior/бренда: важен вид записи, а не тир мастера. Отменённая/noshow
+  // интерная выглядит как обычная отменённая — статус важнее вида.
+  if (isInternalBooking(booking)) {
+    return { bg: '#0d9488', border: '#0f766e', text: '#ffffff', opacity: booking.status === 'cancelled' ? 0.45 : 1 }
+  }
   const base =
     tier === 'junior'
       ? { bg: '#a78bfa', border: '#8b5cf6', text: '#ffffff' } // junior — фиолетовый
@@ -48,7 +55,10 @@ export const bookingLabel = (b: CalendarBooking): { name: string; color: string 
     default:
       // active + arrived (клиент dorazil) → зелёный лейбл; иначе кастомный лейбл брони
       if (b.arrived) return { name: 'Dorazila', color: '#22c55e' }
-      return b.label?.name && b.label?.color ? { name: b.label.name, color: b.label.color } : null
+      if (b.label?.name && b.label?.color) return { name: b.label.name, color: b.label.color }
+      // закладка «Interní» — светлый teal из макета; ниже кастомного лейбла по
+      // приоритету: если админ повесил свой штампик, показываем его
+      return isInternalBooking(b) ? { name: 'Interní', color: '#ccfbf1' } : null
   }
 }
 

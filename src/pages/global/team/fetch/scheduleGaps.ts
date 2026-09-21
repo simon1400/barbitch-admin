@@ -96,6 +96,8 @@ export const getScheduleGaps = async (
   }
   for (const e of bookings) {
     if (!e.noonaEmployeeId || !e.date || !isActiveStatus(e.status)) continue
+    // интерная бронь (s203) окно не закрывает — клиента туда записать можно
+    if (e.internal === true) continue
     if (!e.startsAt || !e.endsAt) continue
     const iv = { start: isoToMin(e.startsAt), end: isoToMin(e.endsAt) }
     const key = `${e.noonaEmployeeId}|${e.date}`

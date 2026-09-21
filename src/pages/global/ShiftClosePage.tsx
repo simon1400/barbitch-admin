@@ -35,6 +35,7 @@ import {
   PayrollCard,
   PublishSection,
   UpsellCommissionCard,
+  InternalPayrollCard,
 } from './components/shiftClose'
 // 🟥 Нативное поле даты вместо react-datepicker: библиотека тянула 207 KB плюс
 // свой CSS ради ОДНОГО поля на этой странице. В календаре нативное поле давно
@@ -369,6 +370,7 @@ export default function ShiftClosePage() {
                 <WorkTimeCard data={result.workTime} />
                 <PayrollCard data={result.payroll} />
                 <UpsellCommissionCard data={result.upsell} shiftDate={result.date} />
+                <InternalPayrollCard data={result.internalPayroll} shiftDate={result.date} />
               </div>
             </StatSection>
 

@@ -40,14 +40,20 @@ const hintChipCls =
   'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold leading-none text-pink-700 bg-pink-100 dark:bg-[#e71e6e26] dark:text-[#ff8ab6]'
 
 /** Чипы verify-флагов (та же палитра, что в закрытии смены). */
-const FlagChips = ({ flags }: { flags: string[] }) => (
+const FlagChips = ({ flags, manualDeltaKc }: { flags: string[]; manualDeltaKc?: number | null }) => (
   <div className="flex flex-wrap gap-1">
     {flags.map((f) => {
       const meta = FLAG_META[f as VerifyFlag]
       if (!meta) return null
+      // 💰 у ручной цены — сама разница (s203)
+      const suffix =
+        f === 'cena_rucne' && manualDeltaKc != null && manualDeltaKc !== 0
+          ? ` ${manualDeltaKc > 0 ? '+' : '−'}${Math.abs(manualDeltaKc)} Kč`
+          : ''
       return (
         <span key={f} className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${meta.chipCls}`}>
           {meta.emoji} {meta.label}
+          {suffix}
         </span>
       )
     })}
@@ -123,6 +129,10 @@ export const VisitCloseSection = ({
         if (cancelled) return
         setCheckout(res.checkout)
         setHint(res.hint)
+        // Галка «Interní» предзаполняется из брони (решение владельца §1а.5), но
+        // остаётся правимой. Только пока визит НЕ закрыт: у закрытого источник
+        // истины — сама запись, её значение подставляет форма редактирования.
+        if (!res.checkout && res.hint?.internal) set('internal', true)
         onHasCheckout(Boolean(res.checkout))
       })
       .catch(() => {
@@ -243,7 +253,9 @@ export const VisitCloseSection = ({
   // (мастер всегда получает свой процент от полной цены — скидку ест салон, s47)
   const saleKc = hint ? hint.fullPrice * parseSaleRate(form.sale, hint.fullPrice) : 0
   const mustStaff = hint ? hint.mustStaff : 0
-  const mustSalon = hint ? round2(hint.paidExpected - saleKc - mustStaff) : 0
+  // Интерная услуга: салон себе не берёт ничего. Считаем по ГАЛКЕ формы, а не по
+  // hint.internal — админ может её снять, и подсказка обязана поехать следом.
+  const mustSalon = form.internal ? 0 : hint ? round2(hint.paidExpected - saleKc - mustStaff) : 0
 
   const discountParts: string[] = []
   if (hint && hint.systemDiscountKc > 0) discountParts.push(`systémová sleva −${Math.round(hint.systemDiscountKc)} Kč`)
@@ -261,7 +273,9 @@ export const VisitCloseSection = ({
         <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
           {checkout && !editing ? 'Návštěva uzavřena' : 'Uzavřít návštěvu'}
         </span>
-        {checkout && !editing && <FlagChips flags={checkout.verifyFlags} />}
+        {checkout && !editing && (
+          <FlagChips flags={checkout.verifyFlags} manualDeltaKc={checkout.manualDeltaKc} />
+        )}
       </div>
 
       {/* ── закрытый визит: суммы + действия ── */}

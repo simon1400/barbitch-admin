@@ -214,6 +214,9 @@ export const ServiceProvidedCard = memo(({
   )
   const mismatchCount = [...offerMatches.values()].filter((m) => m.status === 'mismatch').length
   const voucherCount = data.items.filter((i: any) => hasVoucher(i)).length
+  // 💰 суммарная ручная разница за день (s203): «Cena změněna ručně: 3 (−1 290 Kč)».
+  // Без гейта по флагу: дельту и флаг сервер пишет вместе, у прочих записей она 0/null.
+  const manualDeltaSum = data.items.reduce((s: number, i: any) => s + (getFlagDelta(i, 'cena_rucne') ?? 0), 0)
 
   return (
     <CheckCard
@@ -234,6 +237,7 @@ export const ServiceProvidedCard = memo(({
             >
               <span className={`w-2 h-2 rounded-full ${meta.dotCls}`} />
               {meta.label}: {data.flagCounts[f]}
+              {f === 'cena_rucne' && manualDeltaSum !== 0 ? ` (${formatDelta(manualDeltaSum)})` : ''}
             </span>
           )
         })}

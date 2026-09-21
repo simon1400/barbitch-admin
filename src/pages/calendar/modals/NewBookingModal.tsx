@@ -4,6 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CalendarEmployee } from '../fetch/calendarDay'
+import { fetchInternalRecipients, type InternalRecipient } from '../../../lib/personals'
 import type { CatalogService, ClientHit } from '../fetch/engineApi'
 import { calcCombo, engineCreateBooking, fetchCatalog, searchClients } from '../fetch/engineApi'
 import {
@@ -44,6 +45,13 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
   const [employeeDocId, setEmployeeDocId] = useState(initial.employeeDocId || employees[0]?.docId || '')
   const [date, setDate] = useState(initial.date)
   const [time, setTime] = useState(initial.time || '10:00')
+
+  // Режим записи (s203): обычная клиентская бронь либо «Interní» — запись
+  // СОТРУДНИКА, которая не занимает время мастера. Третий режим, а не чекбокс:
+  // у интерной брони нет клиента вовсе, и вся секция «Klient» заменяется селектором.
+  const [internal, setInternal] = useState(false)
+  const [recipients, setRecipients] = useState<InternalRecipient[]>([])
+  const [recipientDocId, setRecipientDocId] = useState('')
 
   // клиент: поиск / новый
   const [query, setQuery] = useState('')
@@ -86,6 +94,14 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
       .then(setCatalog)
       .catch(() => setError('Nepodařilo se načíst katalog služeb'))
   }, [])
+
+  // список сотрудников тянем только когда он нужен (режим «Interní»)
+  useEffect(() => {
+    if (!internal || recipients.length) return
+    fetchInternalRecipients()
+      .then(setRecipients)
+      .catch(() => setError('Nepodařilo se načíst seznam zaměstnanců'))
+  }, [internal, recipients.length])
 
   // дебаунс-поиск клиентов
   useEffect(() => {
@@ -135,7 +151,20 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
 
   const canSubmit =
     Boolean(employeeDocId && date && /^\d{2}:\d{2}$/.test(time) && svc) &&
-    (newClient ? Boolean(ncName.trim()) && ncPhoneOk && ncEmailOk : Boolean(client))
+    (internal
+      ? Boolean(recipientDocId)
+      : newClient
+        ? Boolean(ncName.trim()) && ncPhoneOk && ncEmailOk
+        : Boolean(client))
+
+  // доля мастера и сумма списания с получателя — те же числа, что посчитает сервер
+  // (internalPayrollSum: цена × ratePercent мастера, округление до кроны)
+  const internalPrice = priceOverride.trim() ? Number(priceOverride) : (pricing?.price ?? null)
+  const masterRate = employee?.ratePercent ?? null
+  const internalOdpis =
+    internal && internalPrice != null && masterRate != null
+      ? Math.round((internalPrice * masterRate) / 100)
+      : null
 
   const submit = async () => {
     if (!canSubmit || !svc) return
@@ -147,12 +176,15 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
         date,
         time,
         services: [{ service: svc.documentId, variant: sel.variantLabel || null, modifiers: sel.modKeys }],
-        ...(newClient
-          ? { client: { name: ncName.trim(), phone: ncPhone.trim(), email: ncEmail.trim() || undefined } }
-          : { clientDocId: client!.documentId }),
+        // интерная бронь: клиента нет вовсе — ни поиска, ни создания карточки
+        ...(internal
+          ? { internal: true, internalFor: recipientDocId }
+          : newClient
+            ? { client: { name: ncName.trim(), phone: ncPhone.trim(), email: ncEmail.trim() || undefined } }
+            : { clientDocId: client!.documentId }),
         priceOverride: priceOverride.trim() ? Number(priceOverride) : undefined,
         comment: comment.trim() || undefined,
-        notify: notify && hasEmail,
+        notify: !internal && notify && hasEmail,
       })
       onCreated()
     } catch (e) {
@@ -187,7 +219,78 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
     >
       <div className="space-y-3">
         {/* ── Клиент ── */}
-        <Section title="Klient">
+        <Section title={internal ? 'Zaměstnanec' : 'Klient'}>
+          {/* Режим записи (s203). Пояснительный текст — только здесь: по правке
+              владельца в макете, в календаре и на закрытии смены объяснений нет. */}
+          <div className="mb-2 flex gap-1 rounded-md bg-gray-100 dark:bg-[#2a2a28] p-1" data-mode-switch>
+            <button
+              type="button"
+              onClick={() => {
+                setInternal(false)
+                setRecipientDocId('')
+              }}
+              className={`flex-1 rounded px-2 py-1.5 text-xs font-semibold transition ${
+                internal ? 'text-gray-500 dark:text-gray-400' : 'bg-white dark:bg-[#3a3a37] text-ink dark:text-gray-100 shadow-sm'
+              }`}
+            >
+              Klient
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setInternal(true)
+                setClient(null)
+                setNewClient(false)
+              }}
+              className={`flex-1 rounded px-2 py-1.5 text-xs font-semibold transition ${
+                internal ? 'bg-white dark:bg-[#3a3a37] text-indigo-700 dark:text-indigo-300 shadow-sm' : 'text-gray-500 dark:text-gray-400'
+              }`}
+            >
+              🤝 Interní
+            </button>
+          </div>
+
+          {internal ? (
+            <div className="space-y-2" data-internal-form>
+              <p className="rounded-md bg-indigo-50 dark:bg-indigo-500/10 px-3 py-2 text-xs text-indigo-800 dark:text-indigo-200">
+                Rezervace pro zaměstnance. <b>Nezabírá čas mistrové</b> — na tento termín se
+                může objednat i klientka. Salon si nebere nic, mistrová dostane své procento
+                a stejná částka se zaměstnanci zapíše jako odpis ze mzdy.
+              </p>
+              <div>
+                <span className={labelCls}>Pro koho *</span>
+                <select className={inputCls} value={recipientDocId} onChange={(e) => setRecipientDocId(e.target.value)}>
+                  <option value="">— vyberte zaměstnance —</option>
+                  {recipients.map((r) => (
+                    <option key={r.docId} value={r.docId}>
+                      {r.name}
+                      {r.position === 'administrator' ? ' (administrátorka)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {internalOdpis != null && (
+                <div
+                  className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-[#2a2a28] px-3 py-2 text-sm"
+                  data-internal-money
+                >
+                  <span className="whitespace-nowrap">
+                    mistrová <b className="text-emerald-700 dark:text-emerald-300">{internalOdpis} Kč</b>
+                  </span>
+                  <span className="whitespace-nowrap">
+                    odpis <b className="text-red-700 dark:text-red-300">−{internalOdpis} Kč</b>
+                  </span>
+                  <span className="whitespace-nowrap text-gray-500 dark:text-gray-400">salon 0 Kč</span>
+                </div>
+              )}
+              {internalOdpis == null && recipientDocId && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Vyberte službu — pak spočítáme podíl mistrové i odpis.
+                </p>
+              )}
+            </div>
+          ) : (
+            <>
           <div className="flex items-center justify-end">
             <button
               type="button"
@@ -287,6 +390,8 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
               )}
             </div>
           )}
+            </>
+          )}
         </Section>
 
         {/* ── Услуга ── */}
@@ -371,8 +476,9 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
             <input className={inputCls} value={comment} onChange={(e) => setComment(e.target.value)} />
           </div>
 
-          {/* Уведомление клиента (роадмап §4.3): письмо-подтверждение с ICS */}
-          {hasEmail ? (
+          {/* Уведомление клиента (роадмап §4.3): письмо-подтверждение с ICS.
+              У интерной брони адресата нет (client = NULL) — блок не показываем вовсе. */}
+          {internal ? null : hasEmail ? (
             <label className="flex cursor-pointer items-center gap-2.5 rounded-md border border-gray-200 dark:border-[#2e2e2c] bg-white dark:bg-[#2a2a28] px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:border-gray-300">
               <input
                 type="checkbox"

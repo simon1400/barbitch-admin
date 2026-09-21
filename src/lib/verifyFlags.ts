@@ -14,6 +14,7 @@ export type VerifyFlag =
   | 'mistr_down'
   | 'internal'
   | 'sleva_bez_karty'
+  | 'cena_rucne'
 
 export const VERIFY_FLAGS: VerifyFlag[] = [
   'ok',
@@ -24,6 +25,7 @@ export const VERIFY_FLAGS: VerifyFlag[] = [
   'mistr_up',
   'mistr_down',
   'ztrata',
+  'cena_rucne',
 ]
 
 export interface FlagMeta {
@@ -91,6 +93,14 @@ export const FLAG_META: Record<VerifyFlag, FlagMeta> = {
     chipCls: 'bg-teal-100 text-teal-800',
     dotCls: 'bg-teal-500',
     severity: 0,
+  },
+  // s203: цена визита изменена руками (вниз или вверх) — дельта в service-provided.manualDeltaKc
+  cena_rucne: {
+    emoji: '💰',
+    label: 'Cena změněna ručně',
+    chipCls: 'bg-orange-100 text-orange-800',
+    dotCls: 'bg-orange-500',
+    severity: 1,
   },
 }
 

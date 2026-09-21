@@ -39,6 +39,9 @@ export const getEvents = async (month: number, year: number) => {
   const noshow: MirrorBooking[] = []
   const payed: MirrorBooking[] = []
   for (const b of bookings) {
+    // интерные брони (s203) — сотрудники, не клиенты: в счётчики клиентов,
+    // оплат и отмен дашборда не идут
+    if (b.internal === true) continue
     if (b.status === 'cancelled') cancelled.push(b)
     else if (b.status === 'noshow') noshow.push(b)
     else payed.push(b)

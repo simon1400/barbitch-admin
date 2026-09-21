@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getMonthRange } from '../../../utils/getMonthRange'
 
-import { fetchAllCost, fetchDayDrafts } from './fetchHelpers'
+import { fetchAllCost, fetchDayDrafts, fetchDayPayrollDrafts } from './fetchHelpers'
 
 // Preview a shift close without saving: merge a day's drafts + use the entered card values.
 export interface ShiftPreview {
@@ -79,7 +79,7 @@ export const getMoney = async (
   if (preview) {
     const [draftCash, draftPayroll, draftServices] = await Promise.all([
       fetchDayDrafts<IDataCash>('/api/cashs', ['profit'], 'date', preview.day),
-      fetchDayDrafts<IDataCosts>('/api/payrolls', ['sum'], 'date', preview.day),
+      fetchDayPayrollDrafts(preview.day),
       fetchDayDrafts<any>('/api/services-provided', ['id'], 'date', preview.day, {
         voucher: { fields: ['sum'] },
       }),

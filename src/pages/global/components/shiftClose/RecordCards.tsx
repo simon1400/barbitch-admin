@@ -6,6 +6,7 @@ import { CalendarLinkChip } from './CalendarLinkChip'
 import { CommentPopover } from './CommentPopover'
 import { hasComment } from './helpers'
 import { upsellCommissionState, type UpsellCommissionState } from '../../../../lib/upsellCommission'
+import { internalPayrollState, type InternalPayrollState } from '../../../../lib/internalPayroll'
 import { fmtTimePrague } from '../../../../utils/date'
 
 // Plain-text comment (cash.comment, flow.coment) — not HTML, render inline.
@@ -135,6 +136,110 @@ const MasterIcon = () => (
 
 const UPSELL_GRID =
   'md:grid md:grid-cols-[56px_minmax(0,1fr)_minmax(0,190px)_72px_minmax(0,164px)_44px] md:gap-x-5 md:items-center'
+
+// Состояния те же, что у комиссии за дозапись, но подписи про ОДПИС.
+const INTERNAL_STATE: Record<InternalPayrollState, { text: string; cls: string }> = {
+  ready: { text: 'k odpisu', cls: 'bg-pos-bg text-pos' },
+  visit_open: { text: 'návštěva neuzavřena', cls: 'bg-warn-bg text-[#7a5c14]' },
+  visit_cancelled: { text: 'návštěva zrušena', cls: 'bg-neg-bg text-neg' },
+  no_booking: { text: 'rezervace smazána', cls: 'bg-neg-bg text-neg' },
+}
+
+// Только фамилия: по правке владельца в карточке закрытия смены имена короткие,
+// иначе две строки «получатель / → мастер» перестают помещаться без переноса.
+const surnameOf = (full?: string | null): string => {
+  const parts = String(full || '').trim().split(/\s+/).filter(Boolean)
+  return parts.length ? parts[parts.length - 1] : '—'
+}
+
+const INTERNAL_GRID =
+  'md:grid md:grid-cols-[56px_minmax(0,1fr)_minmax(0,150px)_84px_minmax(0,164px)_44px] md:gap-x-5 md:items-center'
+
+export const InternalPayrollCard = memo(
+  ({ data, shiftDate }: { data: ShiftCheckResult['internalPayroll']; shiftDate: string }) => {
+    const items = useMemo(
+      () =>
+        [...(data.items as any[])].sort((a, z) =>
+          (a.booking?.startsAt || '9').localeCompare(z.booking?.startsAt || '9'),
+        ),
+      [data.items],
+    )
+    const ready = items.filter((i) => internalPayrollState(i) === 'ready')
+    const readySum = ready.reduce((s, i) => s + (Number(i.sum) || 0), 0)
+
+    return (
+      <CheckCard title="Interní služby — odpisy ze mzdy" found={data.found} count={data.count}>
+        {items.length === 0 ? (
+          <p className="m-0 text-sm text-ink-soft">Žádné interní služby</p>
+        ) : (
+          <div className="mt-2">
+            {/* заголовка колонок нет — правка владельца по макету */}
+            {items.map((item: any, i: number) => {
+              const stateKey = internalPayrollState(item)
+              const state = INTERNAL_STATE[stateKey]
+              const publishable = stateKey === 'ready'
+              const b = item.booking
+              return (
+                <div
+                  key={item.documentId || i}
+                  data-internal-payroll={item.documentId}
+                  className={`flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line-soft py-3 ${INTERNAL_GRID}`}
+                >
+                  <span className="order-1 w-full whitespace-nowrap text-xs font-semibold tabular-nums text-ink-muted md:order-none md:w-auto md:text-sm md:text-ink">
+                    {b?.startsAt ? fmtTimePrague(b.startsAt) : '—'}
+                  </span>
+                  <div className="order-2 min-w-0 flex-1 basis-0 md:order-none">
+                    {/* услуга — одна строка с обрезкой, по словам не переносится */}
+                    <div className="truncate text-[15px] font-semibold leading-snug text-ink">
+                      {bookingServices(b?.services) || '—'}
+                    </div>
+                    {/* вторая строка: получатель → мастер, только фамилии */}
+                    <div className="mt-1 flex items-center gap-x-1.5 whitespace-nowrap text-[13px] text-ink-muted">
+                      <span className="truncate">{surnameOf(item.personal?.name)}</span>
+                      <span className="text-ink-disabled">→</span>
+                      <span className="truncate">{surnameOf(b?.employeeNameRaw)}</span>
+                    </div>
+                  </div>
+                  <span className="order-4 min-w-0 flex-1 truncate whitespace-nowrap text-[13px] text-ink-muted md:order-none md:text-sm md:text-ink-body">
+                    {surnameOf(item.personal?.name)}
+                  </span>
+                  <span
+                    className={`order-5 whitespace-nowrap text-sm font-semibold tabular-nums md:order-none md:text-right md:text-[15px] ${
+                      publishable ? 'text-neg' : 'text-ink-faint'
+                    }`}
+                  >
+                    −{item.sum} Kč
+                  </span>
+                  <span className={`order-6 justify-self-start whitespace-nowrap rounded-md px-[9px] py-[5px] text-xs font-bold md:order-none ${state.cls}`}>
+                    {state.text}
+                  </span>
+                  <span className="order-3 md:order-none">
+                    <CalendarLinkChip
+                      bookingDocId={item.booking?.documentId}
+                      date={item.booking?.date || shiftDate}
+                      title={item.booking?.documentId ? 'Interní rezervace' : 'Rezervace už neexistuje'}
+                      muted={!item.booking?.documentId}
+                    />
+                  </span>
+                  <span aria-hidden className="order-3 h-0 w-full md:hidden" />
+                </div>
+              )
+            })}
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 whitespace-nowrap border-t border-line pt-3 text-[13px] text-ink-muted">
+              <span>
+                {ready.length} z {items.length}
+              </span>
+              <span>
+                Odepíše se <strong className="text-[15px] font-bold text-neg">−{readySum} Kč</strong>
+              </span>
+            </div>
+          </div>
+        )}
+      </CheckCard>
+    )
+  },
+)
+InternalPayrollCard.displayName = 'InternalPayrollCard'
 
 export const UpsellCommissionCard = memo(
   ({ data, shiftDate }: { data: ShiftCheckResult['upsell']; shiftDate: string }) => {

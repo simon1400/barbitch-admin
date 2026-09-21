@@ -80,7 +80,17 @@ export interface CalendarBooking {
   // Приходит вместе с бронью из ответа движка, чтобы
   // календарь мог показать мастеру процент от ПОЛНОЙ цены (скидку несёт салон).
   redemptionKc?: number | null
+  // «Interní rezervace» (s203): запись СОТРУДНИКА салона. Время мастера НЕ занимает —
+  // на этот слот может записаться реальный клиент (и сайт, и админка).
+  // ⚠️ У броней, созданных до появления поля, приходит undefined/null — это ОБЫЧНАЯ
+  // бронь, поэтому везде сравниваем строго с true, а не «!== false».
+  internal?: boolean | null
+  // кого обслуживают по интерной брони (personal) — бейдж «🤝 Interní · pro: …»
+  internalFor?: { documentId?: string; name?: string | null } | null
 }
+
+/** Интерная бронь (s203). NULL/undefined у старых строк = обычная. */
+export const isInternalBooking = (b: Pick<CalendarBooking, 'internal'>): boolean => b.internal === true
 
 // approved — блок действует (занимает время); pending — ждёт подтверждения владельца;
 // rejected — владелец отклонил (в календаре виден помеченным, слоты НЕ занимает).
@@ -250,6 +260,9 @@ export function busyIntervals(col: MasterColumn): { startMin: number; endMin: nu
   const out: { startMin: number; endMin: number }[] = []
   for (const b of col.bookings) {
     if (b.status !== 'active') continue
+    // интерная бронь времени не занимает — иначе подсказка врала бы «obsazeno»
+    // ровно там, куда клиента записать МОЖНО (сервер этот слот отдаёт свободным)
+    if (isInternalBooking(b)) continue
     const s = isoToMin(b.startsAt)
     const e = isoToMin(b.endsAt)
     if (s != null && e != null && e > s) out.push({ startMin: s, endMin: e })
@@ -361,16 +374,19 @@ export function packColumn(bookings: CalendarBooking[]): PositionedBooking[] {
   let cluster: typeof items = []
   let clusterEnd = -1
 
-  // приоритет слоя внутри пересечения: активная бронь всегда сверху (lane 0, во всю
-  // ширину и читаема), отменённые/noshow уходят под неё и выглядывают сзади
-  const statusRank = (s: string) => (s === 'active' ? 0 : s === 'checkedOut' ? 1 : s === 'noshow' ? 2 : 3)
+  // приоритет слоя внутри пересечения: активная КЛИЕНТСКАЯ бронь всегда сверху
+  // (lane 0, во всю ширину и читаема), отменённые/noshow уходят под неё и выглядывают
+  // сзади. Интерная бронь активна, но время не занимает и клиент на неё пишется
+  // поверх — поэтому она идёт СРАЗУ ПОД клиентской (0.5), а не рядом с ней.
+  const statusRank = (b: CalendarBooking) =>
+    b.status === 'active' ? (isInternalBooking(b) ? 0.5 : 0) : b.status === 'checkedOut' ? 1 : b.status === 'noshow' ? 2 : 3
 
   const flush = () => {
     if (!cluster.length) return
     const laneEnds: number[] = []
     // порядок назначения lane: сначала активные (получат меньший lane), затем по
     // времени начала; кластеризация выше идёт по времени старта и не ломается
-    const ordered = [...cluster].sort((a, b) => statusRank(a.b.status) - statusRank(b.b.status) || a.s - b.s || a.e - b.e)
+    const ordered = [...cluster].sort((a, b) => statusRank(a.b) - statusRank(b.b) || a.s - b.s || a.e - b.e)
     const placed = ordered.map((it) => {
       let lane = laneEnds.findIndex((end) => end <= it.s)
       if (lane === -1) {

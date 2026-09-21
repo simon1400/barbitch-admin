@@ -3,6 +3,7 @@ import { parseMoney } from '../../../utils/money'
 import { daysInMonth as daysInMonthOf, todayDate } from '../../../utils/date'
 import { strapiQuery } from '../../../lib/strapiQuery'
 import { isPublishableUpsellCommission } from '../../../lib/upsellCommission'
+import { isInternalPayrollItem, isPublishableInternalPayroll } from '../../../lib/internalPayroll'
 
 import { Axios } from '../../../lib/api'
 
@@ -94,6 +95,20 @@ export const fetchDayUpsellCommissionDrafts = async (dateStr: string): Promise<P
     booking: { fields: ['status'] },
   })
   return (Array.isArray(rows) ? rows : []).filter(isPublishableUpsellCommission)
+}
+
+// Черновики «Списывания с зарплаты» дня, которые закрытие смены ОПУБЛИКУЕТ (s203).
+// 🟥 Тот же предикат, что у publishShift: ручные записи владельца (без `source`)
+// публикуются всегда, а списания за интерные услуги — только у состоявшихся визитов.
+// Без этого фильтра предпросмотр «Čistý zisk směny» вычел бы и те списания, которые
+// публикация пропустит, и разошёлся бы с фактическим итогом.
+export const fetchDayPayrollDrafts = async (dateStr: string): Promise<{ sum: string }[]> => {
+  const rows = await fetchDayDrafts<any>('/api/payrolls', ['sum', 'source'], 'date', dateStr, {
+    booking: { fields: ['status'] },
+  })
+  return (Array.isArray(rows) ? rows : []).filter(
+    (item: any) => !isInternalPayrollItem(item) || isPublishableInternalPayroll(item),
+  )
 }
 
 export interface PersonalSumData {

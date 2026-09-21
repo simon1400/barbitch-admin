@@ -65,3 +65,32 @@ export const fetchActivePersonals = async (): Promise<ActivePersonal[]> => {
     }))
     .sort((a, b) => a.calendarOrder - b.calendarOrder || a.name.localeCompare(b.name, 'cs'))
 }
+
+/** Получатель интерной услуги (s203): любой активный сотрудник салона. */
+export interface InternalRecipient {
+  docId: string
+  name: string
+  /** 'master' | 'administrator' — показывается подписью в селекторе */
+  position: string | null
+}
+
+// 🟥 Это ОТДЕЛЬНЫЙ запрос, а не переиспользование fetchActivePersonals, и свести их нельзя:
+// тот выкидывает сотрудников без `noonaEmployeeId`, потому что по нему сходятся БРОНИ.
+// Получатель интерной услуги брони не исполняет — у администраторов noonaEmployeeId
+// может не быть вовсе, и они бы молча пропали из списка. Отсев «❌» остаётся.
+const RECIPIENTS_QUERY =
+  '/api/personals?filters[isActive][$eq]=true' +
+  '&fields[0]=name&fields[1]=position' +
+  '&pagination[pageSize]=100&status=published'
+
+export const fetchInternalRecipients = async (): Promise<InternalRecipient[]> => {
+  const res = (await Axios.get(RECIPIENTS_QUERY, { headers: authHeaders() })) as {
+    documentId: string
+    name: string
+    position: string | null
+  }[]
+  return (res || [])
+    .filter((p) => p.name && !p.name.startsWith('❌'))
+    .map((p) => ({ docId: p.documentId, name: p.name.trim(), position: p.position ?? null }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'cs'))
+}

@@ -83,6 +83,9 @@ const fetchBookingsCreatedSince = (fromIso: string): Promise<ConvBooking[]> =>
   fetchAllPagesStrapi<ConvBooking>(
     `/api/bookings?filters[createdAt][$gte]=${encodeURIComponent(fromIso)}` +
       `&filters[status][$in][0]=active&filters[status][$in][1]=checkedOut` +
+      // интерные брони (s203) не конверсия письма. NULL-безопасно: у старых
+      // броней колонка NULL, и `$ne=true` отбросил бы их все (см. booking-kind.ts)
+      `&filters[$or][0][internal][$null]=true&filters[$or][1][internal][$eq]=false` +
       `&fields[0]=date&fields[1]=createdAt&fields[2]=status` +
       `&populate[client][fields][0]=name&sort=createdAt:asc`,
   )

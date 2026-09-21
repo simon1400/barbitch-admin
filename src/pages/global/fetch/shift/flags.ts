@@ -113,6 +113,9 @@ export const getItemFlags = (item: any): VerifyFlag[] => {
 
 // Numeric delta for the given flag — used in tooltips, e.g. "+50 Kč" / "−30 Kč"
 export const getFlagDelta = (item: any, flag: VerifyFlag): number | null => {
+  // 💰 дельта хранится в записи (сервер считает её с учётом bitchcard) — до
+  // проверки offer.price: у booking-записей оффера нет
+  if (flag === 'cena_rucne') return item?.manualDeltaKc == null ? null : toNum(item.manualDeltaKc)
   const offerPrice = Number(item?.offer?.price)
   const ratePercent = Number(item?.personal?.ratePercent)
   if (!Number.isFinite(offerPrice) || !Number.isFinite(ratePercent) || offerPrice <= 0) return null

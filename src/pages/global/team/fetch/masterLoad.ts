@@ -94,6 +94,9 @@ export const getMasterLoadRange = async (
   const bookedCount = new Map<string, number>()
   for (const e of bookings) {
     if (!e.noonaEmployeeId || !e.date || !isActiveStatus(e.status)) continue
+    // интерная бронь (s203) время мастера не занимает: на этот слот может
+    // записаться клиент, значит для загрузки это СВОБОДНОЕ время
+    if (e.internal === true) continue
     if (!e.startsAt || !e.endsAt) continue
     const dur = Math.max(0, (new Date(e.endsAt).getTime() - new Date(e.startsAt).getTime()) / 60000)
     const key = `${e.noonaEmployeeId}|${e.date}`

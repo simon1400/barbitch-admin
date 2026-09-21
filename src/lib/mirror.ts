@@ -28,6 +28,8 @@ export interface MirrorBooking {
   noonaCreatedAt: string | null
   createdAt: string
   client: { documentId: string; name: string; noonaCustomerId: string | null } | null
+  // интерная бронь (s203): NULL/undefined у старых строк = обычная
+  internal?: boolean | null
 }
 
 const BOOKING_FIELDS = [
@@ -44,6 +46,7 @@ const BOOKING_FIELDS = [
   'bsChannel',
   'noonaCreatedAt',
   'createdAt',
+  'internal',
 ]
   .map((f, i) => `fields[${i}]=${f}`)
   .join('&')

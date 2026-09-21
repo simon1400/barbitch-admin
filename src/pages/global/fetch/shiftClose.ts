@@ -18,7 +18,8 @@ import {
   findMonthlyCardProfit,
   upsellCommissionsUrl,
 } from './shift/drafts'
-import { upsellCommissionState } from '../../../lib/upsellCommission'
+import { isInternalPayrollItem } from '../../../lib/internalPayroll'
+import { gateInternalPayrolls, gateUpsellCommissions } from './shift/publishGates'
 import {
   COLLECTION_LABEL,
   buildLabel,
@@ -68,6 +69,12 @@ export interface ShiftCheckResult {
   }
   // комиссии администраторов за дозаписи (черновики add-money, source=upsell), s197
   upsell: {
+    found: boolean
+    count: number
+    items: any[]
+  }
+  // списания с зарплаты за интерные услуги (черновики payroll, source=internal), s203
+  internalPayroll: {
     found: boolean
     count: number
     items: any[]
@@ -223,30 +230,14 @@ export const publishShift = async (
     }),
   )
 
-  // 🟥 Комиссия за дозапись подтверждается закрытием смены только когда визит
-  // состоялся (checkedOut). Незакрытый, отменённый или удалённый визит смену НЕ
-  // блокирует: такие черновики просто не публикуются и возвращаются списком
-  // skipped — владелец видит их отдельно и решает сам.
+  // Условные черновики (комиссии за дозаписи s197, списания за интерные услуги s203)
+  // публикуются только у состоявшихся визитов; остальные уходят в `skipped` и смену
+  // не блокируют. Само правило — в shift/publishGates.
   const skipped: PublishFailure[] = []
   const amIdx = collections.findIndex((c) => c.key === 'add-moneys')
-  if (amIdx >= 0) {
-    const SKIP_REASON: Record<string, string> = {
-      visit_open: 'návštěva ještě není uzavřená',
-      visit_cancelled: 'návštěva zrušena / nedostavila se',
-      no_booking: 'rezervace neexistuje',
-    }
-    allDrafts[amIdx] = (allDrafts[amIdx] || []).filter((item: any) => {
-      const state = upsellCommissionState(item)
-      if (state === 'ready') return true
-      skipped.push({
-        collection: COLLECTION_LABEL['add-moneys'],
-        label: buildLabel('add-moneys', item),
-        message: SKIP_REASON[state],
-        documentId: item?.documentId,
-      })
-      return false
-    })
-  }
+  if (amIdx >= 0) allDrafts[amIdx] = gateUpsellCommissions(allDrafts[amIdx], skipped)
+  const prIdx = collections.findIndex((c) => c.key === 'payrolls')
+  if (prIdx >= 0) allDrafts[prIdx] = gateInternalPayrolls(allDrafts[prIdx], skipped)
 
   // PRE-FLIGHT VALIDATION — make sure every draft can be published before we touch anything.
   // Strapi REST has no transactions, so we mustn't half-publish.
@@ -511,7 +502,7 @@ export const revertShift = async (dateStr: string): Promise<RevertResult> => {
 export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
   const dateStr = format(date, 'yyyy-MM-dd')
 
-  const [cash, serviceProvided, workTime, payroll, calendar, upsell] = await Promise.all([
+  const [cash, serviceProvided, workTime, payrollAll, calendar, upsell] = await Promise.all([
     fetchDayDraftsOf('cashs', 'pokladna', dateStr),
     fetchServiceProvided(dateStr),
     fetchDayDraftsOf('work-times', 'pracovní doba', dateStr),
@@ -519,6 +510,22 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
     fetchCalendarBookings(dateStr),
     fetchUpsellCommissions(dateStr),
   ])
+
+  // Списания за интерные услуги (s203) выделяем из ТОГО ЖЕ ответа: черновики дня
+  // приходят с populate=*, то есть уже с `source` и связью `booking`. Второй круг
+  // к той же коллекции был бы лишним запросом и сломал бы инвариант стенда
+  // «черновики дня запрошены по одному разу».
+  // В общей карточке «Výplaty» интерные больше не показываем — у них своя
+  // карточка с гейтом по статусу визита, иначе одна запись висела бы дважды.
+  const allPayrollItems: any[] = payrollAll.items || []
+  const internalItems = allPayrollItems.filter((i) => isInternalPayrollItem(i))
+  const manualItems = allPayrollItems.filter((i) => !isInternalPayrollItem(i))
+  const payroll = { ...payrollAll, found: manualItems.length > 0, count: manualItems.length, items: manualItems }
+  const internalPayroll = {
+    found: internalItems.length > 0,
+    count: internalItems.length,
+    items: internalItems,
+  }
 
   // Internal worker-to-worker services are booked through the calendar too (walk-in
   // booking + "Interní" flag), so ALL records count toward the calendar↔Strapi comparison.
@@ -571,6 +578,7 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
     workTime,
     payroll,
     upsell,
+    internalPayroll,
     calendar: { ...calendar, events },
     comparison,
     errors,

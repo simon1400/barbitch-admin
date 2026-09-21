@@ -9,6 +9,8 @@ import { ClientHistory } from './drawer/ClientHistory'
 import { LoyaltyCard } from './drawer/LoyaltyCard'
 import { RebookDiscountCard } from './drawer/RebookDiscountCard'
 import { bookingCreatedLabel, bookingSourceLabel, dateLabelCs } from './drawer/labels'
+import { isInternalBooking } from './fetch/calendarDay'
+import { InternalOdpisCard } from './drawer/InternalOdpisCard'
 import type { BookingDrawerProps } from './drawer/props'
 // Реэкспорт публичной поверхности: HistoryRow импортирует ИЗ BookingDrawer
 // модал поиска клиента (ClientSearchModal) — распил её менять не имеет права.
@@ -66,6 +68,8 @@ export const BookingDrawer = ({
   // нужно карточке скидки за дозапис: одна скидка на услугу, две не суммируем
   const [redemptionUsed, setRedemptionUsed] = useState(false)
   const handleUsedChange = useCallback((used: boolean) => setRedemptionUsed(used), [])
+  // интерная бронь (s203): клиента нет — прячем всё клиентское и показываем списание
+  const isInternal = isInternalBooking(b)
   useEffect(() => {
     setCommentDraft(b.comment || '')
     setCancelling(false)
@@ -102,6 +106,16 @@ export const BookingDrawer = ({
         <div className="mb-3 flex items-start justify-between">
           <div className="flex min-w-0 items-center gap-2">
             <div className="truncate text-md font-bold text-gray-900 dark:text-gray-300">{b.clientNameRaw || '—'}</div>
+            {/* Интерная бронь (s203): чип индиго — как в макете; карточка в календаре
+                при этом teal (там важна различимость на сетке, здесь — в тон плашкам). */}
+            {isInternal && (
+              <span
+                className="shrink-0 rounded bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300"
+                data-internal-badge
+              >
+                🤝 Interní
+              </span>
+            )}
             <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold ${meta.cls}`}>
               {meta.label}
             </span>
@@ -167,9 +181,13 @@ export const BookingDrawer = ({
             </>
           )}
 
+          {/* Интерная бронь: вместо скидок — списание с зарплаты получателя */}
+          {isInternal && !readOnly && <InternalOdpisCard b={b} />}
+
           {/* Скидки — сразу под ценой, к которой относятся. Bitchcard: только админам
-              и только active/checkedOut (сервер это тоже проверяет); rebook −15% тоже. */}
-          {!readOnly && b.client?.documentId && (b.status === 'active' || b.status === 'checkedOut') && (
+              и только active/checkedOut (сервер это тоже проверяет); rebook −15% тоже.
+              У интерной брони клиента нет вовсе — ни bitchcard, ни дозаписи не бывает. */}
+          {!isInternal && !readOnly && b.client?.documentId && (b.status === 'active' || b.status === 'checkedOut') && (
             <LoyaltyCard
               b={b}
               busy={busy}
@@ -178,7 +196,7 @@ export const BookingDrawer = ({
               onUsedChange={handleUsedChange}
             />
           )}
-          {!readOnly && (
+          {!isInternal && !readOnly && (
             <RebookDiscountCard
               b={b}
               busy={busy}
@@ -230,8 +248,9 @@ export const BookingDrawer = ({
             Блэклист блокирует клиенту ТОЛЬКО запись через сайт (движок 403);
             из календаря админ бронировать может как раньше. Кнопка — только у броней
             со связанным клиентом (у старых импортных связи нет).
-            Мастерам (readOnly) карточку НЕ показываем — контакты только для админов. */}
-        {!readOnly && (
+            Мастерам (readOnly) карточку НЕ показываем — контакты только для админов.
+            У интерной брони клиента нет (client = NULL) — карточки не бывает. */}
+        {!isInternal && !readOnly && (
         <div className="mt-3 rounded-xl border border-gray-400 p-3 dark:border-[#2e2e2c]">
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -337,7 +356,8 @@ export const BookingDrawer = ({
           </div>
         )}
 
-        <ClientHistory b={b} onOpen={onOpenHistory} />
+        {/* История визитов — по клиенту; у интерной брони его нет */}
+        {!isInternal && <ClientHistory b={b} onOpen={onOpenHistory} />}
         </div>
 
         {/* Фиксированный футер: кнопки статусов (+ инлайн-подтверждение отмены).
