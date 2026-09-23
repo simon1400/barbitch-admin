@@ -14,6 +14,7 @@ const CODE_MESSAGES: Record<string, string> = {
   client_not_found: 'Карточка клиента не найдена (возможно, уже слита).',
   name_required: 'Имя не может быть пустым.',
   bad_email: 'Некорректный e-mail.',
+  bad_phone: 'Некорректный телефон — нужно минимум 9 цифр.',
 }
 
 const api = makeApiFetch('/api/client-dedupe', CODE_MESSAGES, (status) => `Ошибка ${status}`)
@@ -104,9 +105,26 @@ export interface ClientPatch {
   blacklistReason?: string | null
 }
 
+/** чужая карточка с тем же телефоном/e-mail — сервер отдаёт её после правки контактов */
+export interface ContactConflict {
+  documentId: string
+  name: string
+  phone: string | null
+  email: string | null
+}
+
+export interface ClientUpdateResult {
+  ok: boolean
+  renamedBookings: number
+  /** телефон в том виде, в каком лёг в базу (сервер приводит к +420…) */
+  phone: string | null
+  /** карточки с тем же контактом — правку не блокируют, лечатся в «Дублях клиентов» */
+  duplicates: ContactConflict[]
+}
+
 /** правка контактов; renameBookings=true переписывает имя во ВСЕХ бронях (грид календаря) */
 export const updateClientContacts = (docId: string, patch: ClientPatch, renameBookings = true) =>
-  api<{ ok: boolean; renamedBookings: number }>('POST', '/client', { docId, patch, renameBookings })
+  api<ClientUpdateResult>('POST', '/client', { docId, patch, renameBookings })
 
 export const setGroupBlacklist = (docIds: string[], blacklisted: boolean, reason?: string) =>
   api<{ ok: boolean; affected: number }>('POST', '/blacklist', { docIds, blacklisted, reason })

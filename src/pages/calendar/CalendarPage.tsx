@@ -1240,6 +1240,9 @@ export default function CalendarPage() {
       {clientSearch && (
         <ClientSearchModal
           onClose={() => setClientSearch(false)}
+          // правка контактов переписывает имя и в бронях — день перечитываем,
+          // в гриде имя клиента лежит снимком внутри брони
+          onClientUpdated={reload}
           onOpenBooking={(r) => {
             // как клик из истории drawer'а: закрыть, перейти на день брони, мигнуть
             setClientSearch(false)

@@ -1,7 +1,7 @@
 // Модал «Deník kalendáře» — журнал действий админов над бронями и блоками
 // (создание / перенос / смена статуса / смена услуги / правка / удаление брони +
-// создание / изменение / удаление блока). Только чтение; открывается кнопкой в
-// тулбаре календаря, видной ТОЛЬКО владельцу. Записи создаёт движок booking-engine.
+// создание / изменение / удаление блока + правка контактов клиента). Только чтение;
+// открывается кнопкой в тулбаре календаря, видной ТОЛЬКО владельцу.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { deleteCalendarLog, fetchCalendarLogs, type CalendarLog } from '../fetch/calendarLog'
@@ -24,6 +24,8 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
     cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
   },
   block_reject: { label: 'Blok zamítnut', cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300' },
+  // правка контактов клиента из модала «Hledat klienta» (s205)
+  client_edit: { label: 'Údaje klienta', cls: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300' },
 }
 
 const actionMeta = (a: string) =>
@@ -272,7 +274,7 @@ const LogRow = ({
   )
 }
 
-type EntityTab = 'all' | 'booking' | 'block'
+type EntityTab = 'all' | 'booking' | 'block' | 'client'
 
 export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
   const [tab, setTab] = useState<EntityTab>('all')
@@ -378,6 +380,7 @@ export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
         {tabBtn('all', 'Vše')}
         {tabBtn('booking', 'Rezervace')}
         {tabBtn('block', 'Bloky')}
+        {tabBtn('client', 'Klienti')}
         <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500">{total} záznamů</span>
       </div>
       <input

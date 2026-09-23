@@ -33,7 +33,7 @@ export const fetchCalendarLogs = async ({
 }: {
   page?: number
   pageSize?: number
-  entityType?: 'booking' | 'block'
+  entityType?: 'booking' | 'block' | 'client'
   actor?: string
 }): Promise<CalendarLogPage> => {
   const params = new URLSearchParams()
