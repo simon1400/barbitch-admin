@@ -64,6 +64,7 @@ export interface CalendarBooking {
     phone?: string | null
     name?: string | null
     blacklisted?: boolean | null
+    blacklistReason?: string | null
   } | null
   // кастомный лейбл (снапшот из справочника booking-label)
   label?: { name: string; color: string } | null

@@ -32,11 +32,12 @@ import {
   engineRemoveRebookDiscount,
   engineRestoreRebookDiscount,
   fetchPendingBlocks,
-  updateClientBlacklist,
   type EngineRepricing,
 } from './fetch/engineApi'
 import { CalendarGrid } from './CalendarGrid'
 import { BookingDrawer } from './BookingDrawer'
+import { setGroupBlacklist } from '../global/fetch/clientDedupe'
+import { blacklistErrorCs } from '../../lib/blacklistReasons'
 import { InstallAppButton } from './InstallAppButton'
 import { NotificationButton } from './NotificationButton'
 import { useCoarsePointer } from './useMediaQuery'
@@ -342,18 +343,21 @@ export default function CalendarPage() {
     }
   }
 
-  // блэклист клиента (карточка Kontakt): пишется в client напрямую (не в бронь);
-  // блокирует ТОЛЬКО записи с сайта — движковый чек 403 blacklisted
-  const toggleBlacklist = async (next: boolean) => {
+  // блэклист клиента (карточка Kontakt): ручка client-dedupe (причина обязательна,
+  // журнал календаря пишет сервер); блокирует ТОЛЬКО записи с сайта — 403 blacklisted
+  const toggleBlacklist = async (next: boolean, reason?: string) => {
     const clientDocId = selected?.client?.documentId
     if (!selected || !clientDocId) return
     setMutating(true)
     try {
-      await updateClientBlacklist(clientDocId, next)
-      setSelected({ ...selected, client: { ...selected.client, blacklisted: next } })
+      await setGroupBlacklist([clientDocId], next, next ? reason : undefined)
+      setSelected({
+        ...selected,
+        client: { ...selected.client, blacklisted: next, blacklistReason: next ? reason || null : null },
+      })
       await reload(true)
     } catch (e) {
-      window.alert((e as Error).message)
+      window.alert(blacklistErrorCs(e))
     } finally {
       setMutating(false)
     }

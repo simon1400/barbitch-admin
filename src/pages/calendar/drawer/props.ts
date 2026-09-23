@@ -10,8 +10,9 @@ export interface BookingDrawerProps {
   onStatus: (status: CalendarBooking['status'], notify?: boolean, note?: string) => void
   // сохранение интерн-позна́мки (карточка «Poznámka» — свободная заметка админа)
   onSaveComment: (comment: string) => void
-  // блэклист клиента (карточка Kontakt) — блокирует ему запись через сайт
-  onToggleBlacklist: (next: boolean) => void
+  // блэклист клиента (карточка Kontakt) — блокирует ему запись через сайт;
+  // reason обязателен при добавлении (s208), при снятии не передаётся
+  onToggleBlacklist: (next: boolean, reason?: string) => void
   onArrived: () => void
   onOpenHistory: (r: ClientHistoryItem) => void
   onChangeService: () => void

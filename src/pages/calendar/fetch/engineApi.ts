@@ -507,15 +507,12 @@ export function calcCombo(
 
 // ── поиск клиентов (автокомплит модала «+ Rezervace») ──
 
+// Флаг blacklist ставится ТОЛЬКО через POST /client-dedupe/blacklist
+// (setGroupBlacklist в global/fetch/clientDedupe) — с обязательной причиной (s208).
+// Сырой PUT /api/clients с blacklisted отсюда больше не уходит.
 export interface ClientHit extends ClientSearchHit {
   blacklisted: boolean
-}
-
-// Блэклист клиента (toggle в drawer брони). Коллекция client без draft/publish →
-// один PUT; интерсептор admin-Axios сам подставляет токен сессии на PUT.
-// Блокирует ТОЛЬКО записи с сайта (движок 403 blacklisted) — админ бронировать может.
-export async function updateClientBlacklist(clientDocId: string, blacklisted: boolean): Promise<void> {
-  await Axios.put(`/api/clients/${clientDocId}`, { data: { blacklisted } })
+  blacklistReason?: string | null
 }
 
 export async function searchClients(q: string, limit = 8): Promise<ClientHit[]> {
@@ -524,7 +521,7 @@ export async function searchClients(q: string, limit = 8): Promise<ClientHit[]> 
   if (query.length < 2) return []
   const res = (await Axios.get(
     `/api/clients?${clientSearchFilters(query)}` +
-      `&fields[0]=name&fields[1]=phone&fields[2]=email&fields[3]=blacklisted` +
+      `&fields[0]=name&fields[1]=phone&fields[2]=email&fields[3]=blacklisted&fields[4]=blacklistReason` +
       `&pagination[pageSize]=${limit}&sort=name:asc`,
     { headers: authHeaders() },
   )) as ClientHit[]

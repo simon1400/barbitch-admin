@@ -11,6 +11,7 @@ import { RebookDiscountCard } from './drawer/RebookDiscountCard'
 import { bookingCreatedLabel, bookingSourceLabel, dateLabelCs } from './drawer/labels'
 import { isInternalBooking } from './fetch/calendarDay'
 import { InternalOdpisCard } from './drawer/InternalOdpisCard'
+import { ContactCard } from './drawer/ContactCard'
 import type { BookingDrawerProps } from './drawer/props'
 // Реэкспорт публичной поверхности: HistoryRow импортирует ИЗ BookingDrawer
 // модал поиска клиента (ClientSearchModal) — распил её менять не имеет права.
@@ -244,64 +245,11 @@ export const BookingDrawer = ({
           />
         )}
 
-        {/* Kontakt (компакт): телефон/e-mail, блэклист-кнопка в шапке карточки.
-            Блэклист блокирует клиенту ТОЛЬКО запись через сайт (движок 403);
-            из календаря админ бронировать может как раньше. Кнопка — только у броней
-            со связанным клиентом (у старых импортных связи нет).
+        {/* Kontakt: телефон/e-mail + blacklist с обязательной причиной (drawer/ContactCard).
             Мастерам (readOnly) карточку НЕ показываем — контакты только для админов.
             У интерной брони клиента нет (client = NULL) — карточки не бывает. */}
         {!isInternal && !readOnly && (
-        <div className="mt-3 rounded-xl border border-gray-400 p-3 dark:border-[#2e2e2c]">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              Kontakt
-            </span>
-            {b.client?.documentId && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  const next = !b.client?.blacklisted
-                  const ok = window.confirm(
-                    next
-                      ? `Přidat klienta ${b.clientNameRaw} na blacklist? Nebude se moci rezervovat přes web.`
-                      : `Odebrat klienta ${b.clientNameRaw} z blacklistu?`,
-                  )
-                  if (ok) onToggleBlacklist(next)
-                }}
-                className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition disabled:opacity-40 ${
-                  b.client.blacklisted
-                    ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-500/20 dark:text-red-300 dark:hover:bg-red-500/30'
-                    : 'border border-red-300 text-red-600 hover:bg-red-50 dark:border-red-500/50 dark:text-red-300 dark:hover:bg-red-500/10'
-                }`}
-              >
-                {b.client.blacklisted ? '⛔ Na blacklistu · zrušit' : '⛔ Na blacklist'}
-              </button>
-            )}
-          </div>
-          <div className="flex flex-col gap-1 rounded-lg bg-gray-50 px-3 py-2 dark:bg-[#252523] text-sm">
-            {b.client?.phone ? (
-              <a
-                href={`tel:${b.client.phone}`}
-                className="font-semibold text-gray-800 hover:text-primary dark:text-gray-300"
-              >
-                {b.client.phone}
-              </a>
-            ) : (
-              <span className="text-gray-400 dark:text-gray-500">telefon není uveden</span>
-            )}
-            {b.client?.email ? (
-              <a
-                href={`mailto:${b.client.email}`}
-                className="break-all text-gray-800 hover:text-primary dark:text-gray-300"
-              >
-                {b.client.email}
-              </a>
-            ) : (
-              <span className="text-gray-400 dark:text-gray-500">e-mail není uveden</span>
-            )}
-          </div>
-        </div>
+          <ContactCard key={b.documentId} b={b} busy={busy} onToggleBlacklist={onToggleBlacklist} />
         )}
 
         {/* Интерн-позна́мка: админам — редактируемая карточка (свободная заметка,

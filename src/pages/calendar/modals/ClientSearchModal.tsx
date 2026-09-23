@@ -9,16 +9,19 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ClientHistoryItem } from '../fetch/calendarDay'
 import { fetchClientHistory, todayStrPrague } from '../fetch/calendarDay'
-import { searchClients, updateClientBlacklist, type ClientHit } from '../fetch/engineApi'
+import { searchClients, type ClientHit } from '../fetch/engineApi'
 // Ручка правки карточки живёт в data-слое модуля «Дубли клиентов»: там же, где
 // слияние, и с тем же гейтом (owner + administrator). Своей копии не заводим —
 // нормализация телефона, переименование броней и журнал на сервере одни на всех.
 import {
+  setGroupBlacklist,
   updateClientContacts,
   type ClientPatch,
   type ContactConflict,
 } from '../../global/fetch/clientDedupe'
 import { ApiError } from '../../../lib/apiFetch'
+import { blacklistErrorCs, describeBlacklistReason } from '../../../lib/blacklistReasons'
+import { BlacklistReasonForm } from '../BlacklistReasonForm'
 import { HistoryRow } from '../BookingDrawer'
 import { ModalShell } from './ui'
 import { btnPrimaryCls, btnSecondaryCls, inputCls, labelCls } from './helpers'
@@ -210,6 +213,9 @@ export const ClientSearchModal = ({
   const [editing, setEditing] = useState(false)
   // чужие карточки с тем же телефоном/почтой после правки — подсказка, а не запрет
   const [dupWarn, setDupWarn] = useState<ContactConflict[]>([])
+  // форма причины blacklist открыта для этой карточки (documentId) — смена клиента её прячет
+  const [blFormFor, setBlFormFor] = useState<string | null>(null)
+  const [blErr, setBlErr] = useState<string | null>(null)
   // последовательность запросов — ответ устаревшего поиска не перетирает свежий
   const seq = useRef(0)
 
@@ -262,29 +268,38 @@ export const ClientSearchModal = ({
     }
   }, [selDocId, selName])
 
-  const toggleBlacklist = async () => {
+  // Blacklist — через ручку client-dedupe: добавление только с причиной (форма),
+  // снятие — confirm. Сервер пишет журнал календаря (кто и почему).
+  const applyBlacklist = async (next: boolean, reason?: string) => {
     if (!selected) return
-    const next = !selected.blacklisted
-    const ok = window.confirm(
-      next
-        ? `Přidat klienta ${selected.name} na blacklist? Nebude se moci rezervovat přes web.`
-        : `Odebrat klienta ${selected.name} z blacklistu?`,
-    )
-    if (!ok) return
     setBusy(true)
+    setBlErr(null)
     try {
-      await updateClientBlacklist(selected.documentId, next)
-      setSelected({ ...selected, blacklisted: next })
+      await setGroupBlacklist([selected.documentId], next, reason)
+      const patch = { blacklisted: next, blacklistReason: next ? reason || null : null }
+      setSelected({ ...selected, ...patch })
       // список результатов за спиной тоже обновляем (вернётся «Zpět na výsledky»)
-      setHits((prev) =>
-        prev.map((h) => (h.documentId === selected.documentId ? { ...h, blacklisted: next } : h)),
-      )
-    } catch (e) {
-      window.alert((e as Error).message)
+      setHits((prev) => prev.map((h) => (h.documentId === selected.documentId ? { ...h, ...patch } : h)))
+      setBlFormFor(null)
+    } catch (err) {
+      const msg = blacklistErrorCs(err)
+      if (next) setBlErr(msg)
+      else window.alert(msg)
     } finally {
       setBusy(false)
     }
   }
+
+  const onBlacklistClick = () => {
+    if (!selected) return
+    if (!selected.blacklisted) {
+      setBlErr(null)
+      setBlFormFor(selected.documentId)
+      return
+    }
+    if (window.confirm(`Odebrat klienta ${selected.name} z blacklistu?`)) void applyBlacklist(false)
+  }
+  const blFormOpen = !!selected && !selected.blacklisted && blFormFor === selected.documentId
 
   const today = todayStrPrague()
   const rows = history || []
@@ -451,10 +466,11 @@ export const ClientSearchModal = ({
                       Klient není na blacklistu
                     </span>
                   )}
+                  {!blFormOpen && (
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={toggleBlacklist}
+                    onClick={onBlacklistClick}
                     className={`rounded-md border px-3 py-2 text-xs font-semibold shadow-sm transition disabled:opacity-40 dark:shadow-none sm:px-2.5 sm:py-1 ${
                       selected.blacklisted
                         ? 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-[#3f3f3d] dark:bg-transparent dark:text-gray-300 dark:hover:bg-[#2e2e2c]'
@@ -463,7 +479,25 @@ export const ClientSearchModal = ({
                   >
                     {selected.blacklisted ? 'Odebrat z blacklistu' : '⛔ Na blacklist'}
                   </button>
+                  )}
                 </div>
+                {selected.blacklisted && (
+                  <div data-blacklist-reason className="mt-1 text-xs text-red-700 dark:text-red-300">
+                    Důvod:{' '}
+                    {describeBlacklistReason(selected.blacklistReason) || (
+                      <span className="italic text-gray-500 dark:text-gray-400">neuveden</span>
+                    )}
+                  </div>
+                )}
+                {blFormOpen && (
+                  <BlacklistReasonForm
+                    clientName={selected.name}
+                    busy={busy}
+                    error={blErr}
+                    onSubmit={(reason) => void applyBlacklist(true, reason)}
+                    onCancel={() => setBlFormFor(null)}
+                  />
+                )}
               </>
             )}
           </div>

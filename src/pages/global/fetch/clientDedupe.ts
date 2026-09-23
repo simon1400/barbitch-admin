@@ -15,6 +15,8 @@ const CODE_MESSAGES: Record<string, string> = {
   name_required: 'Имя не может быть пустым.',
   bad_email: 'Некорректный e-mail.',
   bad_phone: 'Некорректный телефон — нужно минимум 9 цифр.',
+  reason_required: 'Укажите причину блокировки.',
+  comment_required: 'Для причины «Jiné» нужен комментарий.',
 }
 
 const api = makeApiFetch('/api/client-dedupe', CODE_MESSAGES, (status) => `Ошибка ${status}`)
@@ -126,6 +128,8 @@ export interface ClientUpdateResult {
 export const updateClientContacts = (docId: string, patch: ClientPatch, renameBookings = true) =>
   api<ClientUpdateResult>('POST', '/client', { docId, patch, renameBookings })
 
+// Единственный путь админки к флагу blacklist (шторка брони, «Hledat klienta», дубли).
+// Добавление — только с причиной (сервер 400 reason_required), снятие её стирает.
 export const setGroupBlacklist = (docIds: string[], blacklisted: boolean, reason?: string) =>
   api<{ ok: boolean; affected: number }>('POST', '/blacklist', { docIds, blacklisted, reason })
 

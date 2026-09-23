@@ -30,6 +30,8 @@ import {
 } from '../../ui/kit'
 import { Pagination } from '../../components/Pagination'
 import { OwnerProtection } from './components/OwnerProtection'
+import { BlacklistReasonForm } from '../calendar/BlacklistReasonForm'
+import { describeBlacklistReason } from '../../lib/blacklistReasons'
 import type { ClientPatch, DedupeGroupsResponse, DupClient, DupGroup, MergeLogEntry } from './fetch/clientDedupe'
 import {
   fetchDuplicateGroups,
@@ -152,7 +154,7 @@ function ClientRow({
               <div className={'flex flex-wrap items-center gap-2'}>
                 <span className={'text-[14px] font-bold text-ink'}>{c.name}</span>
                 {c.blacklisted && (
-                  <span className={chipDangerCls}>⛔ blacklist</span>
+                  <span className={chipDangerCls} title={describeBlacklistReason(c.blacklistReason) || 'причина не указана'}>⛔ blacklist</span>
                 )}
                 {c.emailVerifiedAt && (
                   <span className={chipPosCls} title={'Зарегистрирована в кабинете'}>кабинет</span>
@@ -228,6 +230,8 @@ function GroupCard({
   const [busy, setBusy] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
+  // форма причины: без неё в blacklist не добавить (s208)
+  const [askReason, setAskReason] = useState(false)
 
   const docIds = group.clients.map((c) => c.documentId)
   const primary = group.clients.find((c) => c.documentId === primaryDoc)
@@ -262,13 +266,19 @@ function GroupCard({
     void run('merge', () => mergeClients(primaryDoc, mergeList), 'Слито ✓')
   }
 
+  // Причина обязательна (s208): берём у первой карточки группы, где она есть,
+  // иначе спрашиваем формой. Снятие — confirm, причина сервером стирается.
   const doBlacklist = (v: boolean) => {
+    const known = group.clients.find((c) => c.blacklistReason)?.blacklistReason
+    if (v && !known) {
+      setAskReason(true)
+      return
+    }
     const q = v
-      ? `Добавить все ${group.clients.length} карточки группы в blacklist?`
+      ? `Добавить все ${group.clients.length} карточки группы в blacklist? Причина: «${known}»`
       : `Убрать все ${group.clients.length} карточки группы из blacklistu?`
     if (!window.confirm(q)) return
-    const reason = v ? group.clients.find((c) => c.blacklistReason)?.blacklistReason || undefined : undefined
-    void run('bl', () => setGroupBlacklist(docIds, v, reason))
+    void run('bl', () => setGroupBlacklist(docIds, v, v ? (known ?? undefined) : undefined))
   }
 
   const doIgnore = () => {
@@ -369,6 +379,17 @@ function GroupCard({
           </>
         )}
       </div>
+      {askReason && !anyBl && (
+        <BlacklistReasonForm
+          clientName={`všechny karty (${group.clients.length})`}
+          busy={busy !== null}
+          onCancel={() => setAskReason(false)}
+          onSubmit={(reason) => {
+            setAskReason(false)
+            void run('bl', () => setGroupBlacklist(docIds, true, reason))
+          }}
+        />
+      )}
     </div>
   )
 }
