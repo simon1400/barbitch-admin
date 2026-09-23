@@ -9,12 +9,11 @@
 // s199: по каждому клиенту, который сегодня уже пришёл, администратор закрывает
 // результат — дозаписан / отказ / не предлагали (+ причина). Ушедшие без отметки
 // остаются в группе «Уже ушли». Владелец видит «Контроль предложений» за месяц.
-import { useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 
 import { errMsg } from '../../lib/errMsg'
 import { getSessionRole } from '../../services/auth'
 import {
-  badgeWarnCls,
   btnNeutralCls,
   cardCls,
   countBadgeCls,
@@ -24,6 +23,7 @@ import {
   iconBtnCls,
   mutedCls,
   pageShellCls,
+  pillCls,
 } from '../../ui/kit'
 import { WEEKDAYS_CS, addDaysYmd, dowOfYmd, fmtCsDate, todayYmd } from '../../utils/date'
 import { kc } from '../../utils/money'
@@ -49,12 +49,17 @@ import { MINE_SECTION_ID, confirmText, plural, upsellCountLabel } from './labels
 
 const sepCls = 'text-ink-disabled'
 const stripLabelCls = `${headMicroCls} text-ink-muted`
+const tabCountCls = 'text-[11px] font-bold rounded-full px-1.5 py-px leading-[16px] min-w-[20px] text-center'
+
+/** Вкладки клиентов дня (только сегодня). */
+type DayTab = 'in-salon' | 'later' | 'left'
 
 export default function UpsellPage() {
   const isOwner = getSessionRole() === 'owner'
   const today = todayYmd()
 
   const [date, setDate] = useState(today)
+  const [tab, setTab] = useState<DayTab>('in-salon')
   const [day, setDay] = useState<UpsellDay | null>(null)
   const [dayLoading, setDayLoading] = useState(true)
   const [dayError, setDayError] = useState<string | null>(null)
@@ -178,29 +183,73 @@ export default function UpsellPage() {
   const inSalon = clients.filter((c) => c.inSalon)
   const later = clients.filter((c) => !c.inSalon)
 
-  const renderGroup = (title: string, list: UpsellClient[], key: string, dot: string) =>
-    list.length > 0 && (
-      <section data-group={key} data-count={list.length} className="mb-4">
+  // s206: сегодня клиенты разложены по вкладкам — в одном длинном списке администраторы терялись.
+  // Вкладки показываются все три (место каждой предсказуемо), пустая — выключена. Активной остаётся
+  // выбранная, пока в ней кто-то есть; опустела (клиент ушёл после «Обновить») — берём первую непустую.
+  const groups: { key: DayTab; title: string; list: UpsellClient[]; dot: string }[] = [
+    { key: 'in-salon', title: 'Сейчас в салоне', list: inSalon, dot: 'bg-pos' },
+    { key: 'later', title: 'Позже сегодня', list: later, dot: 'bg-warn' },
+    { key: 'left', title: 'Уже ушли', list: leftClients, dot: 'bg-ink-muted' },
+  ]
+  const activeTab = (groups.find((g) => g.key === tab && g.list.length > 0) || groups.find((g) => g.list.length > 0))?.key ?? null
+
+  const renderCards = (list: UpsellClient[]) =>
+    list.map((c) => (
+      <ClientCard
+        key={c.clientDocId}
+        client={c}
+        busyKey={busyKey}
+        onBook={book}
+        savingResult={savingClient === c.clientDocId}
+        onSaveResult={saveResult}
+      />
+    ))
+
+  const renderTabs = () => (
+    <div role="tablist" aria-label="Клиенты дня" className="flex items-center gap-2 flex-wrap mb-4" data-tabs>
+      {groups.map((g) => {
+        const on = g.key === activeTab
+        const pending = g.list.filter((c) => c.needsResult).length
+        return (
+          <button
+            key={g.key}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            disabled={g.list.length === 0}
+            data-tab={g.key}
+            data-count={g.list.length}
+            data-pending={pending > 0 ? pending : undefined}
+            className={`${pillCls(on)} inline-flex items-center gap-2 !px-3.5 !py-2 !text-[12.5px] disabled:opacity-40 disabled:cursor-not-allowed`}
+            onClick={() => setTab(g.key)}
+            title={pending > 0 ? `Не отмечен результат: ${pending}` : undefined}
+          >
+            <span className={`w-2 h-2 rounded-full ${g.dot}`} />
+            {g.title}
+            <span className={`${tabCountCls} ${on ? 'bg-white/25 text-white' : 'bg-white text-ink'}`}>{g.list.length}</span>
+            {pending > 0 && <span className={`${tabCountCls} bg-warn-bg text-warn !px-2`}>не отмечено: {pending}</span>}
+          </button>
+        )
+      })}
+    </div>
+  )
+
+  const renderPanel = (g: { key: string; list: UpsellClient[] }) => (
+    <section role="tabpanel" data-group={g.key} data-count={g.list.length} className="mb-4">
+      {renderCards(g.list)}
+    </section>
+  )
+
+  // не сегодня — одна группа без вкладок, как раньше
+  const renderDayGroup = () =>
+    clients.length > 0 && (
+      <section data-group="day" data-count={clients.length} className="mb-4">
         <div className="flex items-center gap-2 mb-2.5">
-          <span className={`w-2 h-2 rounded-full ${dot}`} />
-          <span className="text-[11px] font-bold tracking-[0.08em] uppercase text-ink-muted">{title}</span>
-          <span className={countBadgeCls}>{list.length}</span>
-          {list.some((c) => c.needsResult) && (
-            <span className={`${badgeWarnCls} rounded-full`} data-pending={list.filter((c) => c.needsResult).length}>
-              не отмечено: {list.filter((c) => c.needsResult).length}
-            </span>
-          )}
+          <span className="w-2 h-2 rounded-full bg-ink-muted" />
+          <span className="text-[11px] font-bold tracking-[0.08em] uppercase text-ink-muted">Клиенты дня</span>
+          <span className={countBadgeCls}>{clients.length}</span>
         </div>
-        {list.map((c) => (
-          <ClientCard
-            key={c.clientDocId}
-            client={c}
-            busyKey={busyKey}
-            onBook={book}
-            savingResult={savingClient === c.clientDocId}
-            onSaveResult={saveResult}
-          />
-        ))}
+        {renderCards(clients)}
       </section>
     )
 
@@ -303,12 +352,13 @@ export default function UpsellPage() {
 
       {isToday ? (
         <>
-          {renderGroup('Сейчас в салоне', inSalon, 'in-salon', 'bg-pos')}
-          {renderGroup('Позже сегодня', later, 'later', 'bg-warn')}
-          {renderGroup('Уже ушли', leftClients, 'left', 'bg-ink-muted')}
+          {activeTab && renderTabs()}
+          {groups.filter((g) => g.key === activeTab).map((g) => (
+            <Fragment key={g.key}>{renderPanel(g)}</Fragment>
+          ))}
         </>
       ) : (
-        renderGroup('Клиенты дня', clients, 'day', 'bg-ink-muted')
+        renderDayGroup()
       )}
 
       <MineSection month={month} onMonth={setMonth} data={mine} loading={mineLoading} error={mineError} isOwner={isOwner} />
