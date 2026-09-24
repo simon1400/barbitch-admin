@@ -20,6 +20,8 @@ import {
 } from './shift/drafts'
 import { isEnginePayrollItem } from '../../../lib/internalPayroll'
 import { gateInternalPayrolls, gateUpsellCommissions } from './shift/publishGates'
+import { korekceCarryover } from './shift/korekceCarryover'
+export { korekceCarryover } from './shift/korekceCarryover'
 import {
   COLLECTION_LABEL,
   buildLabel,
@@ -185,6 +187,8 @@ export const previewShiftResult = async (
   dateStr: string,
   cardSum: number,
   extraIncome: number,
+  // черновики «Оказанных услуг» дня — для поправки на перенос доли коррекции (s210)
+  dayItems: any[] = [],
 ): Promise<ShiftDelta> => {
   // 🟥 Было `new Date(dateStr)` — это полночь UTC, а месяц читался локальными
   // getMonth/getFullYear. В отрицательном часовом поясе первое число месяца
@@ -192,14 +196,15 @@ export const previewShiftResult = async (
   const date = ymdToDate(dateStr)
   const month = date.getMonth()
   const year = date.getFullYear()
-  const [before, after] = await Promise.all([
+  const [before, after, carry] = await Promise.all([
     fetchMonthlyResult(month, year),
     fetchMonthlyResult(month, year, { day: dateStr, cardSum, extraIncome }),
+    korekceCarryover(dayItems),
   ])
   return {
-    before: before.result,
+    before: before.result + carry.result,
     after: after.result,
-    diffBefore: before.difference,
+    diffBefore: before.difference + carry.difference,
     diffAfter: after.difference,
   }
 }

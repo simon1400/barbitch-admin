@@ -19,6 +19,7 @@ import {
   revertShift,
   fetchMonthlyResult,
   previewShiftResult,
+  korekceCarryover,
   getMonthlyCardProfit,
   FLAG_META,
   VERIFY_FLAGS,
@@ -155,6 +156,7 @@ export default function ShiftClosePage() {
         result.date,
         Number(cardSum) || 0,
         Number(extraIncome) || 0,
+        result.serviceProvided.items,
       )
       setPreviewDelta(d)
     } catch (e) {
@@ -186,14 +188,16 @@ export default function ShiftClosePage() {
       const year = date.getFullYear()
 
       const before = await fetchMonthlyResult(month, year)
+      // перенос доли коррекции (s210) уже сидит в «до» — см. shift/korekceCarryover
+      const carry = await korekceCarryover(result.serviceProvided.items)
       const { failures, skipped } = await publishShift(result.date, Number(cardSum), Number(extraIncome) || 0)
       setPublishSkipped(skipped)
       const after = await fetchMonthlyResult(month, year)
 
       setProfitDelta({
-        before: before.result,
+        before: before.result + carry.result,
         after: after.result,
-        diffBefore: before.difference,
+        diffBefore: before.difference + carry.difference,
         diffAfter: after.difference,
       })
 
