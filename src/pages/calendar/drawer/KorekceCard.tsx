@@ -113,20 +113,20 @@ export const KorekceCard = ({
         </select>
       )}
       {on && !target && !locked && items && (
-        <p className="mt-1.5 text-xs text-amber-700 dark:text-amber-300">
+        <p className="mt-1.5 text-[12px] font-normal leading-snug text-amber-700 dark:text-amber-300">
           {items.length
             ? 'Bez původní návštěvy nelze korekci uzavřít.'
             : 'Klientka nemá v posledních 14 dnech jinou návštěvu.'}
         </p>
       )}
       {locked && (
-        <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-1.5 text-[12px] font-normal leading-snug text-gray-500 dark:text-gray-400">
           {on && b.korekceOf?.date ? `Po návštěvě ${csDay(b.korekceOf.date)}. ` : ''}Návštěva je uzavřená — pro změnu
           nejdřív zrušte uzavření.
         </p>
       )}
       {error && (
-        <div className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-300">
+        <div className="mt-2 rounded-md bg-red-50 px-3 py-2 text-[12px] font-normal leading-snug text-red-700 dark:bg-red-500/10 dark:text-red-300">
           {error}
         </div>
       )}

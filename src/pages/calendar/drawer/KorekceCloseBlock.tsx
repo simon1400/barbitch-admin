@@ -10,7 +10,7 @@ import type { VisitCheckoutHint } from '../fetch/engineApi'
 import { dec } from '../../../utils/money'
 import { csDay, csMonth, korekceAmounts, parseKc, signedKc } from './korekce'
 
-const boxCls = 'mb-2 rounded-lg px-3 py-2 text-xs'
+const boxCls = 'mb-2 rounded-lg px-3 py-2 text-[12px] font-normal leading-snug'
 const inputCls =
   'w-28 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-800 focus:border-primary focus:outline-none dark:border-[#3f3f3d] dark:bg-[#2a2a28] dark:text-gray-300'
 
