@@ -9,7 +9,7 @@
 //
 // Вынесено из shiftClose.ts: тот перешагнул порог 600 строк из аудита (test-split).
 
-import { internalPayrollState, isInternalPayrollItem } from '../../../../lib/internalPayroll'
+import { internalPayrollState, isEnginePayrollItem } from '../../../../lib/internalPayroll'
 import { upsellCommissionState } from '../../../../lib/upsellCommission'
 import { COLLECTION_LABEL, buildLabel, type PublishFailure } from './validate'
 
@@ -51,8 +51,9 @@ export const gateUpsellCommissions = (items: any[], skipped: PublishFailure[]): 
   gateBy(items, 'add-moneys', skipped, () => true, upsellCommissionState)
 
 /**
- * Списания за интерные услуги (payroll, source=internal) — s203.
+ * Списания движка: за интерные услуги (source=internal, s203) и за бесплатные
+ * коррекции визитов прошлого месяца (source=korekce, s210).
  * Ручные `payroll` владельца (без `source`) гейт не трогает вовсе.
  */
 export const gateInternalPayrolls = (items: any[], skipped: PublishFailure[]): any[] =>
-  gateBy(items, 'payrolls', skipped, isInternalPayrollItem, internalPayrollState)
+  gateBy(items, 'payrolls', skipped, isEnginePayrollItem, internalPayrollState)

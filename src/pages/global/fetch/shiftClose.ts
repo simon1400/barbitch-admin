@@ -18,7 +18,7 @@ import {
   findMonthlyCardProfit,
   upsellCommissionsUrl,
 } from './shift/drafts'
-import { isInternalPayrollItem } from '../../../lib/internalPayroll'
+import { isEnginePayrollItem } from '../../../lib/internalPayroll'
 import { gateInternalPayrolls, gateUpsellCommissions } from './shift/publishGates'
 import {
   COLLECTION_LABEL,
@@ -518,8 +518,9 @@ export const checkShift = async (date: Date): Promise<ShiftCheckResult> => {
   // В общей карточке «Výplaty» интерные больше не показываем — у них своя
   // карточка с гейтом по статусу визита, иначе одна запись висела бы дважды.
   const allPayrollItems: any[] = payrollAll.items || []
-  const internalItems = allPayrollItems.filter((i) => isInternalPayrollItem(i))
-  const manualItems = allPayrollItems.filter((i) => !isInternalPayrollItem(i))
+  // s210: сюда же списания за бесплатные коррекции (source=korekce) — тот же гейт
+  const internalItems = allPayrollItems.filter((i) => isEnginePayrollItem(i))
+  const manualItems = allPayrollItems.filter((i) => !isEnginePayrollItem(i))
   const payroll = { ...payrollAll, found: manualItems.length > 0, count: manualItems.length, items: manualItems }
   const internalPayroll = {
     found: internalItems.length > 0,

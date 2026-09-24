@@ -26,6 +26,8 @@ import {
   fetchVisitCheckout,
 } from './fetch/engineApi'
 import { FLAG_META, type VerifyFlag, parseSaleRate } from '../../lib/verifyFlags'
+import { KorekceCloseBlock } from './drawer/KorekceCloseBlock'
+import { korekceMust, outSummary, parseKc, transferSummary } from './drawer/korekce'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 import { kc2 } from '../../utils/money'
@@ -69,6 +71,8 @@ type FormState = {
   internal: boolean
   voucherDocId: string
   comment: string
+  // бесплатная коррекция (s210): «opravená část ceny»
+  korekceBase: string
 }
 
 const EMPTY_FORM: FormState = {
@@ -80,6 +84,7 @@ const EMPTY_FORM: FormState = {
   internal: false,
   voucherDocId: '',
   comment: '',
+  korekceBase: '',
 }
 
 const isNum = (s: string) => {
@@ -133,6 +138,10 @@ export const VisitCloseSection = ({
         // остаётся правимой. Только пока визит НЕ закрыт: у закрытого источник
         // истины — сама запись, её значение подставляет форма редактирования.
         if (!res.checkout && res.hint?.internal) set('internal', true)
+        // коррекция (s210): по умолчанию переносится весь остаток цены исходного визита
+        if (!res.checkout && res.hint?.korekce?.status === 'ok') {
+          set('korekceBase', String(res.hint.korekce.remainingBaseKc))
+        }
         onHasCheckout(Boolean(res.checkout))
       })
       .catch(() => {
@@ -145,7 +154,7 @@ export const VisitCloseSection = ({
     return () => {
       cancelled = true
     }
-  }, [b.documentId, b.totalPrice, b.status]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [b.documentId, b.totalPrice, b.status, b.korekce, b.korekceOf?.documentId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Смена брони — сбрасываем локальное состояние формы (drawer не размонтируется)
   useEffect(() => {
@@ -181,6 +190,7 @@ export const VisitCloseSection = ({
       internal: checkout.internal,
       voucherDocId: checkout.voucher?.documentId || '',
       comment: checkout.comment || '',
+      korekceBase: checkout.korekce?.baseKc != null ? String(checkout.korekce.baseKc) : '',
     })
     setError(null)
     setEditing(true)
@@ -201,6 +211,18 @@ export const VisitCloseSection = ({
       setError('Spropitné musí být číslo.')
       return
     }
+    if (!editing && hint?.korekce?.status === 'no_link') {
+      setError('Vyberte původní návštěvu v kartě «Korekce po návštěvě».')
+      return
+    }
+    // перенос доли едет только у бесплатной коррекции с выбранным визитом
+    const korekceOn = editing
+      ? checkout?.korekce?.mode === 'record' || checkout?.korekce?.mode === 'payroll'
+      : hint?.korekce?.status === 'ok'
+    if (korekceOn && !((parseKc(form.korekceBase) ?? 0) > 0)) {
+      setError('Vyplňte opravenou část ceny.')
+      return
+    }
     setSaving(true)
     setError(null)
     try {
@@ -213,6 +235,7 @@ export const VisitCloseSection = ({
         internal: form.internal,
         voucherDocId: form.voucherDocId || null,
         comment: form.comment.trim() || null,
+        ...(korekceOn ? { korekce: { baseKc: form.korekceBase.trim().replace(',', '.') } } : {}),
       }
       const res = editing && checkout
         ? await engineCheckoutPatch(checkout.documentId, payload)
@@ -252,10 +275,10 @@ export const VisitCloseSection = ({
   // Живой пересчёт подсказки: ручная скидка вычитается из ожидаемой оплаты
   // (мастер всегда получает свой процент от полной цены — скидку ест салон, s47)
   const saleKc = hint ? hint.fullPrice * parseSaleRate(form.sale, hint.fullPrice) : 0
-  const mustStaff = hint ? hint.mustStaff : 0
-  // Интерная услуга: салон себе не берёт ничего. Считаем по ГАЛКЕ формы, а не по
-  // hint.internal — админ может её снять, и подсказка обязана поехать следом.
-  const mustSalon = form.internal ? 0 : hint ? round2(hint.paidExpected - saleKc - mustStaff) : 0
+  // Интерная услуга: салон себе не берёт ничего — по ГАЛКЕ формы, а не по
+  // hint.internal (админ может её снять). Коррекция (s210): доля исправителя / салон 0,
+  // у исходного визита — уже с вычетом ушедшей доли.
+  const { mustStaff, mustSalon } = hint ? korekceMust(hint, form, saleKc) : { mustStaff: 0, mustSalon: 0 }
 
   const discountParts: string[] = []
   if (hint && hint.systemDiscountKc > 0) discountParts.push(`systémová sleva −${Math.round(hint.systemDiscountKc)} Kč`)
@@ -315,6 +338,16 @@ export const VisitCloseSection = ({
                 </span>
               )}
             </div>
+            {checkout.korekce && (
+              <div className="pt-1 text-[11px] text-rose-700 dark:text-rose-300" data-korekce-summary>
+                {transferSummary(checkout.korekce)}
+              </div>
+            )}
+            {outSummary(checkout.korekceStaffOutKc, checkout.korekceSalonAdjKc) && (
+              <div className="pt-1 text-[11px] text-rose-700 dark:text-rose-300" data-korekce-out-summary>
+                {outSummary(checkout.korekceStaffOutKc, checkout.korekceSalonAdjKc)}
+              </div>
+            )}
           </div>
 
           {checkout.published ? (
@@ -391,6 +424,9 @@ export const VisitCloseSection = ({
                 K zaplacení <b className="text-sm text-primary">{kc2(hint.paidExpected - saleKc)}</b>
               </span>
             </div>
+          )}
+          {hint && (!editing || checkout?.korekce) && (
+            <KorekceCloseBlock hint={hint} base={form.korekceBase} onBase={(v) => set('korekceBase', v)} />
           )}
 
           <div className="grid grid-cols-2 gap-2">

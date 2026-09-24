@@ -9,6 +9,7 @@ import {
   type ShiftCheckResult,
   type VerifyFlag,
 } from '../../fetch/shiftClose'
+import { korekceTitle } from '../../fetch/shift/flags'
 import { CheckCard } from './CheckCard'
 import { CalendarLinkChip } from './CalendarLinkChip'
 import { CommentPopover } from './CommentPopover'
@@ -179,7 +180,8 @@ const FlagChip = ({ flag, item }: { flag: VerifyFlag; item: any }) => {
   const meta = FLAG_META[flag]
   const delta = getFlagDelta(item, flag)
   const deltaStr = formatDelta(delta)
-  const title = deltaStr ? `${meta.label} (${deltaStr})` : meta.label
+  // 🔁 (s210): вместо «±сумма» — откуда и куда ушла доля мастера
+  const title = flag === 'korekce' ? korekceTitle(item) : deltaStr ? `${meta.label} (${deltaStr})` : meta.label
   return (
     <span
       title={title}

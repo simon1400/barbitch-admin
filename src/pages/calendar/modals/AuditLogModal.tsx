@@ -26,6 +26,16 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
   block_reject: { label: 'Blok zamítnut', cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300' },
   // правка контактов клиента из модала «Hledat klienta» (s205)
   client_edit: { label: 'Údaje klienta', cls: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300' },
+  // бесплатная коррекция — перенос доли мастера (s210)
+  korekce_link: { label: 'Korekce', cls: 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300' },
+  korekce_transfer: {
+    label: 'Převod podílu',
+    cls: 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300',
+  },
+  korekce_revert: {
+    label: 'Převod zrušen',
+    cls: 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300',
+  },
 }
 
 const actionMeta = (a: string) =>
@@ -274,7 +284,7 @@ const LogRow = ({
   )
 }
 
-type EntityTab = 'all' | 'booking' | 'block' | 'client'
+type EntityTab = 'all' | 'booking' | 'block' | 'client' | 'korekce'
 
 export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
   const [tab, setTab] = useState<EntityTab>('all')
@@ -381,6 +391,7 @@ export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
         {tabBtn('booking', 'Rezervace')}
         {tabBtn('block', 'Bloky')}
         {tabBtn('client', 'Klienti')}
+        {tabBtn('korekce', 'Korekce')}
         <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500">{total} záznamů</span>
       </div>
       <input

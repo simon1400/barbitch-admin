@@ -88,6 +88,19 @@ export interface CalendarBooking {
   internal?: boolean | null
   // кого обслуживают по интерной брони (personal) — бейдж «🤝 Interní · pro: …»
   internalFor?: { documentId?: string; name?: string | null } | null
+  // «Korekce zdarma» (s210): бронь — бесплатная коррекция, доля мастера переносится
+  // с исходного визита korekceOf. У старых броней NULL = не коррекция (сравнивать с true).
+  korekce?: boolean | null
+  // исходный визит; мастеру сервер отдаёт его без цены и услуг
+  korekceOf?: {
+    documentId: string
+    date?: string | null
+    startsAt?: string | null
+    employeeNameRaw?: string | null
+    services?: { title: string }[] | null
+    totalPrice?: number | string | null
+    status?: string | null
+  } | null
 }
 
 /** Интерная бронь (s203). NULL/undefined у старых строк = обычная. */

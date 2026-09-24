@@ -9,6 +9,7 @@ import { Axios } from '../../../lib/api'
 import { authHeaders } from '../../../lib/authHeaders'
 import { clientSearchFilters, type ClientSearchHit } from '../../../lib/clientSearch'
 import type { BookingStatus } from '../../../lib/bookingStatus'
+import type { CalendarBooking } from './calendarDay'
 
 
 
@@ -133,6 +134,9 @@ export interface EnginePatchInput {
   // перенос дозаписи на ДРУГОЙ день по умолчанию снимает −15 % за дозапись
   // (движок, s201); true — админ решил скидку оставить (переносим по вине салона)
   keepRebookDiscount?: boolean
+  // бесплатная коррекция (s210): признак + исходный визит (documentId брони или null)
+  korekce?: boolean
+  korekceOf?: string | null
 }
 
 // Итог пересчёта цены при смене мастера senior↔junior (движок считает по снапшоту
@@ -167,6 +171,8 @@ export interface EnginePatchResult {
   endsAt?: string | null
   repricing?: EngineRepricing | null
   discountReprice?: EngineDiscountReprice | null
+  korekce?: boolean | null
+  korekceOf?: CalendarBooking['korekceOf']
 }
 
 export const enginePatchBooking = (bookingDocId: string, patch: EnginePatchInput) =>
@@ -253,6 +259,11 @@ export interface VisitCheckout {
   verifyFlags: string[]
   // 💰 разница ручной цены (s203); null у записей до внедрения
   manualDeltaKc?: number | null
+  // перенос доли (s210): json у записи коррекции, аккумуляторы у исходной
+  korekce?: KorekceTransfer | null
+  korekceStaffOutKc?: number | null
+  korekceSalonAdjKc?: number | null
+  korekceBaseUsedKc?: number | null
   published: boolean
   personalName: string
   voucher: { documentId: string; idVoucher: string; sum: string } | null
@@ -270,7 +281,78 @@ export interface VisitCheckoutHint {
   mustSalon: number
   // бронь интерная (s203): предзаполняет галку «Interní», салону 0
   internal?: boolean
+  // бронь — бесплатная коррекция (s210): план переноса; null — не коррекция
+  korekce?: KorekceHint | null
+  // переносы С этого визита на коррекции (подсказка mustStaff уже с вычетом)
+  korekceOut?: KorekceOutHint | null
 }
+
+// ── перенос доли при бесплатной коррекции (s210) ──
+
+// Снимок переноса в json записи коррекции (strapi korekce-transfer.buildTransfer)
+export interface KorekceTransfer {
+  mode: 'record' | 'payroll' | 'same_master'
+  pending?: boolean
+  korekceDate: string
+  master: string
+  ratePercent: number
+  originalDate: string
+  originalMaster: string
+  originalRatePercent: number
+  originalServices?: string
+  fullPrice: number
+  baseKc: number
+  staffOutKc: number
+  staffInKc: number
+  salonAdjKc: number
+  payrollKc: number
+}
+
+export interface KorekceHint {
+  status: 'ok' | 'no_link' | 'same_master' | 'paid' | 'not_korekce'
+  mode: KorekceTransfer['mode'] | null
+  originalClosed: boolean
+  original: { bookingDocId: string; date: string; master: string; services: string; status: string } | null
+  master: string | null
+  date: string | null
+  rateA: number | null
+  rateB: number | null
+  fullPrice: number | null
+  usedBaseKc: number
+  remainingBaseKc: number
+  applied: KorekceTransfer | null
+}
+
+export interface KorekceOutHint {
+  staffOutKc: number
+  salonAdjKc: number
+  baseUsedKc: number
+  applied: boolean
+  items: {
+    spDocId: string
+    korekceDate: string
+    master: string
+    baseKc: number
+    staffOutKc: number
+    staffInKc: number
+    salonAdjKc: number
+  }[]
+}
+
+export interface KorekceCandidate {
+  documentId: string
+  date: string
+  startsAt: string | null
+  status: string
+  master: string
+  services: string
+  totalPrice: number | null
+  hasRecord: boolean
+}
+
+// Визиты клиента за 14 дней до брони — селект «Korekce po návštěvě» (owner + admin)
+export const fetchKorekceCandidates = (bookingDocId: string) =>
+  engineFetch<{ items: KorekceCandidate[] }>('GET', `/engine/admin/bookings/${bookingDocId}/korekce-candidates`)
 
 export interface VisitCheckoutInput {
   staffSalaries: number | string
@@ -281,6 +363,8 @@ export interface VisitCheckoutInput {
   internal?: boolean
   voucherDocId?: string | null
   comment?: string | null
+  // бесплатная коррекция (s210): «opravená část ceny» — суммы переноса считает сервер
+  korekce?: { baseKc: number | string }
 }
 
 export const fetchVisitCheckout = (bookingDocId: string) =>

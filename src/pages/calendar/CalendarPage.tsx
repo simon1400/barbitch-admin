@@ -476,6 +476,12 @@ export default function CalendarPage() {
     reload(true)
   }
 
+  // бесплатная коррекция (s210): признак / исходный визит сохранены в шторке
+  const korekceChanged = (next: { korekce: boolean; korekceOf: CalendarBooking['korekceOf'] }) => {
+    setSelected((prev) => (prev ? { ...prev, korekce: next.korekce, korekceOf: next.korekceOf } : prev))
+    reload(true)
+  }
+
   // отмена закрытия визита: запись удалена, бронь снова active (клиент «dorazila»)
   const visitReopened = () => {
     setSelected((prev) => (prev ? { ...prev, status: 'active', arrived: true } : prev))
@@ -1158,6 +1164,7 @@ export default function CalendarPage() {
           onRestoreRebookDiscount={restoreRebookDiscount}
           onVisitClosed={visitClosed}
           onVisitReopened={visitReopened}
+          onKorekceChanged={korekceChanged}
           busy={mutating}
           readOnly={isMaster}
           masterRate={masterRate}

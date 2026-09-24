@@ -15,6 +15,7 @@ export type VerifyFlag =
   | 'internal'
   | 'sleva_bez_karty'
   | 'cena_rucne'
+  | 'korekce'
 
 export const VERIFY_FLAGS: VerifyFlag[] = [
   'ok',
@@ -26,6 +27,7 @@ export const VERIFY_FLAGS: VerifyFlag[] = [
   'mistr_down',
   'ztrata',
   'cena_rucne',
+  'korekce',
 ]
 
 export interface FlagMeta {
@@ -101,6 +103,14 @@ export const FLAG_META: Record<VerifyFlag, FlagMeta> = {
     chipCls: 'bg-orange-100 text-orange-800',
     dotCls: 'bg-orange-500',
     severity: 1,
+  },
+  // s210: бесплатная коррекция — доля мастера перенесена исправителю (на обеих записях)
+  korekce: {
+    emoji: '🔁',
+    label: 'Korekce – převod podílu',
+    chipCls: 'bg-rose-100 text-rose-800',
+    dotCls: 'bg-rose-500',
+    severity: 0,
   },
 }
 

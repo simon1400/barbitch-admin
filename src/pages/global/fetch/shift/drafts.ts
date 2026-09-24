@@ -77,7 +77,7 @@ export const fetchServiceProvided = async (dateStr: string) => {
     const items = Array.isArray(res) ? res : (res as any)?.data || []
     // Counters are per-flag (one item with multiple flags is counted in each)
     const flagCounts: Record<VerifyFlag, number> = {
-      ok: 0, sleva: 0, ztrata: 0, salon_up: 0, mistr_up: 0, mistr_down: 0, internal: 0, sleva_bez_karty: 0, cena_rucne: 0,
+      ok: 0, sleva: 0, ztrata: 0, salon_up: 0, mistr_up: 0, mistr_down: 0, internal: 0, sleva_bez_karty: 0, cena_rucne: 0, korekce: 0,
     }
     let unverified = 0
     for (const i of items as any[]) {
@@ -94,7 +94,7 @@ export const fetchServiceProvided = async (dateStr: string) => {
     return {
       found: false,
       count: 0,
-      flagCounts: { ok: 0, sleva: 0, ztrata: 0, salon_up: 0, mistr_up: 0, mistr_down: 0, internal: 0, sleva_bez_karty: 0, cena_rucne: 0 },
+      flagCounts: { ok: 0, sleva: 0, ztrata: 0, salon_up: 0, mistr_up: 0, mistr_down: 0, internal: 0, sleva_bez_karty: 0, cena_rucne: 0, korekce: 0 },
       unverified: 0,
       items: [],
       error: `provedené služby: ${errText(e)}`,

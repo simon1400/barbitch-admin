@@ -12,6 +12,7 @@ import { bookingCreatedLabel, bookingSourceLabel, dateLabelCs } from './drawer/l
 import { isInternalBooking } from './fetch/calendarDay'
 import { InternalOdpisCard } from './drawer/InternalOdpisCard'
 import { ContactCard } from './drawer/ContactCard'
+import { KorekceCard } from './drawer/KorekceCard'
 import type { BookingDrawerProps } from './drawer/props'
 // Реэкспорт публичной поверхности: HistoryRow импортирует ИЗ BookingDrawer
 // модал поиска клиента (ClientSearchModal) — распил её менять не имеет права.
@@ -37,6 +38,7 @@ export const BookingDrawer = ({
   onRestoreRebookDiscount,
   onVisitClosed,
   onVisitReopened,
+  onKorekceChanged,
   busy,
   readOnly = false,
   masterRate = null,
@@ -115,6 +117,15 @@ export const BookingDrawer = ({
                 data-internal-badge
               >
                 🤝 Interní
+              </span>
+            )}
+            {/* бесплатная коррекция (s210): доля мастера переносится с исходного визита */}
+            {b.korekce === true && (
+              <span
+                className="shrink-0 rounded bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700 dark:bg-rose-500/20 dark:text-rose-300"
+                data-korekce-badge
+              >
+                🔁 Korekce
               </span>
             )}
             <span className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold ${meta.cls}`}>
@@ -233,6 +244,11 @@ export const BookingDrawer = ({
         {/* Закрытие визита: форма (открывается кнопкой «✓ Proběhla») либо карточка
             «Návštěva uzavřena» с суммами и verify-чипами. Мастерам (readOnly) деньги
             не показываем. Секции нет вовсе, пока визит не закрыт и форма не открыта. */}
+        {/* Бесплатная коррекция (s210): признак + исходный визит. Мастеру — только чип. */}
+        {!isInternal && !readOnly && (b.status === 'active' || b.status === 'checkedOut') && (
+          <KorekceCard key={b.documentId} b={b} busy={busy} onChanged={onKorekceChanged} />
+        )}
+
         {!readOnly && (
           <VisitCloseSection
             b={b}

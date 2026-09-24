@@ -2,6 +2,7 @@
 // (этап 6 аудита): тело типа не менялось, в компоненте инлайновый литерал
 // заменён ссылкой на этот интерфейс.
 import type { CalendarBooking, ClientHistoryItem } from '../fetch/calendarDay'
+import type { KorekceChange } from './KorekceCard'
 
 export interface BookingDrawerProps {
   b: CalendarBooking
@@ -28,6 +29,8 @@ export interface BookingDrawerProps {
   // (checkedOut после сохранения записи / active после отмены закрытия)
   onVisitClosed: () => void
   onVisitReopened: () => void
+  // бесплатная коррекция (s210): сохранён признак / исходный визит
+  onKorekceChanged: (next: KorekceChange) => void
   busy: boolean
   readOnly?: boolean
   // процент мастера — если задан, «Celkem» показывает его долю, а не полную цену

@@ -6,7 +6,7 @@ import { CalendarLinkChip } from './CalendarLinkChip'
 import { CommentPopover } from './CommentPopover'
 import { hasComment } from './helpers'
 import { upsellCommissionState, type UpsellCommissionState } from '../../../../lib/upsellCommission'
-import { internalPayrollState, type InternalPayrollState } from '../../../../lib/internalPayroll'
+import { internalPayrollState, isKorekcePayrollItem, type InternalPayrollState } from '../../../../lib/internalPayroll'
 import { fmtTimePrague } from '../../../../utils/date'
 
 // Plain-text comment (cash.comment, flow.coment) — not HTML, render inline.
@@ -168,9 +168,9 @@ export const InternalPayrollCard = memo(
     const readySum = ready.reduce((s, i) => s + (Number(i.sum) || 0), 0)
 
     return (
-      <CheckCard title="Interní služby — odpisy ze mzdy" found={data.found} count={data.count}>
+      <CheckCard title="Odpisy ze mzdy — interní služby a korekce" found={data.found} count={data.count}>
         {items.length === 0 ? (
-          <p className="m-0 text-sm text-ink-soft">Žádné interní služby</p>
+          <p className="m-0 text-sm text-ink-soft">Žádné odpisy ze mzdy</p>
         ) : (
           <div className="mt-2">
             {/* заголовка колонок нет — правка владельца по макету */}
@@ -191,6 +191,8 @@ export const InternalPayrollCard = memo(
                   <div className="order-2 min-w-0 flex-1 basis-0 md:order-none">
                     {/* услуга — одна строка с обрезкой, по словам не переносится */}
                     <div className="truncate text-[15px] font-semibold leading-snug text-ink">
+                      {/* s210: списание за бесплатную коррекцию визита прошлого месяца */}
+                      {isKorekcePayrollItem(item) ? '🔁 Korekce · ' : ''}
                       {bookingServices(b?.services) || '—'}
                     </div>
                     {/* вторая строка: получатель → мастер, только фамилии */}
@@ -217,7 +219,13 @@ export const InternalPayrollCard = memo(
                     <CalendarLinkChip
                       bookingDocId={item.booking?.documentId}
                       date={item.booking?.date || shiftDate}
-                      title={item.booking?.documentId ? 'Interní rezervace' : 'Rezervace už neexistuje'}
+                      title={
+                        !item.booking?.documentId
+                          ? 'Rezervace už neexistuje'
+                          : isKorekcePayrollItem(item)
+                            ? 'Korekce'
+                            : 'Interní rezervace'
+                      }
                       muted={!item.booking?.documentId}
                     />
                   </span>

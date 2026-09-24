@@ -111,11 +111,37 @@ export const getItemFlags = (item: any): VerifyFlag[] => {
   return []
 }
 
+// Подсказка чипа 🔁 (s210): откуда/куда ушла доля мастера
+const csDay = (ymd: unknown): string => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(ymd || ''))
+  return m ? `${Number(m[3])}. ${Number(m[2])}.` : ''
+}
+export const korekceTitle = (item: any): string => {
+  const k = item?.korekce
+  if (k?.mode === 'same_master') return `Korekce u stejné mistrové (po ${csDay(k.originalDate)}) — bez převodu`
+  if (k?.mode === 'payroll') {
+    return `Korekce po návštěvě ${csDay(k.originalDate)} (${k.originalMaster}): +${toNum(k.staffInKc)} Kč, odpis ze mzdy ${k.originalMaster} −${toNum(k.payrollKc)} Kč`
+  }
+  if (k?.mode === 'record') {
+    return `Korekce po návštěvě ${csDay(k.originalDate)} (${k.originalMaster}): +${toNum(k.staffInKc)} Kč, u ${k.originalMaster} −${toNum(k.staffOutKc)} Kč`
+  }
+  const out = toNum(item?.korekceStaffOutKc)
+  const adj = toNum(item?.korekceSalonAdjKc)
+  return `Podíl převeden na korekci: mistr −${out} Kč, salon ${adj > 0 ? '+' : adj < 0 ? '−' : '±'}${Math.abs(adj)} Kč`
+}
+
 // Numeric delta for the given flag — used in tooltips, e.g. "+50 Kč" / "−30 Kč"
 export const getFlagDelta = (item: any, flag: VerifyFlag): number | null => {
   // 💰 дельта хранится в записи (сервер считает её с учётом bitchcard) — до
   // проверки offer.price: у booking-записей оффера нет
   if (flag === 'cena_rucne') return item?.manualDeltaKc == null ? null : toNum(item.manualDeltaKc)
+  // 🔁 перенос доли (s210): у записи коррекции — доля исправителя, у исходной — ушедшая доля
+  if (flag === 'korekce') {
+    const k = item?.korekce
+    if (k?.mode === 'record' || k?.mode === 'payroll') return toNum(k.staffInKc)
+    const out = toNum(item?.korekceStaffOutKc)
+    return out ? -out : null
+  }
   const offerPrice = Number(item?.offer?.price)
   const ratePercent = Number(item?.personal?.ratePercent)
   if (!Number.isFinite(offerPrice) || !Number.isFinite(ratePercent) || offerPrice <= 0) return null

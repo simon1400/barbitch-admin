@@ -3,7 +3,7 @@ import { parseMoney } from '../../../utils/money'
 import { daysInMonth as daysInMonthOf, todayDate } from '../../../utils/date'
 import { strapiQuery } from '../../../lib/strapiQuery'
 import { isPublishableUpsellCommission } from '../../../lib/upsellCommission'
-import { isInternalPayrollItem, isPublishableInternalPayroll } from '../../../lib/internalPayroll'
+import { isEnginePayrollItem, isPublishableEnginePayroll } from '../../../lib/internalPayroll'
 
 import { Axios } from '../../../lib/api'
 
@@ -107,7 +107,7 @@ export const fetchDayPayrollDrafts = async (dateStr: string): Promise<{ sum: str
     booking: { fields: ['status'] },
   })
   return (Array.isArray(rows) ? rows : []).filter(
-    (item: any) => !isInternalPayrollItem(item) || isPublishableInternalPayroll(item),
+    (item: any) => !isEnginePayrollItem(item) || isPublishableEnginePayroll(item),
   )
 }
 
