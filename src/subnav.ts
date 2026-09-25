@@ -41,6 +41,7 @@ export const SUBNAV: SubnavDef[] = [
       { to: 'corrections', label: 'Корректировки' },
       { to: 'priority', label: 'Priorita masterů' },
       { to: 'time-off', label: 'Больничные / отпуска' },
+      { to: 'shifts', label: 'Смены администраторов' },
       { to: 'taxes', label: 'Налоги' },
       { to: 'load', label: 'Загрузка' },
       { to: 'gaps', label: 'Окна' },

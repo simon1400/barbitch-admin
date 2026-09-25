@@ -42,6 +42,7 @@ const TeamSalariesTab = lazy(() => import('./pages/global/team/tabs/SalariesTab'
 const TeamPriorityTab = lazy(() => import('./pages/global/team/tabs/PriorityTab'))
 const TeamTimeOffTab = lazy(() => import('./pages/global/team/tabs/TimeOffTab'))
 const TeamCorrectionsTab = lazy(() => import('./pages/global/team/tabs/CorrectionsTab'))
+const TeamShiftsTab = lazy(() => import('./pages/global/team/tabs/ShiftsTab'))
 const TeamTaxesTab = lazy(() => import('./pages/global/team/tabs/TaxesTab'))
 const TeamLoadTab = lazy(() => import('./pages/global/team/tabs/LoadTab'))
 const TeamGapsTab = lazy(() => import('./pages/global/team/tabs/GapsTab'))
@@ -274,6 +275,7 @@ function App() {
             <Route path="priority" element={<TeamPriorityTab />} />
             <Route path="corrections" element={<TeamCorrectionsTab />} />
             <Route path="time-off" element={<TeamTimeOffTab />} />
+            <Route path="shifts" element={<TeamShiftsTab />} />
             <Route path="taxes" element={<TeamTaxesTab />} />
             <Route path="load" element={<TeamLoadTab />} />
             <Route path="gaps" element={<TeamGapsTab />} />
