@@ -14,6 +14,7 @@ import {
   type TimeOffType,
 } from '../../fetch/timeOff'
 import { ConflictList } from './ConflictList'
+import { todayYmd } from '../../../../../utils/date'
 
 const POSITION_LABEL: Record<string, string> = {
   master: 'мастер',
@@ -57,6 +58,15 @@ export function TimeOffForm({
   // ушедший сотрудник в правке старой записи — в списке активных его нет
   const personName = person?.name ?? (editing?.personal?.documentId === personal ? editing?.personal?.name : '')
   const isMaster = person?.position === 'master'
+  // блоки ставятся только с сегодняшнего дня (решение владельца s216) — прошлое не трогаем
+  const today = todayYmd()
+  const blocksHint = !isMaster
+    ? ` · ${personName || 'сотрудник'} не мастер — в календаре ничего не меняется.`
+    : endDate < today
+      ? ` · период уже прошёл — блоки в календаре не ставятся.`
+      : startDate < today
+        ? ` · ${personName}: в календаре встанет блок на каждый день с сегодняшнего (на часы работы салона), онлайн-запись на эти дни закроется.`
+        : ` · ${personName}: в календаре встанет блок на каждый день (на часы работы салона), онлайн-запись на эти дни закроется.`
   const canSave = !saving && !!personal && datesOk && !tooLong
 
   // брони мастера на эти дни — блок их не отменит
@@ -180,10 +190,7 @@ export function TimeOffForm({
       {datesOk && !tooLong && (
         <div className="mt-2 text-[12px] font-normal text-ink-soft" data-testid="timeoff-days">
           {days} дн.
-          {personal &&
-            (isMaster
-              ? ` · ${personName}: в календаре встанет блок на каждый день (на часы работы салона), онлайн-запись на эти дни закроется.`
-              : ` · ${personName || 'сотрудник'} не мастер — в календаре ничего не меняется.`)}
+          {personal && blocksHint}
         </div>
       )}
       {datesOk && tooLong && (
