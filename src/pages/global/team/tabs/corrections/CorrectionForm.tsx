@@ -4,9 +4,11 @@ import { btnPinkCls, cardTitleCls, formCardCls, hintCls, inputCls, labelCls } fr
 import {
   CORRECTION_KINDS,
   KIND_ORDER,
+  TAX_TYPE_LABELS,
   createCorrection,
   type CorrectionKind,
   type CorrectionRow,
+  type TaxType,
 } from '../../fetch/corrections'
 
 const POSITION_LABEL: Record<string, string> = {
@@ -31,6 +33,7 @@ export function CorrectionForm({
   const [date, setDate] = useState(defaultDate)
   const [sum, setSum] = useState('')
   const [text, setText] = useState('')
+  const [taxType, setTaxType] = useState<TaxType>('all')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -45,7 +48,15 @@ export function CorrectionForm({
     setSaving(true)
     setError(null)
     try {
-      const row = await createCorrection({ kind, personal, date, sum: sumNum, text: text.trim() })
+      const row = await createCorrection({
+        kind,
+        personal,
+        date,
+        sum: sumNum,
+        text: text.trim(),
+        // вид налога уходит только у налога — у остальных коллекций поля type нет
+        ...(kind === 'tax' ? { taxType } : {}),
+      })
       // сотрудник и дата остаются — удобно завести несколько записей подряд
       setSum('')
       setText('')
@@ -114,6 +125,23 @@ export function CorrectionForm({
             onChange={(e) => setSum(e.target.value)}
           />
         </label>
+        {kind === 'tax' && (
+          <label className="block sm:col-span-2">
+            <span className={labelCls}>Вид налога</span>
+            <select
+              name="taxType"
+              className={`${inputCls} w-full`}
+              value={taxType}
+              onChange={(e) => setTaxType(e.target.value as TaxType)}
+            >
+              {(Object.keys(TAX_TYPE_LABELS) as TaxType[]).map((t) => (
+                <option key={t} value={t}>
+                  {TAX_TYPE_LABELS[t]}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="block sm:col-span-2">
           <span className={labelCls}>
             {meta.textLabel}

@@ -22,6 +22,7 @@ import {
   CORRECTION_KINDS,
   KIND_ORDER,
   SOURCE_LABELS,
+  TAX_TYPE_LABELS,
   defaultDateFor,
   deleteCorrection,
   fetchCorrections,
@@ -33,7 +34,7 @@ import {
 import { CorrectionForm } from './corrections/CorrectionForm'
 
 // «Корректировки» (s215, Фаза C плана «Управляющая»): штрафы, доп. заработок,
-// списания, авансы и выплаты — из админки, а не из Strapi CM. Руководство.
+// списания, авансы, выплаты и налоги — из админки, а не из Strapi CM. Руководство.
 export default function CorrectionsTab() {
   const { month, setMonth, year, setYear } = useMonthYear()
   const [rows, setRows] = useState<CorrectionRow[]>([])
@@ -137,7 +138,7 @@ export default function CorrectionsTab() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-3.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-3.5">
         {KIND_ORDER.map((k) => (
           <div key={k} className={tileCls}>
             <div className={tileLabelCls}>{CORRECTION_KINDS[k].label}</div>
@@ -181,6 +182,7 @@ export default function CorrectionsTab() {
                     <td className="px-3 py-[10px] border-b border-line-soft">
                       <span className="text-[13px] font-semibold text-ink-body">
                         {CORRECTION_KINDS[r.kind]?.label ?? r.kind}
+                        {r.taxType ? ` · ${TAX_TYPE_LABELS[r.taxType] ?? r.taxType}` : ''}
                       </span>
                       {r.draft && <span className={`${badgeWarnCls} ml-1.5`}>черновик</span>}
                     </td>

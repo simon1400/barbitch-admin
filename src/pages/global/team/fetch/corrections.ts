@@ -1,5 +1,5 @@
 // Корректировки зарплат (s215, Фаза C плана «Управляющая»): штрафы, доп. заработок,
-// списания, авансы, выплаты — из админки, а не из Strapi CM.
+// списания, авансы, выплаты, налоги — из админки, а не из Strapi CM.
 //
 // Пишет только серверная ручка движка (`/engine/admin/corrections`, руководство):
 // она публикует запись, как CM, и пишет журнал. Сырой `/api/<коллекция>` здесь
@@ -13,7 +13,7 @@ import { invalidateGlobalMonthData } from '../../../dashboard/fetch/monthDataCac
 import { kc } from '../../../../utils/money'
 import { monthEndYmd } from '../../../../utils/date'
 
-export type CorrectionKind = 'penalty' | 'add-money' | 'payroll' | 'avans' | 'salary'
+export type CorrectionKind = 'penalty' | 'add-money' | 'payroll' | 'avans' | 'salary' | 'tax'
 
 export interface CorrectionKindMeta {
   label: string
@@ -31,6 +31,16 @@ export const CORRECTION_KINDS: Record<CorrectionKind, CorrectionKindMeta> = {
   payroll: { label: 'Списание с зарплаты', effect: '−', textRequired: true, textLabel: 'За что' },
   avans: { label: 'Аванс', effect: 'выдано', textRequired: false, textLabel: 'Комментарий' },
   salary: { label: 'Выплата зарплаты', effect: 'выдано', textRequired: false, textLabel: 'Комментарий' },
+  tax: { label: 'Налоги', effect: 'за сотрудника', textRequired: false, textLabel: 'Комментарий' },
+}
+
+/** Вид налога — enum `tax.type` схемы Strapi. Порядок — порядок селекта. */
+export type TaxType = 'all' | 'social' | 'health' | 'income'
+export const TAX_TYPE_LABELS: Record<TaxType, string> = {
+  all: 'все налоги',
+  social: 'соц. страхование',
+  health: 'мед. страхование',
+  income: 'подоходный',
 }
 
 export const KIND_ORDER = Object.keys(CORRECTION_KINDS) as CorrectionKind[]
@@ -48,6 +58,8 @@ export interface CorrectionRow {
   date: string | null
   sum: number
   text: string
+  /** только у налога: вид (enum схемы) */
+  taxType: TaxType | null
   personal: { documentId: string; name: string } | null
   source: string | null
   /** нет опубликованной версии — в зарплаты ещё не попала */
@@ -63,6 +75,8 @@ export interface CorrectionInput {
   date: string
   sum: number
   text: string
+  /** обязателен у налога, у остальных не отправляется */
+  taxType?: TaxType
 }
 
 const CODE_MESSAGES: Record<string, string> = {
@@ -80,6 +94,7 @@ const CODE_MESSAGES: Record<string, string> = {
   correction_not_found: 'Запись уже удалена.',
   correction_engine_owned: 'Эту запись ведёт календарь — удалить её здесь нельзя.',
   bad_month: 'Неверный месяц.',
+  bad_tax_type: 'Выберите вид налога.',
 }
 
 const correctionsFetch = makeApiFetch('/api/engine/admin', CODE_MESSAGES, (s) => `Ошибка ${s}`)
@@ -128,7 +143,7 @@ export const defaultDateFor = (month: number, year: number, today: string): stri
 
 /** Итог по типам за видимые строки (черновики не считаются — в зарплатах их нет). */
 export const totalsByKind = (rows: CorrectionRow[]): Record<CorrectionKind, number> => {
-  const t = { penalty: 0, 'add-money': 0, payroll: 0, avans: 0, salary: 0 } as Record<CorrectionKind, number>
+  const t = { penalty: 0, 'add-money': 0, payroll: 0, avans: 0, salary: 0, tax: 0 } as Record<CorrectionKind, number>
   for (const r of rows) if (!r.draft && r.kind in t) t[r.kind] += r.sum
   return t
 }
