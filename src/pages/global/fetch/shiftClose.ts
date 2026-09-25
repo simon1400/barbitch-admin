@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { getMoney } from '../../dashboard/fetch/costs'
 import { getAdminsHours } from '../../dashboard/fetch/allAdminsHours'
 import { getAllWorks } from '../../dashboard/fetch/allWorks'
+import { fetchManagerMonthFixed } from '../../dashboard/fetch/managerRates'
 import { splitTeam } from '../../dashboard/fetch/teamSplit'
 import { invalidateGlobalMonthData } from '../../dashboard/fetch/monthDataCache'
 import { computeShiftDiff } from '../components/shiftClose/helpers'
@@ -126,10 +127,13 @@ export const fetchMonthlyResult = async (
   year: number,
   preview?: { day: string; cardSum: number; extraIncome: number },
 ) => {
-  const [moneyRes, adminsRes, worksRes] = await Promise.all([
+  const periodStart = `${year}-${String(month + 1).padStart(2, '0')}`
+  const monthEnd = monthEndYmd(year, month)
+  const [moneyRes, adminsRes, worksRes, managerFixed] = await Promise.all([
     getMoney(month, year, preview),
     getAdminsHours(month, year, preview?.day),
     getAllWorks(month, year, preview?.day),
+    fetchManagerMonthFixed(periodStart, monthEnd),
   ])
 
   // Совместители (мастер+администратор) вынесены в отдельную группу. Берём итоги через
@@ -137,8 +141,10 @@ export const fetchMonthlyResult = async (
   // sumMasters и sumAdmins оба их содержат). Инвариант splitTeam:
   // sumMasters + sumAdmins + sumCombined === старый (sumMasters + sumAdmins) →
   // результат закрытия смены численно прежний.
-  const team = splitTeam(worksRes.summary, adminsRes.summary, `${year}-${String(month + 1).padStart(2, '0')}`)
-  const totalLabor = team.sumMasters + team.sumAdmins + team.sumCombined
+  // Управляющие (s213): оклад входит в месяц целиком с 1-го числа — «до» и «после»
+  // смены одинаковый, дельта смены от него не зависит.
+  const team = splitTeam(worksRes.summary, adminsRes.summary, periodStart, managerFixed)
+  const totalLabor = team.sumMasters + team.sumAdmins + team.sumCombined + team.sumManagers
 
   const result =
     moneyRes.cashMoney +

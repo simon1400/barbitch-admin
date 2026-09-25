@@ -4,6 +4,7 @@ import Login from './pages/Login'
 import AdminLayout from './pages/dashboard/AdminLayout'
 import { AppProvider } from './context/AppContext'
 import { enforceActiveSession, getSessionRole } from './services/auth'
+import { isManagement } from './types/admin'
 import { canAccessModule } from './moduleAccess'
 
 const AdminPage = lazy(() => import('./pages/dashboard/AdminPage'))
@@ -53,6 +54,7 @@ const UpsellPage = lazy(() => import('./pages/upsell/UpsellPage'))
 const getHomePageByRole = (role: string | null): string => {
   switch (role) {
     case 'owner':
+    case 'manager':
       return '/global'
     case 'administrator':
       return '/administrator-cabinet'
@@ -111,12 +113,11 @@ const ModuleRoute = ({ module, children }: { module: string; children: React.Rea
   return <>{children}</>
 }
 
-// Компонент для защиты маршрутов владельца
-const OwnerRoute = ({ children }: { children: React.ReactNode }) => {
+// Компонент для защиты маршрутов руководства (владелец + управляющая, s213)
+const ManagementRoute = ({ children }: { children: React.ReactNode }) => {
   const userRole = getSessionRole()
-  const isOwner = userRole === 'owner'
 
-  if (!isOwner) {
+  if (!isManagement(userRole)) {
     return <Navigate to={getHomePageByRole(userRole)} replace />
   }
 
@@ -155,11 +156,11 @@ function App() {
             path="/global"
             element={
               <ProtectedRoute>
-                <OwnerRoute>
+                <ManagementRoute>
                   <AdminLayout>
                     <GlobalPage />
                   </AdminLayout>
-                </OwnerRoute>
+                </ManagementRoute>
               </ProtectedRoute>
             }
           />

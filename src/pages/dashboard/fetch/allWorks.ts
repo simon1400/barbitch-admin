@@ -12,6 +12,7 @@ import {
   PAGE_SIZE,
   summarizeGeneric,
 } from './fetchHelpers'
+import { managerNamesFor } from './teamSplit'
 
 interface IDataAllWorks extends PersonalSumData {
   staffSalaries: string
@@ -55,8 +56,27 @@ function summarizeWorks(
   advance: PersonalSumData[],
   salaries: PersonalSumData[],
   taxes: PersonalSumData[],
+  // Строки, которые заводятся заранее, даже без услуг (управляющие, s213): корректировки
+  // присоединяются только к существующей строке — без этого штрафы/списывания/авансы
+  // управляющей молча пропали бы.
+  seedNames: Iterable<string> = [],
 ): IFilteredData {
   const resultMap = new Map<string, Result>()
+  for (const name of seedNames) {
+    resultMap.set(name, {
+      name,
+      sum: 0,
+      sumTip: 0,
+      countClient: 0,
+      penalty: 0,
+      extraProfit: 0,
+      payrolls: 0,
+      advance: 0,
+      salaries: 0,
+      taxes: 0,
+      excessThreshold: 0,
+    })
+  }
   let globalFlow = 0
   let sumMasters = 0
   let sumClientsDone = 0
@@ -182,7 +202,16 @@ export const getAllWorks = async (month: number, year: number, previewDay?: stri
     extrasData = [...extras, ...draftUpsell]
   }
 
-  const filteredData = summarizeWorks(serviceData, penalties, extrasData, payrollData, advance, salaries, taxes)
+  const filteredData = summarizeWorks(
+    serviceData,
+    penalties,
+    extrasData,
+    payrollData,
+    advance,
+    salaries,
+    taxes,
+    managerNamesFor(`${year}-${String(month + 1).padStart(2, '0')}`),
+  )
 
   return {
     summary: filteredData.summary.sort((a, b) => b.sum - a.sum),

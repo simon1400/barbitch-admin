@@ -3,7 +3,8 @@
 // Реестр питает: роуты (ModuleRoute в App.tsx), меню в шапке (AdminHeader — пилюли
 // главного меню + дропдаун «Ещё») и внутристраничный гейт (OwnerProtection).
 // «Главная» в меню не отсюда — она своя у каждой роли
-// (owner → /global, administrator → /administrator-cabinet, master → /).
+// (owner/manager → /global, administrator → /administrator-cabinet, master → /).
+// manager (управляющая, s213) = владелец везде, КРОМЕ email-рассылки.
 
 import type { UserRole } from './types/admin'
 
@@ -20,24 +21,24 @@ export interface ModuleDef {
 
 const MODULES: ModuleDef[] = [
   // календарь: master попадает только по кнопке (read-only своя неделя), меню у него нет
-  { path: '/calendar', label: 'Календарь', roles: ['owner', 'administrator', 'master'] },
-  { path: '/global/analytics', label: 'Аналитика', roles: ['owner'], hasTabs: true },
-  { path: '/global/team', label: 'Команда', roles: ['owner'], hasTabs: true },
-  { path: '/upsell', label: 'Дозаписи', roles: ['owner', 'administrator'] },
-  { path: '/global/catalog', label: 'Каталог услуг', roles: ['owner', 'administrator'] },
-  { path: '/global/shift-close', label: 'Uzavření směny', roles: ['owner'] },
-  { path: '/voucher-confirmation', label: 'Potvrzení voucheru', roles: ['owner'] },
-  { path: '/global/expenses', label: 'Затраты', roles: ['owner'], more: true },
+  { path: '/calendar', label: 'Календарь', roles: ['owner', 'manager', 'administrator', 'master'] },
+  { path: '/global/analytics', label: 'Аналитика', roles: ['owner', 'manager'], hasTabs: true },
+  { path: '/global/team', label: 'Команда', roles: ['owner', 'manager'], hasTabs: true },
+  { path: '/upsell', label: 'Дозаписи', roles: ['owner', 'manager', 'administrator'] },
+  { path: '/global/catalog', label: 'Каталог услуг', roles: ['owner', 'manager', 'administrator'] },
+  { path: '/global/shift-close', label: 'Uzavření směny', roles: ['owner', 'manager'] },
+  { path: '/voucher-confirmation', label: 'Potvrzení voucheru', roles: ['owner', 'manager'] },
+  { path: '/global/expenses', label: 'Затраты', roles: ['owner', 'manager'], more: true },
   { path: '/email-campaign', label: 'Email kampaň', roles: ['owner'], more: true },
-  { path: '/global/loyalty', label: 'Лояльность', roles: ['owner'], more: true },
+  { path: '/global/loyalty', label: 'Лояльность', roles: ['owner', 'manager'], more: true },
   {
     path: '/global/client-duplicates',
     label: 'Дубли клиентов',
-    roles: ['owner', 'administrator'],
+    roles: ['owner', 'manager', 'administrator'],
     more: true,
   },
-  { path: '/global/reviews', label: 'Google Reviews', roles: ['owner'], more: true },
-  { path: '/global/error-logs', label: 'Error Logs', roles: ['owner'], more: true },
+  { path: '/global/reviews', label: 'Google Reviews', roles: ['owner', 'manager'], more: true },
+  { path: '/global/error-logs', label: 'Error Logs', roles: ['owner', 'manager'], more: true },
 ]
 
 // Модули, доступные роли (порядок = порядок в меню)
@@ -51,10 +52,10 @@ export const canAccessModule = (path: string, role: string | null): boolean => {
 }
 
 // Роли, которым разрешён текущий pathname (для внутристраничного гейта).
-// Не найден в реестре → консервативный дефолт: только владелец.
+// Не найден в реестре → консервативный дефолт: только руководство (владелец + управляющая).
 export const rolesForPathname = (pathname: string): UserRole[] => {
   const mod = MODULES.find(
     (m) => pathname === m.path || (m.hasTabs && pathname.startsWith(`${m.path}/`)),
   )
-  return mod ? mod.roles : ['owner']
+  return mod ? mod.roles : ['owner', 'manager']
 }

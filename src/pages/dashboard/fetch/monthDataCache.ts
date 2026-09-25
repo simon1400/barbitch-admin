@@ -1,13 +1,14 @@
-import { todayDate } from '../../../utils/date'
+import { monthEndYmd, todayDate } from '../../../utils/date'
 import type { IFilteredAdminsData } from './allAdminsHours'
 import type { IFilteredData } from './allWorks'
 import type { GroupedSum, OutputMetrictsItem } from './fetchHelpers'
-import type { CombinedResult } from './teamSplit'
+import type { CombinedResult, ManagerResult } from './teamSplit'
 
 import { getAdminsHours } from './allAdminsHours'
 import { getAllWorks } from './allWorks'
 import { getMoney } from './costs'
 import { getEvents } from './getEvents'
+import { fetchManagerMonthFixed } from './managerRates'
 import { splitTeam } from './teamSplit'
 
 // Кэш агрегированных месячных данных «Финансового обзора» / зарплат / графиков.
@@ -21,11 +22,13 @@ export interface GlobalMonthData {
   works: IFilteredData['summary']
   admins: IFilteredAdminsData['summary']
   combined: CombinedResult[]
+  managers: ManagerResult[] // управляющие (s213): оклад + корректировки
   sumClientsDone: number
   globalFlow: number
   sumMasters: number
   sumAdmins: number
   sumCombined: number
+  sumManagers: number
   combinedAdminEarnings: number
   daysResult: GroupedSum[]
   costs: number
@@ -59,11 +62,13 @@ export const EMPTY_GLOBAL_MONTH_DATA: GlobalMonthData = {
   works: [],
   admins: [],
   combined: [],
+  managers: [],
   sumClientsDone: 0,
   globalFlow: 0,
   sumMasters: 0,
   sumAdmins: 0,
   sumCombined: 0,
+  sumManagers: 0,
   combinedAdminEarnings: 0,
   daysResult: [],
   costs: 0,
@@ -101,7 +106,8 @@ export const EMPTY_GLOBAL_MONTH_DATA: GlobalMonthData = {
 // цифры, посчитанные СТАРЫМ кодом, — без ошибки и без признака, что они устарели,
 // пока он вручную не нажмёт «Обновить». Смена версии делает старые записи
 // невидимыми, а `sweepStaleVersions()` ниже вычищает их из localStorage.
-const CACHE_VERSION = 2
+// v3 (s213): группа «Управляющие» (managers/sumManagers) — оклад вошёл в результат месяца.
+const CACHE_VERSION = 3
 const PREFIX = `bb_global_month_v${CACHE_VERSION}_`
 // ключи прошлых версий (и самой первой, без номера) — чистим при старте модуля
 const LEGACY_PREFIXES = ['bb_global_month_']
@@ -173,17 +179,21 @@ const computeGlobalMonthData = async (
   month: number,
   year: number,
 ): Promise<GlobalMonthData> => {
-  const [worksRes, adminsRes, moneyRes, eventsRes] = await Promise.all([
+  const periodStart = `${year}-${String(month + 1).padStart(2, '0')}`
+  const monthEnd = monthEndYmd(year, month)
+  const [worksRes, adminsRes, moneyRes, eventsRes, managerFixed] = await Promise.all([
     getAllWorks(month, year),
     getAdminsHours(month, year),
     getMoney(month, year),
     getEvents(month, year),
+    fetchManagerMonthFixed(periodStart, monthEnd),
   ])
 
   // Совместители (мастер+администратор) выносятся в отдельную группу. Инвариант
   // splitTeam: sumMasters + sumAdmins + sumCombined === старый (sumMasters + sumAdmins),
   // поэтому «Результат за месяц» не меняется численно.
-  const team = splitTeam(worksRes.summary, adminsRes.summary, `${year}-${String(month + 1).padStart(2, '0')}`)
+  // Управляющие (s213) — своя группа с окладом; до `since` пуста.
+  const team = splitTeam(worksRes.summary, adminsRes.summary, periodStart, managerFixed)
 
   return {
     works: team.masters,
@@ -195,6 +205,8 @@ const computeGlobalMonthData = async (
     sumAdmins: team.sumAdmins,
     combined: team.combined,
     sumCombined: team.sumCombined,
+    managers: team.managers,
+    sumManagers: team.sumManagers,
     combinedAdminEarnings: team.combinedAdminEarnings,
     costs: moneyRes.sumCosts,
     noDphCosts: moneyRes.sumNoDphCosts,

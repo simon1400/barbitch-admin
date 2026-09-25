@@ -10,6 +10,8 @@ export const computeMonthResult = (args: {
   sumMasters: number
   sumAdmins: number
   sumCombined: number
+  // управляющие (s213): оклад + корректировки; нет — 0
+  sumManagers?: number
   noDphCosts: number
   taxesSum: number
 }): number =>
@@ -19,6 +21,7 @@ export const computeMonthResult = (args: {
   args.sumMasters -
   args.sumAdmins -
   args.sumCombined -
+  (args.sumManagers ?? 0) -
   args.noDphCosts -
   args.taxesSum
 
@@ -45,6 +48,9 @@ export const blockStateItems = (
   // админ-часы совместителей (для «Результат по услугам», как и обычные админы).
   sumCombined = 0,
   combinedAdminEarnings = 0,
+  // управляющие (s213) — зарплата целиком (оклад + корректировки); это расход салона,
+  // поэтому вычитается и из «Результат по услугам», как зарплаты админов
+  sumManagers = 0,
 ) => {
   const items = [
     {
@@ -63,11 +69,12 @@ export const blockStateItems = (
           sumMasters,
           sumAdmins,
           sumCombined,
+          sumManagers,
           noDphCosts,
           taxesSum,
         })
       )}`,
-      addValue: `${kcExact(cashMoney + cardMoney + qrMoney + cardExtraIncome - sumMasters - sumAdmins - sumCombined - dphCosts - taxesSum)} - s DPH`,
+      addValue: `${kcExact(cashMoney + cardMoney + qrMoney + cardExtraIncome - sumMasters - sumAdmins - sumCombined - sumManagers - dphCosts - taxesSum)} - s DPH`,
     },
     {
       title: 'Разниця',
@@ -88,13 +95,16 @@ export const blockStateItems = (
     ...(sumCombined !== 0
       ? [{ title: 'Зарплаты совместителям', value: `${kcNum(sumCombined)}` }]
       : []),
+    ...(sumManagers !== 0
+      ? [{ title: 'Зарплата управляющей', value: `${kcNum(sumManagers)}` }]
+      : []),
     {
       title: 'Налоги',
       value: `${kcNum(taxesSum)}`,
     },
     {
       title: 'Результат по услугам',
-      value: `${kcExact(salonSalariesCash + cardExtraIncome + salonSalariesCard - sumAdmins - combinedAdminEarnings - noDphCosts)}`,
+      value: `${kcExact(salonSalariesCash + cardExtraIncome + salonSalariesCard - sumAdmins - combinedAdminEarnings - sumManagers - noDphCosts)}`,
     },
   ]
 

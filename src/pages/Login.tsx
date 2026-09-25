@@ -56,7 +56,7 @@ const Login = () => {
       localStorage.setItem('userJwt', result.jwt)
 
       // Перенаправляем в зависимости от роли
-      if (result.role === 'owner') {
+      if (result.role === 'owner' || result.role === 'manager') {
         navigate('/global')
       } else if (result.role === 'administrator') {
         navigate('/administrator-cabinet')

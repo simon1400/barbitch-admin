@@ -31,6 +31,7 @@ interface GlobalStatsTotals {
   salonSalariesCard: number
   taxesSum: number
   sumCombined: number
+  sumManagers: number
   combinedAdminEarnings: number
   // резервации
   clientsAll: number
@@ -86,6 +87,7 @@ const emptyTotals = (): GlobalStatsTotals => ({
   salonSalariesCard: 0,
   taxesSum: 0,
   sumCombined: 0,
+  sumManagers: 0,
   combinedAdminEarnings: 0,
   clientsAll: 0,
   clientsPayed: 0,
@@ -160,6 +162,7 @@ export const getGlobalStatsRange = async (
     totals.salonSalariesCard += d.salonSalariesCard
     totals.taxesSum += d.taxesSum
     totals.sumCombined += d.sumCombined
+    totals.sumManagers += d.sumManagers ?? 0
     totals.combinedAdminEarnings += d.combinedAdminEarnings
     totals.clientsAll += d.clients.all
     totals.clientsPayed += d.clients.payed

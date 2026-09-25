@@ -48,6 +48,7 @@ const GlobalMonthStates = () => {
               data.taxesSum,
               data.sumCombined,
               data.combinedAdminEarnings,
+              data.sumManagers,
             )}
           />
         </StatSection>

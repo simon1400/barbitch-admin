@@ -129,11 +129,12 @@ export default function GlobalStatsTab() {
               sumMasters: d.sumMasters,
               sumAdmins: d.sumAdmins,
               sumCombined: d.sumCombined,
+              sumManagers: d.sumManagers ?? 0,
               noDphCosts: d.noDphCosts,
               taxesSum: d.taxesSum,
             }),
           ),
-          зарплаты: Math.round(d.sumMasters + d.sumAdmins + d.sumCombined),
+          зарплаты: Math.round(d.sumMasters + d.sumAdmins + d.sumCombined + (d.sumManagers ?? 0)),
           затраты: Math.round(d.noDphCosts),
         }
       }),
@@ -232,6 +233,7 @@ export default function GlobalStatsTab() {
                 totals.taxesSum,
                 totals.sumCombined,
                 totals.combinedAdminEarnings,
+                totals.sumManagers,
               )}
             />
           </StatSection>
@@ -295,10 +297,11 @@ export default function GlobalStatsTab() {
                         sumMasters: d.sumMasters,
                         sumAdmins: d.sumAdmins,
                         sumCombined: d.sumCombined,
+                        sumManagers: d.sumManagers ?? 0,
                         noDphCosts: d.noDphCosts,
                         taxesSum: d.taxesSum,
                       })
-                      const salaries = d.sumMasters + d.sumAdmins + d.sumCombined
+                      const salaries = d.sumMasters + d.sumAdmins + d.sumCombined + (d.sumManagers ?? 0)
                       const key = `${r.year}_${r.month}`
                       const isCurrent =
                         r.year === now.getFullYear() && r.month === now.getMonth()

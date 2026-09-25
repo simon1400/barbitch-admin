@@ -24,6 +24,7 @@ interface NavItem {
 // «Главная» у каждой роли своя
 const HOME_BY_ROLE: Record<UserRole, string> = {
   owner: '/global',
+  manager: '/global',
   administrator: '/administrator-cabinet',
   master: '/',
 }

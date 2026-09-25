@@ -37,8 +37,11 @@ interface RawPersonal {
 // `status=published` избыточен (Strapi 5 и без него отдаёт только published), но
 // оставлен явным — так у запроса читается намерение. Поле `position` прежний
 // календарный запрос тянул и НЕ читал: убрано.
+// `position=master` (s213): управляющая остаётся активной (получатель интерных услуг,
+// налоги), но колонки в календаре у неё нет — её прошлые брони уходят в колонку
+// «бывшие мастера». Администраторов фильтр не задевает: у них нет noonaEmployeeId.
 const QUERY =
-  '/api/personals?filters[isActive][$eq]=true' +
+  '/api/personals?filters[isActive][$eq]=true&filters[position][$eq]=master' +
   '&fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=tier' +
   '&fields[3]=calendarOrder&fields[4]=ratePercent' +
   '&pagination[pageSize]=100&status=published'
@@ -70,7 +73,7 @@ export const fetchActivePersonals = async (): Promise<ActivePersonal[]> => {
 export interface InternalRecipient {
   docId: string
   name: string
-  /** 'master' | 'administrator' — показывается подписью в селекторе */
+  /** 'master' | 'administrator' | 'manager' — показывается подписью в селекторе */
   position: string | null
 }
 

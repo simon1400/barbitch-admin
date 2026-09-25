@@ -13,6 +13,7 @@ import { Fragment, useCallback, useEffect, useState } from 'react'
 
 import { errMsg } from '../../lib/errMsg'
 import { getSessionRole } from '../../services/auth'
+import { isManagement } from '../../types/admin'
 import {
   btnNeutralCls,
   cardCls,
@@ -55,7 +56,8 @@ const tabCountCls = 'text-[11px] font-bold rounded-full px-1.5 py-px leading-[16
 type DayTab = 'in-salon' | 'later' | 'left'
 
 export default function UpsellPage() {
-  const isOwner = getSessionRole() === 'owner'
+  // руководство (владелец + управляющая, s213) видит всех администраторов и отчёт
+  const isOwner = isManagement(getSessionRole())
   const today = todayYmd()
 
   const [date, setDate] = useState(today)

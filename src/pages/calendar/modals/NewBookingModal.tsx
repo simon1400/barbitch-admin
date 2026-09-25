@@ -265,6 +265,7 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
                     <option key={r.docId} value={r.docId}>
                       {r.name}
                       {r.position === 'administrator' ? ' (administrátorka)' : ''}
+                      {r.position === 'manager' ? ' (vedoucí salonu)' : ''}
                     </option>
                   ))}
                 </select>

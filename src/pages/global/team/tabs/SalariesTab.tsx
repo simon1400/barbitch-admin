@@ -5,6 +5,7 @@ import { useGlobalMonthData } from '../../../dashboard/hooks/useGlobalMonthData'
 import { toolbarCardCls } from '../../../../ui/kit'
 import { Administrators } from '../../components/Administrators'
 import { Combined } from '../../components/Combined'
+import { Managers } from '../../components/Managers'
 import { Masters } from '../../components/Masters'
 import { StatSection } from '../../components/StatSection'
 
@@ -28,6 +29,13 @@ export default function SalariesTab() {
       <StatSection title={'Администраторы'} id={'admins'} count={data.admins.length} defaultOpen>
         <Administrators data={data.admins} sumAdmins={data.sumAdmins} />
       </StatSection>
+
+      {/* Управляющие (s213): оклад + корректировки */}
+      {data.managers.length > 0 && (
+        <StatSection title={'Управляющие'} id={'managers'} count={data.managers.length} defaultOpen>
+          <Managers data={data.managers} sumManagers={data.sumManagers} />
+        </StatSection>
+      )}
 
       {/* Combined (master + administrator) Section */}
       {data.combined.length > 0 && (

@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getSession, getSessionRole } from '../../services/auth'
+import { isManagement } from '../../types/admin'
 import type {
   AdminRoster,
   BlockedRange,
@@ -88,8 +89,9 @@ export default function CalendarPage() {
   // Роль: master видит ТОЛЬКО свой недельный календарь, read-only (без броней/блоков/статусов)
   const role = getSessionRole()
   const isMaster = role === 'master'
-  // журнал действий календаря видит ТОЛЬКО владелец (оверсайт над админами)
-  const isOwner = role === 'owner'
+  // журнал действий календаря и согласование блоков — руководство (владелец +
+  // управляющая, s213): оверсайт над админами
+  const isOwner = isManagement(role)
   // тач-устройство (телефон/планшет) — там показываем кнопки зума грида
   const coarse = useCoarsePointer()
   // Параметры из push-нотификации (?date=YYYY-MM-DD&highlight=<bookingDocId>):
