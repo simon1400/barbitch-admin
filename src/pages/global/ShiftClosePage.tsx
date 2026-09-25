@@ -59,7 +59,10 @@ const fromDateInput = (v: string): Date | null => {
 export default function ShiftClosePage() {
   // 🟥 День САЛОНА, не браузера: из Нью-Йорка в ночь на 1 сентября страница
   // открывалась на 31 августа — поймано проверкой в браузере (s186).
-  const [selectedDate, setSelectedDate] = useState<Date>(todayDate)
+  // ?date=YYYY-MM-DD — ссылка «Незакрытые смены» из дашборда «Сегодня» (s214)
+  const [selectedDate, setSelectedDate] = useState<Date>(
+    () => fromDateInput(new URLSearchParams(window.location.search).get('date') || '') ?? todayDate(),
+  )
   const [result, setResult] = useState<ShiftCheckResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

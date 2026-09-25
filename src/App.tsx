@@ -49,6 +49,7 @@ const CalendarPage = lazy(() => import('./pages/calendar/CalendarPage'))
 // Own-booking (шаг 6.2): редактор собственного каталога услуг
 const CatalogPage = lazy(() => import('./pages/global/catalog/CatalogPage'))
 const UpsellPage = lazy(() => import('./pages/upsell/UpsellPage'))
+const TodayPage = lazy(() => import('./pages/today/TodayPage'))
 
 // Получить домашнюю страницу в зависимости от роли
 const getHomePageByRole = (role: string | null): string => {
@@ -171,6 +172,18 @@ function App() {
                 <ModuleRoute module="/calendar">
                   <AdminLayout bare>
                     <CalendarPage />
+                  </AdminLayout>
+                </ModuleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/today"
+            element={
+              <ProtectedRoute>
+                <ModuleRoute module="/today">
+                  <AdminLayout>
+                    <TodayPage />
                   </AdminLayout>
                 </ModuleRoute>
               </ProtectedRoute>

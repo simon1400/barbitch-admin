@@ -96,13 +96,15 @@ export default function CalendarPage() {
   const coarse = useCoarsePointer()
   // Параметры из push-нотификации (?date=YYYY-MM-DD&highlight=<bookingDocId>):
   // открыть календарь сразу на дне брони и мигнуть её карточкой (см. sw.js)
-  const bootParams = useRef<{ date: string | null; highlight: string | null } | null>(null)
+  // ?pending=1 — из дашборда «Сегодня» (s214): сразу открыть «Ke schválení» (только руководству)
+  const bootParams = useRef<{ date: string | null; highlight: string | null; pending: boolean } | null>(null)
   if (bootParams.current === null) {
     const p = new URLSearchParams(window.location.search)
     const d = p.get('date') || ''
     bootParams.current = {
       date: /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null,
       highlight: p.get('highlight'),
+      pending: p.get('pending') === '1',
     }
   }
   const [date, setDate] = useState(bootParams.current.date || todayStr())
@@ -134,7 +136,7 @@ export default function CalendarPage() {
   // кастомные лейблы броней (справочник + модал управления)
   // блоки администраторов, ждущие подтверждения владельца (у него же и кнопка)
   const [pendingBlocks, setPendingBlocks] = useState(0)
-  const [showPending, setShowPending] = useState(false)
+  const [showPending, setShowPending] = useState(() => isOwner && bootParams.current?.pending === true)
   // модал порядка колонок мастеров (personal.calendarOrder)
   const [orderModal, setOrderModal] = useState(false)
   // модал глобального поиска клиента (история/контакты/blacklist, admin-only)

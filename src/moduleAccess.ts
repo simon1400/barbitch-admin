@@ -20,6 +20,8 @@ export interface ModuleDef {
 }
 
 const MODULES: ModuleDef[] = [
+  // дашборд «что требует внимания» (s214) — первая пилюля руководства; домашняя остаётся /global
+  { path: '/today', label: 'Сегодня', roles: ['owner', 'manager'] },
   // календарь: master попадает только по кнопке (read-only своя неделя), меню у него нет
   { path: '/calendar', label: 'Календарь', roles: ['owner', 'manager', 'administrator', 'master'] },
   { path: '/global/analytics', label: 'Аналитика', roles: ['owner', 'manager'], hasTabs: true },
