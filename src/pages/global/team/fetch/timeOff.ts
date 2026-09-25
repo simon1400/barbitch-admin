@@ -1,4 +1,8 @@
+// Отпуска / больничные. Чтение — REST `/api/time-offs` (сессия сотрудника),
+// запись — только ручка движка `/engine/admin/time-offs` (руководство, s216):
+// она же ставит мастеру серию блоков в календаре на эти дни и пишет журнал.
 import { Axios } from '../../../../lib/api'
+import { makeApiFetch } from '../../../../lib/apiFetch'
 
 export type TimeOffType = 'sick' | 'vacation' | 'personal'
 
@@ -10,6 +14,8 @@ export interface TimeOffRecord {
   paid: boolean
   comment: string | null
   personal: { documentId: string; name: string } | null
+  /** серия блоков в календаре (own-ключ движка); null — блоков нет (не мастер или запись из CM) */
+  blockSeriesKey: string | null
 }
 
 // Сырой ответ Strapi (только нужные поля)
@@ -21,6 +27,7 @@ interface RawTimeOff {
   paid: boolean | null
   comment: string | null
   personal: { documentId: string; name: string } | null
+  blockSeriesKey?: string | null
 }
 
 // Человекочитаемые подписи типов отсутствия
@@ -82,8 +89,80 @@ export const fetchTimeOffs = async (month: number, year: number): Promise<TimeOf
     personal: item.personal
       ? { documentId: item.personal.documentId, name: item.personal.name }
       : null,
+    blockSeriesKey: item.blockSeriesKey || null,
   }))
 }
+
+// ── запись (руководство) ────────────────────────────────────────────────────
+
+export interface TimeOffInput {
+  personal: string
+  type: TimeOffType
+  startDate: string
+  endDate: string
+  paid: boolean
+  comment: string
+}
+
+/** Активная бронь мастера на дни отсутствия — блок её не отменяет, надо перенести. */
+export interface TimeOffConflict {
+  documentId: string
+  date: string
+  time: string | null
+  client: string | null
+  internal: boolean
+}
+
+export interface TimeOffSaveResult {
+  row: TimeOffRecord
+  /** сколько блоков у записи в календаре после сохранения (0 — не мастер) */
+  blocks: number
+  conflicts: TimeOffConflict[]
+}
+
+/** Одна запись — не длиннее квартала (сервер проверяет то же). */
+export const MAX_SPAN_DAYS = 92
+
+const CODE_MESSAGES: Record<string, string> = {
+  owner_only: 'Отпуска вносит только руководство салона.',
+  unauthorized: 'Сессия истекла — войдите снова.',
+  personal_required: 'Выберите сотрудника.',
+  personal_not_found: 'Сотрудник не найден.',
+  bad_type: 'Неизвестный тип отсутствия.',
+  bad_date: 'Неверная дата.',
+  bad_range: 'Конец раньше начала.',
+  range_too_long: `Одна запись — не больше ${MAX_SPAN_DAYS} дней.`,
+  date_too_far: 'Дата слишком далеко в будущем.',
+  bad_paid: 'Оплачиваемость — да или нет.',
+  comment_too_long: 'Комментарий слишком длинный (до 500 символов).',
+  // timeoff_overlap — без подмены: сервер называет конкретный пересекающийся период
+  timeoff_not_found: 'Запись уже удалена.',
+}
+
+const timeOffFetch = makeApiFetch('/api/engine/admin', CODE_MESSAGES, (s) => `Ошибка ${s}`)
+
+export const createTimeOff = (input: TimeOffInput) =>
+  timeOffFetch<TimeOffSaveResult>('POST', '/time-offs', input)
+
+export const updateTimeOff = (documentId: string, input: TimeOffInput) =>
+  timeOffFetch<TimeOffSaveResult>('PATCH', `/time-offs/${encodeURIComponent(documentId)}`, input)
+
+export const deleteTimeOff = (documentId: string) =>
+  timeOffFetch<{ deleted: string; blocks: number }>('DELETE', `/time-offs/${encodeURIComponent(documentId)}`)
+
+export const fetchTimeOffConflicts = async (
+  personal: string,
+  startDate: string,
+  endDate: string,
+): Promise<TimeOffConflict[]> => {
+  const q = new URLSearchParams({ personal, startDate, endDate }).toString()
+  const res = await timeOffFetch<{ rows: TimeOffConflict[] }>('GET', `/time-offs/conflicts?${q}`)
+  return Array.isArray(res?.rows) ? res.rows : []
+}
+
+/** Дней в периоде, обе границы включительно (как считает сервер). */
+export const spanDays = (from: string, to: string): number =>
+  Math.round((parseDate(to) - parseDate(from)) / DAY_MS) + 1
 
 export interface EmployeeSummary {
   documentId: string

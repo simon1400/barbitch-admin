@@ -45,6 +45,19 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
     label: 'Mzdy: smazáno',
     cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
   },
+  // отпуска / больничные из «Команда → Больничные/отпуска» (s216)
+  timeoff_create: {
+    label: 'Absence: nový záznam',
+    cls: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300',
+  },
+  timeoff_update: {
+    label: 'Absence: úprava',
+    cls: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300',
+  },
+  timeoff_delete: {
+    label: 'Absence: smazáno',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
 }
 
 const actionMeta = (a: string) =>
@@ -293,7 +306,7 @@ const LogRow = ({
   )
 }
 
-type EntityTab = 'all' | 'booking' | 'block' | 'client' | 'korekce' | 'correction'
+type EntityTab = 'all' | 'booking' | 'block' | 'client' | 'korekce' | 'correction' | 'timeoff'
 
 export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
   const [tab, setTab] = useState<EntityTab>('all')
@@ -402,6 +415,7 @@ export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
         {tabBtn('client', 'Klienti')}
         {tabBtn('korekce', 'Korekce')}
         {tabBtn('correction', 'Mzdy')}
+        {tabBtn('timeoff', 'Absence')}
         <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500">{total} záznamů</span>
       </div>
       <input
