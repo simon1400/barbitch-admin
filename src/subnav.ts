@@ -38,6 +38,7 @@ export const SUBNAV: SubnavDef[] = [
     moduleLabel: 'Команда',
     tabs: [
       { to: 'salaries', label: 'Зарплаты' },
+      { to: 'corrections', label: 'Корректировки' },
       { to: 'priority', label: 'Priorita masterů' },
       { to: 'time-off', label: 'Больничные / отпуска' },
       { to: 'taxes', label: 'Налоги' },

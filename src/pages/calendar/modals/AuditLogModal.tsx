@@ -36,6 +36,15 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
     label: 'Převod zrušen',
     cls: 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300',
   },
+  // корректировки зарплат из «Команда → Корректировки» (s215)
+  correction_create: {
+    label: 'Mzdy: nový záznam',
+    cls: 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-300',
+  },
+  correction_delete: {
+    label: 'Mzdy: smazáno',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
 }
 
 const actionMeta = (a: string) =>
@@ -284,7 +293,7 @@ const LogRow = ({
   )
 }
 
-type EntityTab = 'all' | 'booking' | 'block' | 'client' | 'korekce'
+type EntityTab = 'all' | 'booking' | 'block' | 'client' | 'korekce' | 'correction'
 
 export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
   const [tab, setTab] = useState<EntityTab>('all')
@@ -392,6 +401,7 @@ export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
         {tabBtn('block', 'Bloky')}
         {tabBtn('client', 'Klienti')}
         {tabBtn('korekce', 'Korekce')}
+        {tabBtn('correction', 'Mzdy')}
         <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500">{total} záznamů</span>
       </div>
       <input
