@@ -52,6 +52,7 @@ const CalendarPage = lazy(() => import('./pages/calendar/CalendarPage'))
 const CatalogPage = lazy(() => import('./pages/global/catalog/CatalogPage'))
 const UpsellPage = lazy(() => import('./pages/upsell/UpsellPage'))
 const TodayPage = lazy(() => import('./pages/today/TodayPage'))
+const SchedulePage = lazy(() => import('./pages/schedule/SchedulePage'))
 
 // Получить домашнюю страницу в зависимости от роли
 const getHomePageByRole = (role: string | null): string => {
@@ -186,6 +187,18 @@ function App() {
                 <ModuleRoute module="/today">
                   <AdminLayout>
                     <TodayPage />
+                  </AdminLayout>
+                </ModuleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/schedule"
+            element={
+              <ProtectedRoute>
+                <ModuleRoute module="/schedule">
+                  <AdminLayout>
+                    <SchedulePage />
                   </AdminLayout>
                 </ModuleRoute>
               </ProtectedRoute>

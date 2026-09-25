@@ -6,7 +6,9 @@
 // по одному бессмысленно — кнопка применяет решение ко всей серии сразу.
 
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { type PendingBlock, engineSetBlockApproval, fetchPendingBlocks } from '../fetch/engineApi'
+import { decideRequest, type PlanRequest } from '../../schedule/fetch/schedule'
 import { blokPlural, fmtHM } from './helpers'
 import { ModalShell } from './ui'
 
@@ -48,6 +50,7 @@ const groupBySeries = (items: PendingBlock[]): PendingGroup[] => {
 
 export const PendingBlocksModal = ({ onClose, onChanged }: PendingBlocksProps) => {
   const [groups, setGroups] = useState<PendingGroup[]>([])
+  const [plan, setPlan] = useState<PlanRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -58,6 +61,7 @@ export const PendingBlocksModal = ({ onClose, onChanged }: PendingBlocksProps) =
     try {
       const res = await fetchPendingBlocks()
       setGroups(groupBySeries(res.items || []))
+      setPlan(res.planRequests || [])
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -90,17 +94,44 @@ export const PendingBlocksModal = ({ onClose, onChanged }: PendingBlocksProps) =
     }
   }
 
+  // предложение изменения планового графика (s218)
+  const decidePlan = async (r: PlanRequest, status: 'approved' | 'rejected') => {
+    if (!r.personal) return
+    if (status === 'rejected' && !window.confirm(`Zamítnout návrh ${r.employeeName} · ${dayLabel(r.date)} — ${r.label}?`)) return
+    const key = `plan|${r.personal}|${r.date}`
+    setBusyKey(key)
+    setError(null)
+    try {
+      await decideRequest(r.personal, r.date, status)
+      setPlan((cur) => cur.filter((x) => !(x.personal === r.personal && x.date === r.date)))
+      onChanged()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusyKey(null)
+    }
+  }
+
+  const total = groups.length + plan.length
+
   return (
-    <ModalShell title={`Bloky ke schválení${groups.length ? ` (${groups.length})` : ''}`} onClose={onClose}>
+    <ModalShell title={`Ke schválení${total ? ` (${total})` : ''}`} onClose={onClose}>
       <div className="space-y-3">
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          Bloky zadané administrátorkami. Dokud je neschválíte, termín <b>neblokují</b> — klienti si ho můžou
-          zarezervovat.
-        </p>
+        {groups.length > 0 && (
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Bloky zadané administrátorkami. Dokud je neschválíte, termín <b>neblokují</b> — klienti si ho můžou
+            zarezervovat. Navržená změna schváleného bloku do schválení neplatí — blok zůstává, jak byl.
+          </p>
+        )}
+        {plan.length > 0 && (
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Změny plánu směn navržené administrátorkami platí až po schválení.
+          </p>
+        )}
 
         {loading && <p className="text-sm text-gray-500 dark:text-gray-400">Načítám…</p>}
 
-        {!loading && groups.length === 0 && (
+        {!loading && total === 0 && (
           <p className="rounded-lg bg-emerald-50 dark:bg-emerald-500/10 px-3 py-3 text-sm text-emerald-700 dark:text-emerald-300">
             Nic nečeká na schválení.
           </p>
@@ -117,12 +148,23 @@ export const PendingBlocksModal = ({ onClose, onChanged }: PendingBlocksProps) =
                   {g.head.employeeName || '—'} · {dayLabel(g.head.date)}
                   {g.count > 1 && ` – ${dayLabel(g.lastDate)}`}
                 </p>
-                <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-300">
-                  {fmtHM(g.head.startMin ?? 0)}–{fmtHM(g.head.endMin ?? 0)}
-                  {g.head.title && g.head.title !== 'Blokace' && ` · ${g.head.title}`}
-                  {g.count > 1 && ` · ${g.count} ${blokPlural(g.count)}`}
-                </p>
-                {g.head.createdByName && (
+                {g.head.kind === 'change' ? (
+                  <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-300" data-testid="pending-change">
+                    Změna: {fmtHM(g.head.startMin ?? 0)}–{fmtHM(g.head.endMin ?? 0)} → {fmtHM(g.head.proposedStartMin ?? 0)}–
+                    {fmtHM(g.head.proposedEndMin ?? 0)}
+                    {g.head.proposedTitle && g.head.proposedTitle !== g.head.title && ` · ${g.head.proposedTitle}`}
+                    <span className="block text-xs text-gray-500 dark:text-gray-400">
+                      Do schválení platí blok beze změny{g.head.proposedByName ? ` · navrhl/a: ${g.head.proposedByName}` : ''}
+                    </span>
+                  </p>
+                ) : (
+                  <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-300">
+                    {fmtHM(g.head.startMin ?? 0)}–{fmtHM(g.head.endMin ?? 0)}
+                    {g.head.title && g.head.title !== 'Blokace' && ` · ${g.head.title}`}
+                    {g.count > 1 && ` · ${g.count} ${blokPlural(g.count)}`}
+                  </p>
+                )}
+                {g.head.kind !== 'change' && g.head.createdByName && (
                   <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">zadal/a: {g.head.createdByName}</p>
                 )}
               </div>
@@ -147,6 +189,57 @@ export const PendingBlocksModal = ({ onClose, onChanged }: PendingBlocksProps) =
             </div>
           </div>
         ))}
+
+        {plan.length > 0 && (
+          <div className="space-y-2" data-testid="pending-plan">
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">Změny plánu směn</p>
+            {plan.map((r) => {
+              const key = `plan|${r.personal}|${r.date}`
+              return (
+                <div
+                  key={key}
+                  className="rounded-lg border border-gray-200 dark:border-[#3f3f3d] bg-white dark:bg-[#252523] px-3 py-2"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                        {r.employeeName || '—'} · {dayLabel(r.date)}
+                      </p>
+                      <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-300">
+                        {r.label}
+                        {r.note && ` · ${r.note}`}
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        navrhl/a: {r.by || '—'} ·{' '}
+                        <Link to={`/schedule?master=${r.personal}&date=${r.date}`} className="underline">
+                          plán
+                        </Link>
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        type="button"
+                        disabled={busyKey === key}
+                        onClick={() => decidePlan(r, 'approved')}
+                        className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
+                      >
+                        Schválit
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busyKey === key}
+                        onClick={() => decidePlan(r, 'rejected')}
+                        className="rounded-md border border-red-300 px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-40"
+                      >
+                        Zamítnout
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {error && (
           <p className="rounded-md bg-red-50 dark:bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">

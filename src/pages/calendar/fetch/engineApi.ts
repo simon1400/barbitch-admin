@@ -10,6 +10,7 @@ import { authHeaders } from '../../../lib/authHeaders'
 import { clientSearchFilters, type ClientSearchHit } from '../../../lib/clientSearch'
 import type { BookingStatus } from '../../../lib/bookingStatus'
 import type { CalendarBooking } from './calendarDay'
+import type { PlanRequest } from '../../schedule/fetch/schedule'
 
 
 
@@ -50,6 +51,9 @@ const CODE_MESSAGES: Record<string, string> = {
   employee_required: 'U rezervace chybí mistrová.',
   // подтверждение блоков владельцем
   owner_only: 'Schvalovat bloky může jen majitel.',
+  // плановый график мастеров (s218)
+  plan_block: 'Blok je z plánu směn — změňte ho v modulu «График мастеров».',
+  engine_only: 'Změny bloků jen přes kalendář nebo plán směn.',
   block_not_found: 'Blok nenalezen — možná už byl smazán.',
   bad_approval_status: 'Neplatný stav schválení.',
 }
@@ -463,11 +467,19 @@ export interface PendingBlock {
   createdAt: string | null
   own: boolean
   seriesKey: string | null
+  // 'change' — предложение правки действующего блока администратором (s218):
+  // блок работает по-старому, в proposed* — что предлагают
+  kind?: 'new' | 'change'
+  proposedStartMin?: number | null
+  proposedEndMin?: number | null
+  proposedTitle?: string
+  proposedByName?: string
 }
 
-// Список блоков, ждущих подтверждения (только владелец; от сегодняшнего дня)
+// Список блоков, ждущих подтверждения (руководство; от сегодняшнего дня) +
+// предложения изменений планового графика мастеров (s218)
 export const fetchPendingBlocks = () =>
-  engineFetch<{ items: PendingBlock[] }>('GET', '/engine/admin/blocks/pending')
+  engineFetch<{ items: PendingBlock[]; planRequests?: PlanRequest[] }>('GET', '/engine/admin/blocks/pending')
 
 // Подтверждение/отклонение блока владельцем. series=true — вся серия повторений.
 export const engineSetBlockApproval = (

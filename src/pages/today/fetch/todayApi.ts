@@ -8,6 +8,7 @@
 //     те же функции, что у календаря и «Дозаписей», своей копии запросов нет.
 import { makeApiFetch } from '../../../lib/apiFetch'
 import { fetchPendingBlocks, type PendingBlock } from '../../calendar/fetch/engineApi'
+import type { PlanRequest } from '../../schedule/fetch/schedule'
 import {
   fetchAdminRoster,
   fetchCalendarDay,
@@ -86,6 +87,8 @@ export type Part<T> = { ok: true; data: T } | { ok: false; error: string }
 export interface TodayData {
   overview: Part<TodayOverview>
   pendingBlocks: Part<PendingBlock[]>
+  /** предложения изменений планового графика (s218) — тот же ответ, что у блоков */
+  planRequests: Part<PlanRequest[]>
   upsell: Part<UpsellClient[]>
   day: Part<CalendarDay>
   roster: AdminRoster
@@ -97,9 +100,11 @@ const part = <T,>(r: PromiseSettledResult<T>): Part<T> =>
     : { ok: false, error: r.reason instanceof Error ? r.reason.message : String(r.reason) }
 
 export async function loadToday(date: string): Promise<TodayData> {
-  const [overview, pending, upsell, day, roster] = await Promise.allSettled([
+  const pendingRes = fetchPendingBlocks()
+  const [overview, pending, plan, upsell, day, roster] = await Promise.allSettled([
     fetchTodayOverview(date),
-    fetchPendingBlocks().then((r) => r.items || []),
+    pendingRes.then((r) => r.items || []),
+    pendingRes.then((r) => r.planRequests || []),
     // клиенты дня: и те, кто в салоне/придёт, и уже ушедшие (им тоже нужен результат)
     fetchUpsellDay(date).then((d) => [...(d.clients || []), ...(d.leftClients || [])]),
     fetchCalendarDay(date),
@@ -108,6 +113,7 @@ export async function loadToday(date: string): Promise<TodayData> {
   return {
     overview: part(overview),
     pendingBlocks: part(pending),
+    planRequests: part(plan),
     upsell: part(upsell),
     day: part(day),
     // график — вспомогательная инфа, fetchAdminRoster сам глотает ошибки

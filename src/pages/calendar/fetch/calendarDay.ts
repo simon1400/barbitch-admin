@@ -125,7 +125,16 @@ export interface BlockedRange {
   // Легаси-строки и зеркальные Noona-блоки поля не имеют → трактуем как approved.
   approval?: BlockApproval
   approvedByName?: string | null
+  // блок планового графика мастера (s218, noonaKey 'own|plan|<personal>') — правится
+  // только в модуле «График мастеров», из календаря read-only
+  plan?: boolean
+  // предложение правки действующего блока администратором (s218) — блок работает
+  // по-старому, пока руководство не согласует
+  proposed?: { startMin: number; endMin: number; title: string; by: string } | null
 }
+
+/** Префикс ключа блоков планового графика (s218). */
+export const PLAN_BLOCK_PREFIX = 'own|plan|'
 
 export interface MasterColumn {
   id: string // id мастера (personal.noonaEmployeeId — стабильный ключ в нашей БД) или дата (неделя)
@@ -162,6 +171,10 @@ interface CalendarTimeBlock extends MirrorTimeBlock {
   createdByName?: string | null
   approvalStatus?: BlockApproval | null
   approvedByName?: string | null
+  proposedStartsAt?: string | null
+  proposedEndsAt?: string | null
+  proposedTitle?: string | null
+  proposedByName?: string | null
 }
 
 // Активные мастера из НАШЕЙ базы (personal) — общий загрузчик lib/personals.
@@ -261,7 +274,18 @@ const toBlockedRange = (b: CalendarTimeBlock, startMin: number, endMin: number):
   createdByName: b.createdByName ?? null,
   approval: b.approvalStatus || 'approved',
   approvedByName: b.approvedByName ?? null,
+  plan: String(b.noonaKey || '').startsWith(PLAN_BLOCK_PREFIX),
+  proposed: proposedOf(b),
 })
+
+// Предложение правки (s218): минуты считаются так же, как у самого блока
+const proposedOf = (b: CalendarTimeBlock): BlockedRange['proposed'] => {
+  if (!b.proposedStartsAt || !b.proposedEndsAt) return null
+  const s = isoToMin(b.proposedStartsAt)
+  const e = isoToMin(b.proposedEndsAt)
+  if (s == null || e == null) return null
+  return { startMin: s, endMin: e, title: b.proposedTitle || b.title || '', by: b.proposedByName || '' }
+}
 
 // Скидки bitchcard (`redemptionKc`) приходят прямо в ответе движка — отдельного
 // запроса к `/api/redemptions` больше нет. Так и на один запрос меньше, и мастеру

@@ -285,7 +285,7 @@ export default function CalendarPage() {
   const reloadPending = useCallback(() => {
     if (!isOwner) return
     fetchPendingBlocks()
-      .then((r) => setPendingBlocks(r.items?.length || 0))
+      .then((r) => setPendingBlocks((r.items?.length || 0) + (r.planRequests?.length || 0)))
       .catch(() => undefined)
   }, [isOwner])
   useEffect(() => {

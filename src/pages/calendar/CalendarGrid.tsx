@@ -412,6 +412,16 @@ export const CalendarGrid = ({ day, onSelect, highlightId, zoomFactor, onSelectM
                     <span className="pointer-events-none max-w-full p-2 absolute left-1.5 top-0.5 truncate text-sm font-bold text-gray-800 dark:text-gray-200">
                       {bl.title || (bl.own ? 'blok' : 'Nepracovní doba')}
                     </span>
+                    {bl.proposed && bl.approval !== 'pending' && bl.approval !== 'rejected' && (
+                      <span className="pointer-events-none absolute bottom-0.5 left-1.5 truncate rounded bg-amber-500 px-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                        změna čeká
+                      </span>
+                    )}
+                    {bl.plan && !bl.proposed && (
+                      <span className="pointer-events-none absolute bottom-0.5 left-1.5 truncate rounded bg-gray-600/70 px-1 text-[10px] font-bold uppercase tracking-wide text-white dark:bg-gray-400/40">
+                        plán
+                      </span>
+                    )}
                     {bl.approval && bl.approval !== 'approved' && (
                       <span
                         className={`pointer-events-none absolute bottom-0.5 left-1.5 truncate rounded px-1 text-[10px] font-bold uppercase tracking-wide ${

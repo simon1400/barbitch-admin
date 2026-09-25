@@ -26,6 +26,9 @@ const MODULES: ModuleDef[] = [
   { path: '/calendar', label: 'Календарь', roles: ['owner', 'manager', 'administrator', 'master'] },
   { path: '/global/analytics', label: 'Аналитика', roles: ['owner', 'manager'], hasTabs: true },
   { path: '/global/team', label: 'Команда', roles: ['owner', 'manager'], hasTabs: true },
+  // плановый график мастеров (s218): администратор видит и ПРЕДЛАГАЕТ изменения дня
+  // (действуют после согласования руководства); мастер сам себе ничего не меняет
+  { path: '/schedule', label: 'График мастеров', roles: ['owner', 'manager', 'administrator'] },
   { path: '/upsell', label: 'Дозаписи', roles: ['owner', 'manager', 'administrator'] },
   { path: '/global/catalog', label: 'Каталог услуг', roles: ['owner', 'manager', 'administrator'] },
   { path: '/global/shift-close', label: 'Uzavření směny', roles: ['owner', 'manager'] },

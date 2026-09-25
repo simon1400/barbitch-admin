@@ -2,7 +2,8 @@
 // времени/названия этого конкретного блока, удаление одного или всей серии.
 
 import { useEffect, useState } from 'react'
-import type { BlockedRange } from '../fetch/calendarDay'
+import { Link } from 'react-router-dom'
+import { PLAN_BLOCK_PREFIX, type BlockedRange } from '../fetch/calendarDay'
 import {
   engineDeleteBlock,
   enginePatchBlock,
@@ -40,7 +41,38 @@ const blockCreatedLabel = (block: BlockedRange): string | null => {
   return parts.length ? parts.join(' · ') : null
 }
 
-export const EditBlockModal = ({ block, masterName, date, isOwner, onClose, onChanged }: EditBlockProps) => {
+// Блок планового графика (s218): из календаря не правится — ссылка в модуль плана
+const PlanBlockModal = ({ block, masterName, date, onClose }: Omit<EditBlockProps, 'isOwner' | 'onChanged'>) => {
+  const personal = String(block.noonaKey || '').slice(PLAN_BLOCK_PREFIX.length)
+  return (
+    <ModalShell title="Blok z plánu směn" onClose={onClose}>
+      <div className="space-y-4">
+        <div className="rounded-lg bg-gray-50 dark:bg-[#2a2a28] px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
+          <b>{masterName}</b> · {date} · {block.title} {fmtHM(block.startMin)}–{fmtHM(block.endMin)}
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Blok vytváří plán směn mistra. Změní se jen v plánu — tam ho upraví vedení, administrátorka navrhne změnu ke schválení.
+          </p>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Link
+            to={`/schedule?master=${encodeURIComponent(personal)}&date=${encodeURIComponent(date)}`}
+            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white"
+          >
+            Otevřít plán směn
+          </Link>
+          <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100">
+            Zavřít
+          </button>
+        </div>
+      </div>
+    </ModalShell>
+  )
+}
+
+export const EditBlockModal = (props: EditBlockProps) =>
+  props.block.plan ? <PlanBlockModal {...props} /> : <ManualBlockModal {...props} />
+
+const ManualBlockModal = ({ block, masterName, date, isOwner, onClose, onChanged }: EditBlockProps) => {
   const [fromTime, setFromTime] = useState(fmtHM(block.startMin))
   const [toTime, setToTime] = useState(fmtHM(block.endMin))
   const [title, setTitle] = useState(block.title || '')
@@ -147,6 +179,38 @@ export const EditBlockModal = ({ block, masterName, date, isOwner, onClose, onCh
           </div>
         )}
 
+        {/* предложение правки от администратора (s218): блок пока работает по-старому */}
+        {block.proposed && approval === 'approved' && (
+          <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300" data-testid="block-proposal">
+            <b>Navržená změna čeká na schválení</b>
+            <p className="mt-1 text-xs">
+              {fmtHM(block.startMin)}–{fmtHM(block.endMin)} → {fmtHM(block.proposed.startMin)}–{fmtHM(block.proposed.endMin)}
+              {block.proposed.title && block.proposed.title !== (block.title || '') ? ` · ${block.proposed.title}` : ''}
+              {block.proposed.by ? ` · navrhl/a ${block.proposed.by}` : ''}. Do schválení platí blok beze změny.
+            </p>
+            {isOwner && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => approve(false)}
+                  className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
+                >
+                  Schválit změnu
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => run(() => engineSetBlockApproval(block.documentId!, 'rejected', false))}
+                  className="rounded-md border border-red-300 px-4 py-2 text-sm font-semibold text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-40"
+                >
+                  Zamítnout změnu
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         {isOwner && approval !== 'approved' && (
           <Section title="Schválení">
             <div className="flex flex-wrap gap-2">
@@ -204,8 +268,13 @@ export const EditBlockModal = ({ block, masterName, date, isOwner, onClose, onCh
             onClick={save}
             className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
           >
-            Uložit změny
+            {isOwner || approval !== 'approved' ? 'Uložit změny' : 'Navrhnout změnu ke schválení'}
           </button>
+          {!isOwner && approval === 'approved' && (
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Změna schváleného bloku začne platit až po schválení vedením — do té doby blok platí beze změny.
+            </p>
+          )}
         </Section>
 
         {/* удаление */}

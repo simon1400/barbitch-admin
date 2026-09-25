@@ -79,7 +79,8 @@ export default function TodayPage() {
   const blocks = pb?.ok ? pb.data : []
   // серия повторений — один пункт, как в модале «Ke schválení»
   const blockGroups = [...new Map(blocks.map((b) => [b.seriesKey || b.documentId, b])).values()]
-  const blocksCount = new Set(blocks.map((b) => b.seriesKey || b.documentId)).size
+  const planReqs = data?.planRequests?.ok ? data.planRequests.data : []
+  const blocksCount = new Set(blocks.map((b) => b.seriesKey || b.documentId)).size + planReqs.length
 
   const up = data?.upsell
   const upsellClients = up?.ok ? up.data : []
@@ -170,14 +171,29 @@ export default function TodayPage() {
               aside={<span className={smallCls}>{b.createdByName}</span>}
             >
               <b className="text-ink">{b.employeeName}</b> · {b.title || 'Blok'}
-              {b.seriesKey && <span className={`${badgeMutedCls} ml-1.5`}>серия</span>}
+              {b.kind === 'change' ? (
+                <span className={`${badgeWarnCls} ml-1.5`}>правка</span>
+              ) : (
+                b.seriesKey && <span className={`${badgeMutedCls} ml-1.5`}>серия</span>
+              )}
               <div className={smallCls}>
                 {dayLabel(b.date)}
                 {b.startMin != null && b.endMin != null && ` · ${minToHHMM(b.startMin)}–${minToHHMM(b.endMin)}`}
+                {b.kind === 'change' &&
+                  b.proposedStartMin != null &&
+                  b.proposedEndMin != null &&
+                  ` → ${minToHHMM(b.proposedStartMin)}–${minToHHMM(b.proposedEndMin)}`}
               </div>
             </TodayRow>
           ))}
           {blockGroups.length > 8 && <div className={hintCls}>…и ещё {blockGroups.length - 8}</div>}
+          {planReqs.slice(0, 8).map((r) => (
+            <TodayRow key={`plan|${r.personal}|${r.date}`} to={`/schedule?master=${r.personal}&date=${r.date}`} aside={<span className={smallCls}>{r.by}</span>}>
+              <b className="text-ink">{r.employeeName}</b> · график: {r.label}
+              <span className={`${badgeWarnCls} ml-1.5`}>план</span>
+              <div className={smallCls}>{dayLabel(r.date)}</div>
+            </TodayRow>
+          ))}
         </TodayCard>
 
         {/* 3. Дозаписи без результата */}

@@ -71,6 +71,31 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
     label: 'Směny: smazáno',
     cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
   },
+  // плановый график мастеров из модуля «График мастеров» (s218)
+  schedule_template: {
+    label: 'Plán: šablona',
+    cls: 'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300',
+  },
+  schedule_day: {
+    label: 'Plán: změna dne',
+    cls: 'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300',
+  },
+  schedule_request: {
+    label: 'Plán: návrh',
+    cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+  },
+  schedule_approve: {
+    label: 'Plán: schváleno',
+    cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
+  },
+  schedule_reject: {
+    label: 'Plán: zamítnuto',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
+  schedule_legacy_replace: {
+    label: 'Plán: staré bloky',
+    cls: 'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300',
+  },
 }
 
 const actionMeta = (a: string) =>
@@ -319,7 +344,7 @@ const LogRow = ({
   )
 }
 
-type EntityTab = 'all' | 'booking' | 'block' | 'client' | 'korekce' | 'correction' | 'timeoff' | 'shift'
+type EntityTab = 'all' | 'booking' | 'block' | 'client' | 'korekce' | 'correction' | 'timeoff' | 'shift' | 'schedule'
 
 export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
   const [tab, setTab] = useState<EntityTab>('all')
@@ -430,6 +455,7 @@ export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
         {tabBtn('correction', 'Mzdy')}
         {tabBtn('timeoff', 'Absence')}
         {tabBtn('shift', 'Směny')}
+        {tabBtn('schedule', 'Plán')}
         <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500">{total} záznamů</span>
       </div>
       <input
