@@ -2,7 +2,7 @@
 //
 // Одна страница «что требует внимания»: незакрытые визиты, блоки на согласование,
 // дозаписи без результата, незакрытые смены, ваучеры, ожидающие переносы корекций
-// и кто сегодня работает. Каждая строка — ссылка туда, где это решается.
+// дни рождения сотрудников и кто сегодня работает. Каждая строка — ссылка туда, где это решается.
 // Ничего не пишет. Данные — fetch/todayApi.ts (каждый источник отдельно: сбой
 // одного не гасит остальные карточки).
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -20,6 +20,7 @@ import {
 } from '../../ui/kit'
 import { DOW_RU_SHORT, dowOfYmd, fmtTimePrague, minToHHMM, todayYmd } from '../../utils/date'
 import { kc } from '../../utils/money'
+import { BirthdaysCardView } from '../../components/BirthdaysCard'
 import { RefreshIcon } from '../upsell/components/icons'
 import { TodayCard, TodayRow } from './components/TodayCard'
 import { loadToday, type TodayData } from './fetch/todayApi'
@@ -85,6 +86,8 @@ export default function TodayPage() {
   const up = data?.upsell
   const upsellClients = up?.ok ? up.data : []
   const needResult = upsellClients.filter((c) => c.needsResult)
+
+  const bd = data?.birthdays
 
   const dayPart = data?.day
   const working = dayPart?.ok ? summarizeDay(dayPart.data) : null
@@ -299,9 +302,16 @@ export default function TodayPage() {
           ))}
           {unpaid.length > 0 && <div className={hintCls}>Не оплачено заказов за 30 дней: {unpaid.length}</div>}
         </TodayCard>
+
+        {/* 7. Дни рождения сотрудников — ближайшие 30 дней */}
+        <BirthdaysCardView
+          data={bd?.ok ? bd.data : null}
+          loading={first}
+          error={bd && !bd.ok ? bd.error : null}
+        />
       </div>
 
-      {/* 7. Кто сегодня работает — во всю ширину */}
+      {/* 8. Кто сегодня работает — во всю ширину */}
       <div className="mt-3.5">
         <TodayCard
           id="working"

@@ -1,4 +1,5 @@
 import { kcNum, dec, parseMoney } from '../../utils/money'
+import { BirthdaysCard } from '../../components/BirthdaysCard'
 import { Pagination } from '../../components/Pagination'
 import { useMonthYear } from '../../hooks/useMonthYear'
 import { errMsg } from '../../lib/errMsg'
@@ -186,6 +187,11 @@ const AdministratorCabinetPage = () => {
         {/* Header with month selector */}
         <div className={toolbarCardCls}>
           <Select month={selectedMonth} setMonth={setSelectedMonth} year={selectedYear} setYear={setSelectedYear} />
+        </div>
+
+        {/* Дни рождения сотрудников — ближайшие 30 дней (s221) */}
+        <div className="mb-3.5">
+          <BirthdaysCard />
         </div>
 
         {/* Summary Section */}
