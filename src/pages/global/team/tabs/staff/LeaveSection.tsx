@@ -162,7 +162,7 @@ function EraseBlock({ card, onCard }: { card: StaffCard; onCard: (c: StaffCard) 
       onCard(res)
       setOpen(false)
       setOk(
-        `Стёрто: личные данные, документов ${res.erased.documents}, старых сканов ${res.erased.legacyFiles}, заметок ${res.erased.notes}.`,
+        `Стёрто: личные данные, документов ${res.erased.documents}, заметок ${res.erased.notes}.`,
       )
     } catch (err) {
       setError((err as Error).message)

@@ -114,7 +114,6 @@ export function PrivateSection({
               <DocumentsBlock
                 card={card}
                 docs={data.documents}
-                legacy={data.legacyFiles}
                 onDocs={(docs) => {
                   setData((d) => (d ? { ...d, documents: docs } : d))
                   onDocsCount(docs.length)

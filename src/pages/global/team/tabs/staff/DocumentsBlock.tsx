@@ -6,7 +6,6 @@ import {
   btnDangerCls,
   btnNeutralCls,
   btnPinkCls,
-  hintCls,
   inputCls,
   labelCls,
 } from '../../../../../ui/kit'
@@ -25,7 +24,6 @@ import {
   type DocKind,
   type StaffCard,
   type StaffDocument,
-  type StaffPrivate,
 } from '../../fetch/staff'
 import { ErrorLine } from './ui'
 
@@ -43,12 +41,10 @@ export function ValidityBadge({ validUntil, today }: { validUntil: string | null
 export function DocumentsBlock({
   card,
   docs,
-  legacy,
   onDocs,
 }: {
   card: StaffCard
   docs: StaffDocument[]
-  legacy: StaffPrivate['legacyFiles']
   onDocs: (docs: StaffDocument[]) => void
 }) {
   const today = todayYmd()
@@ -116,7 +112,7 @@ export function DocumentsBlock({
           onCancel={() => setAdding(false)}
         />
       )}
-      {docs.length === 0 && !legacy.length ? (
+      {docs.length === 0 ? (
         <div className="text-[13px] font-semibold text-ink-faint">Документов нет.</div>
       ) : (
         <ul className="m-0 p-0 list-none">
@@ -161,24 +157,7 @@ export function DocumentsBlock({
               </li>
             ),
           )}
-          {legacy.map((f) => (
-            <li key={`legacy-${f.id}`} className="flex items-center gap-2.5 flex-wrap py-2.5 border-t border-line-soft">
-              <span className={badgeWarnCls}>старый скан</span>
-              <span className="text-[13.5px] font-bold text-ink">{f.name}</span>
-              <span className="text-[12px] font-semibold text-ink-faint">{fmtSize(f.size)}</span>
-              {f.url && (
-                <a href={f.url} target="_blank" rel="noreferrer" className={`${btnNeutralCls} !px-2.5 !py-1 ml-auto`}>
-                  Открыть
-                </a>
-              )}
-            </li>
-          ))}
         </ul>
-      )}
-      {legacy.length > 0 && (
-        <div className={`mt-2 ${hintCls}`}>
-          «Старый скан» загружен раньше через панель Strapi и лежит на CDN — будет перенесён в закрытое хранилище.
-        </div>
       )}
       <ErrorLine text={error} />
     </div>

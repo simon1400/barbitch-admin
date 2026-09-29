@@ -162,7 +162,6 @@ export interface StaffPrivate {
   missing: string[]
   documents: StaffDocument[]
   /** старые сканы из панели Strapi (ImageKit) — до переноса в закрытый каталог */
-  legacyFiles: { id: number; name: string; mime: string; size: number; url: string }[]
 }
 
 export interface BookingRef {
@@ -445,7 +444,7 @@ export const leaveStaff = (id: string, leftAt: string, base: string) =>
   staffFetch<StaffCard & { planBlocksDeleted: number }>('POST', `/staff/${enc(id)}/leave`, { leftAt, base })
 
 export const eraseStaff = (id: string, confirmName: string, base: string) =>
-  staffFetch<StaffCard & { erased: { documents: number; legacyFiles: number; notes: number } }>(
+  staffFetch<StaffCard & { erased: { documents: number; notes: number } }>(
     'POST',
     `/staff/${enc(id)}/erase`,
     { confirmName, base },
