@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getSession, getSessionRole } from '../../services/auth'
+import { getSessionRole, isOwnPersonal } from '../../services/auth'
 import { isManagement } from '../../types/admin'
 import type {
   AdminRoster,
@@ -199,18 +199,18 @@ export default function CalendarPage() {
 
   // Список мастеров (один раз). Мастер тоже получает ПОЛНЫЙ список — он может
   // посмотреть дневное расписание салона (кто когда занят), но деньги видит только
-  // свои: `ownEmp` = он сам (матч personal.name по username, тот же принцип, что
-  // getWorks в кабинете мастера) и только его брони показывают долю (см. ownEmpId ниже).
+  // свои: `ownEmp` = он сам (по связи учётки с карточкой из токена, без связи — матч
+  // personal.name по username; тот же isOwnPersonal, что у кабинета мастера) и только
+  // его брони показывают долю (см. ownEmpId ниже).
   useEffect(() => {
     fetchWeekEmployees()
       .then((emps) => {
         setEmployees(emps)
         setEmpsLoaded(true)
         if (isMaster) {
-          // имя из подписанного токена: по localStorage-ключу мастер мог бы
+          // связь / имя из подписанного токена: по localStorage-ключу мастер мог бы
           // выдать себя за коллегу и увидеть его цены и историю (s181, п. 1.5)
-          const uname = (getSession()?.username || '').trim().toLowerCase()
-          const own = emps.find((e) => e.name.trim().toLowerCase() === uname) || null
+          const own = emps.find((e) => isOwnPersonal(e)) || null
           setOwnEmp(own)
           setWeekEmpId(own?.id || '')
           setMasterMissing(!own)

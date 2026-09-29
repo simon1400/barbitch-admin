@@ -12,6 +12,7 @@ import {
   PAGE_SIZE,
   summarizeGeneric,
 } from './fetchHelpers'
+import { fetchPayrollGroups } from './payrollGroups'
 import { managerNamesFor } from './teamSplit'
 
 interface IDataAllWorks extends PersonalSumData {
@@ -166,7 +167,7 @@ export const getAllWorks = async (month: number, year: number, previewDay?: stri
   const genericQuery = (page: number) =>
     buildQuery(filters, ['sum'], { personal: { fields: ['name'] } }, { page, pageSize: PAGE_SIZE })
 
-  const [data, penalties, extras, payrolls, advance, salaries, taxes] = await Promise.all([
+  const [data, penalties, extras, payrolls, advance, salaries, taxes, groups] = await Promise.all([
     fetchAllPages<IDataAllWorks>('/api/services-provided', serviceQuery),
     fetchAllPages<PersonalSumData>('/api/penalties', genericQuery),
     fetchAllPages<PersonalSumData>('/api/add-moneys', genericQuery),
@@ -174,6 +175,8 @@ export const getAllWorks = async (month: number, year: number, previewDay?: stri
     fetchAllPages<PersonalSumData>('/api/avanses', genericQuery),
     fetchAllPages<PersonalSumData>('/api/salaries', genericQuery),
     fetchAllPages<PersonalSumData>('/api/taxes', genericQuery),
+    // управляющие периода — строки заводятся заранее (s213); группы — из карточек (s229)
+    fetchPayrollGroups(),
   ])
 
   // Preview: merge the day's draft services-provided + payrolls (the two collections a
@@ -210,7 +213,7 @@ export const getAllWorks = async (month: number, year: number, previewDay?: stri
     advance,
     salaries,
     taxes,
-    managerNamesFor(`${year}-${String(month + 1).padStart(2, '0')}`),
+    managerNamesFor(groups, `${year}-${String(month + 1).padStart(2, '0')}`),
   )
 
   return {

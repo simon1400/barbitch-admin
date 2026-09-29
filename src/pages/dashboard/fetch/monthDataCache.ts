@@ -9,6 +9,7 @@ import { getAllWorks } from './allWorks'
 import { getMoney } from './costs'
 import { getEvents } from './getEvents'
 import { fetchManagerMonthFixed } from './managerRates'
+import { fetchPayrollGroups } from './payrollGroups'
 import { splitTeam } from './teamSplit'
 
 // Кэш агрегированных месячных данных «Финансового обзора» / зарплат / графиков.
@@ -107,7 +108,10 @@ export const EMPTY_GLOBAL_MONTH_DATA: GlobalMonthData = {
 // пока он вручную не нажмёт «Обновить». Смена версии делает старые записи
 // невидимыми, а `sweepStaleVersions()` ниже вычищает их из localStorage.
 // v3 (s213): группа «Управляющие» (managers/sumManagers) — оклад вошёл в результат месяца.
-const CACHE_VERSION = 3
+// v4 (s229): группы совместителей/управляющих — из карточек (payrollGroups.ts). Исправляет
+// месяцы 01–03.2026: «❌ Oleksandra Fishchuk» не находилась по старому имени в списке, и её
+// корректировки считались дважды — посчитанные так месяцы лежали бы в кэше вечно.
+const CACHE_VERSION = 4
 const PREFIX = `bb_global_month_v${CACHE_VERSION}_`
 // ключи прошлых версий (и самой первой, без номера) — чистим при старте модуля
 const LEGACY_PREFIXES = ['bb_global_month_']
@@ -181,19 +185,20 @@ const computeGlobalMonthData = async (
 ): Promise<GlobalMonthData> => {
   const periodStart = `${year}-${String(month + 1).padStart(2, '0')}`
   const monthEnd = monthEndYmd(year, month)
-  const [worksRes, adminsRes, moneyRes, eventsRes, managerFixed] = await Promise.all([
+  const [worksRes, adminsRes, moneyRes, eventsRes, managerFixed, groups] = await Promise.all([
     getAllWorks(month, year),
     getAdminsHours(month, year),
     getMoney(month, year),
     getEvents(month, year),
     fetchManagerMonthFixed(periodStart, monthEnd),
+    fetchPayrollGroups(),
   ])
 
   // Совместители (мастер+администратор) выносятся в отдельную группу. Инвариант
   // splitTeam: sumMasters + sumAdmins + sumCombined === старый (sumMasters + sumAdmins),
   // поэтому «Результат за месяц» не меняется численно.
   // Управляющие (s213) — своя группа с окладом; до `since` пуста.
-  const team = splitTeam(worksRes.summary, adminsRes.summary, periodStart, managerFixed)
+  const team = splitTeam(worksRes.summary, adminsRes.summary, periodStart, groups, managerFixed)
 
   return {
     works: team.masters,

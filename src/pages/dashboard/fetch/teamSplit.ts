@@ -1,5 +1,6 @@
 import type { ResultAdmins } from './allAdminsHours'
 import type { Result } from './allWorks'
+import type { ManagerGroup, PayrollGroups } from './payrollGroups'
 
 // Сотрудники, которые работают И мастером, И администратором. Их данные собираются
 // в отдельную таблицу «Совместители» (см. Combined.tsx) — там в одной строке считается
@@ -9,53 +10,36 @@ import type { Result } from './allWorks'
 //
 // ⚠️ Раньше это кодировалось тремя разрозненными списками-исключениями
 // (ADMIN_MASTERS в Masters.tsx, excludeFromMasters в allWorks.ts, excludeFromAdmins
-// в allAdminsHours.ts). Теперь это ОДИН источник истины. Новый совместитель → добавить сюда.
+// в allAdminsHours.ts), потом — списками по имени здесь (DUAL_ROLE_WORKERS / MANAGERS).
+// С s229 (§5а.2) группы — поля карточки сотрудника, см. payrollGroups.ts; сюда они
+// приходят параметром (`groups`) с ТЕКУЩИМИ именами карточек.
 //
-// `until` — последний месяц совмещения ('YYYY-MM', включительно). Роли в базе дат не
-// хранят, поэтому граница живёт здесь: снять человека из списка целиком нельзя —
-// в прошлых месяцах, где у него есть и часы, и услуги, он попал бы в обе таблицы,
-// и штрафы/списывания вычлись бы дважды (итог месяца задним числом изменился бы).
-// После `until` сотрудник — обычный мастер/админ; итог месяца от этого не меняется,
-// пока у него нет часов во второй роли.
-const DUAL_ROLE_WORKERS: { name: string; until?: string }[] = [
-  // С 07.2026 только мастер (последние часы администратора — июнь 2026).
-  { name: 'Mariia Medvedeva', until: '2026-06' },
-  { name: 'Oleksandra Fishchuk' },
-]
-
+// `until` — последний месяц совмещения ('YYYY-MM', включительно). Снять человека из
+// группы целиком нельзя: в прошлых месяцах, где у него есть и часы, и услуги, он попал
+// бы в обе таблицы, и штрафы/списывания вычлись бы дважды (итог месяца задним числом
+// изменился бы). После `until` сотрудник — обычный мастер/админ; итог месяца от этого
+// не меняется, пока у него нет часов во второй роли.
+//
 // Управляющие (s213) — фиксированный оклад в месяц + обычные корректировки.
 // `since` — первый месяц в роли ('YYYY-MM'). Тот же принцип, что у совместителей:
 // роль в базе дат не хранит, а прошлые месяцы меняться не должны — до `since`
 // человек считается там, где считался (сентябрь 2026 Mariia — мастер с услугами).
 // Оклад — запись `rates` типа HPP с `from` НЕ РАНЬШЕ `since` (см. managerMonthlyFixed).
-const MANAGERS: { name: string; since: string }[] = [{ name: 'Mariia Medvedeva', since: '2026-10' }]
-
-/**
- * Имя из зарплатных списков выше — переименовать из карточки сотрудника нельзя
- * (человек молча выпал бы из группы; сервер держит копию списка, s225). Снимается
- * переносом списков в карточку (фаза §5а плана карточки сотрудника).
- */
-export const isPayrollLockedName = (name: string): boolean => {
-  const key = name.replace(/\s+/g, ' ').trim().toLowerCase()
-  return [...DUAL_ROLE_WORKERS, ...MANAGERS].some((w) => w.name.toLowerCase() === key)
-}
 
 /** Управляющие, чья роль действует в периоде, начинающемся с periodStart ('YYYY-MM'). */
-export const managersFor = (periodStart: string): { name: string; since: string }[] =>
-  MANAGERS.filter((m) => m.since <= periodStart)
+export const managersFor = (groups: PayrollGroups, periodStart: string): ManagerGroup[] =>
+  groups.managers.filter((m) => m.since <= periodStart)
 
-export const managerNamesFor = (periodStart: string): Set<string> =>
-  new Set(managersFor(periodStart).map((m) => m.name))
+export const managerNamesFor = (groups: PayrollGroups, periodStart: string): Set<string> =>
+  new Set(managersFor(groups, periodStart).map((m) => m.name))
 
 // periodStart — первый месяц периода ('YYYY-MM'). Период, задевающий хотя бы один
 // месяц совмещения, считается совместительским: там могут быть часы во второй роли.
 // Управляющий периода в совместители не попадает — его строка своя.
-export const dualRoleNames = (periodStart: string): Set<string> => {
-  const managers = managerNamesFor(periodStart)
+export const dualRoleNames = (groups: PayrollGroups, periodStart: string): Set<string> => {
+  const managers = managerNamesFor(groups, periodStart)
   return new Set(
-    DUAL_ROLE_WORKERS.filter((w) => (!w.until || periodStart <= w.until) && !managers.has(w.name)).map(
-      (w) => w.name,
-    ),
+    groups.dual.filter((w) => (!w.until || periodStart <= w.until) && !managers.has(w.name)).map((w) => w.name),
   )
 }
 
@@ -149,6 +133,7 @@ export interface TeamSplit {
 // сверх них добавляется только оклад управляющих. До `since` managers пуст и итог
 // месяца численно прежний.
 //
+// groups — зарплатные группы из карточек (payrollGroups.ts).
 // managerFixed — оклад по имени за период (уже рассчитанный: целый месяц или доля
 // недели); нет имени в карте → оклад не задан.
 // ⚠️ Корректировки управляющей приходят из строки мастеров: getAllWorks заводит её
@@ -157,10 +142,11 @@ export function splitTeam(
   works: Result[],
   admins: ResultAdmins[],
   periodStart: string,
+  groups: PayrollGroups,
   managerFixed: Map<string, number | null> = new Map(),
 ): TeamSplit {
-  const managerNames = managerNamesFor(periodStart)
-  const dual = dualRoleNames(periodStart)
+  const managerNames = managerNamesFor(groups, periodStart)
+  const dual = dualRoleNames(groups, periodStart)
   const masterByName = new Map(works.map((w) => [w.name, w]))
   const adminByName = new Map(admins.map((a) => [a.name, a]))
 

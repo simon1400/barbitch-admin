@@ -2,20 +2,22 @@ import { Axios } from '../../../lib/api'
 import { strapiQuery } from '../../../lib/strapiQuery'
 import { daysInMonth } from '../../../utils/date'
 
+import { fetchPayrollGroups } from './payrollGroups'
 import { managerMonthlyFixed, managersFor, type ManagerRateItem } from './teamSplit'
 
 // Ставки управляющих (s213) — один запрос на период, только когда роль в периоде есть
 // (до `since` запроса нет вовсе, и прошлые месяцы считаются ровно как раньше).
-const fetchManagerRates = async (names: string[]): Promise<Map<string, ManagerRateItem[]>> => {
+// s229: карточка — по documentId из группы (раньше по имени); ключ ответа — docId.
+const fetchManagerRates = async (docIds: string[]): Promise<Map<string, ManagerRateItem[]>> => {
   const query = strapiQuery({
-    filters: { name: { $in: names } },
+    filters: { documentId: { $in: docIds } },
     fields: ['name'],
     populate: { rates: { fields: ['rate', 'from', 'to', 'typeWork'] } },
     pagination: { page: 1, pageSize: 50 },
     status: 'published',
   })
-  const rows = (await Axios.get(`/api/personals?${query}`)) as { name: string; rates?: ManagerRateItem[] }[]
-  return new Map((rows || []).map((r) => [r.name, r.rates || []]))
+  const rows = (await Axios.get(`/api/personals?${query}`)) as { documentId: string; rates?: ManagerRateItem[] }[]
+  return new Map((rows || []).map((r) => [r.documentId, r.rates || []]))
 }
 
 /**
@@ -27,10 +29,10 @@ export const fetchManagerMonthFixed = async (
   periodStart: string,
   monthEndStr: string,
 ): Promise<Map<string, number | null>> => {
-  const list = managersFor(periodStart)
+  const list = managersFor(await fetchPayrollGroups(), periodStart)
   if (!list.length) return new Map()
-  const rates = await fetchManagerRates(list.map((m) => m.name))
-  return new Map(list.map((m) => [m.name, managerMonthlyFixed(rates.get(m.name), m.since, monthEndStr)]))
+  const rates = await fetchManagerRates(list.map((m) => m.docId))
+  return new Map(list.map((m) => [m.name, managerMonthlyFixed(rates.get(m.docId), m.since, monthEndStr)]))
 }
 
 /**
@@ -47,9 +49,9 @@ export const fetchManagersFixedForRange = async (firstDay: Date, lastDay: Date):
     cur.setDate(cur.getDate() + 1)
   }
   const lastYm = `${end.getFullYear()}-${pad(end.getMonth() + 1)}`
-  const list = managersFor(lastYm)
+  const list = managersFor(await fetchPayrollGroups(), lastYm)
   if (!list.length || !days.length) return 0
-  const rates = await fetchManagerRates(list.map((m) => m.name))
+  const rates = await fetchManagerRates(list.map((m) => m.docId))
   let total = 0
   for (const d of days) {
     const ymStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
@@ -57,7 +59,7 @@ export const fetchManagersFixedForRange = async (firstDay: Date, lastDay: Date):
     const inMonth = daysInMonth(d.getFullYear(), d.getMonth())
     for (const m of list) {
       if (m.since > ymStr) continue
-      const fixed = managerMonthlyFixed(rates.get(m.name), m.since, dayStr)
+      const fixed = managerMonthlyFixed(rates.get(m.docId), m.since, dayStr)
       if (fixed) total += fixed / inMonth
     }
   }

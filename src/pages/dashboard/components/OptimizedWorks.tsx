@@ -95,7 +95,6 @@ const OptimizedWorks = () => {
     setIsLoading(true)
     try {
       const { works, salary, extraProfit, extraProfits, payrolls, penalty, result, tipSum, chartData: noonaChartData } = await getWorks(
-        adminName,
         month,
         year,
       )
@@ -111,7 +110,7 @@ const OptimizedWorks = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [adminName, month, year])
+  }, [month, year])
 
   useEffect(() => {
     if (adminName) {

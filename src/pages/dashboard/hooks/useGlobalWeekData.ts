@@ -8,6 +8,7 @@ import { getCurrentWeekRange } from '../../../utils/getWeekRange'
 import { getAdminsHoursByDateRange } from '../fetch/allAdminsHours'
 import { getAllWorksByDateRange } from '../fetch/allWorks'
 import { fetchManagersFixedForRange } from '../fetch/managerRates'
+import { fetchPayrollGroups } from '../fetch/payrollGroups'
 import { splitTeam } from '../fetch/teamSplit'
 
 interface WeekDataParams {
@@ -42,16 +43,17 @@ export const useGlobalWeekData = (params: WeekDataParams = {}) => {
       lastDay = weekRange.lastDay
     }
 
-    const [worksRes, adminsRes, managersFixed] = await Promise.all([
+    const [worksRes, adminsRes, managersFixed, groups] = await Promise.all([
       getAllWorksByDateRange(firstDay, lastDay),
       getAdminsHoursByDateRange(firstDay, lastDay),
       // оклад управляющих — доля дней диапазона в своём месяце (s213)
       fetchManagersFixedForRange(firstDay, lastDay),
+      fetchPayrollGroups(),
     ])
 
     // Совместителей убираем из «чистых» админов; их админ-часы добавляем как админ-расход
     // (з/п админов/день должна учитывать и совместителей, но без двойного учёта корректировок).
-    const team = splitTeam(worksRes.summary, adminsRes.summary, ym(firstDay))
+    const team = splitTeam(worksRes.summary, adminsRes.summary, ym(firstDay), groups)
 
     setData({
         sumClientsDone: worksRes.sumClientsDone,

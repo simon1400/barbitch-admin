@@ -5,6 +5,7 @@ export interface LoginResponse {
   username: string
   role: UserRole
   id: number
+  personalDocId?: string
   jwt: string
 }
 
@@ -21,6 +22,13 @@ interface SessionPayload {
   id: number
   username: string
   role: UserRole
+  /**
+   * documentId своей карточки сотрудника (s229, §5а.1) — есть в токенах, выданных после
+   * s229 учётке со связью. Нет — «кто я» ищется по имени (username = personal.name).
+   * Сервер этому полю не верит: связь он берёт из базы, а токен с устаревшей связью
+   * отзывает (401 personal_changed).
+   */
+  personalDocId?: string
   iat: number
   exp: number
 }
@@ -57,6 +65,19 @@ export function getSession(): SessionPayload | null {
 
 export function getSessionRole(): UserRole | null {
   return getSession()?.role ?? null
+}
+
+/**
+ * Своя карточка среди сотрудников: по связи из токена, у старого токена или учётки без
+ * связи — по имени (как до s229). Один матч на календарь и кабинет мастера.
+ */
+export function isOwnPersonal(p: { docId?: string | null; name: string }): boolean {
+  const session = getSession()
+  if (!session) return false
+  const own = (session.personalDocId || '').trim()
+  if (own) return p.docId === own
+  const uname = (session.username || '').trim().toLowerCase()
+  return uname !== '' && p.name.trim().toLowerCase() === uname
 }
 
 export async function loginUser(

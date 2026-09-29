@@ -13,6 +13,8 @@ import { ApiError, makeApiFetch } from '../../../../lib/apiFetch'
 import { getToken } from '../../../../services/auth'
 import { fmtCsDate, fmtTimePrague, ymdPrague } from '../../../../utils/date'
 import { kcNum } from '../../../../utils/money'
+import { invalidateGlobalMonthData } from '../../../dashboard/fetch/monthDataCache'
+import { invalidatePayrollGroups } from '../../../dashboard/fetch/payrollGroups'
 
 export type Position = 'master' | 'administrator' | 'manager'
 export type Tier = 'senior' | 'junior'
@@ -63,6 +65,8 @@ export interface StaffAccount {
   username: string
   role: string
   isActive: boolean
+  /** учётка связана с карточкой (s229); false — найдена по совпадению имени */
+  linked?: boolean
 }
 
 export interface StaffNote {
@@ -111,6 +115,8 @@ export interface StaffCard {
     excessThreshold: number
     rates: StaffRate[]
     currentRate: StaffRate | null
+    /** зарплатная группа (s229, §5а.2); нет — старый сервер */
+    group?: PayrollGroup
   }
   account: StaffAccount | null
   /** ключи незаполненных личных полей (без значений) */
@@ -292,7 +298,6 @@ const CODE_MESSAGES: Record<string, string> = {
   note_not_yours: 'Менять заметку может только её автор или владелец.',
   name_required: 'Укажите имя.',
   name_taken: 'Сотрудник или логин с таким именем уже есть.',
-  name_locked: 'Это имя зашито в расчёт зарплат — меняется только релизом.',
   self_rename: 'Себя переименовать нельзя — сменится ваш логин.',
   account_exists: 'У сотрудника уже есть учётка.',
   account_not_found: 'У сотрудника нет учётки.',
@@ -303,6 +308,8 @@ const CODE_MESSAGES: Record<string, string> = {
   staff_not_left: 'Сотрудник ещё работает: уход ставится действием «Завершить работу», стирание — только у ушедших.',
   left_at_missing: 'Не указана дата ухода.',
   confirm_mismatch: 'Для подтверждения введите имя сотрудника точно.',
+  bad_dual_role: 'Совместитель — да или нет.',
+  not_manager: 'Оклад управляющей — только у должности «управляющая».',
   // bad_name / bad_date / bad_phone / too_long / bad_field / bad_rate / bad_hourly — без подмены:
   // сервер называет поле и границы
 }
@@ -350,6 +357,33 @@ export const patchStaff = (
 
 export const patchStaffPrivate = (id: string, data: Partial<PrivateValues>, base: string) =>
   staffFetch<StaffPrivate & Unchanged>('PATCH', `/staff/${enc(id)}`, { section: 'private', data, base })
+
+/** Зарплатная группа карточки: совместитель (мастер + администратор) и управляющая. */
+export interface PayrollGroup {
+  dualRole: boolean
+  /** последний месяц совмещения 'YYYY-MM'; null — бессрочно */
+  dualRoleUntil: string | null
+  /** первый месяц управляющей 'YYYY-MM'; null — не управляющая */
+  managerSince: string | null
+}
+
+/**
+ * Правка зарплатной группы (s229). Меняет расчёт зарплат всех месяцев, где группа
+ * действует, — поэтому после сохранения сбрасываются группы и кэш месяцев.
+ */
+export const savePayrollGroup = async (
+  id: string,
+  data: Partial<PayrollGroup>,
+  base: string,
+): Promise<StaffCard & Unchanged> => {
+  const res = await patchStaff(id, 'pay', data, base)
+  invalidatePayrollGroups()
+  invalidateGlobalMonthData()
+  return res
+}
+
+/** 'YYYY-MM' → 'MM.YYYY' */
+export const fmtYm = (ym: string | null | undefined): string => (ym ? `${ym.slice(5, 7)}.${ym.slice(0, 4)}` : '')
 
 export interface RateInput {
   typeWork: TypeWork

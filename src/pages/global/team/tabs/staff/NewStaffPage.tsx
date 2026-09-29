@@ -11,7 +11,6 @@ import {
   mutedCls,
 } from '../../../../../ui/kit'
 import { fmtCsDate, todayYmd } from '../../../../../utils/date'
-import { isPayrollLockedName } from '../../../../dashboard/fetch/teamSplit'
 import {
   POSITION_LABEL,
   PRIVATE_KEYS,
@@ -59,13 +58,12 @@ export default function NewStaffPage() {
 
   const master = position === 'master'
   const clean = cleanName(name)
-  const locked = clean !== '' && isPayrollLockedName(clean)
   const percentOk = !master || percent === '' || (INT.test(percent) && Number(percent) <= 100)
   const rateOk =
     master ||
     rate === '' ||
     (INT.test(rate) && Number(rate) > 0 && (hourly === '' || INT.test(hourly)) && rateFrom >= monthStartOf(today))
-  const canSave = !saving && clean.length >= 2 && !!position && !locked && percentOk && rateOk
+  const canSave = !saving && clean.length >= 2 && !!position && percentOk && rateOk
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -148,7 +146,6 @@ export default function NewStaffPage() {
             <input name="hiredAt" type="date" className={`${inputCls} w-full`} value={hiredAt} onChange={(e) => setHiredAt(e.target.value)} />
           </label>
         </div>
-        {locked && <div className="mt-2 text-[12px] font-semibold text-neg">Это имя зашито в расчёт зарплат — выберите другое.</div>}
 
         {position && (
           <div className="mt-5">

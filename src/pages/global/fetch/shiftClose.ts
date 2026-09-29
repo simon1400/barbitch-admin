@@ -6,6 +6,7 @@ import { getMoney } from '../../dashboard/fetch/costs'
 import { getAdminsHours } from '../../dashboard/fetch/allAdminsHours'
 import { getAllWorks } from '../../dashboard/fetch/allWorks'
 import { fetchManagerMonthFixed } from '../../dashboard/fetch/managerRates'
+import { fetchPayrollGroups } from '../../dashboard/fetch/payrollGroups'
 import { splitTeam } from '../../dashboard/fetch/teamSplit'
 import { invalidateGlobalMonthData } from '../../dashboard/fetch/monthDataCache'
 import { computeShiftDiff } from '../components/shiftClose/helpers'
@@ -129,21 +130,19 @@ export const fetchMonthlyResult = async (
 ) => {
   const periodStart = `${year}-${String(month + 1).padStart(2, '0')}`
   const monthEnd = monthEndYmd(year, month)
-  const [moneyRes, adminsRes, worksRes, managerFixed] = await Promise.all([
+  const [moneyRes, adminsRes, worksRes, managerFixed, groups] = await Promise.all([
     getMoney(month, year, preview),
     getAdminsHours(month, year, preview?.day),
     getAllWorks(month, year, preview?.day),
     fetchManagerMonthFixed(periodStart, monthEnd),
+    fetchPayrollGroups(),
   ])
 
-  // Совместители (мастер+администратор) вынесены в отдельную группу. Берём итоги через
-  // splitTeam, иначе корректировки совместителей задвоятся (после удаления исключений
-  // sumMasters и sumAdmins оба их содержат). Инвариант splitTeam:
-  // sumMasters + sumAdmins + sumCombined === старый (sumMasters + sumAdmins) →
-  // результат закрытия смены численно прежний.
-  // Управляющие (s213): оклад входит в месяц целиком с 1-го числа — «до» и «после»
+  // Совместители (мастер+администратор) — своя группа: итоги через splitTeam, иначе их
+  // корректировки задвоятся (sumMasters и sumAdmins оба их содержат). Группы — из карточек
+  // (s229). Управляющие (s213): оклад входит в месяц целиком с 1-го числа — «до» и «после»
   // смены одинаковый, дельта смены от него не зависит.
-  const team = splitTeam(worksRes.summary, adminsRes.summary, periodStart, managerFixed)
+  const team = splitTeam(worksRes.summary, adminsRes.summary, periodStart, groups, managerFixed)
   const totalLabor = team.sumMasters + team.sumAdmins + team.sumCombined + team.sumManagers
 
   const result =

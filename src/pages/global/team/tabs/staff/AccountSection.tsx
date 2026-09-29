@@ -77,6 +77,11 @@ export function AccountSection({
               {a.isActive ? <span className={badgePosCls}>включён</span> : <span className={badgeNegCls}>отключён</span>}
             </Field>
           </div>
+          {a.linked === false && (
+            <div className={`mt-3 ${hintCls}`}>
+              Учётка найдена по совпадению логина с именем — связь с карточкой не проставлена.
+            </div>
+          )}
           {owner ? (
             <div className={`mt-3 ${hintCls}`}>Учётка владельца из карточки не меняется.</div>
           ) : (

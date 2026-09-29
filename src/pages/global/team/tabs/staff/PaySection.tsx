@@ -3,7 +3,17 @@ import { Link } from 'react-router-dom'
 import { badgeMutedCls, badgeWarnCls, btnNeutralCls, btnPinkCls, hintCls, inputCls, labelCls } from '../../../../../ui/kit'
 import { addDaysYmd, fmtCsDate, todayYmd } from '../../../../../utils/date'
 import { kc } from '../../../../../utils/money'
-import { addStaffRate, monthStartOf, patchStaff, rateText, type StaffCard, type TypeWork } from '../../fetch/staff'
+import {
+  addStaffRate,
+  fmtYm,
+  monthStartOf,
+  patchStaff,
+  rateText,
+  savePayrollGroup,
+  type PayrollGroup,
+  type StaffCard,
+  type TypeWork,
+} from '../../fetch/staff'
 import { EditButton, ErrorLine, Field, SectionCard } from './ui'
 
 const INT = /^\d+$/
@@ -93,6 +103,8 @@ export function PaySection({ card, onCard }: { card: StaffCard; onCard: (c: Staf
           </div>
         </>
       )}
+
+      {p.group && <PayrollGroupBlock card={card} group={p.group} onCard={onCard} />}
 
       <div className="mt-5">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
@@ -200,6 +212,108 @@ function NewRateForm({ card, onCard, onClose }: { card: StaffCard; onCard: (c: S
           Отмена
         </button>
       </div>
+    </div>
+  )
+}
+
+const YM_RE = /^\d{4}-(0[1-9]|1[0-2])$/
+
+const dualText = (g: PayrollGroup) =>
+  !g.dualRole ? 'нет' : g.dualRoleUntil ? `да — по ${fmtYm(g.dualRoleUntil)} включительно` : 'да — бессрочно'
+
+// Зарплатная группа (s229, §5а.2): раньше — списки имён в коде (teamSplit.ts). Правится и у
+// ушедших: прошлые месяцы совмещения считаются по ней же.
+function PayrollGroupBlock({ card, group, onCard }: { card: StaffCard; group: PayrollGroup; onCard: (c: StaffCard) => void }) {
+  const manager = card.position === 'manager'
+  const [edit, setEdit] = useState(false)
+  const [dual, setDual] = useState(group.dualRole)
+  const [until, setUntil] = useState(group.dualRoleUntil ?? '')
+  const [since, setSince] = useState(group.managerSince ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const start = () => {
+    setDual(group.dualRole)
+    setUntil(group.dualRoleUntil ?? '')
+    setSince(group.managerSince ?? '')
+    setError(null)
+    setEdit(true)
+  }
+
+  const data: Partial<PayrollGroup> = {}
+  if (dual !== group.dualRole) data.dualRole = dual
+  const untilNext = dual ? until || null : null
+  if (dual && untilNext !== group.dualRoleUntil) data.dualRoleUntil = untilNext
+  const sinceNext = since || null
+  if (sinceNext !== group.managerSince) data.managerSince = sinceNext
+  const bad = (dual && until !== '' && !YM_RE.test(until)) || (since !== '' && !YM_RE.test(since)) || (!!sinceNext && !manager)
+  const dirty = !bad && Object.keys(data).length > 0
+
+  const save = async () => {
+    if (!dirty || saving) return
+    setSaving(true)
+    setError(null)
+    try {
+      onCard(await savePayrollGroup(card.documentId, data, card.updatedAt))
+      setEdit(false)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const showManager = manager || !!group.managerSince
+  return (
+    <div className="mt-5 rounded-lg border border-line px-4 py-3" data-testid="staff-payroll-group">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+        <span className={labelCls}>Зарплатная группа</span>
+        {!edit && <EditButton onClick={start} />}
+      </div>
+      {!edit ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <Field label="Совместитель (мастер + администратор)">{dualText(group)}</Field>
+          {showManager && (
+            <Field label="Управляющая (оклад)">
+              {group.managerSince ? `с ${fmtYm(group.managerSince)}` : <span className={badgeWarnCls}>не задано</span>}
+            </Field>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            <label className="flex items-center gap-2 text-[13.5px] font-semibold text-ink">
+              <input name="dualRole" type="checkbox" checked={dual} onChange={(e) => setDual(e.target.checked)} />
+              Совместитель (мастер + администратор)
+            </label>
+            {dual && (
+              <label className="block">
+                <span className={labelCls}>Последний месяц совмещения (пусто — бессрочно)</span>
+                <input name="dualRoleUntil" type="month" className={`${inputCls} w-full`} value={until} onChange={(e) => setUntil(e.target.value)} />
+              </label>
+            )}
+            {showManager && (
+              <label className="block">
+                <span className={labelCls}>Управляющая с месяца</span>
+                <input name="managerSince" type="month" className={`${inputCls} w-full`} value={since} onChange={(e) => setSince(e.target.value)} />
+              </label>
+            )}
+          </div>
+          <div className="mt-2 text-[12.5px] font-semibold text-neg" data-testid="staff-payroll-group-warning">
+            Меняет расчёт зарплат ВСЕХ месяцев, где группа действует, — и прошлых тоже. Совместителю корректировки
+            считаются один раз; снять совмещение с месяцев, где были и услуги, и смены, — значит задвоить их.
+          </div>
+          <ErrorLine text={error} />
+          <div className="mt-3 flex gap-2">
+            <button type="button" className={btnPinkCls} onClick={save} disabled={!dirty || saving}>
+              {saving ? 'Сохраняю…' : 'Сохранить'}
+            </button>
+            <button type="button" className={btnNeutralCls} onClick={() => setEdit(false)} disabled={saving}>
+              Отмена
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { btnNeutralCls, btnPinkCls, hintCls, inputCls, labelCls } from '../../../../../ui/kit'
 import { fmtCsDate, todayYmd } from '../../../../../utils/date'
-import { isPayrollLockedName } from '../../../../dashboard/fetch/teamSplit'
 import {
   POSITION_LABEL,
   bookingsOf,
@@ -24,7 +23,6 @@ const renameBlocker = (card: StaffCard): string | null => {
   if (card.left) return 'Сотрудник завершил работу — имя не меняется.'
   if (card.self) return 'Себя переименовать нельзя — сменится ваш логин.'
   if (card.account?.role === 'owner') return 'Учётка владельца из карточки не меняется.'
-  if (isPayrollLockedName(card.name)) return 'Имя зашито в расчёт зарплат — меняется только релизом.'
   return null
 }
 
@@ -187,8 +185,7 @@ function RenameBlock({
   const [ok, setOk] = useState<string | null>(null)
   const blocker = renameBlocker(card)
   const next = cleanName(name)
-  const lockedTarget = next !== card.name && isPayrollLockedName(next)
-  const canSave = !saving && next.length >= 2 && next !== card.name && !lockedTarget
+  const canSave = !saving && next.length >= 2 && next !== card.name
 
   const save = async () => {
     if (!canSave) return
@@ -239,7 +236,6 @@ function RenameBlock({
         {card.account ? 'Логин входа сменится на новое имя — сотруднику нужно будет войти заново. ' : ''}
         Прошлые месяцы зарплат в кэше покажут старое имя до «Обновить». Подписи в старых бронях не меняются.
       </div>
-      {lockedTarget && <div className="mt-2 text-[12px] font-semibold text-neg">Это имя зашито в расчёт зарплат — выберите другое.</div>}
       <ErrorLine text={error} />
       <div className="mt-3 flex gap-2">
         <button type="button" className={btnPinkCls} onClick={save} disabled={!canSave}>

@@ -63,10 +63,6 @@ export const fetchAllCost = <T>(
 ): Promise<T[]> =>
   fetchAllPages<T>(endpoint, (page) => buildQueryCost(fields, dateField, firstDay, lastDay, page))
 
-export const fetchData = async <T>(endpoint: string, query: string): Promise<T[]> => {
-  return await Axios.get(`${endpoint}?${query}`)
-}
-
 // Fetch a single day's DRAFT records of a collection — used to preview a shift close
 // (drafts aren't counted by the published-only monthly fetches until they're published).
 // dateField 'start' → datetime range, otherwise an exact-day match on a `date` field.

@@ -79,6 +79,26 @@ export const engineCalendarWeek = (monday: string, sunday: string, employeeId: s
     )}&employee=${encodeURIComponent(employeeId)}`,
   )
 
+// Кабинет мастера (s229): своя карточка с услугами, штрафы, доплаты, выплаты за период.
+// Чья — решает СЕРВЕР (связь учётки с карточкой): раньше браузер сам ставил фильтр по
+// имени в /api/penalties и т. п., и мастер мог снять его и прочитать деньги коллег.
+// Строки — те же, что приходили из REST; расчёт остаётся в works.ts.
+export interface EngineMyMonth {
+  personal: {
+    name: string
+    noonaEmployeeId: string | null
+    offersDone: { id: number; date: string; clientName: string; staffSalaries: string; tip: string }[]
+  } | null
+  penalties: { sum: string }[]
+  extra: { id: number; sum: string; date: string; title: string }[]
+  payrolls: { sum: string }[]
+}
+export const engineMyMonth = (from: string, to: string) =>
+  engineFetch<EngineMyMonth>(
+    'GET',
+    `/engine/admin/my-month?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+  )
+
 // История визитов клиента. Ограничение «только свои визиты» для мастера теперь
 // на сервере — параметр employee отсюда не передаётся вовсе.
 export const engineClientHistory = (opts: { clientDocId?: string; clientName?: string }) => {
