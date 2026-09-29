@@ -1,12 +1,14 @@
 // Дашборд «Сегодня» (/today, owner + manager), s214 — Фаза B плана «Управляющая».
 //
-// Собирает «что требует внимания» из ШЕСТИ источников. Каждый грузится сам по
+// Собирает «что требует внимания» из ВОСЬМИ источников. Каждый грузится сам по
 // себе (allSettled): сбой одного — ошибка на своей карточке, остальные видны.
 //   • GET /engine/admin/today — незакрытые визиты, незакрытые смены, ожидающие
 //     переносы корекций, ваучеры (новая ручка: админка сама это не соберёт);
 //   • блоки «Ke schválení», дозаписи дня, день календаря и график дежурных —
 //     те же функции, что у календаря и «Дозаписей», своей копии запросов нет;
-//   • дни рождения сотрудников на 30 дней вперёд (s221) — lib/birthdays.
+//   • дни рождения сотрудников на 30 дней вперёд (s221) — lib/birthdays;
+//   • сроки документов сотрудников и стирание личных данных через 3 года (s227) —
+//     ручка карточки сотрудника `/engine/admin/staff-reminders`.
 import { makeApiFetch } from '../../../lib/apiFetch'
 import { fetchPendingBlocks, type PendingBlock } from '../../calendar/fetch/engineApi'
 import type { PlanRequest } from '../../schedule/fetch/schedule'
@@ -19,6 +21,7 @@ import {
 import { fetchUpsellDay, type UpsellClient } from '../../upsell/fetch/upsellApi'
 import { fetchBirthdays, type Birthdays } from '../../../lib/birthdays'
 import { mondayOfYmd } from '../../../utils/date'
+import { fetchStaffReminders, type StaffReminders } from '../../global/team/fetch/staff'
 
 export interface UnclosedVisit {
   documentId: string
@@ -95,6 +98,8 @@ export interface TodayData {
   day: Part<CalendarDay>
   /** дни рождения сотрудников в ближайшие 30 дней (s221) */
   birthdays: Part<Birthdays>
+  /** сроки документов и стирание личных данных (s227) */
+  staff: Part<StaffReminders>
   roster: AdminRoster
 }
 
@@ -105,7 +110,7 @@ const part = <T,>(r: PromiseSettledResult<T>): Part<T> =>
 
 export async function loadToday(date: string): Promise<TodayData> {
   const pendingRes = fetchPendingBlocks()
-  const [overview, pending, plan, upsell, day, roster, birthdays] = await Promise.allSettled([
+  const [overview, pending, plan, upsell, day, roster, birthdays, staff] = await Promise.allSettled([
     fetchTodayOverview(date),
     pendingRes.then((r) => r.items || []),
     pendingRes.then((r) => r.planRequests || []),
@@ -114,6 +119,7 @@ export async function loadToday(date: string): Promise<TodayData> {
     fetchCalendarDay(date),
     fetchAdminRoster(mondayOfYmd(date)),
     fetchBirthdays(),
+    fetchStaffReminders(),
   ])
   return {
     overview: part(overview),
@@ -122,6 +128,7 @@ export async function loadToday(date: string): Promise<TodayData> {
     upsell: part(upsell),
     day: part(day),
     birthdays: part(birthdays),
+    staff: part(staff),
     // график — вспомогательная инфа, fetchAdminRoster сам глотает ошибки
     roster: roster.status === 'fulfilled' ? roster.value : {},
   }

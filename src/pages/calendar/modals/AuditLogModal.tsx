@@ -96,6 +96,51 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
     label: 'Plán: staré bloky',
     cls: 'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300',
   },
+  // карточка сотрудника из «Команда → Сотрудники» (s226)
+  staff_create: {
+    label: 'Tým: nový zaměstnanec',
+    cls: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-500/20 dark:text-fuchsia-300',
+  },
+  staff_update: {
+    label: 'Tým: karta',
+    cls: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-500/20 dark:text-fuchsia-300',
+  },
+  staff_rate: {
+    label: 'Tým: sazba',
+    cls: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-500/20 dark:text-fuchsia-300',
+  },
+  staff_file_add: {
+    label: 'Tým: nový soubor',
+    cls: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-500/20 dark:text-fuchsia-300',
+  },
+  staff_file_update: {
+    label: 'Tým: dokument',
+    cls: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-500/20 dark:text-fuchsia-300',
+  },
+  staff_file_delete: {
+    label: 'Tým: dokument smazán',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
+  staff_note: {
+    label: 'Tým: poznámka',
+    cls: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-500/20 dark:text-fuchsia-300',
+  },
+  staff_account: {
+    label: 'Tým: přístup',
+    cls: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-500/20 dark:text-fuchsia-300',
+  },
+  staff_rename: {
+    label: 'Tým: přejmenování',
+    cls: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-500/20 dark:text-fuchsia-300',
+  },
+  staff_leave: {
+    label: 'Tým: ukončení',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
+  staff_erase: {
+    label: 'Tým: údaje smazány',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
 }
 
 const actionMeta = (a: string) =>
@@ -344,7 +389,17 @@ const LogRow = ({
   )
 }
 
-type EntityTab = 'all' | 'booking' | 'block' | 'client' | 'korekce' | 'correction' | 'timeoff' | 'shift' | 'schedule'
+type EntityTab =
+  | 'all'
+  | 'booking'
+  | 'block'
+  | 'client'
+  | 'korekce'
+  | 'correction'
+  | 'timeoff'
+  | 'shift'
+  | 'schedule'
+  | 'staff'
 
 export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
   const [tab, setTab] = useState<EntityTab>('all')
@@ -456,6 +511,7 @@ export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
         {tabBtn('timeoff', 'Absence')}
         {tabBtn('shift', 'Směny')}
         {tabBtn('schedule', 'Plán')}
+        {tabBtn('staff', 'Tým')}
         <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500">{total} záznamů</span>
       </div>
       <input

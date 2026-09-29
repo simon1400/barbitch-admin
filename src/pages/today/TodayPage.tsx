@@ -2,7 +2,8 @@
 //
 // Одна страница «что требует внимания»: незакрытые визиты, блоки на согласование,
 // дозаписи без результата, незакрытые смены, ваучеры, ожидающие переносы корекций
-// дни рождения сотрудников и кто сегодня работает. Каждая строка — ссылка туда, где это решается.
+// дни рождения сотрудников, сроки документов сотрудников, личные данные ушедших
+// (стирание через 3 года) и кто сегодня работает. Каждая строка — ссылка туда, где это решается.
 // Ничего не пишет. Данные — fetch/todayApi.ts (каждый источник отдельно: сбой
 // одного не гасит остальные карточки).
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -18,9 +19,10 @@ import {
   kickerCls,
   pageShellCls,
 } from '../../ui/kit'
-import { DOW_RU_SHORT, dowOfYmd, fmtTimePrague, minToHHMM, todayYmd } from '../../utils/date'
+import { DOW_RU_SHORT, dowOfYmd, fmtCsDate, fmtTimePrague, minToHHMM, todayYmd } from '../../utils/date'
 import { kc } from '../../utils/money'
 import { BirthdaysCardView } from '../../components/BirthdaysCard'
+import { DOC_KIND_LABEL } from '../global/team/fetch/staff'
 import { RefreshIcon } from '../upsell/components/icons'
 import { TodayCard, TodayRow } from './components/TodayCard'
 import { loadToday, type TodayData } from './fetch/todayApi'
@@ -35,6 +37,10 @@ const calLink = (date: string | null | undefined, highlight?: string | null): st
   `/calendar?date=${date || ''}${highlight ? `&highlight=${highlight}` : ''}`
 
 const smallCls = 'text-[11.5px] font-semibold text-ink-faint'
+const staffLink = (personal: string): string => `/global/team/staff/${encodeURIComponent(personal)}`
+/** «просрочен 5 дн.» / «сегодня последний день» / «через 12 дн.» */
+const daysLeftText = (n: number): string =>
+  n < 0 ? `просрочен ${-n} дн.` : n === 0 ? 'сегодня последний день' : `через ${n} дн.`
 
 export default function TodayPage() {
   const [date, setDate] = useState(todayYmd)
@@ -88,6 +94,11 @@ export default function TodayPage() {
   const needResult = upsellClients.filter((c) => c.needsResult)
 
   const bd = data?.birthdays
+
+  const sr = data?.staff
+  const staffDocs = sr?.ok ? sr.data.documents : []
+  const eraseDue = sr?.ok ? sr.data.erase : []
+  const noLeftAt = sr?.ok ? sr.data.leftWithoutDate : []
 
   const dayPart = data?.day
   const working = dayPart?.ok ? summarizeDay(dayPart.data) : null
@@ -309,6 +320,69 @@ export default function TodayPage() {
           loading={first}
           error={bd && !bd.ok ? bd.error : null}
         />
+
+        {/* 8. Сроки документов работающих сотрудников — 30 дней и просроченные (s227) */}
+        <TodayCard
+          id="staff-docs"
+          title="Документы сотрудников — сроки"
+          count={sr?.ok ? staffDocs.length : null}
+          loading={first}
+          error={sr && !sr.ok ? sr.error : null}
+          okText={`Ни у кого из работающих срок документов не кончается в ближайшие ${sr?.ok ? sr.data.horizonDays : 30} дней`}
+          link={{ to: '/global/team/staff', label: 'Сотрудники' }}
+        >
+          {staffDocs.map((d) => (
+            <TodayRow
+              key={d.documentId}
+              to={staffLink(d.personal)}
+              aside={
+                <span className={`${d.daysLeft < 0 ? badgeNegCls : badgeWarnCls} whitespace-nowrap`}>
+                  {daysLeftText(d.daysLeft)}
+                </span>
+              }
+            >
+              <b className="text-ink">{d.name}</b> · {d.title || DOC_KIND_LABEL[d.kind] || d.kind}
+              <div className={smallCls}>
+                {d.title && d.title.toLowerCase() !== (DOC_KIND_LABEL[d.kind] ?? '').toLowerCase() && `${DOC_KIND_LABEL[d.kind] ?? d.kind} · `}
+                действует до {fmtCsDate(d.validUntil)}
+              </div>
+            </TodayRow>
+          ))}
+        </TodayCard>
+
+        {/* 9. Личные данные ушедших: стирание через 3 года (§8.2) — только когда есть что делать */}
+        {eraseDue.length + noLeftAt.length > 0 && (
+          <TodayCard
+            id="staff-erase"
+            title="Личные данные ушедших"
+            count={eraseDue.length + noLeftAt.length}
+            loading={first}
+            link={{ to: '/global/team/staff', label: 'Сотрудники' }}
+          >
+            {eraseDue.map((r) => (
+              <TodayRow
+                key={r.personal}
+                to={staffLink(r.personal)}
+                aside={<span className={`${badgeNegCls} whitespace-nowrap`}>можно стереть</span>}
+              >
+                <b className="text-ink">{r.name}</b>
+                <div className={smallCls}>
+                  ушёл(ла) {fmtCsDate(r.leftAt)} · прошло 3 года — сотрите личные данные и сканы в карточке
+                </div>
+              </TodayRow>
+            ))}
+            {noLeftAt.map((r) => (
+              <TodayRow
+                key={r.personal}
+                to={staffLink(r.personal)}
+                aside={<span className={`${badgeMutedCls} whitespace-nowrap`}>нет даты ухода</span>}
+              >
+                <b className="text-ink">{r.name}</b>
+                <div className={smallCls}>укажите дату ухода — иначе срок стирания не посчитается</div>
+              </TodayRow>
+            ))}
+          </TodayCard>
+        )}
       </div>
 
       {/* 8. Кто сегодня работает — во всю ширину */}

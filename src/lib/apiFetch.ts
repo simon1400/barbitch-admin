@@ -13,10 +13,13 @@ import { getToken } from '../services/auth'
 export class ApiError extends Error {
   code: string
   status: number
-  constructor(status: number, code: string, message: string) {
+  /** `error.details` ответа, если сервер его прислал (карточка сотрудника: список броней при 409) */
+  details?: unknown
+  constructor(status: number, code: string, message: string, details?: unknown) {
     super(message)
     this.status = status
     this.code = code
+    if (details !== undefined) this.details = details
   }
 }
 
@@ -37,7 +40,12 @@ export const makeApiFetch =
     const json = await res.json().catch(() => null)
     if (!res.ok) {
       const code = json?.error?.code || 'internal'
-      throw new ApiError(res.status, code, codeMessages[code] || json?.error?.message || fallback(res.status))
+      throw new ApiError(
+        res.status,
+        code,
+        codeMessages[code] || json?.error?.message || fallback(res.status),
+        json?.error?.details,
+      )
     }
     return json as T
   }

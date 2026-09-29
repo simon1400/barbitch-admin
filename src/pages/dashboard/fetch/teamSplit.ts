@@ -30,6 +30,16 @@ const DUAL_ROLE_WORKERS: { name: string; until?: string }[] = [
 // Оклад — запись `rates` типа HPP с `from` НЕ РАНЬШЕ `since` (см. managerMonthlyFixed).
 const MANAGERS: { name: string; since: string }[] = [{ name: 'Mariia Medvedeva', since: '2026-10' }]
 
+/**
+ * Имя из зарплатных списков выше — переименовать из карточки сотрудника нельзя
+ * (человек молча выпал бы из группы; сервер держит копию списка, s225). Снимается
+ * переносом списков в карточку (фаза §5а плана карточки сотрудника).
+ */
+export const isPayrollLockedName = (name: string): boolean => {
+  const key = name.replace(/\s+/g, ' ').trim().toLowerCase()
+  return [...DUAL_ROLE_WORKERS, ...MANAGERS].some((w) => w.name.toLowerCase() === key)
+}
+
 /** Управляющие, чья роль действует в периоде, начинающемся с periodStart ('YYYY-MM'). */
 export const managersFor = (periodStart: string): { name: string; since: string }[] =>
   MANAGERS.filter((m) => m.since <= periodStart)

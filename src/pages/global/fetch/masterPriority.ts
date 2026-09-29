@@ -1,4 +1,5 @@
 import { Axios } from '../../../lib/api'
+import { fetchStaffCard, patchStaff } from '../team/fetch/staff'
 
 export interface MasterPriorityData {
   documentId: string
@@ -28,9 +29,13 @@ export const fetchMasters = async (): Promise<MasterPriorityData[]> => {
   }))
 }
 
+// Запись — ручкой карточки сотрудника (s226): черновик + публикация, т.е. обе версии
+// (прямой REST писал только published — черновик отставал) + запись в журнал.
+// base — свежая версия карточки: экран правит одно число, последняя правка побеждает.
 export const updateMasterPriority = async (
   documentId: string,
   data: { bookingPriority: number },
 ): Promise<void> => {
-  await Axios.put(`/api/personals/${documentId}?status=published`, { data })
+  const card = await fetchStaffCard(documentId)
+  await patchStaff(documentId, 'booking', data, card.updatedAt)
 }

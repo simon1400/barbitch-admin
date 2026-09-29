@@ -37,6 +37,7 @@ export const SUBNAV: SubnavDef[] = [
     basePath: '/global/team',
     moduleLabel: 'Команда',
     tabs: [
+      { to: 'staff', label: 'Сотрудники' },
       { to: 'salaries', label: 'Зарплаты' },
       { to: 'corrections', label: 'Корректировки' },
       { to: 'priority', label: 'Priorita masterů' },
@@ -53,6 +54,9 @@ export const SUBNAV: SubnavDef[] = [
 export const subnavForPathname = (pathname: string): SubnavDef | undefined =>
   SUBNAV.find((s) => pathname === s.basePath || pathname.startsWith(`${s.basePath}/`))
 
-// Подпись активного таба (точный матч сегмента; табы без вложенных путей)
-export const activeTabLabel = (sub: SubnavDef, pathname: string): string =>
-  sub.tabs.find((t) => pathname === `${sub.basePath}/${t.to}`)?.label ?? sub.moduleLabel
+// Подпись активного таба: первый сегмент после basePath (вложенные пути — карточка
+// сотрудника `/global/team/staff/:id` — подписываются своим табом, s226)
+export const activeTabLabel = (sub: SubnavDef, pathname: string): string => {
+  const seg = pathname.startsWith(`${sub.basePath}/`) ? pathname.slice(sub.basePath.length + 1).split('/')[0] : ''
+  return sub.tabs.find((t) => t.to === seg)?.label ?? sub.moduleLabel
+}

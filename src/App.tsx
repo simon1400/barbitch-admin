@@ -38,6 +38,9 @@ const AnalyticsGlobalStatsTab = lazy(
 )
 // Unified team module — layout with URL sub-route tabs
 const TeamPage = lazy(() => import('./pages/global/team/TeamPage'))
+const TeamStaffTab = lazy(() => import('./pages/global/team/tabs/StaffTab'))
+const TeamStaffCardPage = lazy(() => import('./pages/global/team/tabs/staff/StaffCardPage'))
+const TeamNewStaffPage = lazy(() => import('./pages/global/team/tabs/staff/NewStaffPage'))
 const TeamSalariesTab = lazy(() => import('./pages/global/team/tabs/SalariesTab'))
 const TeamPriorityTab = lazy(() => import('./pages/global/team/tabs/PriorityTab'))
 const TeamTimeOffTab = lazy(() => import('./pages/global/team/tabs/TimeOffTab'))
@@ -284,6 +287,9 @@ function App() {
             }
           >
             <Route index element={<Navigate to="/global/team/salaries" replace />} />
+            <Route path="staff" element={<TeamStaffTab />} />
+            <Route path="staff/new" element={<TeamNewStaffPage />} />
+            <Route path="staff/:docId" element={<TeamStaffCardPage />} />
             <Route path="salaries" element={<TeamSalariesTab />} />
             <Route path="priority" element={<TeamPriorityTab />} />
             <Route path="corrections" element={<TeamCorrectionsTab />} />
