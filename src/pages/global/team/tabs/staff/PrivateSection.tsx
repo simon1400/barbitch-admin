@@ -25,6 +25,7 @@ import {
   type StaffPrivate,
 } from '../../fetch/staff'
 import { DocumentsBlock } from './DocumentsBlock'
+import { OPEN_PRIVATE_EVENT, type OpenPrivateTarget } from './openPrivate'
 import { EditButton, ErrorLine, Field } from './ui'
 
 // Поля формы по строкам (адреса — на всю ширину).
@@ -76,6 +77,30 @@ export function PrivateSection({
     if (next && !data && !loading) load()
   }
 
+  // «заполнить» / «загрузить скан» в онбординге: раскрыть секцию и прокрутить к полям или
+  // к документам (прокрутка — после загрузки, когда блок уже в DOM)
+  const [scrollTo, setScrollTo] = useState<OpenPrivateTarget | null>(null)
+  const loadRef = useRef(load)
+  loadRef.current = load
+  const stateRef = useRef({ data, loading })
+  stateRef.current = { data, loading }
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const target = (e as CustomEvent<OpenPrivateTarget>).detail === 'documents' ? 'documents' : 'private'
+      setOpen(true)
+      setScrollTo(target)
+      if (!stateRef.current.data && !stateRef.current.loading) loadRef.current()
+    }
+    window.addEventListener(OPEN_PRIVATE_EVENT, onOpen)
+    return () => window.removeEventListener(OPEN_PRIVATE_EVENT, onOpen)
+  }, [])
+  useEffect(() => {
+    if (!scrollTo || !open || !data) return
+    const id = scrollTo === 'documents' ? 'staff-documents' : 'staff-private'
+    document.querySelector(`[data-testid="${id}"]`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    setScrollTo(null)
+  }, [scrollTo, open, data])
+
   const missing = card.privateMissing.length
   return (
     <section className={cardPadCls} data-testid="staff-private">
@@ -90,6 +115,11 @@ export function PrivateSection({
           {open ? 'Скрыть' : 'Показать'}
         </button>
       </div>
+      {!open && (
+        <div className={`mt-1.5 ${hintCls}`} data-testid="staff-private-hint">
+          Здесь личные данные и сканы: паспорт, вид на жительство, zdravotní průkaz, договор. Нажмите «Показать».
+        </div>
+      )}
       {open && (
         <div className="pt-4">
           {loading && !data ? (

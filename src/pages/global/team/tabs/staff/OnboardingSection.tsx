@@ -12,6 +12,7 @@ import {
   type Position,
   type StaffCard,
 } from '../../fetch/staff'
+import { openPrivateSection } from './openPrivate'
 import { ErrorLine, SectionCard } from './ui'
 
 const POSITIONS = Object.keys(POSITION_LABEL) as Position[]
@@ -29,8 +30,16 @@ const SECTION_TEST_ID: Record<NonNullable<ChecklistItem['section']>, string> = {
 
 const goTo = (section: ChecklistItem['section']) => {
   if (!section) return
-  document.querySelector(`[data-testid="${SECTION_TEST_ID[section]}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  // личные данные и документы — в свёрнутой секции: её раскрывает она сама по событию
+  if (section === 'private' || section === 'documents') {
+    openPrivateSection(section)
+    return
+  }
+  document.querySelector(`[data-testid="${SECTION_TEST_ID[section]}"]`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
 }
+
+/** Подпись ссылки автопункта: документы — «загрузить скан». */
+const linkLabel = (section: ChecklistItem['section']) => (section === 'documents' ? 'загрузить скан' : 'заполнить')
 
 // «Онбординг» (фаза 2): автопункты закрываются сами по данным карточки (сервер —
 // источник истины), свои пункты руководства — галочкой с «кто и когда». Процент — по тем
@@ -93,7 +102,7 @@ export function OnboardingSection({ card, onCard, onReload }: { card: StaffCard;
             <span className={`text-[13.5px] font-semibold ${i.done ? 'text-ink-soft' : 'text-ink'}`}>{i.title}</span>
             {!i.done && i.section && (
               <button type="button" className="text-[12.5px] font-semibold text-brand-dark underline" onClick={() => goTo(i.section)}>
-                заполнить
+                {linkLabel(i.section)}
               </button>
             )}
           </li>
