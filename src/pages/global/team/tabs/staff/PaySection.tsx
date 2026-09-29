@@ -4,7 +4,9 @@ import { badgeMutedCls, badgeWarnCls, btnNeutralCls, btnPinkCls, hintCls, inputC
 import { addDaysYmd, fmtCsDate, todayYmd } from '../../../../../utils/date'
 import { kc } from '../../../../../utils/money'
 import {
+  CONTRACT_LABEL,
   addStaffRate,
+  contractMismatch,
   fmtYm,
   monthStartOf,
   patchStaff,
@@ -73,6 +75,12 @@ export function PaySection({ card, onCard }: { card: StaffCard; onCard: (c: Staf
           <Field label="Ставка сейчас">
             {p.currentRate ? rateText(p.currentRate) : master ? '—' : <span className={badgeWarnCls}>не задана</span>}
           </Field>
+          {contractMismatch(p.currentRate, card.contracts?.current) && (
+            <div className={`sm:col-span-3 ${hintCls}`} data-testid="staff-contract-mismatch">
+              Ставка — {p.currentRate?.typeWork.toUpperCase()}, а договор — {CONTRACT_LABEL[card.contracts!.current!.type]}. Проверьте:
+              тип ставки задаёт расчёт зарплаты, договор — только учёт.
+            </div>
+          )}
         </div>
       ) : (
         <>

@@ -13,13 +13,14 @@ import {
   positionLabel,
   uploadStaffFile,
   type StaffCard,
-  type StaffFlag,
   type StaffHistoryItem,
   type StaffPrivate,
 } from '../../fetch/staff'
 import { AccountSection } from './AccountSection'
 import { BasicSection } from './BasicSection'
 import { BookingSection } from './BookingSection'
+import { ContractSection } from './ContractSection'
+import { OnboardingSection } from './OnboardingSection'
 import { LeaveSection } from './LeaveSection'
 import { StaffMetricsSection } from './StaffMetricsSection'
 import { NotesSection } from './NotesSection'
@@ -63,20 +64,36 @@ export default function StaffCardPage() {
   // страница не пересоздаётся, и колбэк, взятый секцией A, пропустил бы ответ A поверх B.
   const currentDocId = useRef(docId)
   currentDocId.current = docId
+  // номер последнего изменения карточки на странице: тихое перечитывание применяется,
+  // только если после его старта карточку никто не менял (иначе старый ответ откатил бы
+  // свежий ответ секции вместе с updatedAt → ложный 409 на следующей правке)
+  const version = useRef(0)
   const onCard = useCallback((c: StaffCard) => {
-    if (c.documentId === currentDocId.current) setCard(c)
+    if (c.documentId !== currentDocId.current) return
+    version.current++
+    setCard(c)
   }, [])
   // частичные обновления — только своей карточке
-  const patchCard = (id: string, patch: Partial<StaffCard>) =>
+  const patchCard = (id: string, patch: Partial<StaffCard>) => {
+    version.current++
     setCard((c) => (c && c.documentId === id && id === currentDocId.current ? { ...c, ...patch } : c))
+  }
 
-  const onPrivateSaved = (p: StaffPrivate) =>
-    setCard((c) => {
-      if (!c || c.documentId !== p.documentId) return c
-      const flags: StaffFlag[] = c.flags.filter((f) => f !== 'private_incomplete')
-      if (p.missing.length && !c.left) flags.push('private_incomplete')
-      return { ...c, updatedAt: p.updatedAt, privateMissing: p.missing, flags }
-    })
+  // чек-лист считает сервер (фаза 2): после личных данных, документов и каталога пунктов —
+  // перечитать карточку тихо (без «Обновляю…»); ответ чужой карточки не применяется (onCard)
+  const reloadQuiet = useCallback(() => {
+    const at = version.current
+    fetchStaffCard(currentDocId.current)
+      .then((c) => {
+        if (version.current === at) onCard(c)
+      })
+      .catch(() => {})
+  }, [onCard])
+
+  const onPrivateSaved = (p: StaffPrivate) => {
+    patchCard(p.documentId, { updatedAt: p.updatedAt, privateMissing: p.missing })
+    reloadQuiet()
+  }
 
   const back = (
     <Link to="/global/team/staff" className={`${mutedCls} hover:text-ink`}>
@@ -117,14 +134,20 @@ export default function StaffCardPage() {
 
       <HeaderCard card={card} onCard={onCard} />
 
+      <OnboardingSection key={`onboarding-${card.documentId}`} card={card} onCard={onCard} onReload={reloadQuiet} />
       <BasicSection key={`basic-${card.documentId}`} card={card} onCard={onCard} />
       {master && <BookingSection key={`booking-${card.documentId}`} card={card} onCard={onCard} />}
       <PaySection key={`pay-${card.documentId}`} card={card} onCard={onCard} />
+      <ContractSection key={`contract-${card.documentId}`} card={card} onCard={onCard} />
       <PrivateSection
         key={`private-${card.documentId}`}
         card={card}
         onPrivateSaved={onPrivateSaved}
-        onDocsCount={(n) => patchCard(card.documentId, { documentsCount: n })}
+        onDocsCount={(n) => {
+          patchCard(card.documentId, { documentsCount: n })
+          // документы (их тип и срок) закрывают пункты чек-листа: паспорт, zdravotní průkaz, скан договора
+          reloadQuiet()
+        }}
       />
       <NotesSection key={`notes-${card.documentId}`} card={card} onNotes={(notes) => patchCard(card.documentId, { notes })} />
       <AccountSection key={`account-${card.documentId}`} card={card} onCard={onCard} onPassword={(username, pw) => setPassword({ documentId: card.documentId, username, password: pw })} />
@@ -209,7 +232,13 @@ function HeaderCard({ card, onCard }: { card: StaffCard; onCard: (c: StaffCard) 
             {FLAG_LABEL[f] ?? f}
           </span>
         ))}
-        {!card.left && !card.flags.length && <span className={badgeMutedCls}>всё заполнено</span>}
+        {card.checklist ? (
+          <span className={card.checklist.open ? badgeWarnCls : badgeMutedCls} data-testid="staff-percent">
+            заполнено {card.checklist.percent} %
+          </span>
+        ) : (
+          !card.left && !card.flags.length && <span className={badgeMutedCls}>всё заполнено</span>
+        )}
       </div>
       {!card.left && <div className={`mt-2 ${hintCls}`}>Фото публичное — его видят клиенты на сайте при выборе мастера.</div>}
       <ErrorLine text={error} />

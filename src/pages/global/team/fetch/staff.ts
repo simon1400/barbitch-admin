@@ -27,7 +27,6 @@ export type StaffFlag =
   | 'no_services'
   | 'no_schedule'
   | 'no_rate'
-  | 'private_incomplete'
 
 export interface StaffPhoto {
   id: number | null
@@ -50,6 +49,54 @@ export interface StaffRow {
   servicesCount: number
   account: { id: number; role: string; isActive: boolean } | null
   flags: StaffFlag[]
+  /** заполненность (фаза 2): только процент и число невыполненных; ушедшим null; нет — старый сервер */
+  checklist?: { percent: number; open: number } | null
+  /** тип текущего договора */
+  contract?: ContractType | null
+}
+
+export type ContractType = 'hpp' | 'dpp' | 'ico'
+
+/** Договор — только учёт (фаза 2): на ставки и зарплаты не влияет. */
+export interface StaffContract {
+  /** id компонента — для правки / удаления */
+  id: number | null
+  type: ContractType
+  from: string
+  to: string | null
+  probationUntil: string | null
+  ico: string | null
+  note: string | null
+}
+
+/** Пункт чек-листа: автоматический (`key`) или свой пункт руководства (`itemId`). */
+export interface ChecklistItem {
+  key?: string
+  itemId?: string
+  title: string
+  auto: boolean
+  done: boolean
+  /** автопункт: куда вести в карточке */
+  section?: 'account' | 'private' | 'header' | 'documents' | 'contract' | 'pay' | 'booking'
+  doneAt?: string | null
+  doneBy?: string | null
+  /** свой пункт выключен в каталоге (остался, потому что отмечен) */
+  active?: boolean
+}
+
+export interface StaffChecklist {
+  items: ChecklistItem[]
+  percent: number
+  open: number
+}
+
+/** Свой пункт в каталоге «Настроить пункты». */
+export interface ChecklistCatalogItem {
+  documentId: string
+  title: string
+  positions: Position[]
+  order: number
+  active: boolean
 }
 
 export interface StaffRate {
@@ -126,6 +173,10 @@ export interface StaffCard {
   notes: StaffNote[]
   history: StaffHistoryItem[]
   flags: StaffFlag[]
+  /** договоры (фаза 2); нет — старый сервер */
+  contracts?: { list: StaffContract[]; current: StaffContract | null }
+  /** онбординг-чек-лист; ушедшим null; нет — старый сервер */
+  checklist?: StaffChecklist | null
 }
 
 export const PRIVATE_KEYS = [
@@ -209,7 +260,14 @@ export const FLAG_LABEL: Record<StaffFlag, string> = {
   no_services: 'нет услуг',
   no_schedule: 'нет графика',
   no_rate: 'ставка не задана',
-  private_incomplete: 'данные не заполнены',
+}
+
+export const CONTRACT_LABEL: Record<ContractType, string> = { hpp: 'HPP', dpp: 'DPP', ico: 'IČO' }
+export const CONTRACT_TYPES = Object.keys(CONTRACT_LABEL) as ContractType[]
+export const CONTRACT_HINT: Record<ContractType, string> = {
+  hpp: 'pracovní smlouva',
+  dpp: 'dohoda o provedení práce',
+  ico: 'OSVČ, živnostenský list',
 }
 
 export const DOC_KIND_LABEL: Record<DocKind, string> = {
@@ -254,6 +312,8 @@ export const HISTORY_LABEL: Record<string, string> = {
   staff_rename: 'Переименование',
   staff_leave: 'Завершил(а) работу',
   staff_erase: 'Личные данные стёрты',
+  staff_contract: 'Договор',
+  staff_onboarding: 'Онбординг',
 }
 
 // ── запросы ────────────────────────────────────────────────────────────────
@@ -309,6 +369,18 @@ const CODE_MESSAGES: Record<string, string> = {
   confirm_mismatch: 'Для подтверждения введите имя сотрудника точно.',
   bad_dual_role: 'Совместитель — да или нет.',
   not_manager: 'Оклад управляющей — только у должности «управляющая».',
+  bad_contract_type: 'Тип договора — HPP, DPP или IČO.',
+  probation_only_hpp: 'Испытательный срок — только у HPP.',
+  ico_required: 'Укажите IČO.',
+  bad_ico: 'IČO — 8 цифр с верной контрольной цифрой.',
+  ico_only_ico: 'IČO — только у договора IČO (OSVČ).',
+  contract_started: 'Начавшийся договор не удаляется — закройте его датой.',
+  contract_not_found: 'Договор не найден — обновите карточку.',
+  item_not_found: 'Пункт не найден — обновите карточку.',
+  item_exists: 'Такой пункт уже есть.',
+  item_inactive: 'Пункт выключен — включите его в «Настроить пункты».',
+  bad_positions: 'Выберите, кому пункт: мастер, администратор, управляющая.',
+  // contract_overlap — без подмены: сервер называет договор, с которым пересечение
   // bad_name / bad_date / bad_phone / too_long / bad_field / bad_rate / bad_hourly — без подмены:
   // сервер называет поле и границы
 }
@@ -339,6 +411,15 @@ export interface StaffReminders {
   erase: { personal: string; name: string; leftAt: string; dueAt: string }[]
   /** ушедшие с личными данными без даты ухода — срок стирания не считается */
   leftWithoutDate: { personal: string; name: string }[]
+  /** договоры (фаза 2): конец ≤ 30 дней или истёк без нового; испытательный ≤ 14 дней; нет — старый сервер */
+  contracts?: {
+    personal: string
+    name: string
+    kind: 'contract_end' | 'probation_end'
+    type: ContractType
+    date: string
+    daysLeft: number
+  }[]
 }
 
 export const fetchStaffReminders = () => staffFetch<StaffReminders>('GET', '/staff-reminders')
@@ -450,6 +531,54 @@ export const eraseStaff = (id: string, confirmName: string, base: string) =>
     { confirmName, base },
   )
 
+// ── фаза 2: договоры, онбординг ────────────────────────────────────────────
+
+export interface ContractInput {
+  type?: ContractType
+  from?: string
+  to?: string | null
+  probationUntil?: string | null
+  ico?: string | null
+  note?: string | null
+}
+
+type Warned = { warnings?: 'long_probation'[] }
+
+export const addStaffContract = (id: string, input: ContractInput, base: string) =>
+  staffFetch<StaffCard & Warned>('POST', `/staff/${enc(id)}/contracts`, { ...input, base })
+
+export const updateStaffContract = (id: string, contractId: number, input: ContractInput, base: string) =>
+  staffFetch<StaffCard & Warned & Unchanged>('PATCH', `/staff/${enc(id)}/contracts/${contractId}`, { ...input, base })
+
+export const deleteStaffContract = (id: string, contractId: number, base: string) =>
+  staffFetch<StaffCard>('DELETE', `/staff/${enc(id)}/contracts/${contractId}?base=${enc(base)}`)
+
+export const setStaffOnboarding = (id: string, itemId: string, done: boolean) =>
+  staffFetch<StaffCard & Unchanged>('POST', `/staff/${enc(id)}/onboarding/${enc(itemId)}`, { done })
+
+export const fetchChecklistCatalog = () => staffFetch<{ items: ChecklistCatalogItem[] }>('GET', '/staff-checklist-items')
+
+export const createChecklistItem = (title: string, positions: Position[]) =>
+  staffFetch<{ items: ChecklistCatalogItem[] }>('POST', '/staff-checklist-items', { title, positions })
+
+export const updateChecklistItem = (
+  itemId: string,
+  data: Partial<Pick<ChecklistCatalogItem, 'title' | 'positions' | 'active' | 'order'>>,
+) => staffFetch<{ items: ChecklistCatalogItem[] }>('PATCH', `/staff-checklist-items/${enc(itemId)}`, data)
+
+/** «HPP 01.10.2026 – 30.09.2027», «DPP с 01.10.2026». */
+export const contractText = (c: Pick<StaffContract, 'type' | 'from' | 'to'> | null | undefined): string => {
+  if (!c) return '—'
+  return `${CONTRACT_LABEL[c.type] ?? c.type} ${c.to ? `${fmtCsDate(c.from)} – ${fmtCsDate(c.to)}` : `с ${fmtCsDate(c.from)}`}`
+}
+
+/**
+ * Подсказка в «Оплате»: тип текущей ставки не совпадает с договором. Только подсказка —
+ * договор ставки не меняет (🟥 `typeWork` несёт смысл оплаты). IČO — без подсказки.
+ */
+export const contractMismatch = (rate: StaffRate | null | undefined, contract: StaffContract | null | undefined): boolean =>
+  Boolean(rate && contract && contract.type !== 'ico' && rate.typeWork !== contract.type)
+
 /** Брони из ответа 409 `future_bookings` (сервер кладёт их в error.details). */
 export const bookingsOf = (e: unknown): BookingRef[] => {
   const details = e instanceof ApiError ? (e.details as { bookings?: unknown } | undefined) : undefined
@@ -516,12 +645,16 @@ export const ACCEPT_PHOTO = 'image/jpeg,image/png,image/webp'
 
 export type ListFilter = 'active' | 'left' | 'all'
 
-/** Фильтр списка: работают / ушли / все + должность. Порядок — как с сервера (по имени). */
-export const filterStaff = (rows: StaffRow[], status: ListFilter, position: Position | 'all'): StaffRow[] =>
+/**
+ * Фильтр списка: работают / ушли / все + должность (+ «не заполнены» — чек-лист не закрыт).
+ * Порядок — как с сервера (по имени).
+ */
+export const filterStaff = (rows: StaffRow[], status: ListFilter, position: Position | 'all', incomplete = false): StaffRow[] =>
   rows.filter(
     (r) =>
       (status === 'all' || (status === 'left' ? r.left : !r.left)) &&
-      (position === 'all' || r.position === position),
+      (position === 'all' || r.position === position) &&
+      (!incomplete || Boolean(r.checklist && r.checklist.open > 0)),
   )
 
 /** «1,2 МБ», «340 КБ». */

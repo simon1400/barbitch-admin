@@ -44,6 +44,8 @@ const MODULES: ModuleDef[] = [
   },
   { path: '/global/reviews', label: 'Google Reviews', roles: ['owner', 'manager'], more: true },
   { path: '/global/error-logs', label: 'Error Logs', roles: ['owner', 'manager'], more: true },
+  // «Мои данные» (фаза 2 карточки): своя карточка, только чтение; у владельца карточки нет
+  { path: '/me', label: 'Мои данные', roles: ['manager', 'administrator', 'master'], more: true },
 ]
 
 // Модули, доступные роли (порядок = порядок в меню)

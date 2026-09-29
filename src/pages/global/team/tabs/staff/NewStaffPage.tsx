@@ -244,21 +244,18 @@ export default function NewStaffPage() {
   )
 }
 
-// Экран после создания: пароль (один раз) и чек-лист «Что осталось».
+// Экран после создания: пароль (один раз) и чек-лист «Что осталось» — тот же, что в
+// карточке (фаза 2, считает сервер). Услуги мастера — в Каталоге, шаблон — в «Графике».
 function Created({ card }: { card: StaffCard & { password: string | null } }) {
   const [password, setPassword] = useState(card.password)
-  const master = card.position === 'master'
   const cardUrl = `/global/team/staff/${encodeURIComponent(card.documentId)}`
-  const steps: { text: string; to: string; link: string }[] = [
-    ...(master
-      ? [
-          { text: 'Назначить услуги — без них мастер не появится на сайте', to: '/global/catalog', link: 'Каталог' },
-          { text: 'Завести шаблон недели — без него мастер открыт весь день', to: `/schedule?master=${encodeURIComponent(card.documentId)}`, link: 'График' },
-        ]
-      : []),
-    { text: 'Загрузить фото', to: cardUrl, link: 'Карточка' },
-    { text: 'Добавить документы и личные данные', to: cardUrl, link: 'Карточка' },
-  ]
+  const extLink: Partial<Record<string, { to: string; link: string }>> = {
+    services: { to: '/global/catalog', link: 'Каталог' },
+    schedule: { to: `/schedule?master=${encodeURIComponent(card.documentId)}`, link: 'График' },
+  }
+  const steps: { text: string; to: string; link: string }[] = (card.checklist?.items ?? [])
+    .filter((i) => !i.done)
+    .map((i) => ({ text: i.title, ...(extLink[i.key ?? ''] ?? { to: cardUrl, link: 'Карточка' }) }))
   return (
     <div data-testid="staff-created">
       {password && card.account && (
@@ -270,8 +267,11 @@ function Created({ card }: { card: StaffCard & { password: string | null } }) {
           {POSITION_LABEL[card.position as Position] ?? ''}
           {card.account ? ` · учётка «${card.account.username}»` : ' · без учётки'}
         </div>
-        <div className={`${labelCls} mt-4`}>Что осталось</div>
-        <ol className="m-0 pl-[20px] grid gap-1.5">
+        <div className={`${labelCls} mt-4`}>
+          Что осталось{card.checklist ? ` · заполнено ${card.checklist.percent} %` : ''}
+        </div>
+        {steps.length === 0 && <div className="text-[13.5px] font-medium text-ink-body">Всё готово.</div>}
+        <ol className="m-0 pl-[20px] grid gap-1.5" data-testid="staff-created-steps">
           {steps.map((s) => (
             <li key={s.text} className="text-[13.5px] font-medium text-ink-body">
               {s.text} —{' '}

@@ -22,7 +22,7 @@ import {
 import { DOW_RU_SHORT, dowOfYmd, fmtCsDate, fmtTimePrague, minToHHMM, todayYmd } from '../../utils/date'
 import { kc } from '../../utils/money'
 import { BirthdaysCardView } from '../../components/BirthdaysCard'
-import { DOC_KIND_LABEL } from '../global/team/fetch/staff'
+import { CONTRACT_LABEL, DOC_KIND_LABEL } from '../global/team/fetch/staff'
 import { RefreshIcon } from '../upsell/components/icons'
 import { TodayCard, TodayRow } from './components/TodayCard'
 import { loadToday, type TodayData } from './fetch/todayApi'
@@ -97,6 +97,8 @@ export default function TodayPage() {
 
   const sr = data?.staff
   const staffDocs = sr?.ok ? sr.data.documents : []
+  // договоры (фаза 2 карточки): конец ≤ 30 дней / истёк без нового, испытательный ≤ 14 дней
+  const staffContracts = sr?.ok ? (sr.data.contracts ?? []) : []
   const eraseDue = sr?.ok ? sr.data.erase : []
   const noLeftAt = sr?.ok ? sr.data.leftWithoutDate : []
 
@@ -321,14 +323,14 @@ export default function TodayPage() {
           error={bd && !bd.ok ? bd.error : null}
         />
 
-        {/* 8. Сроки документов работающих сотрудников — 30 дней и просроченные (s227) */}
+        {/* 8. Сроки документов (s227) и договоров (фаза 2) работающих сотрудников */}
         <TodayCard
           id="staff-docs"
-          title="Документы сотрудников — сроки"
-          count={sr?.ok ? staffDocs.length : null}
+          title="Документы и договоры — сроки"
+          count={sr?.ok ? staffDocs.length + staffContracts.length : null}
           loading={first}
           error={sr && !sr.ok ? sr.error : null}
-          okText={`Ни у кого из работающих срок документов не кончается в ближайшие ${sr?.ok ? sr.data.horizonDays : 30} дней`}
+          okText={`Ни у кого из работающих срок документов и договоров не кончается в ближайшие ${sr?.ok ? sr.data.horizonDays : 30} дней`}
           link={{ to: '/global/team/staff', label: 'Сотрудники' }}
         >
           {staffDocs.map((d) => (
@@ -345,6 +347,27 @@ export default function TodayPage() {
               <div className={smallCls}>
                 {d.title && d.title.toLowerCase() !== (DOC_KIND_LABEL[d.kind] ?? '').toLowerCase() && `${DOC_KIND_LABEL[d.kind] ?? d.kind} · `}
                 действует до {fmtCsDate(d.validUntil)}
+              </div>
+            </TodayRow>
+          ))}
+          {staffContracts.map((c) => (
+            <TodayRow
+              key={`${c.personal}-${c.kind}`}
+              to={staffLink(c.personal)}
+              aside={
+                <span className={`${c.daysLeft < 0 ? badgeNegCls : badgeWarnCls} whitespace-nowrap`}>
+                  {daysLeftText(c.daysLeft)}
+                </span>
+              }
+            >
+              <b className="text-ink">{c.name}</b> ·{' '}
+              {c.kind === 'probation_end' ? `испытательный срок (${CONTRACT_LABEL[c.type] ?? c.type})` : `договор ${CONTRACT_LABEL[c.type] ?? c.type}`}
+              <div className={smallCls}>
+                {c.kind === 'probation_end'
+                  ? `кончается ${fmtCsDate(c.date)}`
+                  : c.daysLeft < 0
+                    ? `закончился ${fmtCsDate(c.date)} — нового договора нет`
+                    : `действует до ${fmtCsDate(c.date)}`}
               </div>
             </TodayRow>
           ))}

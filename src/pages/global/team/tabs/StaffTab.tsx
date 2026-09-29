@@ -31,8 +31,8 @@ const STATUS_PILLS: { key: ListFilter; label: string }[] = [
   { key: 'all', label: 'Все' },
 ]
 
-// «Команда → Сотрудники» (s226): список карточек, бейджи «чего не хватает»,
-// переход в карточку и «Добавить сотрудника». Только руководство (owner + manager);
+// «Команда → Сотрудники» (s226): список карточек, бейджи «чего не хватает», процент
+// заполненности (фаза 2), переход в карточку и «Добавить сотрудника». Только руководство (owner + manager);
 // владелец для управляющей скрыт сервером.
 export default function StaffTab() {
   const [rows, setRows] = useState<StaffRow[]>([])
@@ -40,6 +40,8 @@ export default function StaffTab() {
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<ListFilter>('active')
   const [position, setPosition] = useState<Position | 'all'>('all')
+  // «Не заполнены» — чек-лист карточки не закрыт (фаза 2)
+  const [incomplete, setIncomplete] = useState(false)
   const seq = useRef(0)
 
   const load = useCallback(async () => {
@@ -63,8 +65,9 @@ export default function StaffTab() {
     load()
   }, [load])
 
-  const shown = filterStaff(rows, status, position)
+  const shown = filterStaff(rows, status, position, incomplete)
   const leftCount = rows.filter((r) => r.left).length
+  const incompleteCount = filterStaff(rows, status, position, true).length
 
   return (
     <>
@@ -76,6 +79,9 @@ export default function StaffTab() {
               {p.key === 'left' && leftCount ? ` · ${leftCount}` : ''}
             </button>
           ))}
+          <button type="button" className={pillCls(incomplete)} onClick={() => setIncomplete((v) => !v)} aria-pressed={incomplete}>
+            Не заполнены{incompleteCount ? ` · ${incompleteCount}` : ''}
+          </button>
           <select
             aria-label="Должность"
             className={selectCls}
@@ -145,6 +151,15 @@ function StaffListRow({ row, first }: { row: StaffRow; first: boolean }) {
         )}
       </div>
       <div className="shrink-0 text-right">
+        {row.checklist && (
+          <div
+            className={`text-[13px] font-extrabold ${row.checklist.open ? 'text-warn' : 'text-pos'}`}
+            data-testid="staff-row-percent"
+            title={row.checklist.open ? `Не готово пунктов: ${row.checklist.open}` : 'Всё заполнено'}
+          >
+            {row.checklist.percent} %
+          </div>
+        )}
         {row.left ? (
           <span className={badgeFaintCls}>ушёл(ла){row.leftAt ? ` ${fmtCsDate(row.leftAt)}` : ''}</span>
         ) : (
