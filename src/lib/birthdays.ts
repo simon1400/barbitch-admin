@@ -8,9 +8,10 @@
 import { makeApiFetch } from './apiFetch'
 
 export interface Birthday {
+  /** documentId карточки; у постоянных дат (s237) — 'owner' / 'salon' */
   docId: string
   name: string
-  /** 'master' | 'administrator' | 'manager' */
+  /** 'master' | 'administrator' | 'manager'; постоянные даты — 'owner' | 'salon' */
   position: string | null
   day: number
   month: number
@@ -18,6 +19,8 @@ export interface Birthday {
   next: string
   /** 0 — сегодня */
   daysLeft: number
+  /** только у салона: сколько лет исполняется */
+  years?: number
 }
 
 export interface Birthdays {
@@ -42,9 +45,20 @@ const POSITION_RU: Record<string, string> = {
   master: 'мастер',
   administrator: 'администратор',
   manager: 'управляющая',
+  owner: 'владелец',
 }
 
-export const positionLabel = (position: string | null): string => (position && POSITION_RU[position]) || ''
+const yearsRu = (n: number): string => {
+  const d10 = n % 10
+  const d100 = n % 100
+  if (d10 === 1 && d100 !== 11) return `${n} год`
+  if (d10 >= 2 && d10 <= 4 && (d100 < 12 || d100 > 14)) return `${n} года`
+  return `${n} лет`
+}
+
+/** Подпись под именем: должность; у салона — «салону N лет». */
+export const birthdayLabel = (b: Pick<Birthday, 'position' | 'years'>): string =>
+  b.position === 'salon' ? (b.years ? `салону ${yearsRu(b.years)}` : 'день рождения салона') : (b.position && POSITION_RU[b.position]) || ''
 
 /** «сегодня» / «завтра» / «через N дн.» */
 export const daysLeftLabel = (daysLeft: number): string =>

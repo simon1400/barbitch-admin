@@ -1,11 +1,11 @@
 // Карточка «Дни рождения» (s221): сотрудники, у которых день рождения в ближайшие
-// 30 дней; если таких нет — самый ближайший. Одна и та же на «Сегодня» и в кабинете администратора.
+// 30 дней; если таких нет — самый ближайший. С s237 — ещё владелец и салон (даты на сервере). Одна и та же на «Сегодня» и в кабинете администратора.
 //   • BirthdaysCardView — только показ (данные приносит страница: «Сегодня» грузит
 //     их вместе с остальными источниками и обновляет по своему таймеру);
 //   • BirthdaysCard — сама загружает (кабинет администратора).
 import { useEffect, useState } from 'react'
 
-import { daysLeftLabel, fetchBirthdays, positionLabel, type Birthdays } from '../lib/birthdays'
+import { birthdayLabel, daysLeftLabel, fetchBirthdays, type Birthdays } from '../lib/birthdays'
 import { errMsg } from '../lib/errMsg'
 import { TodayCard, TodayRow } from '../pages/today/components/TodayCard'
 import { badgeMutedCls, badgePosCls, badgeWarnCls, hintCls } from '../ui/kit'
@@ -42,11 +42,11 @@ export function BirthdaysCardView({ data, loading, error }: ViewProps) {
           }
         >
           <span data-birthday={b.name} data-days-left={b.daysLeft}>
-            {b.daysLeft === 0 ? '🎉' : '🎂'} <b className="text-ink">{b.name}</b>
+            {b.daysLeft === 0 ? '🎉' : b.position === 'salon' ? '🎈' : '🎂'} <b className="text-ink">{b.name}</b>
           </span>
           <div className={smallCls}>
             {DOW_RU_SHORT[dowOfYmd(b.next)]} {b.next.slice(8, 10)}.{b.next.slice(5, 7)}
-            {positionLabel(b.position) && ` · ${positionLabel(b.position)}`}
+            {birthdayLabel(b) && ` · ${birthdayLabel(b)}`}
           </div>
         </TodayRow>
       ))}
