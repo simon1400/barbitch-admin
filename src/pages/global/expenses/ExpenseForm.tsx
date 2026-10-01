@@ -16,6 +16,7 @@ import {
   CONFIRM_SUM_KC,
   MAX_SUM_KC,
   PAYMENT_LABELS,
+  REQUEST_LABELS,
   VAT_OPTIONS,
   createCost,
   deleteCost,
@@ -25,19 +26,22 @@ import {
   noDphFor,
   requestCostChange,
   updateCost,
+  uploadCostFile,
   type CostInput,
   type CostPayment,
   type CostRow,
   type CostSuggestion,
   type CostVat,
 } from '../fetch/expenses'
+import { ReceiptList, ReceiptPicker } from './Receipts'
 
 /** Что произошло — странице, чтобы перечитать месяц и показать сообщение. */
 export type ExpenseFormResult =
-  | { kind: 'created'; row: CostRow }
+  /** fileErrors — затрата создана, но эти чеки не загрузились */
+  | { kind: 'created'; row: CostRow; fileErrors: string[] }
   | { kind: 'updated'; row: CostRow }
   | { kind: 'deleted'; row: CostRow }
-  | { kind: 'requested'; action: 'edit' | 'delete'; row: CostRow }
+  | { kind: 'requested'; action: 'edit' | 'delete' | 'file_delete'; row: CostRow }
 
 const parseSum = (s: string): number => {
   const v = s.replace(/\s/g, '').replace(',', '.')
@@ -60,6 +64,7 @@ export function ExpenseForm({
   defaultDate,
   onDone,
   onCancel,
+  onFilesChanged,
 }: {
   /** null — новая затрата */
   row: CostRow | null
@@ -72,6 +77,8 @@ export function ExpenseForm({
   defaultDate: string
   onDone: (r: ExpenseFormResult) => void
   onCancel: () => void
+  /** к существующей затрате приложили или удалили чек — перечитать месяц */
+  onFilesChanged: () => void
 }) {
   const [date, setDate] = useState(row?.date ?? defaultDate)
   const [name, setName] = useState(row?.name ?? '')
@@ -86,6 +93,8 @@ export function ExpenseForm({
   const [error, setError] = useState<string | null>(null)
   // дубль показан — второе нажатие сохраняет
   const [dupAck, setDupAck] = useState(false)
+  // чеки новой затраты — грузятся сразу после создания
+  const [receipts, setReceipts] = useState<File[]>([])
 
   const editing = row !== null
   const locked = editing && !isOwner && row.pendingRequest !== null
@@ -139,7 +148,16 @@ export function ExpenseForm({
     setError(null)
     try {
       if (!editing) {
-        onDone({ kind: 'created', row: await createCost(input()) })
+        const created = await createCost(input())
+        const fileErrors: string[] = []
+        for (const f of receipts) {
+          try {
+            await uploadCostFile(created, f)
+          } catch (err) {
+            fileErrors.push(`«${f.name}»: ${(err as Error).message}`)
+          }
+        }
+        onDone({ kind: 'created', row: created, fileErrors })
         return
       }
       const changes = diffInput(row, input())
@@ -184,7 +202,7 @@ export function ExpenseForm({
     }
   }
 
-  const saveLabel = saving ? 'Сохраняю…' : !editing ? 'Добавить' : isOwner ? 'Сохранить' : 'Отправить на одобрение'
+  const saveLabel = saving ? (receipts.length && !editing ? 'Сохраняю и загружаю чек…' : 'Сохраняю…') : !editing ? 'Добавить' : isOwner ? 'Сохранить' : 'Отправить на одобрение'
 
   return (
     <form onSubmit={submit} className={`${formCardCls} mb-3.5`} data-testid="expense-form">
@@ -200,7 +218,7 @@ export function ExpenseForm({
       )}
       {locked && (
         <div role="status" className="mb-3 text-[12.5px] font-semibold text-warn">
-          По этой затрате уже есть запрос ({row.pendingRequest?.action === 'delete' ? 'удаление' : 'изменение'}) —
+          По этой затрате уже есть запрос ({row.pendingRequest ? REQUEST_LABELS[row.pendingRequest.action] : ''}) —
           дождитесь решения владельца или отзовите его.
         </div>
       )}
@@ -340,8 +358,18 @@ export function ExpenseForm({
               </button>
             </div>
           )}
+          {!editing && <ReceiptPicker files={receipts} onChange={setReceipts} />}
         </div>
       </fieldset>
+
+      {editing && (
+        <ReceiptList
+          row={row}
+          isOwner={isOwner}
+          onFilesChanged={onFilesChanged}
+          onRequested={() => onDone({ kind: 'requested', action: 'file_delete', row })}
+        />
+      )}
 
       {sum !== '' && !sumOk && (
         <div className="mt-2 text-[12px] font-normal text-neg">

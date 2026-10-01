@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMonthYear } from '../../hooks/useMonthYear'
 import { getSessionRole } from '../../services/auth'
 import { fmtCsDate, monthEndYmd, todayYmd } from '../../utils/date'
-import { btnPinkCls, h1Cls, inputCls, kickerCls, pageShellCls, selectCls, toolbarCardCls } from '../../ui/kit'
+import { btnNeutralCls, btnPinkCls, h1Cls, inputCls, kickerCls, pageShellCls, pillCls, selectCls, toolbarCardCls } from '../../ui/kit'
 import { Select } from '../dashboard/components/Select'
 import { OwnerProtection } from './components/OwnerProtection'
 import { StatSection } from './components/StatSection'
@@ -10,6 +10,7 @@ import { ExpensesBarChart } from './components/ExpensesBarChart'
 import { ExpenseForm, type ExpenseFormResult } from './expenses/ExpenseForm'
 import { ExpensesTable } from './expenses/ExpensesTable'
 import { PendingRequests } from './expenses/PendingRequests'
+import { RepeatPanel } from './expenses/RepeatPanel'
 import {
   PAYMENT_ORDER,
   fetchCostSuggestions,
@@ -46,6 +47,9 @@ const ExpensesPage = () => {
   const [formNonce, setFormNonce] = useState(0)
   const [category, setCategory] = useState('')
   const [search, setSearch] = useState('')
+  // s237: только затраты без чека — видно, что приложить перед отправкой účetní
+  const [noReceipt, setNoReceipt] = useState(false)
+  const [repeating, setRepeating] = useState(false)
   const formRef = useRef<HTMLDivElement>(null)
   // ответ старого месяца не ложится поверх нового (быстрое листание)
   const seq = useRef(0)
@@ -73,9 +77,10 @@ const ExpensesPage = () => {
     load()
   }, [load])
 
-  // смена месяца закрывает форму — её строка из другого месяца
+  // смена месяца закрывает форму и повтор — они про другой месяц
   useEffect(() => {
     setFormRow(null)
+    setRepeating(false)
   }, [key])
 
   const loadSuggestions = useCallback(() => {
@@ -91,9 +96,13 @@ const ExpensesPage = () => {
   const visible = useMemo(() => {
     const q = nameKey(search)
     return data.rows.filter(
-      (r) => (!category || r.category === category) && (!q || nameKey(`${r.name} ${r.comment ?? ''}`).includes(q)),
+      (r) =>
+        (!category || r.category === category) &&
+        (!q || nameKey(`${r.name} ${r.comment ?? ''}`).includes(q)) &&
+        (!noReceipt || r.files.length === 0),
     )
-  }, [data.rows, category, search])
+  }, [data.rows, category, search, noReceipt])
+  const withoutReceipt = useMemo(() => data.rows.filter((r) => r.files.length === 0).length, [data.rows])
 
   // график — по всем строкам месяца (фильтр — кликом по столбцу)
   const chartData = useMemo(() => {
@@ -109,6 +118,7 @@ const ExpensesPage = () => {
 
   const openForm = (row: CostRow | 'new') => {
     setNotice(null)
+    setRepeating(false)
     setFormRow(row)
     formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
   }
@@ -118,10 +128,13 @@ const ExpensesPage = () => {
     if (r.kind === 'created') setFormNonce((n) => n + 1)
     const other = (ymd: string) => !ymd.startsWith(key)
     if (r.kind === 'created') {
+      const base = other(r.row.date)
+        ? `Затрата добавлена в ${fmtCsDate(r.row.date)} — это другой месяц, здесь она не видна.`
+        : `Добавлено: «${r.row.name}».`
       setNotice(
-        other(r.row.date)
-          ? `Затрата добавлена в ${fmtCsDate(r.row.date)} — это другой месяц, здесь она не видна.`
-          : `Добавлено: «${r.row.name}».`,
+        r.fileErrors.length
+          ? `${base} Чек не загрузился (${r.fileErrors.join('; ')}) — откройте затрату и приложите его снова.`
+          : base,
       )
       loadSuggestions()
     } else if (r.kind === 'updated') {
@@ -132,7 +145,9 @@ const ExpensesPage = () => {
       setNotice(
         r.action === 'delete'
           ? 'Запрос на удаление отправлен владельцу.'
-          : 'Запрос на изменение отправлен владельцу — до одобрения затрата остаётся прежней.',
+          : r.action === 'file_delete'
+            ? 'Запрос на удаление чека отправлен владельцу.'
+            : 'Запрос на изменение отправлен владельцу — до одобрения затрата остаётся прежней.',
       )
     }
     load()
@@ -171,7 +186,28 @@ const ExpensesPage = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <button type="button" className={`${btnPinkCls} ml-auto`} onClick={() => openForm('new')}>
+          <button
+            type="button"
+            className={pillCls(noReceipt)}
+            aria-pressed={noReceipt}
+            data-filter="no-receipt"
+            onClick={() => setNoReceipt((v) => !v)}
+          >
+            Без чека{data.rows.length ? ` (${withoutReceipt})` : ''}
+          </button>
+          <button
+            type="button"
+            className={`${btnNeutralCls} ml-auto`}
+            onClick={() => {
+              setNotice(null)
+              setFormRow(null)
+              setRepeating(true)
+              formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+            }}
+          >
+            Повторить прошлый месяц
+          </button>
+          <button type="button" className={btnPinkCls} onClick={() => openForm('new')}>
             + Затрата
           </button>
         </div>
@@ -186,6 +222,21 @@ const ExpensesPage = () => {
         />
 
         <div ref={formRef}>
+          {repeating && (
+            <RepeatPanel
+              key={key}
+              month={month}
+              year={year}
+              payments={data.payments}
+              onCancel={() => setRepeating(false)}
+              onDone={(rows) => {
+                setRepeating(false)
+                setNotice(rows.length === 1 ? 'Добавлена 1 затрата.' : `Добавлено затрат: ${rows.length}.`)
+                loadSuggestions()
+                load()
+              }}
+            />
+          )}
           {formRow !== null && (
             <ExpenseForm
               key={editing ? `${editing.documentId}:${editing.updatedAt}:${editing.pendingRequest?.id ?? ''}` : `new:${key}:${formNonce}`}
@@ -198,6 +249,7 @@ const ExpensesPage = () => {
               defaultDate={defaultDateFor(month, year, todayYmd())}
               onDone={onDone}
               onCancel={() => setFormRow(null)}
+              onFilesChanged={load}
             />
           )}
         </div>
@@ -228,7 +280,11 @@ const ExpensesPage = () => {
             <div className={'py-12 text-center text-[13px] font-semibold text-ink-faint'}>Загрузка…</div>
           ) : error ? null : visible.length === 0 ? (
             <div className={'py-12 text-center text-[13px] font-semibold text-ink-faint'}>
-              {data.rows.length === 0 ? 'За выбранный месяц затрат нет' : 'Ничего не найдено — сбросьте фильтр'}
+              {data.rows.length === 0
+                ? 'За выбранный месяц затрат нет'
+                : noReceipt && !category && !search
+                  ? 'У всех затрат месяца чек приложен'
+                  : 'Ничего не найдено — сбросьте фильтр'}
             </div>
           ) : (
             <ExpensesTable rows={visible} selectedId={editing?.documentId ?? null} onOpen={openForm} />

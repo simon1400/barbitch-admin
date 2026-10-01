@@ -3,7 +3,8 @@
 // Одна страница «что требует внимания»: незакрытые визиты, блоки на согласование,
 // дозаписи без результата, незакрытые смены, ваучеры, ожидающие переносы корекций
 // дни рождения сотрудников, сроки документов сотрудников, личные данные ушедших
-// (стирание через 3 года) и кто сегодня работает. Каждая строка — ссылка туда, где это решается.
+// (стирание через 3 года), затраты (запросы на одобрение, не внесённые постоянные —
+// s237) и кто сегодня работает. Каждая строка — ссылка туда, где это решается.
 // Ничего не пишет. Данные — fetch/todayApi.ts (каждый источник отдельно: сбой
 // одного не гасит остальные карточки).
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -21,6 +22,7 @@ import {
 } from '../../ui/kit'
 import { DOW_RU_SHORT, dowOfYmd, fmtCsDate, fmtTimePrague, minToHHMM, todayYmd } from '../../utils/date'
 import { kc } from '../../utils/money'
+import { getSessionRole } from '../../services/auth'
 import { BirthdaysCardView } from '../../components/BirthdaysCard'
 import { CONTRACT_LABEL, DOC_KIND_LABEL } from '../global/team/fetch/staff'
 import { RefreshIcon } from '../upsell/components/icons'
@@ -101,6 +103,11 @@ export default function TodayPage() {
   const staffContracts = sr?.ok ? (sr.data.contracts ?? []) : []
   const eraseDue = sr?.ok ? sr.data.erase : []
   const noLeftAt = sr?.ok ? sr.data.leftWithoutDate : []
+
+  const isOwner = getSessionRole() === 'owner'
+  const cp = data?.costs
+  const costPending = cp?.ok ? cp.data.pending : null
+  const missingCosts = cp?.ok ? cp.data.missingRecurring : []
 
   const dayPart = data?.day
   const working = dayPart?.ok ? summarizeDay(dayPart.data) : null
@@ -406,6 +413,48 @@ export default function TodayPage() {
             ))}
           </TodayCard>
         )}
+
+        {/* 10–11. Затраты (s237): запросы управляющей — только владельцу; не внесённые постоянные — руководству */}
+        {isOwner && (
+          <TodayCard
+            id="cost-requests"
+            title="Затраты ждут одобрения"
+            count={cp?.ok ? (costPending ?? 0) : null}
+            loading={first}
+            error={cp && !cp.ok ? cp.error : null}
+            okText="Нет запросов управляющей по затратам"
+            link={{ to: '/global/expenses', label: 'Затраты' }}
+          >
+            <div className="text-[13px] font-semibold text-ink-body">
+              Управляющая просит изменить или удалить затрату (или чек): <b className="text-ink">{costPending}</b>
+            </div>
+          </TodayCard>
+        )}
+        <TodayCard
+          id="costs-missing"
+          title="Постоянные расходы не внесены"
+          count={cp?.ok ? missingCosts.length : null}
+          loading={first}
+          error={cp && !cp.ok ? cp.error : null}
+          okText="Постоянные расходы этого месяца внесены (или их день ещё не прошёл)"
+          link={{ to: '/global/expenses', label: 'Затраты' }}
+        >
+          {missingCosts.map((m) => (
+            <TodayRow
+              key={m.name}
+              to="/global/expenses"
+              aside={<span className={`${badgeWarnCls} whitespace-nowrap`}>обычно {m.usualDay}.</span>}
+            >
+              <b className="text-ink">{m.name}</b>
+              <div className={smallCls}>
+                {m.category} · в прошлый раз {kc(m.lastSum)} от {fmtCsDate(m.lastDate)}
+              </div>
+            </TodayRow>
+          ))}
+          {missingCosts.length > 0 && (
+            <div className={hintCls}>В «Затратах» — «Повторить прошлый месяц».</div>
+          )}
+        </TodayCard>
       </div>
 
       {/* 8. Кто сегодня работает — во всю ширину */}

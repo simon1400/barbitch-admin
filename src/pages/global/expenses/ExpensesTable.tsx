@@ -3,7 +3,7 @@ import { kc, kcNum } from '../../../utils/money'
 import { badgeMutedCls, badgeWarnCls, mutedCls } from '../../../ui/kit'
 import { Cell } from '../../dashboard/components/Cell'
 import { TableWrapper } from '../components/TableWrapper'
-import { PAYMENT_LABELS, type CostRow } from '../fetch/expenses'
+import { PAYMENT_LABELS, REQUEST_LABELS, type CostRow } from '../fetch/expenses'
 
 // Таблица затрат месяца. Клик по строке открывает форму (правка у владельца,
 // запрос у управляющей). Строка с ожидающим запросом помечена — деньги в итогах
@@ -26,7 +26,7 @@ export function ExpensesTable({
       totalLabel={'Общая сумма'}
       additionalInfo={`Без DPH: ${kcNum(totalNoDph)} Kč`}
     >
-      <table className={'w-full text-left min-w-[860px]'}>
+      <table className={'w-full text-left min-w-[920px]'}>
         <thead>
           <tr>
             <Cell title={'Дата'} asHeader />
@@ -36,6 +36,7 @@ export function ExpensesTable({
             <Cell title={'Сумма'} asHeader className={'text-right'} />
             <Cell title={'Без DPH'} asHeader className={'text-right'} />
             <Cell title={'Внёс'} asHeader />
+            <Cell title={'Чек'} asHeader className={'text-center'} />
           </tr>
         </thead>
         <tbody>
@@ -59,7 +60,7 @@ export function ExpensesTable({
                 {r.comment && <div className={`${mutedCls} mt-0.5`}>{r.comment}</div>}
                 {r.pendingRequest && (
                   <span className={`${badgeWarnCls} mt-1 inline-block`} data-pending={r.pendingRequest.action}>
-                    ждёт одобрения: {r.pendingRequest.action === 'delete' ? 'удаление' : 'изменение'}
+                    ждёт одобрения: {REQUEST_LABELS[r.pendingRequest.action]}
                   </span>
                 )}
               </td>
@@ -80,6 +81,13 @@ export function ExpensesTable({
                   </span>
                 ) : (
                   <span className={'text-[13px] font-semibold text-ink-body'}>{r.author}</span>
+                )}
+              </td>
+              <td className={'px-3 py-[10px] border-b border-line-soft text-center whitespace-nowrap'} data-files={r.files.length}>
+                {r.files.length > 0 ? (
+                  <span title={r.files.map((f) => f.fileName).join(', ')}>📎{r.files.length > 1 ? ` ${r.files.length}` : ''}</span>
+                ) : (
+                  <span className={'text-ink-faint'}>—</span>
                 )}
               </td>
             </tr>

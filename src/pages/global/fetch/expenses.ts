@@ -7,13 +7,19 @@
 // 🟥 Итоги месяца кэшируются (прошлый месяц — навсегда, monthDataCache), поэтому
 // после каждой записи, правки, удаления и одобрения сбрасывается кэш месяца
 // СТАРОЙ и НОВОЙ даты затраты — иначе «Результат за месяц» показывал бы старое.
-import { makeApiFetch } from '../../../lib/apiFetch'
+//
+// Фаза 2 (s237): чеки (фото/PDF в закрытом каталоге сервера — только fetch с
+// сессией → blob, прямой ссылки нет), «Повторить с прошлого месяца» (пачка — всё
+// или ничего), сигналы для «Сегодня».
+import { ApiError, makeApiFetch } from '../../../lib/apiFetch'
+import { API_URL } from '../../../lib/config'
+import { getToken } from '../../../services/auth'
 import { invalidateGlobalMonthData } from '../../dashboard/fetch/monthDataCache'
 
 export type CostPayment = 'card' | 'cash' | 'transfer' | 'owner'
 /** Ставка DPH: 21 / 12 / без DPH / вручную (смешанный чек — сумма без DPH вводится руками). */
 export type CostVat = 21 | 12 | 0 | 'manual'
-export type CostRequestAction = 'edit' | 'delete'
+export type CostRequestAction = 'edit' | 'delete' | 'file_delete'
 
 // Порядок — порядок селекта в форме.
 export const PAYMENT_LABELS: Record<CostPayment, string> = {
@@ -23,6 +29,13 @@ export const PAYMENT_LABELS: Record<CostPayment, string> = {
   owner: 'Zaplatil majitel osobně',
 }
 export const PAYMENT_ORDER = Object.keys(PAYMENT_LABELS) as CostPayment[]
+
+/** Что просит запрос — для пометок «ждёт одобрения: …». */
+export const REQUEST_LABELS: Record<CostRequestAction, string> = {
+  edit: 'изменение',
+  delete: 'удаление',
+  file_delete: 'удаление чека',
+}
 
 export const VAT_OPTIONS: { value: CostVat; label: string }[] = [
   { value: 21, label: '21 %' },
@@ -46,14 +59,24 @@ export interface CostFields {
   comment: string | null
 }
 
+/** Чек затраты (имя на диске сервер не отдаёт). */
+export interface CostFile {
+  id: string
+  fileName: string
+  mime: string | null
+  size: number
+  uploadedBy: string | null
+  createdAt: string | null
+}
+
 export interface CostRow extends CostFields {
   documentId: string
   vat: CostVat
   /** логин того, кто внёс; null — внесено в панели Strapi */
   author: string | null
   viaPanel: boolean
-  files: number
-  pendingRequest: { id: string; action: CostRequestAction; requestedBy: string | null } | null
+  files: CostFile[]
+  pendingRequest: { id: string; action: CostRequestAction; fileId: string | null; requestedBy: string | null } | null
   createdAt: string | null
   updatedAt: string | null
 }
@@ -62,6 +85,8 @@ export interface CostRequest {
   id: string
   costDocId: string
   action: CostRequestAction
+  /** file_delete — какой чек */
+  fileId: string | null
   changes: Partial<CostFields> | null
   before: CostFields | null
   status: 'pending' | 'approved' | 'rejected' | 'cancelled'
@@ -126,9 +151,29 @@ const CODE_MESSAGES: Record<string, string> = {
   request_closed: 'Запрос уже решён или отозван.',
   not_your_request: 'Отозвать запрос может только тот, кто его подал.',
   cost_changed: 'Затрату изменили после запроса — проверьте актуальные данные и решите заново.',
+  // Фаза 2: чеки, повтор
+  file_required: 'Выберите файл.',
+  file_empty: 'Файл пустой.',
+  file_too_big: 'Файл больше 10 МБ.',
+  bad_file_type: 'Чек — фото (JPG, PNG, WEBP) или PDF.',
+  too_many_files: 'К затрате — не больше 5 чеков.',
+  file_not_found: 'Чек не найден — возможно, его уже удалили.',
+  file_missing: 'Файл чека на сервере не найден.',
+  storage_not_configured: 'Хранилище чеков на сервере не настроено.',
+  batch_empty: 'Выберите хотя бы одну затрату.',
+  batch_too_big: 'За один раз — не больше 30 затрат.',
 }
 
 const costsFetch = makeApiFetch('/api/engine/admin', CODE_MESSAGES, (s) => `Ошибка ${s}`)
+
+const enc = encodeURIComponent
+
+/** Ответ ручки файла с ошибкой → ApiError с текстом из словаря (строку «Строка N:» сервер добавляет сам). */
+const failFrom = async (res: Response): Promise<never> => {
+  const json = await res.json().catch(() => null)
+  const code = json?.error?.code || 'internal'
+  throw new ApiError(res.status, code, CODE_MESSAGES[code] || json?.error?.message || `Ошибка ${res.status}`)
+}
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
 
@@ -191,7 +236,7 @@ export const deleteCost = async (row: Pick<CostRow, 'documentId' | 'date'>): Pro
 /** Запрос управляющей: деньги не меняются до одобрения — кэш не трогаем. */
 export const requestCostChange = async (
   row: Pick<CostRow, 'documentId'>,
-  action: CostRequestAction,
+  action: 'edit' | 'delete',
   changes?: Partial<CostInput>,
 ): Promise<CostRequest> => {
   const res = await costsFetch<{ request: CostRequest }>(
@@ -202,11 +247,20 @@ export const requestCostChange = async (
   return res.request
 }
 
+/** Запрос управляющей на удаление чека — до одобрения чек остаётся. */
+export const requestCostFileDelete = async (row: Pick<CostRow, 'documentId'>, fileId: string): Promise<CostRequest> => {
+  const res = await costsFetch<{ request: CostRequest }>('POST', `/costs/${enc(row.documentId)}/requests`, {
+    action: 'file_delete',
+    fileId,
+  })
+  return res.request
+}
+
 export const cancelCostRequest = async (id: string): Promise<void> => {
   await costsFetch('DELETE', `/costs/requests/${encodeURIComponent(id)}`)
 }
 
-/** Одобрение: применённая правка или удаление — сброс кэша обоих месяцев. */
+/** Одобрение: применённая правка или удаление — сброс кэша обоих месяцев (удаление чека денег не меняет). */
 export const approveCostRequest = async (id: string): Promise<{ row: CostRow | null; deleted: string | null }> => {
   const res = await costsFetch<{ row: CostRow | null; deleted: string | null; before: CostFields | null }>(
     'POST',
@@ -220,6 +274,87 @@ export const approveCostRequest = async (id: string): Promise<{ row: CostRow | n
 export const rejectCostRequest = async (id: string, note: string): Promise<void> => {
   await costsFetch('POST', `/costs/requests/${encodeURIComponent(id)}/reject`, { note })
 }
+
+// ── чеки ────────────────────────────────────────────────────────────────
+
+export const MAX_COST_FILES = 5
+export const MAX_COST_FILE_BYTES = 10 * 1024 * 1024
+export const ACCEPT_RECEIPT = 'image/*,application/pdf'
+/** Что сервер примет (по сигнатуре). HEIC и прочее — нет. */
+export const RECEIPT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+
+/** Деньги не меняются — кэш месяцев не трогаем. Поле файла — `files`, Content-Type ставит браузер. */
+export const uploadCostFile = async (row: Pick<CostRow, 'documentId'>, file: File): Promise<CostFile> => {
+  const fd = new FormData()
+  fd.append('files', file, file.name)
+  const res = await fetch(`${API_URL}/api/engine/admin/costs/${enc(row.documentId)}/files`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getToken() || ''}` },
+    body: fd,
+  })
+  if (!res.ok) return failFrom(res)
+  return (await res.json()).file
+}
+
+/** Чек — только fetch с Bearer (у ссылки нет заголовка). objectURL освобождать через revokeObjectURL. */
+export const downloadCostFile = async (row: Pick<CostRow, 'documentId'>, fileId: string): Promise<string> => {
+  const res = await fetch(`${API_URL}/api/engine/admin/costs/${enc(row.documentId)}/files/${enc(fileId)}`, {
+    headers: { Authorization: `Bearer ${getToken() || ''}` },
+    cache: 'no-store',
+  })
+  if (!res.ok) return failFrom(res)
+  return URL.createObjectURL(await res.blob())
+}
+
+/** Удаление чека владельцем — сразу. Управляющая — `requestCostFileDelete`. */
+export const deleteCostFile = async (row: Pick<CostRow, 'documentId'>, fileId: string): Promise<void> => {
+  await costsFetch('DELETE', `/costs/${enc(row.documentId)}/files/${enc(fileId)}`)
+}
+
+// ── «Повторить с прошлого месяца», «Сегодня» ─────────────────────────────
+
+export interface RepeatCandidate {
+  sourceId: string
+  date: string
+  name: string
+  category: string
+  sum: number
+  noDph: number
+  vat: CostVat
+  payment: CostPayment | null
+  /** было в прошлом месяце и в ≥ 2 из 3 прошлых — отмечается заранее */
+  recurring: boolean
+  usualDay: number | null
+}
+
+export const fetchRepeatCandidates = async (month: number, year: number): Promise<RepeatCandidate[]> => {
+  const res = await costsFetch<{ items: RepeatCandidate[] }>('GET', `/costs/recurring?month=${monthKey(month, year)}`)
+  return Array.isArray(res?.items) ? res.items : []
+}
+
+/** Пачка — всё или ничего; сброс кэша каждого затронутого месяца. */
+export const createCostsBatch = async (items: CostInput[]): Promise<CostRow[]> => {
+  const res = await costsFetch<{ rows: CostRow[] }>('POST', '/costs/batch', { items })
+  for (const ym of new Set(items.map((i) => i.date.slice(0, 7)))) invalidateMonthOf(`${ym}-01`)
+  return Array.isArray(res?.rows) ? res.rows : []
+}
+
+export interface MissingRecurring {
+  name: string
+  category: string
+  usualDay: number
+  lastSum: number
+  lastDate: string
+}
+
+export interface CostsAttention {
+  today: string
+  /** ожидающих запросов (только владельцу; управляющей — null) */
+  pending: number | null
+  missingRecurring: MissingRecurring[]
+}
+
+export const fetchCostsAttention = (): Promise<CostsAttention> => costsFetch<CostsAttention>('GET', '/costs/attention')
 
 /**
  * Затраты месяца для прогноза (analytics/fetch/forecast.ts). Ошибка не глотается:

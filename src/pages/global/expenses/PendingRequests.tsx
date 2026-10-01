@@ -10,7 +10,15 @@ import {
   rejectCostRequest,
   type CostFields,
   type CostRequest,
+  type CostRequestAction,
 } from '../fetch/expenses'
+import { openReceipt } from './receiptFiles'
+
+const ACTION_TITLES: Record<CostRequestAction, string> = {
+  edit: 'Изменить',
+  delete: 'Удалить',
+  file_delete: 'Удалить чек',
+}
 
 const FIELD_LABELS: Record<keyof CostFields, string> = {
   date: 'дата',
@@ -96,16 +104,35 @@ export function PendingRequests({
         {pending.map((r) => {
           const cost = r.cost ?? (r.before ? { ...r.before } : null)
           const lines = r.action === 'edit' ? changeLines(r) : []
+          const file = r.action === 'file_delete' ? (r.cost?.files.find((f) => f.id === r.fileId) ?? null) : null
           return (
             <li key={r.id} data-request={r.id} className="border border-line-soft rounded-lg px-4 py-3">
               <div className="text-[14px] font-bold text-ink">
-                {r.action === 'delete' ? 'Удалить' : 'Изменить'}: «{cost?.name ?? '—'}»{' '}
+                {ACTION_TITLES[r.action]}: «{cost?.name ?? '—'}»{' '}
                 {cost ? `${kc(cost.sum)} · ${fmtCsDate(cost.date)}` : ''}
               </div>
               <div className={`${hintCls} mt-0.5`}>
                 {r.requestedBy ?? '—'} · {createdText(r.createdAt)}
                 {!r.cost && ' · затраты уже нет'}
               </div>
+              {r.action === 'file_delete' && (
+                <div className="mt-2 text-[13px] font-semibold text-ink-body">
+                  {file && r.cost ? (
+                    <button
+                      type="button"
+                      className="bg-transparent border-0 p-0 font-semibold text-brand-dark hover:underline cursor-pointer"
+                      onClick={() => {
+                        setError(null)
+                        openReceipt(r.cost!, file).catch((e: Error) => setError(e.message))
+                      }}
+                    >
+                      📎 {file.fileName}
+                    </button>
+                  ) : (
+                    'чека уже нет'
+                  )}
+                </div>
+              )}
               {lines.length > 0 && (
                 <ul className="mt-2 mb-0 pl-4 text-[13px] font-semibold text-ink-body">
                   {lines.map((l) => (
@@ -152,11 +179,11 @@ export function PendingRequests({
                         onClick={() =>
                           run(r.id, async () => {
                             const res = await approveCostRequest(r.id)
-                            return res.deleted ? 'Затрата удалена.' : 'Изменение применено.'
+                            return res.deleted ? 'Затрата удалена.' : r.action === 'file_delete' ? 'Чек удалён.' : 'Изменение применено.'
                           })
                         }
                       >
-                        {busy === r.id ? '…' : r.action === 'delete' ? 'Одобрить удаление' : 'Одобрить'}
+                        {busy === r.id ? '…' : r.action === 'edit' ? 'Одобрить' : 'Одобрить удаление'}
                       </button>
                       <button
                         type="button"

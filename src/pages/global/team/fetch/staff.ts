@@ -554,7 +554,7 @@ export const deleteStaffContract = (id: string, contractId: number, base: string
   staffFetch<StaffCard>('DELETE', `/staff/${enc(id)}/contracts/${contractId}?base=${enc(base)}`)
 
 export const setStaffOnboarding = (id: string, itemId: string, done: boolean) =>
-  staffFetch<StaffCard & Unchanged>('POST', `/staff/${enc(id)}/onboarding/${enc(itemId)}`, { done })
+  staffFetch<StaffCard & Unchanged>('POST', `/staff/${enc(id)}/onboarding/${enc(itemId)}`, { done, base: id })
 
 export const fetchChecklistCatalog = () => staffFetch<{ items: ChecklistCatalogItem[] }>('GET', '/staff-checklist-items')
 
@@ -657,12 +657,8 @@ export const filterStaff = (rows: StaffRow[], status: ListFilter, position: Posi
       (!incomplete || Boolean(r.checklist && r.checklist.open > 0)),
   )
 
-/** «1,2 МБ», «340 КБ». */
-export const fmtSize = (bytes: number): string => {
-  if (!bytes) return '—'
-  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} МБ`
-  return `${Math.max(1, Math.round(bytes / 1024))} КБ`
-}
+// «1,2 МБ» — общий с чеками затрат (s237), живёт в utils
+export { fmtSize } from '../../../../utils/fileSize'
 
 const DAY_MS = 86_400_000
 const utc = (ymd: string) => {
