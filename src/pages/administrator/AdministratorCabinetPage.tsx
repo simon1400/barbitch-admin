@@ -19,7 +19,8 @@ import { StatSection } from '../global/components/StatSection'
 import { Select } from '../dashboard/components/Select'
 import { GlobalLineChart } from '../global/charts/components/GlobalLineChart'
 import { rateInfoForDate } from '../dashboard/fetch/allAdminsHours'
-import { useGlobalMonthData } from '../dashboard/hooks/useGlobalMonthData'
+import { getEvents } from '../dashboard/fetch/getEvents'
+import type { OutputMetrictsItem } from '../dashboard/fetch/fetchHelpers'
 import { CHART } from '../../ui/chartColors'
 import { getSession } from '../../services/auth'
 import { htmlToText } from '../../lib/htmlText'
@@ -49,8 +50,24 @@ const AdministratorCabinetPage = () => {
   const username = getSession()?.username ?? null
 
 
-  // Получаем глобальные данные для графиков
-  const { data: globalData } = useGlobalMonthData(selectedMonth, selectedYear)
+  // График «Записи» — брони месяца напрямую (s236). Раньше ради него грузились данные
+  // месяца целиком (затраты, зарплаты, налоги всех) — затраты и журнал администратору
+  // сервер теперь закрывает (403), а остальное этому экрану не нужно.
+  const [dataMetrics, setDataMetrics] = useState<OutputMetrictsItem[]>([])
+  useEffect(() => {
+    let alive = true
+    setDataMetrics([])
+    getEvents(selectedMonth, selectedYear)
+      .then((res) => {
+        if (alive) setDataMetrics(res.dataMetrics)
+      })
+      .catch(() => {
+        if (alive) setDataMetrics([])
+      })
+    return () => {
+      alive = false
+    }
+  }, [selectedMonth, selectedYear])
 
   useEffect(() => {
     const loadData = async () => {
@@ -291,7 +308,7 @@ const AdministratorCabinetPage = () => {
           <div className={'space-y-6'}>
 
             <GlobalLineChart
-              data={globalData.dataMetrics}
+              data={dataMetrics}
               title={'Записи'}
               lines={[
                 { dataKey: 'countPayed', stroke: CHART.brand, name: 'Резервации' },

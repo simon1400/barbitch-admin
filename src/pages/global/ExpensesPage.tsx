@@ -1,55 +1,144 @@
-import { kcNum } from '../../utils/money'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMonthYear } from '../../hooks/useMonthYear'
-import { useState, useEffect, useMemo } from 'react'
-import { h1Cls, kickerCls, pageShellCls, toolbarCardCls } from '../../ui/kit'
+import { getSessionRole } from '../../services/auth'
+import { fmtCsDate, monthEndYmd, todayYmd } from '../../utils/date'
+import { btnPinkCls, h1Cls, inputCls, kickerCls, pageShellCls, selectCls, toolbarCardCls } from '../../ui/kit'
 import { Select } from '../dashboard/components/Select'
 import { OwnerProtection } from './components/OwnerProtection'
 import { StatSection } from './components/StatSection'
-import { getExpenses } from './fetch/expenses'
-import type { IExpenseItem } from './fetch/expenses'
-import { Cell } from '../dashboard/components/Cell'
-import { TableWrapper } from './components/TableWrapper'
 import { ExpensesBarChart } from './components/ExpensesBarChart'
+import { ExpenseForm, type ExpenseFormResult } from './expenses/ExpenseForm'
+import { ExpensesTable } from './expenses/ExpensesTable'
+import { PendingRequests } from './expenses/PendingRequests'
+import {
+  PAYMENT_ORDER,
+  fetchCostSuggestions,
+  fetchCostsMonth,
+  monthKey,
+  nameKey,
+  type CostRow,
+  type CostsMonth,
+  type CostSuggestion,
+} from './fetch/expenses'
 
+const EMPTY: CostsMonth = { month: '', rows: [], categories: [], payments: PAYMENT_ORDER, pending: [] }
+
+/** Дата новой затраты: сегодня, если открыт текущий месяц; иначе последний день прошлого / первый будущего. */
+const defaultDateFor = (month: number, year: number, today: string): string => {
+  const key = monthKey(month, year)
+  if (today.startsWith(key)) return today
+  return key < today.slice(0, 7) ? monthEndYmd(year, month) : `${key}-01`
+}
+
+// «Затраты» (s236): владелец и управляющая добавляют затраты сами (раньше — только
+// панель Strapi). Правка и удаление: владелец — сразу, управляющая — запросом на
+// одобрение владельца. Страница — сборка: запросы, форма, график, таблица.
 const ExpensesPage = () => {
   const { month, setMonth, year, setYear } = useMonthYear()
-  const [expenses, setExpenses] = useState<IExpenseItem[]>([])
+  const isOwner = getSessionRole() === 'owner'
+  const [data, setData] = useState<CostsMonth>(EMPTY)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [suggestions, setSuggestions] = useState<CostSuggestion[]>([])
+  const [notice, setNotice] = useState<string | null>(null)
+  const [formRow, setFormRow] = useState<CostRow | null | 'new'>(null)
+  // новая затрата сохранена — форма открывается заново пустой
+  const [formNonce, setFormNonce] = useState(0)
+  const [category, setCategory] = useState('')
+  const [search, setSearch] = useState('')
+  const formRef = useRef<HTMLDivElement>(null)
+  // ответ старого месяца не ложится поверх нового (быстрое листание)
+  const seq = useRef(0)
 
-  useEffect(() => {
+  const key = monthKey(month, year)
+
+  const load = useCallback(async () => {
+    const my = ++seq.current
     setIsLoading(true)
-    getExpenses(month, year)
-      .then((data) => {
-        setExpenses(data)
-      })
-      .finally(() => {
-        setIsLoading(false)
-      })
+    setError(null)
+    try {
+      const res = await fetchCostsMonth(month, year)
+      if (my === seq.current) setData(res)
+    } catch (e) {
+      if (my === seq.current) {
+        setError((e as Error).message)
+        setData(EMPTY)
+      }
+    } finally {
+      if (my === seq.current) setIsLoading(false)
+    }
   }, [month, year])
 
-  const totalSum = expenses.reduce((sum, item) => sum + item.sum, 0)
-  const totalNoDph = expenses.reduce((sum, item) => sum + (item.noDph || 0), 0)
+  useEffect(() => {
+    load()
+  }, [load])
 
-  // Группируем затраты по категориям для графика
+  // смена месяца закрывает форму — её строка из другого месяца
+  useEffect(() => {
+    setFormRow(null)
+  }, [key])
+
+  const loadSuggestions = useCallback(() => {
+    fetchCostSuggestions()
+      .then(setSuggestions)
+      .catch(() => setSuggestions([]))
+  }, [])
+
+  useEffect(() => {
+    loadSuggestions()
+  }, [loadSuggestions])
+
+  const visible = useMemo(() => {
+    const q = nameKey(search)
+    return data.rows.filter(
+      (r) => (!category || r.category === category) && (!q || nameKey(`${r.name} ${r.comment ?? ''}`).includes(q)),
+    )
+  }, [data.rows, category, search])
+
+  // график — по всем строкам месяца (фильтр — кликом по столбцу)
   const chartData = useMemo(() => {
-    const grouped = expenses.reduce((acc, expense) => {
-      const categoryName = expense.category || 'Другое'
-      const existing = acc.find((item) => item.name === categoryName)
-      if (existing) {
-        existing.sum += expense.sum
-        existing.noDph = (existing.noDph || 0) + (expense.noDph || 0)
-      } else {
-        acc.push({
-          name: categoryName,
-          sum: expense.sum,
-          noDph: expense.noDph || 0,
-        })
-      }
-      return acc
-    }, [] as { name: string; sum: number; noDph: number }[])
+    const byCat = new Map<string, { name: string; sum: number; noDph: number }>()
+    for (const r of data.rows) {
+      const c = byCat.get(r.category) ?? { name: r.category, sum: 0, noDph: 0 }
+      c.sum += r.sum
+      c.noDph += r.noDph
+      byCat.set(r.category, c)
+    }
+    return [...byCat.values()]
+  }, [data.rows])
 
-    return grouped
-  }, [expenses])
+  const openForm = (row: CostRow | 'new') => {
+    setNotice(null)
+    setFormRow(row)
+    formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  }
+
+  const onDone = (r: ExpenseFormResult) => {
+    setFormRow(r.kind === 'created' ? 'new' : null)
+    if (r.kind === 'created') setFormNonce((n) => n + 1)
+    const other = (ymd: string) => !ymd.startsWith(key)
+    if (r.kind === 'created') {
+      setNotice(
+        other(r.row.date)
+          ? `Затрата добавлена в ${fmtCsDate(r.row.date)} — это другой месяц, здесь она не видна.`
+          : `Добавлено: «${r.row.name}».`,
+      )
+      loadSuggestions()
+    } else if (r.kind === 'updated') {
+      setNotice(other(r.row.date) ? `Сохранено. Затрата перенесена в ${fmtCsDate(r.row.date)}.` : 'Сохранено.')
+    } else if (r.kind === 'deleted') {
+      setNotice(`Затрата «${r.row.name}» удалена.`)
+    } else {
+      setNotice(
+        r.action === 'delete'
+          ? 'Запрос на удаление отправлен владельцу.'
+          : 'Запрос на изменение отправлен владельцу — до одобрения затрата остаётся прежней.',
+      )
+    }
+    load()
+  }
+
+  const editing = formRow !== null && formRow !== 'new' ? formRow : null
 
   return (
     <OwnerProtection>
@@ -59,67 +148,90 @@ const ExpensesPage = () => {
 
         <div className={toolbarCardCls}>
           <Select month={month} setMonth={setMonth} year={year} setYear={setYear} />
+          <select
+            name="category"
+            aria-label="Категория"
+            className={selectCls}
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="">Все категории</option>
+            {data.categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          <input
+            name="search"
+            type="search"
+            aria-label="Поиск по названию"
+            placeholder="Поиск по названию"
+            className={`${inputCls} min-w-0 flex-1 sm:flex-none sm:w-[220px]`}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <button type="button" className={`${btnPinkCls} ml-auto`} onClick={() => openForm('new')}>
+            + Затрата
+          </button>
         </div>
 
-        {/* График затрат */}
-        {!isLoading && expenses.length > 0 && (
-          <div className={'mb-3.5'}>
-            <ExpensesBarChart data={chartData} title={'Затраты по категориям'} />
+        <PendingRequests
+          pending={data.pending}
+          isOwner={isOwner}
+          onChanged={(msg) => {
+            if (msg) setNotice(msg)
+            load()
+          }}
+        />
+
+        <div ref={formRef}>
+          {formRow !== null && (
+            <ExpenseForm
+              key={editing ? `${editing.documentId}:${editing.updatedAt}:${editing.pendingRequest?.id ?? ''}` : `new:${key}:${formNonce}`}
+              row={editing}
+              isOwner={isOwner}
+              categories={data.categories}
+              payments={data.payments}
+              suggestions={suggestions}
+              monthRows={data.rows}
+              defaultDate={defaultDateFor(month, year, todayYmd())}
+              onDone={onDone}
+              onCancel={() => setFormRow(null)}
+            />
+          )}
+        </div>
+
+        {notice && (
+          <div role="status" className="mb-3.5 text-[12.5px] font-semibold text-ink-soft">
+            {notice}
           </div>
         )}
 
-        <StatSection
-          title={'Таблица затрат'}
-          id={'expenses'}
-          count={expenses.length}
-          defaultOpen
-        >
-          {isLoading ? (
-            <div className={'py-12 text-center text-[13px] font-semibold text-ink-faint'}>
-              Загрузка...
+        {!isLoading && chartData.length > 0 && (
+          <div className={'mb-3.5'}>
+            <ExpensesBarChart
+              data={chartData}
+              title={'Затраты по категориям'}
+              onSelect={(c) => setCategory((cur) => (cur === c ? '' : c))}
+            />
+          </div>
+        )}
+
+        <StatSection title={'Таблица затрат'} id={'expenses'} count={visible.length} defaultOpen>
+          {error && (
+            <div role="alert" className="mb-3 text-[12.5px] font-semibold text-neg">
+              Не удалось загрузить затраты: {error}
             </div>
-          ) : expenses.length === 0 ? (
+          )}
+          {isLoading ? (
+            <div className={'py-12 text-center text-[13px] font-semibold text-ink-faint'}>Загрузка…</div>
+          ) : error ? null : visible.length === 0 ? (
             <div className={'py-12 text-center text-[13px] font-semibold text-ink-faint'}>
-              Нет данных за выбранный период
+              {data.rows.length === 0 ? 'За выбранный месяц затрат нет' : 'Ничего не найдено — сбросьте фильтр'}
             </div>
           ) : (
-            <TableWrapper
-              totalSum={`Всего: ${kcNum(totalSum)} Kč`}
-              totalLabel={'Общая сумма'}
-              additionalInfo={`Без DPH: ${kcNum(totalNoDph)} Kč`}
-            >
-              <table className={'w-full text-left min-w-[620px]'}>
-                <thead>
-                  <tr>
-                    <Cell title={'Дата'} asHeader />
-                    <Cell title={'Название'} asHeader />
-                    <Cell title={'Комментарий'} asHeader />
-                    <Cell title={'Сумма'} asHeader className={'text-right'} />
-                    <Cell title={'Без DPH'} asHeader className={'text-right'} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {expenses.map((expense) => (
-                    <tr key={expense.id} className={'hover:bg-surface-hover transition-colors'}>
-                      <Cell title={new Date(expense.date).toLocaleDateString('cs-CZ')} />
-                      <Cell
-                        title={expense.name}
-                        className={'text-[14px] font-bold text-ink'}
-                      />
-                      <Cell title={expense.comment || '-'} className={'text-ink-soft'} />
-                      <Cell
-                        title={`${kcNum(expense.sum)} Kč`}
-                        className={'text-right text-[14px] font-extrabold text-brand-dark'}
-                      />
-                      <Cell
-                        title={expense.noDph ? `${kcNum(expense.noDph)} Kč` : '-'}
-                        className={'text-right text-ink-soft'}
-                      />
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </TableWrapper>
+            <ExpensesTable rows={visible} selectedId={editing?.documentId ?? null} onOpen={openForm} />
           )}
         </StatSection>
       </div>

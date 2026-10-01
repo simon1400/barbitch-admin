@@ -45,6 +45,35 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
     label: 'Mzdy: smazáno',
     cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
   },
+  // затраты из модуля «Затраты» (s236)
+  cost_create: {
+    label: 'Náklady: nový',
+    cls: 'bg-lime-100 text-lime-700 dark:bg-lime-500/20 dark:text-lime-300',
+  },
+  cost_update: {
+    label: 'Náklady: změna',
+    cls: 'bg-lime-100 text-lime-700 dark:bg-lime-500/20 dark:text-lime-300',
+  },
+  cost_delete: {
+    label: 'Náklady: smazáno',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
+  cost_request: {
+    label: 'Náklady: žádost',
+    cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+  },
+  cost_approve: {
+    label: 'Náklady: schváleno',
+    cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
+  },
+  cost_reject: {
+    label: 'Náklady: zamítnuto',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
+  cost_cancel: {
+    label: 'Náklady: žádost stažena',
+    cls: 'bg-gray-100 text-gray-600 dark:bg-gray-500/20 dark:text-gray-300',
+  },
   // отпуска / больничные из «Команда → Больничные/отпуска» (s216)
   timeoff_create: {
     label: 'Absence: nový záznam',
@@ -400,6 +429,7 @@ type EntityTab =
   | 'shift'
   | 'schedule'
   | 'staff'
+  | 'cost'
 
 export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
   const [tab, setTab] = useState<EntityTab>('all')
@@ -512,6 +542,7 @@ export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
         {tabBtn('shift', 'Směny')}
         {tabBtn('schedule', 'Plán')}
         {tabBtn('staff', 'Tým')}
+        {tabBtn('cost', 'Náklady')}
         <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500">{total} záznamů</span>
       </div>
       <input

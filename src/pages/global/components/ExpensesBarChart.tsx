@@ -20,11 +20,13 @@ interface Props {
     noDph?: number
   }[]
   title?: string
+  /** клик по столбцу — категория (фильтр таблицы) */
+  onSelect?: (name: string) => void
 }
 
 const COLORS = EXPENSE_COLORS
 
-export const ExpensesBarChart = ({ data, title }: Props) => {
+export const ExpensesBarChart = ({ data, title, onSelect }: Props) => {
   // Сортируем данные по сумме в убывающем порядке
   const sortedData = [...data].sort((a, b) => b.sum - a.sum)
 
@@ -57,7 +59,13 @@ export const ExpensesBarChart = ({ data, title }: Props) => {
               formatter={(value: number) => `${kcNum(value)} Kč`}
             />
             <Legend align={'center'} verticalAlign={'top'} wrapperStyle={{ paddingBottom: '10px' }} />
-            <Bar dataKey={'sum'} name={'Сумма'} radius={[8, 8, 0, 0]}>
+            <Bar
+              dataKey={'sum'}
+              name={'Сумма'}
+              radius={[8, 8, 0, 0]}
+              cursor={onSelect ? 'pointer' : undefined}
+              onClick={onSelect ? (entry: { name?: string }) => entry?.name && onSelect(entry.name) : undefined}
+            >
               {sortedData.map((_entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
