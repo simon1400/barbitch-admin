@@ -33,6 +33,7 @@ import {
   type CostSuggestion,
   type CostVat,
 } from '../fetch/expenses'
+import type { CashPrefill } from './CashCheck'
 import { ReceiptList, ReceiptPicker } from './Receipts'
 
 /** Что произошло — странице, чтобы перечитать месяц и показать сообщение. */
@@ -62,6 +63,7 @@ export function ExpenseForm({
   suggestions,
   monthRows,
   defaultDate,
+  prefill = null,
   onDone,
   onCancel,
   onFilesChanged,
@@ -75,18 +77,21 @@ export function ExpenseForm({
   /** записи открытого месяца — для предупреждения о дубле */
   monthRows: CostRow[]
   defaultDate: string
+  /** новая затрата из строки кассы (сверка): дата, сумма, название, оплата «из кассы» */
+  prefill?: CashPrefill | null
   onDone: (r: ExpenseFormResult) => void
   onCancel: () => void
   /** к существующей затрате приложили или удалили чек — перечитать месяц */
   onFilesChanged: () => void
 }) {
-  const [date, setDate] = useState(row?.date ?? defaultDate)
-  const [name, setName] = useState(row?.name ?? '')
+  const fromCash = row === null ? prefill : null
+  const [date, setDate] = useState(row?.date ?? fromCash?.date ?? defaultDate)
+  const [name, setName] = useState(row?.name ?? fromCash?.name ?? '')
   const [category, setCategory] = useState(row?.category ?? '')
-  const [sum, setSum] = useState(row ? String(row.sum) : '')
+  const [sum, setSum] = useState(row ? String(row.sum) : fromCash ? String(fromCash.sum) : '')
   const [vat, setVat] = useState<CostVat>(row?.vat ?? 21)
   const [manualNoDph, setManualNoDph] = useState(row && row.vat === 'manual' ? String(row.noDph) : '')
-  const [payment, setPayment] = useState<CostPayment | ''>(row?.payment ?? '')
+  const [payment, setPayment] = useState<CostPayment | ''>(row?.payment ?? (fromCash ? 'cash' : ''))
   const [comment, setComment] = useState(row?.comment ?? '')
   const [showComment, setShowComment] = useState(!!row?.comment)
   const [saving, setSaving] = useState(false)
@@ -214,6 +219,12 @@ export function ExpenseForm({
         <div className={`${hintCls} mb-3`}>
           Внёс: {row.author ?? 'панель Strapi'}
           {!isOwner && ' · изменения и удаление применятся после одобрения владельца'}
+        </div>
+      )}
+      {fromCash && (
+        <div className={`${hintCls} mb-3`} data-testid="from-cash">
+          Из кассы {fmtCsDate(fromCash.date)}: −{kc(fromCash.sum)}
+          {fromCash.name ? ` · ${fromCash.name}` : ''} — проверьте название, категорию и DPH.
         </div>
       )}
       {locked && (

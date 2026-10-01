@@ -74,6 +74,23 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
     label: 'Náklady: žádost stažena',
     cls: 'bg-gray-100 text-gray-600 dark:bg-gray-500/20 dark:text-gray-300',
   },
+  // чеки (s237) и сверка с кассой (s238)
+  cost_file_add: {
+    label: 'Náklady: doklad',
+    cls: 'bg-lime-100 text-lime-700 dark:bg-lime-500/20 dark:text-lime-300',
+  },
+  cost_file_delete: {
+    label: 'Náklady: doklad smazán',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
+  cost_cash_skip: {
+    label: 'Pokladna: není náklad',
+    cls: 'bg-gray-100 text-gray-600 dark:bg-gray-500/20 dark:text-gray-300',
+  },
+  cost_cash_unskip: {
+    label: 'Pokladna: zpět do kontroly',
+    cls: 'bg-gray-100 text-gray-600 dark:bg-gray-500/20 dark:text-gray-300',
+  },
   // отпуска / больничные из «Команда → Больничные/отпуска» (s216)
   timeoff_create: {
     label: 'Absence: nový záznam',

@@ -11,6 +11,9 @@
 // Фаза 2 (s237): чеки (фото/PDF в закрытом каталоге сервера — только fetch с
 // сессией → blob, прямой ссылки нет), «Повторить с прошлого месяца» (пачка — всё
 // или ничего), сигналы для «Сегодня».
+//
+// Фаза 3 (s238): сверка с кассой (расходы кассы без затраты, «это не затрата»),
+// чеки месяца одним ZIP, сравнение с прошлым месяцем по категориям (считается здесь).
 import { ApiError, makeApiFetch } from '../../../lib/apiFetch'
 import { API_URL } from '../../../lib/config'
 import { getToken } from '../../../services/auth'
@@ -162,6 +165,13 @@ const CODE_MESSAGES: Record<string, string> = {
   storage_not_configured: 'Хранилище чеков на сервере не настроено.',
   batch_empty: 'Выберите хотя бы одну затрату.',
   batch_too_big: 'За один раз — не больше 30 затрат.',
+  // Фаза 3: сверка с кассой, ZIP
+  bad_key: 'Неверная строка кассы.',
+  cash_row_not_found: 'Строку кассы не нашли — возможно, её изменили. Обновите сверку.',
+  already_skipped: 'Эта строка кассы уже помечена.',
+  skip_not_found: 'Пометка не найдена — возможно, её уже сняли.',
+  no_receipts: 'За этот месяц чеков нет.',
+  zip_too_big: 'Чеков за месяц слишком много для одного архива.',
 }
 
 const costsFetch = makeApiFetch('/api/engine/admin', CODE_MESSAGES, (s) => `Ошибка ${s}`)
@@ -355,6 +365,112 @@ export interface CostsAttention {
 }
 
 export const fetchCostsAttention = (): Promise<CostsAttention> => costsFetch<CostsAttention>('GET', '/costs/attention')
+
+// ── сверка с кассой, ZIP чеков, сравнение (Фаза 3) ──────────────────────
+
+/** Строка расхода кассы (`cash.flow` < 0); key — день|сумма|комментарий|повтор. */
+export interface CashOutflow {
+  key: string
+  date: string
+  /** положительное число — сколько ушло из кассы */
+  sum: number
+  comment: string | null
+}
+
+export interface CashSkipped extends CashOutflow {
+  skipId: string
+  markedBy: string | null
+}
+
+export interface CashCheck {
+  month: string
+  /** сколько дней кассы в месяце; 0 — смены ещё не закрывали */
+  cashDays: number
+  matched: number
+  /** расходы кассы без затраты той же суммы ±1 день */
+  unmatched: CashOutflow[]
+  /** помечены «это не затрата» */
+  skipped: CashSkipped[]
+  /** затраты «из кассы» без строки в кассе */
+  cashCostsWithoutRow: { documentId: string; date: string; name: string; sum: number; category: string }[]
+}
+
+export const fetchCashCheck = async (month: number, year: number): Promise<CashCheck> => {
+  const res = await costsFetch<CashCheck>('GET', `/costs/cash-check?month=${monthKey(month, year)}`)
+  return {
+    month: res?.month ?? monthKey(month, year),
+    cashDays: Number(res?.cashDays) || 0,
+    matched: Number(res?.matched) || 0,
+    unmatched: Array.isArray(res?.unmatched) ? res.unmatched : [],
+    skipped: Array.isArray(res?.skipped) ? res.skipped : [],
+    cashCostsWithoutRow: Array.isArray(res?.cashCostsWithoutRow) ? res.cashCostsWithoutRow : [],
+  }
+}
+
+/** «Это не затрата» (изъятие, размен) — деньги не меняются, кэш месяцев не трогаем. */
+export const skipCashRow = async (key: string): Promise<void> => {
+  await costsFetch('POST', '/costs/cash-check/skips', { key })
+}
+
+export const unskipCashRow = async (skipId: string): Promise<void> => {
+  await costsFetch('DELETE', `/costs/cash-check/skips/${enc(skipId)}`)
+}
+
+/** Чеки месяца одним ZIP — fetch с Bearer → blob → скачивание файлом «doklady-ГГГГ-ММ.zip». */
+export const downloadReceiptsZip = async (month: number, year: number): Promise<void> => {
+  const key = monthKey(month, year)
+  const res = await fetch(`${API_URL}/api/engine/admin/costs/receipts?month=${key}`, {
+    headers: { Authorization: `Bearer ${getToken() || ''}` },
+    cache: 'no-store',
+  })
+  if (!res.ok) return failFrom(res)
+  const url = URL.createObjectURL(await res.blob())
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `doklady-${key}.zip`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
+/** Месяц перед `month/year` (month — 0-based). */
+export const prevMonthOf = (month: number, year: number): { month: number; year: number } =>
+  month === 0 ? { month: 11, year: year - 1 } : { month: month - 1, year }
+
+export interface CategoryCompare {
+  category: string
+  sum: number
+  prevSum: number
+  /** прошлый месяц по тот же день (только для текущего месяца), иначе null */
+  prevToDay: number | null
+}
+
+/**
+ * Сравнение по категориям: суммы с DPH этого и прошлого месяца. Для месяца, который
+ * ещё идёт (`toDay` — сегодняшнее число), прошлый месяц считается и «по то же число»,
+ * иначе неполный месяц всегда выглядел бы дешевле. Сортировка — по большей сумме.
+ */
+export const compareByCategory = (rows: CostRow[], prevRows: CostRow[], toDay: number | null): CategoryCompare[] => {
+  const by = new Map<string, CategoryCompare>()
+  const get = (c: string) => {
+    let v = by.get(c)
+    if (!v) {
+      v = { category: c, sum: 0, prevSum: 0, prevToDay: toDay === null ? null : 0 }
+      by.set(c, v)
+    }
+    return v
+  }
+  for (const r of rows) get(r.category).sum += r.sum
+  for (const r of prevRows) {
+    const v = get(r.category)
+    v.prevSum += r.sum
+    if (toDay !== null && Number(r.date.slice(8, 10)) <= toDay) v.prevToDay = (v.prevToDay ?? 0) + r.sum
+  }
+  return [...by.values()].sort(
+    (a, b) => Math.max(b.sum, b.prevSum) - Math.max(a.sum, a.prevSum) || a.category.localeCompare(b.category),
+  )
+}
 
 /**
  * Затраты месяца для прогноза (analytics/fetch/forecast.ts). Ошибка не глотается:

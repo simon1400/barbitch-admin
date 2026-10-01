@@ -7,12 +7,15 @@ import { Select } from '../dashboard/components/Select'
 import { OwnerProtection } from './components/OwnerProtection'
 import { StatSection } from './components/StatSection'
 import { ExpensesBarChart } from './components/ExpensesBarChart'
+import { CashCheck, type CashPrefill } from './expenses/CashCheck'
 import { ExpenseForm, type ExpenseFormResult } from './expenses/ExpenseForm'
 import { ExpensesTable } from './expenses/ExpensesTable'
 import { PendingRequests } from './expenses/PendingRequests'
+import { MonthCompare } from './expenses/MonthCompare'
 import { RepeatPanel } from './expenses/RepeatPanel'
 import {
   PAYMENT_ORDER,
+  downloadReceiptsZip,
   fetchCostSuggestions,
   fetchCostsMonth,
   monthKey,
@@ -34,6 +37,7 @@ const defaultDateFor = (month: number, year: number, today: string): string => {
 // «Затраты» (s236): владелец и управляющая добавляют затраты сами (раньше — только
 // панель Strapi). Правка и удаление: владелец — сразу, управляющая — запросом на
 // одобрение владельца. Страница — сборка: запросы, форма, график, таблица.
+// s238 (Фаза 3): чеки месяца одним ZIP, сверка с кассой, сравнение с прошлым месяцем.
 const ExpensesPage = () => {
   const { month, setMonth, year, setYear } = useMonthYear()
   const isOwner = getSessionRole() === 'owner'
@@ -50,6 +54,11 @@ const ExpensesPage = () => {
   // s237: только затраты без чека — видно, что приложить перед отправкой účetní
   const [noReceipt, setNoReceipt] = useState(false)
   const [repeating, setRepeating] = useState(false)
+  // s238: новая затрата из строки кассы — что подставить в форму
+  const [prefill, setPrefill] = useState<CashPrefill | null>(null)
+  const [zipping, setZipping] = useState(false)
+  // сколько раз месяц перечитан — сверка и сравнение перечитываются вместе с ним
+  const [loads, setLoads] = useState(0)
   const formRef = useRef<HTMLDivElement>(null)
   // ответ старого месяца не ложится поверх нового (быстрое листание)
   const seq = useRef(0)
@@ -62,7 +71,10 @@ const ExpensesPage = () => {
     setError(null)
     try {
       const res = await fetchCostsMonth(month, year)
-      if (my === seq.current) setData(res)
+      if (my === seq.current) {
+        setData(res)
+        setLoads((n) => n + 1)
+      }
     } catch (e) {
       if (my === seq.current) {
         setError((e as Error).message)
@@ -81,6 +93,7 @@ const ExpensesPage = () => {
   useEffect(() => {
     setFormRow(null)
     setRepeating(false)
+    setPrefill(null)
   }, [key])
 
   const loadSuggestions = useCallback(() => {
@@ -103,6 +116,7 @@ const ExpensesPage = () => {
     )
   }, [data.rows, category, search, noReceipt])
   const withoutReceipt = useMemo(() => data.rows.filter((r) => r.files.length === 0).length, [data.rows])
+  const receiptCount = useMemo(() => data.rows.reduce((n, r) => n + r.files.length, 0), [data.rows])
 
   // график — по всем строкам месяца (фильтр — кликом по столбцу)
   const chartData = useMemo(() => {
@@ -116,15 +130,31 @@ const ExpensesPage = () => {
     return [...byCat.values()]
   }, [data.rows])
 
-  const openForm = (row: CostRow | 'new') => {
+  const openForm = (row: CostRow | 'new', from: CashPrefill | null = null) => {
     setNotice(null)
     setRepeating(false)
+    // из строки кассы (или обратно к пустой) — форма заново, даже если уже открыта
+    if (row === 'new' && (from || prefill)) setFormNonce((n) => n + 1)
+    setPrefill(from)
     setFormRow(row)
     formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
   }
 
+  const downloadZip = async () => {
+    setNotice(null)
+    setZipping(true)
+    try {
+      await downloadReceiptsZip(month, year)
+    } catch (e) {
+      setNotice(`Не удалось скачать чеки: ${(e as Error).message}`)
+    } finally {
+      setZipping(false)
+    }
+  }
+
   const onDone = (r: ExpenseFormResult) => {
     setFormRow(r.kind === 'created' ? 'new' : null)
+    setPrefill(null)
     if (r.kind === 'created') setFormNonce((n) => n + 1)
     const other = (ymd: string) => !ymd.startsWith(key)
     if (r.kind === 'created') {
@@ -198,6 +228,16 @@ const ExpensesPage = () => {
           <button
             type="button"
             className={`${btnNeutralCls} ml-auto`}
+            data-action="receipts-zip"
+            disabled={zipping || receiptCount === 0}
+            title={receiptCount === 0 ? 'В этом месяце чеков нет' : 'Все чеки месяца одним архивом — для účetní'}
+            onClick={downloadZip}
+          >
+            {zipping ? 'Собираю архив…' : `Чеки ZIP${receiptCount ? ` (${receiptCount})` : ''}`}
+          </button>
+          <button
+            type="button"
+            className={btnNeutralCls}
             onClick={() => {
               setNotice(null)
               setFormRow(null)
@@ -247,8 +287,12 @@ const ExpensesPage = () => {
               suggestions={suggestions}
               monthRows={data.rows}
               defaultDate={defaultDateFor(month, year, todayYmd())}
+              prefill={editing ? null : prefill}
               onDone={onDone}
-              onCancel={() => setFormRow(null)}
+              onCancel={() => {
+                setFormRow(null)
+                setPrefill(null)
+              }}
               onFilesChanged={load}
             />
           )}
@@ -269,6 +313,23 @@ const ExpensesPage = () => {
             />
           </div>
         )}
+
+        <CashCheck
+          ym={data.month}
+          token={loads}
+          onCreateCost={(p) => openForm('new', p)}
+          onOpenCost={(id) => {
+            const row = data.rows.find((r) => r.documentId === id)
+            if (row) openForm(row)
+          }}
+        />
+
+        <MonthCompare
+          ym={data.month}
+          token={loads}
+          rows={data.rows}
+          onSelect={(c) => setCategory((cur) => (cur === c ? '' : c))}
+        />
 
         <StatSection title={'Таблица затрат'} id={'expenses'} count={visible.length} defaultOpen>
           {error && (
