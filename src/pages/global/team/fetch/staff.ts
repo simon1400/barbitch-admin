@@ -554,7 +554,7 @@ export const deleteStaffContract = (id: string, contractId: number, base: string
   staffFetch<StaffCard>('DELETE', `/staff/${enc(id)}/contracts/${contractId}?base=${enc(base)}`)
 
 export const setStaffOnboarding = (id: string, itemId: string, done: boolean) =>
-  staffFetch<StaffCard & Unchanged>('POST', `/staff/${enc(id)}/onboarding/${enc(itemId)}`, { done, base: id })
+  staffFetch<StaffCard & Unchanged>('POST', `/staff/${enc(id)}/onboarding/${enc(itemId)}`, { done })
 
 export const fetchChecklistCatalog = () => staffFetch<{ items: ChecklistCatalogItem[] }>('GET', '/staff-checklist-items')
 
