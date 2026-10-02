@@ -30,13 +30,14 @@ const MODULES: ModuleDef[] = [
   // календарь: master попадает только по кнопке (read-only своя неделя), меню у него нет
   { path: '/calendar', label: 'Календарь', roles: ['owner', 'manager', 'administrator', 'master'] },
   { path: '/global/analytics', label: 'Аналитика', roles: ['owner', 'manager'], hasTabs: true },
-  // «Výkazy» (s239) — отчёты управляющей читает только владелец
+  // «Výkazy» (s239) — отчёты управляющей читает только владелец; «Úkoly» (s240) — поручения
+  // ей ставит только владелец (свои она видит в /vykaz)
   {
     path: '/global/team',
     label: 'Команда',
     roles: ['owner', 'manager'],
     hasTabs: true,
-    tabRoles: { reports: ['owner'] },
+    tabRoles: { reports: ['owner'], tasks: ['owner'] },
   },
   // плановый график мастеров (s218): администратор видит и ПРЕДЛАГАЕТ изменения дня
   // (действуют после согласования руководства); мастер сам себе ничего не меняет

@@ -187,6 +187,68 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
     label: 'Tým: údaje smazány',
     cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
   },
+  // закрытие визита и смены (s240): раньше в журнал не попадали
+  visit_close: {
+    label: 'Návštěva uzavřena',
+    cls: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+  },
+  visit_close_edit: {
+    label: 'Návštěva: úprava',
+    cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+  },
+  visit_close_delete: {
+    label: 'Návštěva: zrušeno',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
+  shift_close: {
+    label: 'Směna uzavřena',
+    cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
+  },
+  shift_revert: {
+    label: 'Uzavření směny zrušeno',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
+  // поручения владельца (s240): только название поручения
+  task_create: {
+    label: 'Úkol: zadán',
+    cls: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300',
+  },
+  task_edit: {
+    label: 'Úkol: úprava',
+    cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+  },
+  task_progress: {
+    label: 'Úkol: průběh',
+    cls: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300',
+  },
+  task_done: {
+    label: 'Úkol: hotovo',
+    cls: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+  },
+  task_accept: {
+    label: 'Úkol: převzat',
+    cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
+  },
+  task_reopen: {
+    label: 'Úkol: vrácen',
+    cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+  },
+  task_cancel: {
+    label: 'Úkol: zrušen',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
+  task_comment: {
+    label: 'Úkol: komentář',
+    cls: 'bg-gray-100 text-gray-600 dark:bg-gray-500/20 dark:text-gray-300',
+  },
+  task_file_add: {
+    label: 'Úkol: příloha',
+    cls: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300',
+  },
+  task_file_delete: {
+    label: 'Úkol: příloha smazána',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
   // «Výkaz práce» (s239): без текста отчёта — дата, часы, число пунктов
   report_submit: {
     label: 'Výkaz: odevzdán',
@@ -316,7 +378,8 @@ const LogRow = ({
   onToggle: () => void
   confirming: boolean
   deleting: boolean
-  onAskDelete: () => void
+  // нет — крестика нет: удалять записи журнала может только владелец (s240)
+  onAskDelete?: () => void
   onCancelDelete: () => void
   onConfirmDelete: () => void
 }) => {
@@ -417,8 +480,9 @@ const LogRow = ({
         {open && <DetailBlock log={log} />}
       </button>
 
-      {/* крестик — удаление записи журнала (только владелец видит сам модал) */}
-      {!confirming && (
+      {/* крестик — удаление записи журнала: только владелец (s240 — по журналу строится
+          «Systém zaznamenal» под отчётом управляющей, сервер DELETE управляющей не пропустит) */}
+      {!confirming && onAskDelete && (
         <button
           type="button"
           onClick={onAskDelete}
@@ -469,7 +533,7 @@ type EntityTab =
   | 'staff'
   | 'cost'
 
-export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
+export const AuditLogModal = ({ onClose, canDelete = false }: { onClose: () => void; canDelete?: boolean }) => {
   const [tab, setTab] = useState<EntityTab>('all')
   const [actor, setActor] = useState('')
   const [actorQ, setActorQ] = useState('')
@@ -606,10 +670,14 @@ export const AuditLogModal = ({ onClose }: { onClose: () => void }) => {
             onToggle={() => setOpen((cur) => (cur === log.documentId ? null : log.documentId))}
             confirming={confirmId === log.documentId}
             deleting={deletingId === log.documentId}
-            onAskDelete={() => {
-              setDelError(null)
-              setConfirmId(log.documentId)
-            }}
+            onAskDelete={
+              canDelete
+                ? () => {
+                    setDelError(null)
+                    setConfirmId(log.documentId)
+                  }
+                : undefined
+            }
             onCancelDelete={() => setConfirmId(null)}
             onConfirmDelete={() =>
               handleDelete(approval ? [log.documentId, approval.documentId] : [log.documentId])

@@ -115,6 +115,8 @@ export default function TodayPage() {
   const repUnread = rep?.unread ?? []
   const repMissing = rep?.missing ?? []
   const repQuestions = rep?.questions ?? []
+  const tk = data?.tasks
+  const tkData = tk?.ok ? tk.data : null
   const repLink = (personal: string, d: string) =>
     `/global/team/reports?personal=${encodeURIComponent(personal)}&date=${d}`
 
@@ -482,6 +484,41 @@ export default function TodayPage() {
             ))}
           </TodayCard>
         )}
+
+        {/* 12. Поручения (s240): владельцу — просроченные и ждущие принятия; управляющей — свои в работе */}
+        <TodayCard
+          id="owner-tasks"
+          title={isOwner ? 'Поручения управляющей' : 'Поручения от владельца'}
+          count={tk?.ok ? (isOwner ? tkData!.overdue.length + tkData!.waiting.length : tkData!.overdue.length + tkData!.urgent.length) : null}
+          loading={first}
+          error={tk && !tk.ok ? tk.error : null}
+          okText={
+            tkData && tkData.open > 0
+              ? `Просроченных нет · в работе ${tkData.open}`
+              : isOwner
+                ? 'Нет поручений в работе и ждущих принятия'
+                : 'Поручений в работе нет'
+          }
+          link={isOwner ? { to: '/global/team/tasks', label: 'Úkoly' } : { to: '/vykaz', label: 'Výkaz práce' }}
+        >
+          {(isOwner ? [...(tkData?.waiting ?? []), ...(tkData?.overdue ?? [])] : (tkData?.next ?? [])).map((t) => (
+            <TodayRow
+              key={t.documentId}
+              to={isOwner ? `/global/team/tasks?task=${encodeURIComponent(t.documentId)}` : '/vykaz'}
+              aside={
+                <span className={`${t.status === 'done' ? badgeWarnCls : t.overdue || t.priority === 'urgent' ? badgeNegCls : badgeMutedCls} whitespace-nowrap`}>
+                  {t.status === 'done' ? 'ждёт принятия' : t.overdue ? 'просрочено' : t.priority === 'urgent' ? 'срочно' : 'в работе'}
+                </span>
+              }
+            >
+              <b className="text-ink">{t.title}</b>
+              <div className={smallCls}>
+                {t.dueDate ? `срок ${dm(t.dueDate)}` : 'без срока'}
+                {isOwner && t.personalName ? ` · ${t.personalName}` : ''}
+              </div>
+            </TodayRow>
+          ))}
+        </TodayCard>
 
         {/* 12–13. Затраты (s237): запросы управляющей — только владельцу; не внесённые постоянные — руководству */}
         {isOwner && (

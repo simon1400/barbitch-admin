@@ -40,6 +40,7 @@ const AnalyticsGlobalStatsTab = lazy(
 const TeamPage = lazy(() => import('./pages/global/team/TeamPage'))
 const TeamStaffTab = lazy(() => import('./pages/global/team/tabs/StaffTab'))
 const TeamReportsTab = lazy(() => import('./pages/global/team/tabs/ReportsTab'))
+const TeamTasksTab = lazy(() => import('./pages/global/team/tabs/TasksTab'))
 const TeamStaffCardPage = lazy(() => import('./pages/global/team/tabs/staff/StaffCardPage'))
 const TeamNewStaffPage = lazy(() => import('./pages/global/team/tabs/staff/NewStaffPage'))
 const TeamSalariesTab = lazy(() => import('./pages/global/team/tabs/SalariesTab'))
@@ -318,6 +319,7 @@ function App() {
             <Route path="staff/new" element={<TeamNewStaffPage />} />
             <Route path="staff/:docId" element={<TeamStaffCardPage />} />
             <Route path="reports" element={<TeamReportsTab />} />
+            <Route path="tasks" element={<TeamTasksTab />} />
             <Route path="salaries" element={<TeamSalariesTab />} />
             <Route path="priority" element={<TeamPriorityTab />} />
             <Route path="corrections" element={<TeamCorrectionsTab />} />

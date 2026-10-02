@@ -40,6 +40,7 @@ export const SUBNAV: SubnavDef[] = [
       { to: 'staff', label: 'Сотрудники' },
       // только владелец — tabRoles в moduleAccess.ts
       { to: 'reports', label: 'Výkazy' },
+      { to: 'tasks', label: 'Úkoly' },
       { to: 'salaries', label: 'Зарплаты' },
       { to: 'corrections', label: 'Корректировки' },
       { to: 'priority', label: 'Priorita masterů' },

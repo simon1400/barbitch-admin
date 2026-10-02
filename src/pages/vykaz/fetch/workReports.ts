@@ -6,6 +6,7 @@
 // Категории, причины volno, окно дозаполнения и пороги приходят с сервера —
 // список правится в одном месте (services/work-reports.ts).
 import { makeApiFetch } from '../../../lib/apiFetch'
+import type { OpenTask } from './tasks'
 
 export interface ReportItem {
   category: string
@@ -25,6 +26,15 @@ export interface ReportContent {
   carried: string
   needsOwner: string
   planTomorrow: string
+  /** заметки по поручениям владельца (s240); title — на момент подачи */
+  taskNotes: ReportTaskNote[]
+}
+
+export interface ReportTaskNote {
+  taskId: string
+  title: string
+  note: string
+  done: boolean
 }
 
 export interface ReportComment {
@@ -32,6 +42,15 @@ export interface ReportComment {
   authorName: string
   role: string
   text: string
+}
+
+/** «Systém zaznamenal» за день (Фаза 2, s240): что журналы записали под логином автора. */
+export interface SystemFacts {
+  total: number
+  /** первое и последнее действие, «HH:MM» по Праге */
+  first: string | null
+  last: string | null
+  groups: { key: string; label: string; count: number; actions: { key: string; label: string; count: number }[] }[]
 }
 
 export interface WorkReport extends ReportContent {
@@ -47,6 +66,8 @@ export interface WorkReport extends ReportContent {
   reviewedBy: string | null
   rating: number | null
   comments: ReportComment[]
+  /** снимок сводки на момент подачи/последней правки (`at`) — видно, если журнал потом чистили */
+  systemFacts: (SystemFacts & { at: string }) | null
   createdAt: string | null
   updatedAt: string | null
 }
@@ -80,6 +101,11 @@ export interface ReportSummary {
   hours: number
   avgRating: number | null
   unread: number
+  /** пунктов «Na čem jsem pracovala» за месяц и по категориям (по убыванию) */
+  items: number
+  categories: { key: string; label: string; count: number }[]
+  /** дней и действий в журналах за месяц; null — журналы не прочитались */
+  system: { days: number; actions: number } | null
 }
 
 export interface Labeled {
@@ -104,11 +130,15 @@ export interface ReportsMonth extends ReportsMeta {
   /** отчёты месяца и BACKFILL_DAYS до него (вчерашний план на 1-е число) */
   reports: WorkReport[]
   summary: ReportSummary
+  /** «Systém zaznamenal» по дням месяца (только дни с действиями); null — журналы не прочитались */
+  facts: Record<string, SystemFacts> | null
   timeOffs: { type: string; startDate: string; endDate: string }[]
 }
 
 export interface MyReports extends ReportsMonth {
   name: string
+  /** поручения в работе и ждущие владельца — для блока «Úkoly» формы; null — не прочитались */
+  openTasks: OpenTask[] | null
 }
 
 export interface ReportsList extends ReportsMonth {
@@ -144,6 +174,7 @@ export type ReportInput =
       carried: string
       needsOwner: string
       planTomorrow: string
+      tasks: { id: string; done: boolean; note: string }[]
     }
   | { status: 'day_off'; dayOffReason: string }
 
@@ -194,6 +225,9 @@ export const DAY_STATE_LABEL: Record<DayState, string> = {
   future: '',
   before: '',
 }
+
+/** «1 akce», «3 akce», «5 akcí». */
+export const akci = (n: number): string => `${n} ${n === 1 || (n >= 2 && n <= 4) ? 'akce' : 'akcí'}`
 
 /** «7,5 h». */
 export const fmtHours = (h: number | null | undefined): string =>

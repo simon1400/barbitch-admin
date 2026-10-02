@@ -1266,7 +1266,7 @@ export default function CalendarPage() {
         />
       )}
 
-      {showLog && <AuditLogModal onClose={() => setShowLog(false)} />}
+      {showLog && <AuditLogModal onClose={() => setShowLog(false)} canDelete={role === 'owner'} />}
 
       {orderModal && (
         <ColumnOrderModal

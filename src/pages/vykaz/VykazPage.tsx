@@ -6,6 +6,8 @@
 // Незаконченная форма живёт в черновике браузера (на телефоне легко потерять вкладку).
 // Ответ месяца проверяется по номеру запроса и по месяцу: поздний ответ другого
 // месяца/дня не ложится в форму (урок s227).
+// s240: в форме — блок «Úkoly od majitele» (ход работы / «hotovo» по поручениям — уходит в их
+// ленту), ниже дня — раздел поручений целиком (лента, вложения, «Hotovo»).
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { btnNeutralCls, btnPinkCls, cardPadCls, hintCls, iconBtnCls, inputCls, kickerCls, labelCls, pageShellCls, selectCls } from '../../ui/kit'
@@ -14,11 +16,15 @@ import { ApiError } from '../../lib/apiFetch'
 import {
   CommentThread,
   HistoryList,
+  MonthCategories,
   MonthGrid,
   Notice,
   ReportContentView,
   ReportStatusLine,
+  SystemFactsStrip,
 } from './components/ReportParts'
+import { TaskBadges } from './components/TaskParts'
+import MyTasks from './components/MyTasks'
 import {
   DAY_STATE_LABEL,
   commentMyReport,
@@ -33,6 +39,11 @@ import {
   type WorkReport,
 } from './fetch/workReports'
 
+interface TaskDraft {
+  done: boolean
+  note: string
+}
+
 interface Draft {
   hours: string
   items: ReportItem[]
@@ -40,10 +51,12 @@ interface Draft {
   carried: string
   needsOwner: string
   planTomorrow: string
+  /** заметки по поручениям: id → «hotovo» + текст (s240) */
+  tasks: Record<string, TaskDraft>
 }
 
 const EMPTY_ITEM: ReportItem = { category: 'other', text: '' }
-const emptyDraft = (): Draft => ({ hours: '', items: [{ ...EMPTY_ITEM }], done: '', carried: '', needsOwner: '', planTomorrow: '' })
+const emptyDraft = (): Draft => ({ hours: '', items: [{ ...EMPTY_ITEM }], done: '', carried: '', needsOwner: '', planTomorrow: '', tasks: {} })
 
 const fromReport = (r: WorkReport): Draft =>
   r.status === 'submitted'
@@ -54,6 +67,7 @@ const fromReport = (r: WorkReport): Draft =>
         carried: r.carried,
         needsOwner: r.needsOwner,
         planTomorrow: r.planTomorrow,
+        tasks: Object.fromEntries((r.taskNotes ?? []).map((n) => [n.taskId, { done: n.done, note: n.note }])),
       }
     : emptyDraft()
 
@@ -63,7 +77,8 @@ const readDraft = (date: string): Draft | null => {
   try {
     const raw = localStorage.getItem(DRAFT_KEY(date))
     const d = raw ? (JSON.parse(raw) as Draft) : null
-    return d && Array.isArray(d.items) ? d : null
+    // черновик до s240 — без поручений
+    return d && Array.isArray(d.items) ? { ...d, tasks: d.tasks && typeof d.tasks === 'object' ? d.tasks : {} } : null
   } catch {
     return null
   }
@@ -93,6 +108,8 @@ export default function VykazPage() {
   const [reason, setReason] = useState('')
   const [draft, setDraft] = useState<Draft>(emptyDraft)
   const [saving, setSaving] = useState(false)
+  // после подачи отчёта с заметками по поручениям раздел поручений перечитывается
+  const [tasksKey, setTasksKey] = useState(0)
   const seq = useRef(0)
   // текущие день и месяц для ответов, пришедших после смены дня (замыкание держит старые)
   const dateRef = useRef(date)
@@ -175,9 +192,16 @@ export default function VykazPage() {
     setError(null)
     setOk(null)
     try {
+      const { tasks, ...fields } = draft
       const body = dayOff
         ? ({ status: 'day_off', dayOffReason: reason } as const)
-        : ({ status: 'submitted', ...draft } as const)
+        : ({
+            status: 'submitted',
+            ...fields,
+            tasks: Object.entries(tasks)
+              .filter(([, t]) => t.done || t.note.trim())
+              .map(([id, t]) => ({ id, done: t.done, note: t.note })),
+          } as const)
       const res = await saveMyReport(forDate, body)
       writeDraft(forDate, null)
       if (forDate === dateRef.current) {
@@ -187,6 +211,7 @@ export default function VykazPage() {
         setLoading(false)
         setEditing(false)
         setOk(body.status === 'day_off' ? 'Uloženo jako nepracovní den.' : 'Výkaz odeslán. Děkujeme!')
+        if (body.status === 'submitted' && body.tasks.length) setTasksKey((k) => k + 1)
       } else {
         // пока сохранялось, выбран другой день — форму не трогаем, месяц перечитываем
         void load(monthRef.current)
@@ -258,6 +283,7 @@ export default function VykazPage() {
                   onUpdate={update}
                   onItem={setItem}
                   onInsertPlan={insertPlan}
+                  taskTitles={Object.fromEntries((report?.taskNotes ?? []).map((n) => [n.taskId, n.title]))}
                   onSave={() => void save()}
                   onCancel={() => setEditing(false)}
                 />
@@ -292,7 +318,15 @@ export default function VykazPage() {
                       : `Výkaz za tento den už nelze doplnit (nejvýš ${data.backfillDays} dní zpětně).`}
                 </div>
               )}
+
+              {data.month === date.slice(0, 7) && date >= data.since && date <= data.today && (
+                <div className="mt-4">
+                  <SystemFactsStrip key={date} byDay={data.facts} date={date} snapshot={report?.systemFacts} />
+                </div>
+              )}
             </section>
+
+            <MyTasks reloadKey={tasksKey} />
           </div>
 
           <aside className="min-w-0 order-1 md:order-2">
@@ -322,6 +356,7 @@ export default function VykazPage() {
                 </div>
               )}
             </section>
+            {data.month === month && <MonthCategories summary={data.summary} testId="vykaz-categories" />}
           </aside>
         </div>
       )}
@@ -344,6 +379,7 @@ function Form({
   onInsertPlan,
   onSave,
   onCancel,
+  taskTitles,
 }: {
   data: MyReports
   draft: Draft
@@ -359,6 +395,8 @@ function Form({
   onInsertPlan: () => void
   onSave: () => void
   onCancel: () => void
+  /** названия поручений из уже поданного отчёта (если поручение больше не в работе) */
+  taskTitles: Record<string, string>
 }) {
   const filled = draft.items.some((i) => i.text.trim()) && draft.done.trim() && draft.hours.trim()
   return (
@@ -466,6 +504,7 @@ function Form({
             hint="Majitel to uvidí hned na stránce «Сегодня»."
           />
           <Area label="Plán na zítra" value={draft.planTomorrow} onChange={(v) => onUpdate({ planTomorrow: v })} />
+          <TasksBlock data={data} draft={draft} titles={taskTitles} onUpdate={onUpdate} />
         </>
       )}
 
@@ -509,5 +548,66 @@ function Area({
       <textarea className={textAreaCls} rows={2} maxLength={2000} value={value} onChange={(e) => onChange(e.target.value)} data-testid={testId} />
       {hint && <span className={`${hintCls} block mt-1`}>{hint}</span>}
     </label>
+  )
+}
+
+/** «Úkoly od majitele» в форме: по каждому поручению — «hotovo» и/или пара слов о ходе. */
+function TasksBlock({
+  data,
+  draft,
+  titles,
+  onUpdate,
+}: {
+  data: MyReports
+  draft: Draft
+  titles: Record<string, string>
+  onUpdate: (p: Partial<Draft>) => void
+}) {
+  const open = data.openTasks ?? []
+  // поручение из уже поданного отчёта, которое больше не в работе, — тоже показать
+  const extra = Object.keys(titles)
+    .filter((id) => !open.some((t) => t.documentId === id))
+    .map((id) => ({ documentId: id, title: titles[id], dueDate: null, priority: 'normal' as const, status: 'accepted' as const, overdue: false }))
+  const list = [...open, ...extra]
+  if (!list.length) return null
+  const set = (id: string, patch: Partial<TaskDraft>) => {
+    const cur = draft.tasks[id] ?? { done: false, note: '' }
+    onUpdate({ tasks: { ...draft.tasks, [id]: { ...cur, ...patch } } })
+  }
+  return (
+    <div data-testid="report-task-block">
+      <div className={labelCls}>Úkoly od majitele</div>
+      <div className={`${hintCls} mb-2`}>Co se dnes u úkolu udělalo — zapíše se i do úkolu. «Hotovo» ho pošle majiteli k převzetí.</div>
+      <div className="flex flex-col gap-2.5">
+        {list.map((t) => {
+          const v = draft.tasks[t.documentId] ?? { done: false, note: '' }
+          return (
+            <div key={t.documentId} className="rounded-lg border border-line-soft px-3 py-2.5" data-report-task={t.documentId}>
+              <div className="flex items-start justify-between gap-2 flex-wrap">
+                <span className="text-[14px] font-bold text-ink break-words min-w-0">{t.title}</span>
+                <TaskBadges task={t} />
+              </div>
+              <textarea
+                className={`${textAreaCls} mt-2`}
+                rows={1}
+                maxLength={2000}
+                placeholder="Průběh dnes…"
+                value={v.note}
+                onChange={(e) => set(t.documentId, { note: e.target.value })}
+              />
+              {t.status === 'open' ? (
+                <label className="mt-1.5 inline-flex items-center gap-2 text-[13px] font-semibold text-ink-body cursor-pointer">
+                  <input type="checkbox" checked={v.done} onChange={(e) => set(t.documentId, { done: e.target.checked })} />
+                  Hotovo
+                </label>
+              ) : (
+                // «hotovo» уже ушло владельцу — снять его из отчёта нельзя, только написать ещё
+                v.done && <div className="mt-1.5 text-[12.5px] font-semibold text-ink-soft">Odesláno jako hotové</div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }

@@ -2,6 +2,8 @@
 //
 // Сетка дней (подан / поздно / нет / volno / отпуск), итог месяца, список отчётов:
 // раскрыть → текст, прежние версии, «Označit jako přečtené», оценка 1–5, комментарий.
+// s240: под отчётом — «Systém zaznamenal»; день без отчёта, где журналы что-то записали,
+// тоже открывается из сетки; итог месяца по категориям пунктов.
 // Ссылки с «Сегодня» приходят как ?personal=&date= — месяц и отчёт открываются сами.
 // Поздний ответ другого месяца/человека в экран не ложится (номер запроса + проверка).
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -28,13 +30,16 @@ import {
   CommentThread,
   HistoryList,
   LateBadge,
+  MonthCategories,
   MonthGrid,
   Notice,
   Rating,
   ReportContentView,
   ReportStatusLine,
+  SystemFactsStrip,
 } from '../../../vykaz/components/ReportParts'
 import {
+  DAY_STATE_LABEL,
   fetchReportsList,
   fmtHours,
   labelOf,
@@ -109,6 +114,11 @@ export default function ReportsTab() {
     : []
   const s = data?.summary
   const shown = data && data.month === month
+  // выбранный в сетке день без отчёта (журналы что-то записали) — карточка над списком
+  const bareDay =
+    shown && open && open.startsWith(data.month) && !data.reports.some((r) => r.date === open)
+      ? (data.days.find((d) => d.date === open) ?? null)
+      : null
 
   return (
     <div data-testid="reports-tab">
@@ -177,16 +187,37 @@ export default function ReportsTab() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-[320px_minmax(0,1fr)] gap-3.5 items-start">
-            <section className={cardPadCls}>
-              <MonthGrid
-                days={shown ? data.days : []}
-                selected={open}
-                onPick={(d) => setOpen(d)}
-                canPick={(d) => !!d.reportId}
-              />
-            </section>
+            <div className="min-w-0">
+              <section className={cardPadCls}>
+                <MonthGrid
+                  days={shown ? data.days : []}
+                  selected={open}
+                  onPick={(d) => setOpen(d)}
+                  canPick={(d) => !!d.reportId || !!data.facts?.[d.date]}
+                />
+              </section>
+              {shown && s && <MonthCategories summary={s} testId="reports-categories" />}
+            </div>
 
             <div className="min-w-0 flex flex-col gap-2.5" data-testid="reports-list">
+              {bareDay && (
+                <section className={`${cardPadCls} !mb-0`} data-bare-day={bareDay.date}>
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                      <div className="text-[15px] font-extrabold text-ink">
+                        {WEEKDAYS_CS[dowOfYmd(bareDay.date)]} {fmtCsDate(bareDay.date)}
+                      </div>
+                      <div className="text-[12.5px] font-semibold text-ink-soft mt-0.5">
+                        Bez výkazu{DAY_STATE_LABEL[bareDay.state] ? ` · ${DAY_STATE_LABEL[bareDay.state]}` : ''}
+                      </div>
+                    </div>
+                    <button type="button" className={iconBtnCls} onClick={() => setOpen(null)} aria-label="Zavřít">
+                      ×
+                    </button>
+                  </div>
+                  <SystemFactsStrip key={bareDay.date} byDay={data.facts} date={bareDay.date} />
+                </section>
+              )}
               {shown && monthReports.length === 0 && (
                 <div className={`${cardPadCls} ${hintCls}`}>
                   {onlyUnread ? 'Všechny výkazy měsíce jsou přečtené.' : 'Za tento měsíc zatím žádný výkaz.'}
@@ -269,6 +300,7 @@ function ReportRow({
           <ReportStatusLine report={r} />
           <ReportContentView content={r} categories={data.categories} dayOffReasons={data.dayOffReasons} />
           <HistoryList report={r} categories={data.categories} dayOffReasons={data.dayOffReasons} />
+          <SystemFactsStrip byDay={data.facts} date={r.date} snapshot={r.systemFacts} />
           <div className="flex items-center gap-3 flex-wrap">
             <button
               type="button"

@@ -23,6 +23,7 @@ import {
 import { isEnginePayrollItem } from '../../../lib/internalPayroll'
 import { gateInternalPayrolls, gateUpsellCommissions } from './shift/publishGates'
 import { korekceCarryover } from './shift/korekceCarryover'
+import { reportShiftClose } from './shift/journal'
 export { korekceCarryover } from './shift/korekceCarryover'
 import {
   COLLECTION_LABEL,
@@ -423,7 +424,7 @@ export const publishShift = async (
   // Закрытие смены изменило месячные агрегаты → сбрасываем кэш «Финансового
   // обзора»/зарплат/графиков, чтобы при следующем заходе пересчиталось свежее.
   if (published > 0) invalidateGlobalMonthData()
-
+  reportShiftClose(dateStr, published, failures.length, skipped.length) // журнал (s240)
   return { published, failures, skipped }
 }
 
