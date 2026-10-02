@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import type { UserRole } from '../types/admin'
-import { modulesForRole, type ModuleDef } from '../moduleAccess'
+import { canSeeTab, modulesForRole, type ModuleDef } from '../moduleAccess'
 import { subnavForPathname } from '../subnav'
 import { getSessionRole, logout } from '../services/auth'
 import { LogoIcon } from '../icons/Logo'
@@ -210,7 +210,7 @@ export const AdminHeader = ({ userName }: { userName: string }) => {
           className={'bg-[rgba(251,250,249,.97)] backdrop-blur-md border-b border-line-header'}
         >
           <div className={'max-w-[1024px] mx-auto px-5 flex gap-0.5 flex-wrap'}>
-            {sub.tabs.map((t) => (
+            {sub.tabs.filter((t) => canSeeTab(sub.basePath, t.to, role)).map((t) => (
               <NavLink
                 key={t.to}
                 to={`${sub.basePath}/${t.to}`}

@@ -17,15 +17,27 @@ export interface ModuleDef {
   hasTabs?: boolean
   // второстепенный модуль — в шапке уходит в дропдаун «Ещё» (если у роли модулей много)
   more?: boolean
+  // вкладки модуля с hasTabs, закрытые части его ролей: сегмент URL → кто видит
+  // (пункт саб-меню + внутристраничный гейт); вкладки вне списка — все roles модуля
+  tabRoles?: Record<string, UserRole[]>
 }
 
 const MODULES: ModuleDef[] = [
   // дашборд «что требует внимания» (s214) — первая пилюля руководства; домашняя остаётся /global
   { path: '/today', label: 'Сегодня', roles: ['owner', 'manager'] },
+  // ежедневный отчёт управляющей владельцу (s239) — на виду, не в «Ещё»; администраторам — нет
+  { path: '/vykaz', label: 'Výkaz práce', roles: ['manager'] },
   // календарь: master попадает только по кнопке (read-only своя неделя), меню у него нет
   { path: '/calendar', label: 'Календарь', roles: ['owner', 'manager', 'administrator', 'master'] },
   { path: '/global/analytics', label: 'Аналитика', roles: ['owner', 'manager'], hasTabs: true },
-  { path: '/global/team', label: 'Команда', roles: ['owner', 'manager'], hasTabs: true },
+  // «Výkazy» (s239) — отчёты управляющей читает только владелец
+  {
+    path: '/global/team',
+    label: 'Команда',
+    roles: ['owner', 'manager'],
+    hasTabs: true,
+    tabRoles: { reports: ['owner'] },
+  },
   // плановый график мастеров (s218): администратор видит и ПРЕДЛАГАЕТ изменения дня
   // (действуют после согласования руководства); мастер сам себе ничего не меняет
   { path: '/schedule', label: 'График мастеров', roles: ['owner', 'manager', 'administrator'] },
@@ -64,5 +76,11 @@ export const rolesForPathname = (pathname: string): UserRole[] => {
   const mod = MODULES.find(
     (m) => pathname === m.path || (m.hasTabs && pathname.startsWith(`${m.path}/`)),
   )
-  return mod ? mod.roles : ['owner', 'manager']
+  if (!mod) return ['owner', 'manager']
+  const tab = pathname.startsWith(`${mod.path}/`) ? pathname.slice(mod.path.length + 1).split('/')[0] : ''
+  return mod.tabRoles?.[tab] ?? mod.roles
 }
+
+// Видит ли роль вкладку модуля (саб-меню шапки)
+export const canSeeTab = (basePath: string, tab: string, role: string | null): boolean =>
+  !!role && (rolesForPathname(`${basePath}/${tab}`) as string[]).includes(role)

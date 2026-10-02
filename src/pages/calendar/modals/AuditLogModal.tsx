@@ -187,6 +187,27 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
     label: 'Tým: údaje smazány',
     cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
   },
+  // «Výkaz práce» (s239): без текста отчёта — дата, часы, число пунктов
+  report_submit: {
+    label: 'Výkaz: odevzdán',
+    cls: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+  },
+  report_edit: {
+    label: 'Výkaz: úprava',
+    cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+  },
+  report_day_off: {
+    label: 'Výkaz: volno',
+    cls: 'bg-gray-200 text-gray-600 dark:bg-[#3a3a38] dark:text-gray-300',
+  },
+  report_review: {
+    label: 'Výkaz: přečten',
+    cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
+  },
+  report_comment: {
+    label: 'Výkaz: komentář',
+    cls: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300',
+  },
 }
 
 const actionMeta = (a: string) =>

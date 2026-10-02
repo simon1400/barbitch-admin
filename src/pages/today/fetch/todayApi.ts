@@ -1,6 +1,6 @@
 // Дашборд «Сегодня» (/today, owner + manager), s214 — Фаза B плана «Управляющая».
 //
-// Собирает «что требует внимания» из ДЕВЯТИ источников. Каждый грузится сам по
+// Собирает «что требует внимания» из ДЕСЯТИ источников. Каждый грузится сам по
 // себе (allSettled): сбой одного — ошибка на своей карточке, остальные видны.
 //   • GET /engine/admin/today — незакрытые визиты, незакрытые смены, ожидающие
 //     переносы корекций, ваучеры (новая ручка: админка сама это не соберёт);
@@ -10,7 +10,10 @@
 //   • сроки документов сотрудников и стирание личных данных через 3 года (s227) —
 //     ручка карточки сотрудника `/engine/admin/staff-reminders`;
 //   • затраты (s237): запросы управляющей ждут одобрения (только владельцу) и
-//     постоянные расходы месяца, которые ещё не внесены — `/engine/admin/costs/attention`.
+//     постоянные расходы месяца, которые ещё не внесены — `/engine/admin/costs/attention`;
+//   • «Výkaz práce» (s239, только владельцу): непрочитанные отчёты управляющей, дни без
+//     отчёта, «нужно решение владельца» — `/engine/admin/work-reports/attention`.
+//     Управляющей ручка не нужна (401) — для неё источник не запрашивается вовсе.
 import { makeApiFetch } from '../../../lib/apiFetch'
 import { fetchPendingBlocks, type PendingBlock } from '../../calendar/fetch/engineApi'
 import type { PlanRequest } from '../../schedule/fetch/schedule'
@@ -25,6 +28,8 @@ import { fetchBirthdays, type Birthdays } from '../../../lib/birthdays'
 import { mondayOfYmd } from '../../../utils/date'
 import { fetchStaffReminders, type StaffReminders } from '../../global/team/fetch/staff'
 import { fetchCostsAttention, type CostsAttention } from '../../global/fetch/expenses'
+import { fetchReportsAttention, type ReportsAttention } from '../../vykaz/fetch/workReports'
+import { getSessionRole } from '../../../services/auth'
 
 export interface UnclosedVisit {
   documentId: string
@@ -105,6 +110,8 @@ export interface TodayData {
   staff: Part<StaffReminders>
   /** затраты: запросы на одобрение и не внесённые постоянные (s237) */
   costs: Part<CostsAttention>
+  /** отчёты управляющей (s239) — null, если сессия не владельца */
+  reports: Part<ReportsAttention | null>
   roster: AdminRoster
 }
 
@@ -115,7 +122,8 @@ const part = <T,>(r: PromiseSettledResult<T>): Part<T> =>
 
 export async function loadToday(date: string): Promise<TodayData> {
   const pendingRes = fetchPendingBlocks()
-  const [overview, pending, plan, upsell, day, roster, birthdays, staff, costs] = await Promise.allSettled([
+  const isOwner = getSessionRole() === 'owner'
+  const [overview, pending, plan, upsell, day, roster, birthdays, staff, costs, reports] = await Promise.allSettled([
     fetchTodayOverview(date),
     pendingRes.then((r) => r.items || []),
     pendingRes.then((r) => r.planRequests || []),
@@ -126,6 +134,7 @@ export async function loadToday(date: string): Promise<TodayData> {
     fetchBirthdays(),
     fetchStaffReminders(),
     fetchCostsAttention(),
+    isOwner ? fetchReportsAttention() : Promise.resolve(null),
   ])
   return {
     overview: part(overview),
@@ -136,6 +145,7 @@ export async function loadToday(date: string): Promise<TodayData> {
     birthdays: part(birthdays),
     staff: part(staff),
     costs: part(costs),
+    reports: part(reports),
     // график — вспомогательная инфа, fetchAdminRoster сам глотает ошибки
     roster: roster.status === 'fulfilled' ? roster.value : {},
   }

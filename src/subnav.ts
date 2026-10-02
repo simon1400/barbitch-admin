@@ -38,6 +38,8 @@ export const SUBNAV: SubnavDef[] = [
     moduleLabel: 'Команда',
     tabs: [
       { to: 'staff', label: 'Сотрудники' },
+      // только владелец — tabRoles в moduleAccess.ts
+      { to: 'reports', label: 'Výkazy' },
       { to: 'salaries', label: 'Зарплаты' },
       { to: 'corrections', label: 'Корректировки' },
       { to: 'priority', label: 'Priorita masterů' },

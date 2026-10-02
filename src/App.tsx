@@ -39,6 +39,7 @@ const AnalyticsGlobalStatsTab = lazy(
 // Unified team module — layout with URL sub-route tabs
 const TeamPage = lazy(() => import('./pages/global/team/TeamPage'))
 const TeamStaffTab = lazy(() => import('./pages/global/team/tabs/StaffTab'))
+const TeamReportsTab = lazy(() => import('./pages/global/team/tabs/ReportsTab'))
 const TeamStaffCardPage = lazy(() => import('./pages/global/team/tabs/staff/StaffCardPage'))
 const TeamNewStaffPage = lazy(() => import('./pages/global/team/tabs/staff/NewStaffPage'))
 const TeamSalariesTab = lazy(() => import('./pages/global/team/tabs/SalariesTab'))
@@ -57,6 +58,7 @@ const UpsellPage = lazy(() => import('./pages/upsell/UpsellPage'))
 const TodayPage = lazy(() => import('./pages/today/TodayPage'))
 const SchedulePage = lazy(() => import('./pages/schedule/SchedulePage'))
 const MyCardPage = lazy(() => import('./pages/me/MyCardPage'))
+const VykazPage = lazy(() => import('./pages/vykaz/VykazPage'))
 
 // Получить домашнюю страницу в зависимости от роли
 const getHomePageByRole = (role: string | null): string => {
@@ -197,6 +199,18 @@ function App() {
             }
           />
           <Route
+            path="/vykaz"
+            element={
+              <ProtectedRoute>
+                <ModuleRoute module="/vykaz">
+                  <AdminLayout>
+                    <VykazPage />
+                  </AdminLayout>
+                </ModuleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/me"
             element={
               <ProtectedRoute>
@@ -303,6 +317,7 @@ function App() {
             <Route path="staff" element={<TeamStaffTab />} />
             <Route path="staff/new" element={<TeamNewStaffPage />} />
             <Route path="staff/:docId" element={<TeamStaffCardPage />} />
+            <Route path="reports" element={<TeamReportsTab />} />
             <Route path="salaries" element={<TeamSalariesTab />} />
             <Route path="priority" element={<TeamPriorityTab />} />
             <Route path="corrections" element={<TeamCorrectionsTab />} />

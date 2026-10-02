@@ -4,7 +4,7 @@
 // дозаписи без результата, незакрытые смены, ваучеры, ожидающие переносы корекций
 // дни рождения сотрудников, сроки документов сотрудников, личные данные ушедших
 // (стирание через 3 года), затраты (запросы на одобрение, не внесённые постоянные —
-// s237) и кто сегодня работает. Каждая строка — ссылка туда, где это решается.
+// s237), отчёты управляющей (владельцу, s239) и кто сегодня работает. Каждая строка — ссылка туда, где это решается.
 // Ничего не пишет. Данные — fetch/todayApi.ts (каждый источник отдельно: сбой
 // одного не гасит остальные карточки).
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -108,6 +108,15 @@ export default function TodayPage() {
   const cp = data?.costs
   const costPending = cp?.ok ? cp.data.pending : null
   const missingCosts = cp?.ok ? cp.data.missingRecurring : []
+
+  // «Výkaz práce» (s239): непрочитанные отчёты и дни без отчёта; вопросы — отдельной карточкой
+  const rp = data?.reports
+  const rep = rp?.ok ? rp.data : null
+  const repUnread = rep?.unread ?? []
+  const repMissing = rep?.missing ?? []
+  const repQuestions = rep?.questions ?? []
+  const repLink = (personal: string, d: string) =>
+    `/global/team/reports?personal=${encodeURIComponent(personal)}&date=${d}`
 
   const dayPart = data?.day
   const working = dayPart?.ok ? summarizeDay(dayPart.data) : null
@@ -414,7 +423,67 @@ export default function TodayPage() {
           </TodayCard>
         )}
 
-        {/* 10–11. Затраты (s237): запросы управляющей — только владельцу; не внесённые постоянные — руководству */}
+        {/* 10–11. Отчёты управляющей (s239) — только владельцу */}
+        {isOwner && (
+          <TodayCard
+            id="work-reports"
+            title="Отчёты управляющей"
+            count={rp?.ok ? repUnread.length + repMissing.length : null}
+            loading={first}
+            error={rp && !rp.ok ? rp.error : null}
+            okText={
+              rep?.todayState.some((t) => t.state === 'open')
+                ? 'Все отчёты прочитаны, пропусков нет · за сегодня ещё не сдан (вовремя — до 10:00 завтра)'
+                : 'Все отчёты прочитаны, пропусков нет'
+            }
+            link={{ to: '/global/team/reports', label: 'Výkazy' }}
+          >
+            {repUnread.map((r) => (
+              <TodayRow
+                key={r.documentId}
+                to={repLink(r.personal, r.date)}
+                aside={
+                  <span className={`${r.editedAfterReview ? badgeWarnCls : badgeMutedCls} whitespace-nowrap`}>
+                    {r.editedAfterReview ? 'исправлен' : 'не прочитан'}
+                  </span>
+                }
+              >
+                <b className="text-ink">{dayLabel(r.date)}</b> · {r.name}
+                <div className={smallCls}>
+                  {r.hours == null ? '—' : `${String(r.hours).replace('.', ',')} ч`} · пунктов {r.items}
+                  {r.late === 'late' && ' · сдан поздно'}
+                </div>
+              </TodayRow>
+            ))}
+            {repMissing.map((m) => (
+              <TodayRow
+                key={`${m.personal}|${m.date}`}
+                to={repLink(m.personal, m.date)}
+                aside={<span className={`${badgeNegCls} whitespace-nowrap`}>нет отчёта</span>}
+              >
+                <b className="text-ink">{dayLabel(m.date)}</b> · {m.name}
+              </TodayRow>
+            ))}
+          </TodayCard>
+        )}
+        {isOwner && repQuestions.length > 0 && (
+          <TodayCard
+            id="work-report-questions"
+            title="Вопросы от управляющей"
+            count={repQuestions.length}
+            loading={first}
+            link={{ to: '/global/team/reports', label: 'Výkazy' }}
+          >
+            {repQuestions.map((q) => (
+              <TodayRow key={q.documentId} to={repLink(q.personal, q.date)} aside={<span className={smallCls}>{dm(q.date)}</span>}>
+                <span className="whitespace-pre-wrap">{q.text}</span>
+                <div className={smallCls}>{q.name} · ответить в отчёте</div>
+              </TodayRow>
+            ))}
+          </TodayCard>
+        )}
+
+        {/* 12–13. Затраты (s237): запросы управляющей — только владельцу; не внесённые постоянные — руководству */}
         {isOwner && (
           <TodayCard
             id="cost-requests"
