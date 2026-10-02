@@ -22,21 +22,27 @@ const rebookDiscountKc = (b: CalendarBooking): number => {
 }
 
 /**
- * Полная цена визита = та, от которой мастеру считается процент.
- *
- * ⚠️ `priceOverride` НЕ означает «цену задал админ» — этот флаг взводят и системные
- * скидки (bitchcard/дозапись), оставляя в снапшоте `services[].price` полные цены.
- * Поэтому: с override полная цена = оплачено + известные системные скидки (ручной
- * договорной прайс так и остаётся реальной ценой), без override = Σ снапшота.
- * Юниор-скидка (−20 %) в снапшоте УЖЕ учтена (`price` = юниор-цена) и салоном НЕ
- * компенсируется — это цена услуги, а не скидка клиенту.
+ * Полная цена визита = та, от которой мастеру считается процент. Одно правило с
+ * формой закрытия визита и verify-флагами (серверный `bookingPricing`):
+ *   • Σ снапшота `services[].price` ВСЕГДА (s203): системную скидку и ручное
+ *     занижение цены несёт салон. Юниор-скидка (−20 %) в снапшоте уже учтена
+ *     (`price` = юниор-цена) — это цена услуги, а не скидка клиенту;
+ *   • визит закрыт с причиной ручной цены «меньшая работа» (`priceBasis: 'paid'`,
+ *     s241) → цена брони до системных скидок;
+ *   • снапшот без цен (легаси) → оплачено + известные системные скидки;
+ *   • бесплатная коррекция (s210): 0 Kč — правило, долю мастер получает переносом
+ *     с исходного визита, а не от каталожной цены.
+ * До s241 при `priceOverride` базой была цена брони — мастеру на плитке показывалась
+ * доля от заниженной руками цены, а при закрытии визита считалась от каталожной.
  */
 export const bookingFullPrice = (b: CalendarBooking): number | null => {
   const sum = (b.services || []).reduce((acc, s) => acc + money(s?.price), 0)
   const systemKc = rebookDiscountKc(b) + Math.max(0, money(b.redemptionKc))
-  if (b.priceOverride) return b.totalPrice == null ? null : money(b.totalPrice) + systemKc
-  if (sum > 0) return sum
-  return b.totalPrice == null ? null : money(b.totalPrice) + systemKc
+  const paidBase = b.totalPrice == null ? null : money(b.totalPrice) + systemKc
+  const freeKorekce = b.korekce === true && !(money(b.totalPrice) > 0)
+  const lessWork = b.priceBasis === 'paid' && paidBase != null && paidBase < sum
+  if (sum > 0 && !freeKorekce && !lessWork) return sum
+  return paidBase
 }
 
 /** Доля мастера = процент от ПОЛНОЙ цены (скидка остаётся на салоне). */

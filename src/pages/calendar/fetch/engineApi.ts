@@ -9,6 +9,7 @@ import { Axios } from '../../../lib/api'
 import { authHeaders } from '../../../lib/authHeaders'
 import { clientSearchFilters, type ClientSearchHit } from '../../../lib/clientSearch'
 import type { BookingStatus } from '../../../lib/bookingStatus'
+import type { PriceBasis } from '../../../lib/verifyFlags'
 import type { CalendarBooking } from './calendarDay'
 import type { PlanRequest } from '../../schedule/fetch/schedule'
 
@@ -283,6 +284,8 @@ export interface VisitCheckout {
   verifyFlags: string[]
   // 💰 разница ручной цены (s203); null у записей до внедрения
   manualDeltaKc?: number | null
+  // причина ручного занижения цены (s241); null — не выбрана (старые записи) или цена не занижена
+  priceBasis?: PriceBasis | null
   // перенос доли (s210): json у записи коррекции, аккумуляторы у исходной
   korekce?: KorekceTransfer | null
   korekceStaffOutKc?: number | null
@@ -300,6 +303,11 @@ export interface VisitCheckoutHint {
   fullPrice: number
   paidExpected: number
   systemDiscountKc: number
+  // 💰 цена брони изменена руками (s203): оплата − Σ каталожных цен; < 0 занизили
+  manualDeltaKc?: number | null
+  // цена занижена руками (s241) → форма спрашивает причину; здесь база процента и
+  // доля мастера для причины «меньшая работа» (fullPrice/mustStaff выше — каталожные)
+  manualBasis?: { fullPrice: number; mustStaff: number } | null
   ratePercent: number
   mustStaff: number
   mustSalon: number
@@ -389,6 +397,8 @@ export interface VisitCheckoutInput {
   comment?: string | null
   // бесплатная коррекция (s210): «opravená část ceny» — суммы переноса считает сервер
   korekce?: { baseKc: number | string }
+  // причина ручного занижения цены (s241)
+  priceBasis?: PriceBasis
 }
 
 export const fetchVisitCheckout = (bookingDocId: string) =>

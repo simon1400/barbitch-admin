@@ -84,8 +84,8 @@ export const BookingDrawer = ({
     setRedemptionUsed(false)
   }, [b.documentId]) // eslint-disable-line react-hooks/exhaustive-deps
   const commentChanged = commentDraft.trim() !== (b.comment || '').trim()
-  // Полная цена визита и системная скидка (bitchcard / дозапись −15 %) — для строки
-  // доли мастера: он получает процент от ПОЛНОЙ цены, скидку несёт салон (s47)
+  // Полная цена визита и скидка (bitchcard / дозапись −15 % / ручное занижение) — для
+  // строки доли мастера: он получает процент от ПОЛНОЙ цены, скидку несёт салон (s47)
   const fullPrice = bookingFullPrice(b)
   const systemDiscountKc =
     fullPrice != null && b.totalPrice != null ? Math.max(0, fullPrice - b.totalPrice) : 0

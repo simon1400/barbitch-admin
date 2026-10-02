@@ -10,6 +10,7 @@ import {
   type VerifyFlag,
 } from '../../fetch/shiftClose'
 import { korekceTitle } from '../../fetch/shift/flags'
+import { PRICE_BASIS_NOTE, type PriceBasis } from '../../../../lib/verifyFlags'
 import { CheckCard } from './CheckCard'
 import { CalendarLinkChip } from './CalendarLinkChip'
 import { CommentPopover } from './CommentPopover'
@@ -181,7 +182,10 @@ const FlagChip = ({ flag, item }: { flag: VerifyFlag; item: any }) => {
   const delta = getFlagDelta(item, flag)
   const deltaStr = formatDelta(delta)
   // 🔁 (s210): вместо «±сумма» — откуда и куда ушла доля мастера
-  const title = flag === 'korekce' ? korekceTitle(item) : deltaStr ? `${meta.label} (${deltaStr})` : meta.label
+  const base = flag === 'korekce' ? korekceTitle(item) : deltaStr ? `${meta.label} (${deltaStr})` : meta.label
+  // 💰 причина ручного занижения (s241): скидка или меньшая работа
+  const note = flag === 'cena_rucne' ? PRICE_BASIS_NOTE[item?.priceBasis as PriceBasis] : undefined
+  const title = note ? `${base} — ${note}` : base
   return (
     <span
       title={title}

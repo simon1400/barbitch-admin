@@ -25,8 +25,10 @@ import {
   fetchPayableVouchers,
   fetchVisitCheckout,
 } from './fetch/engineApi'
-import { FLAG_META, type VerifyFlag, parseSaleRate } from '../../lib/verifyFlags'
+import { FLAG_META, PRICE_BASIS_NOTE, type VerifyFlag, parseSaleRate } from '../../lib/verifyFlags'
 import { KorekceCloseBlock } from './drawer/KorekceCloseBlock'
+import { PriceBasisBlock } from './drawer/PriceBasisBlock'
+import { type BasisChoice, hintForBasis } from './drawer/priceBasis'
 import { korekceMust, outSummary, parseKc, transferSummary } from './drawer/korekce'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -73,6 +75,8 @@ type FormState = {
   comment: string
   // бесплатная коррекция (s210): «opravená část ceny»
   korekceBase: string
+  // причина ручного занижения цены (s241); пусто — ещё не выбрана
+  priceBasis: BasisChoice
 }
 
 const EMPTY_FORM: FormState = {
@@ -85,6 +89,7 @@ const EMPTY_FORM: FormState = {
   voucherDocId: '',
   comment: '',
   korekceBase: '',
+  priceBasis: '',
 }
 
 const isNum = (s: string) => {
@@ -191,6 +196,8 @@ export const VisitCloseSection = ({
       voucherDocId: checkout.voucher?.documentId || '',
       comment: checkout.comment || '',
       korekceBase: checkout.korekce?.baseKc != null ? String(checkout.korekce.baseKc) : '',
+      // у записей до s241 причины нет — при правке её нужно выбрать
+      priceBasis: checkout.priceBasis || '',
     })
     setError(null)
     setEditing(true)
@@ -202,7 +209,16 @@ export const VisitCloseSection = ({
     setError(null)
   }
 
+  // Цена брони занижена руками (s241) → причина обязательна: от неё зависит база
+  // процента мастера. До выбора подсказок сумм нет — любое число было бы догадкой.
+  const needBasis = Boolean(hint?.manualBasis)
+  const basisPending = needBasis && !form.priceBasis
+
   const submit = async () => {
+    if (basisPending) {
+      setError('Vyberte důvod ruční ceny.')
+      return
+    }
     if (!isNum(form.staff) || !isNum(form.salon)) {
       setError('Vyplňte cenu mistra i zisk salonu (čísla).')
       return
@@ -236,6 +252,7 @@ export const VisitCloseSection = ({
         voucherDocId: form.voucherDocId || null,
         comment: form.comment.trim() || null,
         ...(korekceOn ? { korekce: { baseKc: form.korekceBase.trim().replace(',', '.') } } : {}),
+        ...(needBasis && form.priceBasis ? { priceBasis: form.priceBasis } : {}),
       }
       const res = editing && checkout
         ? await engineCheckoutPatch(checkout.documentId, payload)
@@ -274,14 +291,20 @@ export const VisitCloseSection = ({
 
   // Живой пересчёт подсказки: ручная скидка вычитается из ожидаемой оплаты
   // (мастер всегда получает свой процент от полной цены — скидку ест салон, s47)
-  const saleKc = hint ? hint.fullPrice * parseSaleRate(form.sale, hint.fullPrice) : 0
+  const calc = hint ? hintForBasis(hint, form.priceBasis) : null
+  const saleKc = calc ? calc.fullPrice * parseSaleRate(form.sale, calc.fullPrice) : 0
   // Интерная услуга: салон себе не берёт ничего — по ГАЛКЕ формы, а не по
   // hint.internal (админ может её снять). Коррекция (s210): доля исправителя / салон 0,
   // у исходного визита — уже с вычетом ушедшей доли.
-  const { mustStaff, mustSalon } = hint ? korekceMust(hint, form, saleKc) : { mustStaff: 0, mustSalon: 0 }
+  const { mustStaff, mustSalon } = calc ? korekceMust(calc, form, saleKc) : { mustStaff: 0, mustSalon: 0 }
+  const showMust = Boolean(hint) && !basisPending
 
   const discountParts: string[] = []
   if (hint && hint.systemDiscountKc > 0) discountParts.push(`systémová sleva −${Math.round(hint.systemDiscountKc)} Kč`)
+  // Ручная цена брони (s203) названа прямо — иначе форма писала «bez slev».
+  // У бесплатной коррекции 0 Kč — правило, а не ручная цена (как и в записи).
+  const manualKc = hint && !['ok', 'same_master'].includes(hint.korekce?.status ?? '') ? Math.round(hint.manualDeltaKc || 0) : 0
+  if (manualKc !== 0) discountParts.push(`cena změněna ručně ${manualKc > 0 ? '+' : '−'}${Math.abs(manualKc)} Kč`)
   if (saleKc > 0) discountParts.push(`ruční sleva −${Math.round(saleKc)} Kč`)
 
   if (loading) return null
@@ -338,6 +361,11 @@ export const VisitCloseSection = ({
                 </span>
               )}
             </div>
+            {checkout.priceBasis && (
+              <div className="pt-1 text-[11px] text-orange-700 dark:text-orange-300" data-basis-summary>
+                💰 Ruční cena: {PRICE_BASIS_NOTE[checkout.priceBasis]}
+              </div>
+            )}
             {checkout.korekce && (
               <div className="pt-1 text-[11px] text-rose-700 dark:text-rose-300" data-korekce-summary>
                 {transferSummary(checkout.korekce)}
@@ -428,12 +456,13 @@ export const VisitCloseSection = ({
           {hint && (!editing || checkout?.korekce) && (
             <KorekceCloseBlock hint={hint} base={form.korekceBase} onBase={(v) => set('korekceBase', v)} />
           )}
+          {hint && <PriceBasisBlock hint={hint} value={form.priceBasis} onChange={(v) => set('priceBasis', v)} />}
 
           <div className="grid grid-cols-2 gap-2">
             <div>
               <div className="mb-1 flex items-center justify-between gap-1">
                 <span className={labelTextCls}>Cena mistra *</span>
-                {hint && (
+                {hint && showMust && (
                   <span className={hintChipCls} title={`Podle ceníku · ${hint.ratePercent} % z ceny služeb`}>
                     {round2(mustStaff)}
                   </span>
@@ -444,14 +473,14 @@ export const VisitCloseSection = ({
                 inputMode="decimal"
                 value={form.staff}
                 onChange={(e) => set('staff', e.target.value)}
-                placeholder={hint ? String(round2(mustStaff)) : ''}
+                placeholder={showMust ? String(round2(mustStaff)) : ''}
                 className={inputCls}
               />
             </div>
             <div>
               <div className="mb-1 flex items-center justify-between gap-1">
                 <span className={labelTextCls}>Zisk salonu *</span>
-                {hint && (
+                {hint && showMust && (
                   <span className={hintChipCls} title="Podle ceníku · zbytek po ceně mistra a slevách">
                     {round2(mustSalon)}
                   </span>
@@ -462,7 +491,7 @@ export const VisitCloseSection = ({
                 inputMode="decimal"
                 value={form.salon}
                 onChange={(e) => set('salon', e.target.value)}
-                placeholder={hint ? String(round2(mustSalon)) : ''}
+                placeholder={showMust ? String(round2(mustSalon)) : ''}
                 className={inputCls}
               />
             </div>

@@ -114,6 +114,17 @@ export const FLAG_META: Record<VerifyFlag, FlagMeta> = {
   },
 }
 
+// s241: причина ручного ЗАНИЖЕНИЯ цены брони (service-provided.priceBasis) — её
+// выбирает админ при закрытии визита. 'catalog' (и пусто у старых записей) — скидка:
+// мастер получает процент от каталожной цены (s203); 'paid' — сделана меньшая
+// работа: процент от цены брони.
+export type PriceBasis = 'catalog' | 'paid'
+
+export const PRICE_BASIS_NOTE: Record<PriceBasis, string> = {
+  catalog: 'sleva — podíl mistra z ceníkové ceny',
+  paid: 'menší rozsah práce — podíl mistra ze zaplacené ceny',
+}
+
 // Скидка → доля 0..1 от полной цены.
 // Принимает процент («20%», «20», «0.2») или сумму в кронах («400»): процент не может
 // быть больше 100, поэтому значения >100 трактуются как кроны. 1..100 остаются
