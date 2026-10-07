@@ -15,7 +15,8 @@
 //     отчёта, «нужно решение владельца» — `/engine/admin/work-reports/attention`.
 //     Управляющей ручка не нужна (401) — для неё источник не запрашивается вовсе.
 //   • поручения владельца (s240): владельцу — просроченные и ждущие принятия, управляющей —
-//     свои в работе — `/engine/admin/tasks/attention` (одна ручка, ответ по роли сессии).
+//     свои в работе — `/engine/admin/tasks/attention` (одна ручка, ответ по роли сессии);
+//     s246: там же `forMe` (владельцу — задачи от управляющей) и `toOwner` (управляющей).
 import { makeApiFetch } from '../../../lib/apiFetch'
 import { fetchPendingBlocks, type PendingBlock } from '../../calendar/fetch/engineApi'
 import type { PlanRequest } from '../../schedule/fetch/schedule'

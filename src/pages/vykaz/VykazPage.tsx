@@ -6,9 +6,14 @@
 // Незаконченная форма живёт в черновике браузера (на телефоне легко потерять вкладку).
 // Ответ месяца проверяется по номеру запроса и по месяцу: поздний ответ другого
 // месяца/дня не ложится в форму (урок s227).
-// s240: в форме — блок «Úkoly od majitele» (ход работы / «hotovo» по поручениям — уходит в их
+// s240: в форме — блок «Moje úkoly» (до s246 «Úkoly od majitele») (ход работы / «hotovo» по поручениям — уходит в их
 // ленту), ниже дня — раздел поручений целиком (лента, вложения, «Hotovo»).
+// s245: у поручения, ждущего владельца, галочка «Hotovo» стоит и снимается — в тело уходит
+// `undone: true`, сервер возвращает поручение в работу (пока владелец не принял).
+// s247: переход из push — `?date=` (výkaz za včerejšek) выбирает день, `?task=` раскрывает задачу;
+// query читается один раз и чистится (обновление страницы не прыгает туда же). Кнопка «Upozornění».
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import { btnNeutralCls, btnPinkCls, cardPadCls, hintCls, iconBtnCls, inputCls, kickerCls, labelCls, pageShellCls, selectCls } from '../../ui/kit'
 import { WEEKDAYS_CS, dowOfYmd, fmtCsDate, todayYmd } from '../../utils/date'
@@ -25,6 +30,7 @@ import {
 } from './components/ReportParts'
 import { TaskBadges } from './components/TaskParts'
 import MyTasks from './components/MyTasks'
+import { NotificationButton } from '../calendar/NotificationButton'
 import {
   DAY_STATE_LABEL,
   commentMyReport,
@@ -42,6 +48,8 @@ import {
 interface TaskDraft {
   done: boolean
   note: string
+  /** «hotovo» снято у поручения, ждущего владельца (s245) */
+  undone?: boolean
 }
 
 interface Draft {
@@ -67,7 +75,7 @@ const fromReport = (r: WorkReport): Draft =>
         carried: r.carried,
         needsOwner: r.needsOwner,
         planTomorrow: r.planTomorrow,
-        tasks: Object.fromEntries((r.taskNotes ?? []).map((n) => [n.taskId, { done: n.done, note: n.note }])),
+        tasks: Object.fromEntries((r.taskNotes ?? []).map((n) => [n.taskId, { done: n.done, note: n.note, ...(n.undone ? { undone: true } : {}) }])),
       }
     : emptyDraft()
 
@@ -96,9 +104,24 @@ const dayTitle = (date: string) => `${WEEKDAYS_CS[dowOfYmd(date)]} ${fmtCsDate(d
 
 const textAreaCls = `${inputCls} w-full resize-y`
 
+/** Параметры перехода из push: день (не будущий) и задача. */
+const readBoot = (search: string): { date: string | null; task: string | null } => {
+  const p = new URLSearchParams(search)
+  const d = p.get('date') || ''
+  const t = p.get('task') || ''
+  return {
+    date: /^\d{4}-\d{2}-\d{2}$/.test(d) && d <= todayYmd() ? d : null,
+    task: /^[a-z0-9]{10,40}$/.test(t) ? t : null,
+  }
+}
+
 export default function VykazPage() {
-  const [date, setDate] = useState(todayYmd)
-  const [month, setMonth] = useState(() => todayYmd().slice(0, 7))
+  const navigate = useNavigate()
+  const location = useLocation()
+  const boot = useRef<ReturnType<typeof readBoot> | null>(null)
+  if (boot.current === null) boot.current = readBoot(location.search)
+  const [date, setDate] = useState(() => boot.current?.date ?? todayYmd())
+  const [month, setMonth] = useState(() => (boot.current?.date ?? todayYmd()).slice(0, 7))
   const [data, setData] = useState<MyReports | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -151,9 +174,11 @@ export default function VykazPage() {
     setDraft(readDraft(d) ?? emptyDraft())
   }, [])
 
-  // первая загрузка: черновик сегодняшнего дня
+  // первая загрузка: черновик дня (сегодня или из push); query из push — убрать из адреса
   useEffect(() => {
-    setDraft(readDraft(todayYmd()) ?? emptyDraft())
+    setDraft(readDraft(dateRef.current) ?? emptyDraft())
+    if (location.search) navigate(location.pathname, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const update = (patch: Partial<Draft>) => {
@@ -199,8 +224,8 @@ export default function VykazPage() {
             status: 'submitted',
             ...fields,
             tasks: Object.entries(tasks)
-              .filter(([, t]) => t.done || t.note.trim())
-              .map(([id, t]) => ({ id, done: t.done, note: t.note })),
+              .filter(([, t]) => t.done || t.undone || t.note.trim())
+              .map(([id, t]) => ({ id, done: t.done, note: t.note, ...(t.undone && !t.done ? { undone: true } : {}) })),
           } as const)
       const res = await saveMyReport(forDate, body)
       writeDraft(forDate, null)
@@ -245,12 +270,17 @@ export default function VykazPage() {
 
   return (
     <div className={pageShellCls} data-testid="vykaz-page">
-      <div className="mb-4">
-        <div className={kickerCls}>Pro majitele</div>
-        <h1 className="m-0 text-[24px] leading-[1.2] font-extrabold text-ink">Výkaz práce</h1>
-        <div className={`${hintCls} mt-1`}>
-          Na konci pracovního dne napište, kolik hodin jste pracovala a na čem. Včas = do 10:00 dalšího dne. Výkaz čte jen majitel.
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className={kickerCls}>Pro majitele</div>
+          <h1 className="m-0 text-[24px] leading-[1.2] font-extrabold text-ink">Výkaz práce</h1>
+          <div className={`${hintCls} mt-1`}>
+            Na konci pracovního dne napište, kolik hodin jste pracovala a na čem. Včas = do 10:00 dalšího dne. Výkaz čte jen majitel.
+            Rozepsaný výkaz zůstane uložený v tomto prohlížeči — vyplňujte průběžně, večer stiskněte Odeslat.
+          </div>
         </div>
+        {/* s247: push — nové úkoly, připomenutí výkazu, bloky ke schválení */}
+        <NotificationButton popup="down-end" menuItem className={`${btnNeutralCls} inline-flex items-center !px-3`} />
       </div>
 
       {!data ? (
@@ -326,7 +356,7 @@ export default function VykazPage() {
               )}
             </section>
 
-            <MyTasks reloadKey={tasksKey} />
+            <MyTasks reloadKey={tasksKey} focus={boot.current?.task ?? null} />
           </div>
 
           <aside className="min-w-0 order-1 md:order-2">
@@ -551,7 +581,11 @@ function Area({
   )
 }
 
-/** «Úkoly od majitele» в форме: по каждому поручению — «hotovo» и/или пара слов о ходе. */
+/**
+ * «Moje úkoly» в форме: по каждому поручению — «hotovo» и/или пара слов о ходе; у ждущего владельца —
+ * снять «hotovo» (s245). s246: и свои задачи (бейдж «můj», «hotovo» их сразу закрывает); задачи
+ * владельцу сюда не приходят (сервер, `openFor`).
+ */
 function TasksBlock({
   data,
   draft,
@@ -576,16 +610,21 @@ function TasksBlock({
   }
   return (
     <div data-testid="report-task-block">
-      <div className={labelCls}>Úkoly od majitele</div>
-      <div className={`${hintCls} mb-2`}>Co se dnes u úkolu udělalo — zapíše se i do úkolu. «Hotovo» ho pošle majiteli k převzetí.</div>
+      <div className={labelCls}>Moje úkoly</div>
+      <div className={`${hintCls} mb-2`}>
+        Co se dnes u úkolu udělalo — zapíše se i do úkolu. «Hotovo» pošle úkol od majitele k převzetí, vlastní úkol uzavře.
+      </div>
       <div className="flex flex-col gap-2.5">
         {list.map((t) => {
           const v = draft.tasks[t.documentId] ?? { done: false, note: '' }
+          // ждёт владельца: галочка стоит (из статуса), пока её не сняли в этой форме
+          const waiting = t.status === 'done'
+          const checked = waiting ? !v.undone : v.done
           return (
             <div key={t.documentId} className="rounded-lg border border-line-soft px-3 py-2.5" data-report-task={t.documentId}>
               <div className="flex items-start justify-between gap-2 flex-wrap">
                 <span className="text-[14px] font-bold text-ink break-words min-w-0">{t.title}</span>
-                <TaskBadges task={t} />
+                <TaskBadges task={t} origin={'own' in t && t.own ? 'můj' : null} />
               </div>
               <textarea
                 className={`${textAreaCls} mt-2`}
@@ -595,14 +634,28 @@ function TasksBlock({
                 value={v.note}
                 onChange={(e) => set(t.documentId, { note: e.target.value })}
               />
-              {t.status === 'open' ? (
+              {t.status === 'open' || waiting ? (
                 <label className="mt-1.5 inline-flex items-center gap-2 text-[13px] font-semibold text-ink-body cursor-pointer">
-                  <input type="checkbox" checked={v.done} onChange={(e) => set(t.documentId, { done: e.target.checked })} />
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) =>
+                      waiting
+                        ? set(t.documentId, { done: false, undone: !e.target.checked })
+                        : set(t.documentId, { done: e.target.checked, undone: false })
+                    }
+                    data-task-waiting={waiting ? '1' : undefined}
+                  />
                   Hotovo
                 </label>
               ) : (
-                // «hotovo» уже ушло владельцу — снять его из отчёта нельзя, только написать ещё
+                // поручение уже принято или отменено — отметку из отчёта не поменять, только написать ещё
                 v.done && <div className="mt-1.5 text-[12.5px] font-semibold text-ink-soft">Odesláno jako hotové</div>
+              )}
+              {waiting && (
+                <div className={`${hintCls} mt-1`}>
+                  {checked ? 'Odškrtnutím se úkol vrátí do práce (majitel ho ještě nepřevzal).' : 'Po odeslání se úkol vrátí do práce.'}
+                </div>
               )}
             </div>
           )

@@ -1,5 +1,6 @@
 // Кнопка «Upozornění» (Web Push) в тулбаре календаря. Мастер (и админ) включает
-// пуш-уведомления о бронях к нему. iOS: работает ТОЛЬКО в установленном PWA
+// пуш-уведомления о бронях к нему. s247: та же кнопка — на «Сегодня» и `/vykaz` (управляющая
+// и владелец: поручения, výkaz, блоки ke schválení); подписка одна на устройство. iOS: работает ТОЛЬКО в установленном PWA
 // (Přidat na plochu) — если открыто в обычном Safari, показываем подсказку.
 import { useEffect, useState } from 'react'
 
@@ -20,7 +21,8 @@ export function NotificationButton({
   menuItem = false,
 }: {
   className?: string
-  popup?: 'down' | 'up'
+  // down-end — под кнопкой, выровнено по правому краю (кнопка в правом углу шапки страницы)
+  popup?: 'down' | 'up' | 'down-end'
   // пункт меню «⋯» (мобила): подпись видна всегда, не только на md+
   menuItem?: boolean
 }) {
@@ -85,7 +87,7 @@ export function NotificationButton({
           />
           <div
             className={`absolute z-50 w-64 rounded-lg border border-gray-200 bg-white p-3 text-left shadow-lg ${
-              popup === 'up' ? 'bottom-full right-0 mb-1' : 'left-0 mt-1'
+              popup === 'up' ? 'bottom-full right-0 mb-1' : popup === 'down-end' ? 'right-0 mt-1' : 'left-0 mt-1'
             }`}
           >
             {hint === 'ios' ? (

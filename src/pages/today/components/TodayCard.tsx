@@ -1,10 +1,14 @@
 // Карточка дашборда «Сегодня»: заголовок + счётчик + состояние + список + ссылка.
 // Состояния: загрузка, ошибка источника (только эта карточка), «всё в порядке»
 // (зелёная точка) и «требует внимания» (янтарный счётчик).
+// s245: `hideOk` — карточка «всё в порядке» не рисуется вовсе (на «Сегодня» её название
+// уходит в строку «✓ В порядке: …»); состояние считает `cardState` (../cardState.ts) —
+// один источник правды и для карточки, и для этой строки.
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
 import { cardCls, cardTitleCls, hintCls } from '../../../ui/kit'
+import { cardState } from '../cardState'
 
 interface Props {
   id: string
@@ -15,17 +19,21 @@ interface Props {
   error?: string | null
   okText?: string
   link?: { to: string; label: string }
+  /** «всё в порядке» — не рисовать (s245) */
+  hideOk?: boolean
   children?: ReactNode
 }
 
-export function TodayCard({ id, title, count, loading, error, okText, link, children }: Props) {
-  const attention = !loading && !error && count != null && count > 0
-  const ok = !loading && !error && count === 0
+export function TodayCard({ id, title, count, loading, error, okText, link, hideOk, children }: Props) {
+  const state = cardState(count, loading, error)
+  const attention = state === 'attention'
+  const ok = state === 'ok'
+  if (ok && hideOk) return null
   return (
     <section
       data-card={id}
       data-count={loading || error ? undefined : (count ?? undefined)}
-      data-state={loading ? 'loading' : error ? 'error' : attention ? 'attention' : ok ? 'ok' : 'info'}
+      data-state={state}
       className={`${cardCls} px-5 py-4 flex flex-col gap-2.5 min-w-0 ${attention ? '!border-warn-line' : ''}`}
     >
       <div className="flex items-center gap-2">

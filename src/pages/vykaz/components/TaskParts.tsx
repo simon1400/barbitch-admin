@@ -1,6 +1,8 @@
 // Поручения владельца (s240): карточка поручения и форма. Карточку рисуют и вкладка
 // владельца «Úkoly», и страница управляющей /vykaz — одно поручение обе стороны видят
 // одинаково; кнопки — по роли (те же правила, что на сервере, `actionsFor`).
+// s246: и задачи управляющей себе/владельцу — кнопки по стороне (исполнитель/постановщик),
+// бейдж «откуда» (`originLabel`), форма управляющей — «Pro mě / Pro majitele».
 import { useRef, useState } from 'react'
 
 import {
@@ -14,6 +16,7 @@ import {
   hintCls,
   inputCls,
   labelCls,
+  pillCls,
   selectCls,
 } from '../../../ui/kit'
 import { fmtCsDate, fmtTimePrague, ymdPrague } from '../../../utils/date'
@@ -22,14 +25,20 @@ import {
   ACCEPT_TASK_FILE,
   EVENT_LABEL,
   actionsFor,
+  assigneeOf,
+  canProgress,
+  closesOnDone,
   deleteTaskFile,
   openTaskFile,
+  originLabel,
+  statusLabel,
   taskAction,
   uploadTaskFile,
   type Task,
   type TaskAction,
   type TaskInput,
   type TaskPriority,
+  type TaskSide,
   type TaskStatus,
 } from '../fetch/tasks'
 
@@ -42,20 +51,26 @@ const STATUS_CLS: Record<TaskStatus, string> = {
   cancelled: badgeMutedCls,
 }
 
-const STATUS_LABEL: Record<TaskStatus, string> = {
-  open: 'v práci',
-  done: 'hotovo — čeká na převzetí',
-  accepted: 'převzato',
-  cancelled: 'zrušeno',
-}
-
-/** Статус, срочность, срок. */
-export function TaskBadges({ task }: { task: Pick<Task, 'status' | 'priority' | 'dueDate' | 'overdue'> }) {
+/** Статус, откуда задача (s246), срочность, срок. */
+export function TaskBadges({
+  task,
+  role = 'manager',
+  origin = null,
+}: {
+  task: Pick<Task, 'status' | 'priority' | 'dueDate' | 'overdue' | 'assignee' | 'createdByRole'>
+  role?: TaskSide
+  origin?: string | null
+}) {
   return (
     <span className="inline-flex items-center gap-1.5 flex-wrap" data-testid="task-badges">
       <span className={`${STATUS_CLS[task.status]} whitespace-nowrap`} data-status={task.status}>
-        {STATUS_LABEL[task.status]}
+        {statusLabel(task, role)}
       </span>
+      {origin && (
+        <span className={`${badgeMutedCls} whitespace-nowrap`} data-origin={origin}>
+          {origin}
+        </span>
+      )}
       {task.priority === 'urgent' && <span className={`${badgeNegCls} whitespace-nowrap`}>urgentní</span>}
       {task.dueDate && (
         <span className={`${task.overdue ? badgeNegCls : badgeMutedCls} whitespace-nowrap`} data-overdue={task.overdue ? '1' : undefined}>
@@ -69,6 +84,7 @@ export function TaskBadges({ task }: { task: Pick<Task, 'status' | 'priority' | 
 
 const ACTION_LABEL: Record<TaskAction, string> = {
   done: 'Hotovo',
+  undone: 'Ještě není hotovo',
   progress: 'Zapsat průběh',
   comment: 'Komentář',
   accept: 'Převzít',
@@ -93,7 +109,7 @@ export function TaskCard({
   showAssignee,
 }: {
   task: Task
-  role: 'owner' | 'manager'
+  role: TaskSide
   open: boolean
   onToggle: () => void
   onSaved: (t: Task) => void
@@ -105,9 +121,9 @@ export function TaskCard({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const actions = actionsFor(role, task.status)
-  // ход работы — исполнителю в работе; комментарий — всегда
-  const textAction: TaskAction = role === 'manager' && task.status === 'open' ? 'progress' : 'comment'
+  const actions = actionsFor(task, role)
+  // ход работы — исполнителю-управляющей в работе; комментарий — всегда
+  const textAction: TaskAction = canProgress(task, role) ? 'progress' : 'comment'
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true)
@@ -150,18 +166,36 @@ export function TaskCard({
 
   const canRemove = (uploadedRole: string | null) => role === 'owner' || uploadedRole === role
   const closed = task.status === 'accepted' || task.status === 'cancelled'
+  const quick = closesOnDone(task)
+  const mineToDo = assigneeOf(task) === role
+  // подсказка под кнопками — по стороне задачи (s246)
+  const hint =
+    task.status === 'open' && mineToDo && role === 'manager'
+      ? quick
+        ? '«Hotovo» úkol uzavře. Průběh můžete psát i ve výkazu dne.'
+        : '«Hotovo» pošle úkol majiteli k převzetí. Průběh můžete psát i ve výkazu dne.'
+      : task.status === 'done' && actions.includes('undone')
+        ? '«Ještě není hotovo» vrátí úkol do práce — majitel ho zatím nepřevzal.'
+        : task.status === 'open' && mineToDo && role === 'owner'
+          ? '«Hotovo» úkol uzavře — manažerka uvidí, že je splněno.'
+          : task.status === 'open' && !mineToDo && quick && role === 'manager'
+            ? 'Úkol splní majitel. Zadání můžete upravit nebo úkol zrušit.'
+            : !actions.length && !mineToDo && role === 'owner' && !closed
+              ? 'Vlastní úkol manažerky — můžete jen komentovat.'
+              : null
 
   return (
     <section
-      className={`${cardPadCls} !mb-0 ${task.overdue ? '!border-neg-line' : task.status === 'done' && role === 'owner' ? '!border-warn-line' : ''}`}
+      className={`${cardPadCls} !mb-0 ${task.overdue ? '!border-neg-line' : actions.includes('accept') ? '!border-warn-line' : ''}`}
       data-task={task.documentId}
       data-task-status={task.status}
+      data-task-assignee={assigneeOf(task)}
     >
       <button type="button" className="w-full text-left flex items-start gap-3" onClick={onToggle} aria-expanded={open}>
         <span className="min-w-0 flex-1">
           <span className={`block text-[15px] font-extrabold ${closed ? 'text-ink-soft' : 'text-ink'} break-words`}>{task.title}</span>
           <span className="block mt-1">
-            <TaskBadges task={task} />
+            <TaskBadges task={task} role={role} origin={originLabel(task, role)} />
           </span>
           {showAssignee && task.personalName && (
             <span className="block text-[12px] font-semibold text-ink-faint mt-1">{task.personalName}</span>
@@ -260,9 +294,11 @@ export function TaskCard({
               placeholder={
                 textAction === 'progress'
                   ? 'Jak to jde? Co je hotovo, co zbývá… (u «Hotovo» volitelné)'
-                  : role === 'owner' && task.status === 'done'
+                  : actions.includes('accept')
                     ? 'Komentář (u «Vrátit do práce» napište, co chybí)…'
-                    : 'Komentář…'
+                    : actions.includes('undone')
+                      ? 'Komentář (u «Ještě není hotovo» napište, co chybí — volitelné)…'
+                      : 'Komentář…'
               }
               rows={2}
               maxLength={2000}
@@ -297,9 +333,7 @@ export function TaskCard({
                 </button>
               )}
             </div>
-            {role === 'manager' && task.status === 'open' && (
-              <div className={hintCls}>«Hotovo» pošle úkol majiteli k převzetí. Průběh můžete psát i ve výkazu dne.</div>
-            )}
+            {hint && <div className={hintCls}>{hint}</div>}
           </div>
         </div>
       )}
@@ -307,7 +341,10 @@ export function TaskCard({
   )
 }
 
-/** Форма владельца: новое поручение или правка. */
+/**
+ * Форма задачи: новое или правка. `mode` — кто ставит: владелец выбирает управляющую («Komu»),
+ * управляющая (s246) — «Pro mě / Pro majitele» (карточку сервер берёт из сессии).
+ */
 export function TaskForm({
   initial,
   people,
@@ -317,8 +354,10 @@ export function TaskForm({
   onSubmit,
   onCancel,
   submitLabel,
+  mode = 'owner',
 }: {
   initial?: Partial<Task>
+  mode?: TaskSide
   people: { documentId: string; name: string; isActive: boolean }[]
   priorities: { key: string; label: string }[]
   today: string
@@ -333,9 +372,25 @@ export function TaskForm({
   const [dueDate, setDueDate] = useState(initial?.dueDate ?? '')
   const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? 'normal')
   const [personal, setPersonal] = useState(initial?.personal ?? (active.length === 1 ? active[0].documentId : ''))
+  const [assignee, setAssignee] = useState<TaskSide>('manager')
   const editing = !!initial?.documentId
+  const asManager = mode === 'manager'
   return (
     <div className="flex flex-col gap-3" data-testid="task-form">
+      {asManager && !editing && (
+        <div className="flex gap-1.5" role="group" aria-label="Pro koho" data-testid="task-assignee">
+          {(
+            [
+              ['manager', 'Pro mě'],
+              ['owner', 'Pro majitele'],
+            ] as const
+          ).map(([key, label]) => (
+            <button key={key} type="button" className={pillCls(assignee === key)} aria-pressed={assignee === key} onClick={() => setAssignee(key)} data-assignee={key}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       <label className="block">
         <span className={labelCls}>Co je potřeba udělat *</span>
         <input className={`${inputCls} w-full`} maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} data-testid="task-title" />
@@ -352,7 +407,7 @@ export function TaskForm({
         />
       </label>
       <div className="flex gap-3 flex-wrap">
-        {!editing && active.length > 1 && (
+        {!editing && !asManager && active.length > 1 && (
           <label className="block">
             <span className={labelCls}>Komu *</span>
             <select className={selectCls} value={personal} onChange={(e) => setPersonal(e.target.value)} data-testid="task-personal">
@@ -391,10 +446,10 @@ export function TaskForm({
         <button
           type="button"
           className={btnPinkCls}
-          disabled={busy || !title.trim() || (!editing && !personal)}
+          disabled={busy || !title.trim() || (!editing && !asManager && !personal)}
           onClick={() =>
             onSubmit({
-              ...(editing ? {} : { personal }),
+              ...(editing ? {} : asManager ? { assignee } : { personal }),
               title: title.trim(),
               description,
               dueDate: dueDate || null,

@@ -217,12 +217,13 @@ export function ReportContentView({
       <Block label="Plán na zítra" text={content.planTomorrow} />
       {(content.taskNotes ?? []).length > 0 && (
         <div data-testid="report-tasks">
-          <div className={labelCls}>Úkoly od majitele</div>
+          <div className={labelCls}>Úkoly</div>
           <ul className="m-0 p-0 list-none flex flex-col gap-1.5">
             {content.taskNotes.map((n) => (
               <li key={n.taskId} className="text-[14px] font-semibold text-ink-body" data-task-note={n.taskId}>
                 <b className="text-ink">{n.title}</b>
                 {n.done && <span className={`${badgePosCls} ml-1.5 whitespace-nowrap`}>hotovo</span>}
+                {n.undone && <span className={`${badgeWarnCls} ml-1.5 whitespace-nowrap`}>ještě není hotovo</span>}
                 {n.note && <span className="block whitespace-pre-wrap break-words">{n.note}</span>}
               </li>
             ))}

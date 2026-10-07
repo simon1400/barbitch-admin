@@ -6,6 +6,9 @@
 // noshow тоже занимал время) / рабочее время. Интерная бронь время мастера не
 // занимает (s204) — в загрузку не идёт, но в счётчике визитов видна отдельно.
 // Колонки «бывших мастеров» (orphan:) в список не попадают.
+// s245: три интервала дня (как в дайджесте): салон (окно дня), «открыто для записи»
+// (окно минус действующие блоки — от самого раннего до самого позднего свободного куска
+// по всем мастерам) и «фактически» (первая–последняя клиентская бронь, окном не режется).
 import { isActiveStatus } from '../../../lib/bookingStatus'
 import { isoToMinPrague } from '../../../utils/date'
 import { isInternalBooking, type CalendarDay } from '../../calendar/fetch/calendarDay'
@@ -27,14 +30,23 @@ export interface MasterToday {
   lastMin: number | null
 }
 
+export interface DayExtents {
+  salon: Iv | null
+  /** от первого до последнего свободного куска по всем мастерам; null — записаться не к кому */
+  open: Iv | null
+  /** первая–последняя клиентская бронь; null — броней нет */
+  actual: Iv | null
+}
+
 export interface WorkingToday {
   masters: MasterToday[]
   bookedMin: number
   availableMin: number
   loadPct: number | null
+  extents: DayExtents
 }
 
-type Iv = [number, number]
+export type Iv = [number, number]
 
 /** Объединение интервалов, обрезанных окном [lo, hi]. */
 export const unionClipped = (ivs: Iv[], lo: number, hi: number): Iv[] => {
@@ -63,9 +75,32 @@ const minusLen = (a: Iv[], b: Iv[]): number => {
 const pct = (booked: number, available: number): number | null =>
   available > 0 ? Math.round((booked / available) * 100) : null
 
+/** Окно [lo, hi] минус уже объединённые интервалы → свободные куски. */
+const freeIn = (lo: number, hi: number, busy: Iv[]): Iv[] => {
+  const out: Iv[] = []
+  let cursor = lo
+  for (const [s, e] of busy) {
+    if (s > cursor) out.push([cursor, Math.min(s, hi)])
+    cursor = Math.max(cursor, e)
+    if (cursor >= hi) break
+  }
+  if (cursor < hi) out.push([cursor, hi])
+  return out
+}
+
+const extent = (ivs: Iv[]): Iv | null => (ivs.length ? [Math.min(...ivs.map((i) => i[0])), Math.max(...ivs.map((i) => i[1]))] : null)
+
+/** Три интервала дня по уже посчитанным мастерам и их свободным кускам. */
+export const dayExtents = (openMin: number, closeMin: number, free: Iv[], masters: Pick<MasterToday, 'firstMin' | 'lastMin'>[]): DayExtents => {
+  const booked: Iv[] = []
+  for (const m of masters) if (m.firstMin != null && m.lastMin != null && m.lastMin > m.firstMin) booked.push([m.firstMin, m.lastMin])
+  return { salon: closeMin > openMin ? [openMin, closeMin] : null, open: closeMin > openMin ? extent(free) : null, actual: extent(booked) }
+}
+
 export function summarizeDay(day: CalendarDay): WorkingToday {
   const { openMin, closeMin } = day
   const masters: MasterToday[] = []
+  const free: Iv[] = []
   for (const col of day.columns) {
     if (col.id.startsWith('orphan:')) continue
     const blocks = unionClipped(
@@ -74,6 +109,7 @@ export function summarizeDay(day: CalendarDay): WorkingToday {
       closeMin,
     )
     const availableMin = closeMin - openMin - total(blocks)
+    free.push(...freeIn(openMin, closeMin, blocks))
     const live = col.bookings.filter((b) => isActiveStatus(b.status))
     const client = live.filter((b) => !isInternalBooking(b))
     const ivs: Iv[] = []
@@ -101,5 +137,5 @@ export function summarizeDay(day: CalendarDay): WorkingToday {
   const working = masters.filter((m) => !m.off)
   const bookedMin = working.reduce((s, m) => s + m.bookedMin, 0)
   const availableMin = working.reduce((s, m) => s + Math.max(0, m.availableMin), 0)
-  return { masters, bookedMin, availableMin, loadPct: pct(bookedMin, availableMin) }
+  return { masters, bookedMin, availableMin, loadPct: pct(bookedMin, availableMin), extents: dayExtents(openMin, closeMin, free, masters) }
 }

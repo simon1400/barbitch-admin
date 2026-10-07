@@ -225,6 +225,10 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
     label: 'Úkol: hotovo',
     cls: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
   },
+  task_undone: {
+    label: 'Úkol: ještě není hotovo',
+    cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+  },
   task_accept: {
     label: 'Úkol: převzat',
     cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',

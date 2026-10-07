@@ -7,6 +7,11 @@
 // s237), отчёты управляющей (владельцу, s239) и кто сегодня работает. Каждая строка — ссылка туда, где это решается.
 // Ничего не пишет. Данные — fetch/todayApi.ts (каждый источник отдельно: сбой
 // одного не гасит остальные карточки).
+// s245 (запрос управляющей): одна колонка по важности, карточки «всё в порядке» скрыты —
+// их названия строкой «✓ В порядке» внизу; в «Кто сегодня работает» — салон / открыто для
+// записи / фактически (те же интервалы, что в дайджесте).
+// s246: владельцу — карточка «Задачи от управляющей» (после «Поручений управляющей»);
+// у управляющей «Поручения от владельца» → «Мои задачи» (+ строка «задачи владельцу: ждут …»).
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
@@ -14,6 +19,7 @@ import {
   badgeNegCls,
   badgePosCls,
   badgeWarnCls,
+  btnNeutralCls,
   h1Cls,
   hintCls,
   iconBtnCls,
@@ -26,9 +32,11 @@ import { getSessionRole } from '../../services/auth'
 import { BirthdaysCardView } from '../../components/BirthdaysCard'
 import { CONTRACT_LABEL, DOC_KIND_LABEL } from '../global/team/fetch/staff'
 import { RefreshIcon } from '../upsell/components/icons'
+import { NotificationButton } from '../calendar/NotificationButton'
+import { cardState } from './cardState'
 import { TodayCard, TodayRow } from './components/TodayCard'
 import { loadToday, type TodayData } from './fetch/todayApi'
-import { summarizeDay } from './fetch/workingToday'
+import { summarizeDay, type Iv } from './fetch/workingToday'
 
 /** Автообновление, пока вкладка видна. */
 const POLL_MS = 120_000
@@ -39,6 +47,15 @@ const calLink = (date: string | null | undefined, highlight?: string | null): st
   `/calendar?date=${date || ''}${highlight ? `&highlight=${highlight}` : ''}`
 
 const smallCls = 'text-[11.5px] font-semibold text-ink-faint'
+const ivText = (iv: Iv | null): string => (iv ? `${minToHHMM(iv[0])}–${minToHHMM(iv[1])}` : '—')
+
+/** Карточка для строки «В порядке»: то же, что уходит в TodayCard; `show: false` — карточка этой роли не рисуется. */
+interface CardDef {
+  title: string
+  count: number | null
+  error?: string | null
+  show?: boolean
+}
 const staffLink = (personal: string): string => `/global/team/staff/${encodeURIComponent(personal)}`
 /** «просрочен 5 дн.» / «сегодня последний день» / «через 12 дн.» */
 const daysLeftText = (n: number): string =>
@@ -117,12 +134,43 @@ export default function TodayPage() {
   const repQuestions = rep?.questions ?? []
   const tk = data?.tasks
   const tkData = tk?.ok ? tk.data : null
+  // s246: владельцу — задачи от управляющей ему; управляющей — сколько её задач ждут владельца
+  const forMe = tkData?.forMe ?? null
+  const toOwner = tkData?.toOwner ?? null
   const repLink = (personal: string, d: string) =>
     `/global/team/reports?personal=${encodeURIComponent(personal)}&date=${d}`
 
   const dayPart = data?.day
   const working = dayPart?.ok ? summarizeDay(dayPart.data) : null
   const onDuty = data?.roster[date] || null
+
+  // s245 (запрос управляющей): карточки «всё в порядке» не рисуются — их названия внизу одной
+  // строкой; состояние считает `cardState` (тот же, что в карточке). Порядок — по важности:
+  // блоки → смены → ваучеры → документы → поручения → дни рождения → кто работает → остальное.
+  const defs = {
+    blocks: { title: 'Блоки ke schválení', count: pb?.ok ? blocksCount : null, error: pb && !pb.ok ? pb.error : null },
+    shifts: { title: 'Незакрытые смены', count: o ? shifts.length : null, error: overviewErr },
+    // ваучеры: оплаченных нет → «в порядке», даже если есть неоплаченные заказы (это подсказка, не действие)
+    vouchers: { title: 'Ваучеры', count: o ? paid.length : null, error: overviewErr },
+    'staff-docs': { title: 'Документы и договоры — сроки', count: sr?.ok ? staffDocs.length + staffContracts.length : null, error: sr && !sr.ok ? sr.error : null },
+    'owner-tasks': {
+      title: isOwner ? 'Поручения управляющей' : 'Мои задачи',
+      count: tk?.ok ? (isOwner ? tkData!.overdue.length + tkData!.waiting.length : tkData!.overdue.length + tkData!.urgent.length) : null,
+      error: tk && !tk.ok ? tk.error : null,
+    },
+    // s246: задачи, которые управляющая поставила владельцу, — все в работе
+    'tasks-for-me': { title: 'Задачи от управляющей', count: tk?.ok ? (forMe?.open ?? 0) : null, error: tk && !tk.ok ? tk.error : null, show: isOwner },
+    visits: { title: 'Незакрытые визиты', count: o ? visits.length : null, error: overviewErr },
+    upsell: { title: 'Дозаписи без результата', count: up?.ok ? needResult.length : null, error: up && !up.ok ? up.error : null },
+    korekce: { title: 'Korekce — перенос доли ждёт', count: o ? korekce.length : null, error: overviewErr },
+    'work-reports': { title: 'Отчёты управляющей', count: rp?.ok ? repUnread.length + repMissing.length : null, error: rp && !rp.ok ? rp.error : null, show: isOwner },
+    'cost-requests': { title: 'Затраты ждут одобрения', count: cp?.ok ? (costPending ?? 0) : null, error: cp && !cp.ok ? cp.error : null, show: isOwner },
+    'costs-missing': { title: 'Постоянные расходы не внесены', count: cp?.ok ? missingCosts.length : null, error: cp && !cp.ok ? cp.error : null },
+  } satisfies Record<string, CardDef>
+  const ORDER: (keyof typeof defs)[] = ['blocks', 'shifts', 'vouchers', 'staff-docs', 'owner-tasks', 'tasks-for-me', 'visits', 'upsell', 'korekce', 'work-reports', 'cost-requests', 'costs-missing']
+  const okTitles = ORDER.map((id): CardDef => defs[id])
+    .filter((d) => d.show !== false && cardState(d.count, first, d.error) === 'ok')
+    .map((d) => d.title)
 
   return (
     <div className={pageShellCls}>
@@ -134,6 +182,8 @@ export default function TodayPage() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          {/* s247: push владельцу и управляющей (výkaz, поручения, блоки) — подписка этого устройства */}
+          <NotificationButton popup="down-end" menuItem className={`${btnNeutralCls} inline-flex items-center !px-3`} />
           {updatedAt && (
             <span className={smallCls} data-updated>
               обновлено {fmtTimePrague(new Date(updatedAt).toISOString())}
@@ -152,50 +202,13 @@ export default function TodayPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-        {/* 1. Визиты без записи об услуге */}
-        <TodayCard
-          id="visits"
-          title="Незакрытые визиты"
-          count={o ? visits.length : null}
-          loading={first}
-          error={overviewErr}
-          okText="Все прошедшие визиты за неделю закрыты"
-          link={{ to: '/calendar', label: 'Календарь' }}
-        >
-          {visits.map((v) => (
-            <TodayRow
-              key={v.documentId}
-              to={calLink(v.date, v.documentId)}
-              aside={
-                v.reason === 'checked_out_no_record' ? (
-                  <span className={`${badgeNegCls} whitespace-nowrap`}>закрыт без записи</span>
-                ) : v.arrived ? (
-                  <span className={`${badgeWarnCls} whitespace-nowrap`}>не закрыт</span>
-                ) : (
-                  <span className={`${badgeWarnCls} whitespace-nowrap`}>не отмечен приход</span>
-                )
-              }
-            >
-              <b className="text-ink">{v.client || 'Без имени'}</b>
-              {v.internal && ' 🤝'}
-              {v.korekce && ' 🔁'}
-              <div className={smallCls}>
-                {v.date !== date ? `${dayLabel(v.date)} · ` : ''}
-                {fmtTimePrague(v.startsAt)} · {v.master}
-                {v.services.length > 0 && ` · ${v.services.join(', ')}`}
-              </div>
-            </TodayRow>
-          ))}
-        </TodayCard>
-
-        {/* 2. Блоки на согласование */}
+      <div className="flex flex-col gap-3.5" data-today-cards>
+        {/* 1. Блоки на согласование */}
         <TodayCard
           id="blocks"
-          title="Блоки ke schválení"
-          count={pb?.ok ? blocksCount : null}
+          {...defs.blocks}
           loading={first}
-          error={pb && !pb.ok ? pb.error : null}
+          hideOk
           okText="Нет блоков, ждущих согласования"
           link={{ to: `/calendar?date=${blockGroups[0]?.date || date}&pending=1`, label: 'Согласовать в календаре' }}
         >
@@ -230,45 +243,12 @@ export default function TodayPage() {
           ))}
         </TodayCard>
 
-        {/* 3. Дозаписи без результата */}
-        <TodayCard
-          id="upsell"
-          title="Дозаписи без результата"
-          count={up?.ok ? needResult.length : null}
-          loading={first}
-          error={up && !up.ok ? up.error : null}
-          okText={
-            upsellClients.length
-              ? `У всех пришедших клиентов результат отмечен (клиентов дня: ${upsellClients.length})`
-              : 'Сегодня клиентов нет'
-          }
-          link={{ to: '/upsell', label: 'Дозаписи' }}
-        >
-          {needResult.map((c) => (
-            <TodayRow
-              key={c.clientDocId}
-              to="/upsell"
-              aside={
-                <span className={`${c.left ? badgeMutedCls : badgePosCls} whitespace-nowrap`}>
-                  {c.left ? 'ушла' : 'в салоне'}
-                </span>
-              }
-            >
-              <b className="text-ink">{c.clientName}</b>
-              <div className={smallCls}>
-                {c.bookings.map((b) => `${b.time} ${b.employeeName}`).join(' · ')}
-              </div>
-            </TodayRow>
-          ))}
-        </TodayCard>
-
-        {/* 4. Незакрытые смены */}
+        {/* 2. Незакрытые смены */}
         <TodayCard
           id="shifts"
-          title="Незакрытые смены"
-          count={o ? shifts.length : null}
+          {...defs.shifts}
           loading={first}
-          error={overviewErr}
+          hideOk
           okText="Все смены за две недели закрыты"
           link={{ to: '/global/shift-close', label: 'Uzavření směny' }}
         >
@@ -284,41 +264,13 @@ export default function TodayPage() {
           ))}
         </TodayCard>
 
-        {/* 5. Ожидающие переносы корекций */}
-        <TodayCard
-          id="korekce"
-          title="Korekce — перенос доли ждёт"
-          count={o ? korekce.length : null}
-          loading={first}
-          error={overviewErr}
-          okText="Нет корекций, ждущих закрытия исходного визита"
-        >
-          {korekce.map((k) => (
-            <TodayRow
-              key={k.spDocId}
-              to={calLink(k.originalDate, k.originalBookingDocId)}
-              aside={<span className={smallCls}>−{kc(k.staffOutKc)}</span>}
-            >
-              <b className="text-ink">{k.clientName}</b>
-              <div className={smallCls}>
-                закрыть визит {dayLabel(k.originalDate)} у {k.originalMaster} · korekce {dm(k.korekceDate)} у {k.master}
-              </div>
-            </TodayRow>
-          ))}
-        </TodayCard>
-
-        {/* 6. Ваучеры */}
+        {/* 3. Ваучеры */}
         <TodayCard
           id="vouchers"
-          title="Ваучеры"
-          count={o ? paid.length : null}
+          {...defs.vouchers}
           loading={first}
-          error={overviewErr}
-          okText={
-            unpaid.length
-              ? `Новых оплат за неделю нет · не оплачено заказов за 30 дней: ${unpaid.length}`
-              : 'Новых оплат за неделю нет'
-          }
+          hideOk
+          okText="Новых оплат за неделю нет"
           link={{ to: '/voucher-confirmation', label: 'Potvrzení voucheru' }}
         >
           <div className={smallCls}>Оплачены за 7 дней — проверьте, что potvrzení отправлено:</div>
@@ -334,20 +286,12 @@ export default function TodayPage() {
           {unpaid.length > 0 && <div className={hintCls}>Не оплачено заказов за 30 дней: {unpaid.length}</div>}
         </TodayCard>
 
-        {/* 7. Дни рождения сотрудников — ближайшие 30 дней */}
-        <BirthdaysCardView
-          data={bd?.ok ? bd.data : null}
-          loading={first}
-          error={bd && !bd.ok ? bd.error : null}
-        />
-
-        {/* 8. Сроки документов (s227) и договоров (фаза 2) работающих сотрудников */}
+        {/* 4. Сроки документов (s227) и договоров (фаза 2) работающих сотрудников */}
         <TodayCard
           id="staff-docs"
-          title="Документы и договоры — сроки"
-          count={sr?.ok ? staffDocs.length + staffContracts.length : null}
+          {...defs['staff-docs']}
           loading={first}
-          error={sr && !sr.ok ? sr.error : null}
+          hideOk
           okText={`Ни у кого из работающих срок документов и договоров не кончается в ближайшие ${sr?.ok ? sr.data.horizonDays : 30} дней`}
           link={{ to: '/global/team/staff', label: 'Сотрудники' }}
         >
@@ -391,7 +335,235 @@ export default function TodayPage() {
           ))}
         </TodayCard>
 
-        {/* 9. Личные данные ушедших: стирание через 3 года (§8.2) — только когда есть что делать */}
+        {/* 5. Поручения (s240): владельцу — просроченные и ждущие принятия; управляющей — свои в работе */}
+        <TodayCard
+          id="owner-tasks"
+          {...defs['owner-tasks']}
+          loading={first}
+          hideOk
+          okText={
+            tkData && tkData.open > 0
+              ? `Просроченных нет · в работе ${tkData.open}`
+              : isOwner
+                ? 'Нет поручений в работе и ждущих принятия'
+                : 'Задач в работе нет'
+          }
+          link={isOwner ? { to: '/global/team/tasks', label: 'Úkoly' } : { to: '/vykaz', label: 'Výkaz práce' }}
+        >
+          {(isOwner ? [...(tkData?.waiting ?? []), ...(tkData?.overdue ?? [])] : (tkData?.next ?? [])).map((t) => (
+            <TodayRow
+              key={t.documentId}
+              to={isOwner ? `/global/team/tasks?task=${encodeURIComponent(t.documentId)}` : '/vykaz'}
+              aside={
+                <span className={`${t.status === 'done' ? badgeWarnCls : t.overdue || t.priority === 'urgent' ? badgeNegCls : badgeMutedCls} whitespace-nowrap`}>
+                  {t.status === 'done' ? 'ждёт принятия' : t.overdue ? 'просрочено' : t.priority === 'urgent' ? 'срочно' : 'в работе'}
+                </span>
+              }
+            >
+              <b className="text-ink">{t.title}</b>
+              <div className={smallCls}>
+                {t.dueDate ? `срок ${dm(t.dueDate)}` : 'без срока'}
+                {isOwner && t.personalName ? ` · ${t.personalName}` : ''}
+              </div>
+            </TodayRow>
+          ))}
+          {!isOwner && toOwner && (toOwner.open > 0 || toOwner.done > 0) && (
+            <div className={`${smallCls} mt-1`} data-to-owner={`${toOwner.open}|${toOwner.done}`}>
+              Задачи владельцу: ждут — {toOwner.open}
+              {toOwner.done > 0 ? ` · выполнено за неделю — ${toOwner.done}` : ''}
+            </div>
+          )}
+        </TodayCard>
+
+        {/* 5а. Задачи от управляющей владельцу (s246) — только владельцу */}
+        {isOwner && (
+          <TodayCard
+            id="tasks-for-me"
+            {...defs['tasks-for-me']}
+            loading={first}
+            hideOk
+            okText="Задач от управляющей нет"
+            link={{ to: '/global/team/tasks', label: 'Úkoly' }}
+          >
+            {(forMe?.list ?? []).map((t) => (
+              <TodayRow
+                key={t.documentId}
+                to={`/global/team/tasks?task=${encodeURIComponent(t.documentId)}`}
+                aside={
+                  <span className={`${t.overdue || t.priority === 'urgent' ? badgeNegCls : badgeMutedCls} whitespace-nowrap`}>
+                    {t.overdue ? 'просрочено' : t.priority === 'urgent' ? 'срочно' : 'в работе'}
+                  </span>
+                }
+              >
+                <b className="text-ink">{t.title}</b>
+                <div className={smallCls}>
+                  {t.dueDate ? `срок ${dm(t.dueDate)}` : 'без срока'}
+                  {t.personalName ? ` · от ${t.personalName}` : ''}
+                </div>
+              </TodayRow>
+            ))}
+          </TodayCard>
+        )}
+
+        {/* 6. Дни рождения сотрудников — ближайшие 30 дней, всегда (§0.3) */}
+        <BirthdaysCardView
+          data={bd?.ok ? bd.data : null}
+          loading={first}
+          error={bd && !bd.ok ? bd.error : null}
+        />
+
+        {/* 7. Кто сегодня работает — с тремя интервалами дня (s245) */}
+        <TodayCard
+          id="working"
+          title="Кто сегодня работает"
+          count={null}
+          loading={first}
+          error={dayPart && !dayPart.ok ? dayPart.error : null}
+          link={{ to: '/calendar', label: 'Календарь' }}
+        >
+          <div className="flex items-center gap-4 flex-wrap text-[13px] font-semibold text-ink-body">
+            <span data-on-duty={onDuty || ''}>
+              Администратор: <b className="text-ink">{onDuty || 'в графике не указан'}</b>
+            </span>
+            {working && (
+              <span data-salon-load={working.loadPct ?? ''}>
+                Загрузка салона: <b className="text-ink">{working.loadPct == null ? '—' : `${working.loadPct} %`}</b>
+              </span>
+            )}
+          </div>
+          {working && (
+            <div
+              className="text-[13px] font-semibold text-ink-body"
+              data-day-extents={[working.extents.salon, working.extents.open, working.extents.actual].map(ivText).join('|')}
+            >
+              Салон <b className="text-ink">{ivText(working.extents.salon)}</b> · открыто для записи{' '}
+              <b className="text-ink">{ivText(working.extents.open)}</b> · фактически <b className="text-ink">{ivText(working.extents.actual)}</b>
+            </div>
+          )}
+          {working?.masters
+            .slice()
+            .sort((a, b) => Number(a.off) - Number(b.off) || (a.firstMin ?? 1e9) - (b.firstMin ?? 1e9))
+            .map((m) => (
+              <TodayRow
+                key={m.id}
+                aside={
+                  m.off ? (
+                    <span className={`${badgeMutedCls} whitespace-nowrap`}>не работает</span>
+                  ) : (
+                    <span className="text-[13px] font-extrabold text-ink">
+                      {m.loadPct == null ? '—' : `${m.loadPct} %`}
+                    </span>
+                  )
+                }
+              >
+                <span data-master={m.name} data-load={m.loadPct ?? ''} data-off={m.off ? '1' : undefined}>
+                  <b className="text-ink">{m.name}</b>
+                  {!m.off && (
+                    <span className={`${smallCls} ml-2`}>
+                      визитов {m.visits}
+                      {m.internal > 0 && ` + интерных ${m.internal}`}
+                      {m.firstMin != null && m.lastMin != null && ` · ${minToHHMM(m.firstMin)}–${minToHHMM(m.lastMin)}`}
+                    </span>
+                  )}
+                </span>
+                {!m.off && (
+                  <div className="h-1.5 mt-1 rounded-full bg-line-soft overflow-hidden">
+                    <div className="h-full bg-brand rounded-full" style={{ width: `${Math.min(100, m.loadPct ?? 0)}%` }} />
+                  </div>
+                )}
+              </TodayRow>
+            ))}
+        </TodayCard>
+
+        {/* 8. Визиты без записи об услуге */}
+        <TodayCard
+          id="visits"
+          {...defs.visits}
+          loading={first}
+          hideOk
+          okText="Все прошедшие визиты за неделю закрыты"
+          link={{ to: '/calendar', label: 'Календарь' }}
+        >
+          {visits.map((v) => (
+            <TodayRow
+              key={v.documentId}
+              to={calLink(v.date, v.documentId)}
+              aside={
+                v.reason === 'checked_out_no_record' ? (
+                  <span className={`${badgeNegCls} whitespace-nowrap`}>закрыт без записи</span>
+                ) : v.arrived ? (
+                  <span className={`${badgeWarnCls} whitespace-nowrap`}>не закрыт</span>
+                ) : (
+                  <span className={`${badgeWarnCls} whitespace-nowrap`}>не отмечен приход</span>
+                )
+              }
+            >
+              <b className="text-ink">{v.client || 'Без имени'}</b>
+              {v.internal && ' 🤝'}
+              {v.korekce && ' 🔁'}
+              <div className={smallCls}>
+                {v.date !== date ? `${dayLabel(v.date)} · ` : ''}
+                {fmtTimePrague(v.startsAt)} · {v.master}
+                {v.services.length > 0 && ` · ${v.services.join(', ')}`}
+              </div>
+            </TodayRow>
+          ))}
+        </TodayCard>
+
+        {/* 9. Дозаписи без результата */}
+        <TodayCard
+          id="upsell"
+          {...defs.upsell}
+          loading={first}
+          hideOk
+          okText={
+            upsellClients.length
+              ? `У всех пришедших клиентов результат отмечен (клиентов дня: ${upsellClients.length})`
+              : 'Сегодня клиентов нет'
+          }
+          link={{ to: '/upsell', label: 'Дозаписи' }}
+        >
+          {needResult.map((c) => (
+            <TodayRow
+              key={c.clientDocId}
+              to="/upsell"
+              aside={
+                <span className={`${c.left ? badgeMutedCls : badgePosCls} whitespace-nowrap`}>
+                  {c.left ? 'ушла' : 'в салоне'}
+                </span>
+              }
+            >
+              <b className="text-ink">{c.clientName}</b>
+              <div className={smallCls}>
+                {c.bookings.map((b) => `${b.time} ${b.employeeName}`).join(' · ')}
+              </div>
+            </TodayRow>
+          ))}
+        </TodayCard>
+
+        {/* 10. Ожидающие переносы корекций */}
+        <TodayCard
+          id="korekce"
+          {...defs.korekce}
+          loading={first}
+          hideOk
+          okText="Нет корекций, ждущих закрытия исходного визита"
+        >
+          {korekce.map((k) => (
+            <TodayRow
+              key={k.spDocId}
+              to={calLink(k.originalDate, k.originalBookingDocId)}
+              aside={<span className={smallCls}>−{kc(k.staffOutKc)}</span>}
+            >
+              <b className="text-ink">{k.clientName}</b>
+              <div className={smallCls}>
+                закрыть визит {dayLabel(k.originalDate)} у {k.originalMaster} · korekce {dm(k.korekceDate)} у {k.master}
+              </div>
+            </TodayRow>
+          ))}
+        </TodayCard>
+
+        {/* 11. Личные данные ушедших: стирание через 3 года (§8.2) — только когда есть что делать */}
         {eraseDue.length + noLeftAt.length > 0 && (
           <TodayCard
             id="staff-erase"
@@ -425,14 +597,13 @@ export default function TodayPage() {
           </TodayCard>
         )}
 
-        {/* 10–11. Отчёты управляющей (s239) — только владельцу */}
+        {/* 12–13. Отчёты управляющей (s239) — только владельцу */}
         {isOwner && (
           <TodayCard
             id="work-reports"
-            title="Отчёты управляющей"
-            count={rp?.ok ? repUnread.length + repMissing.length : null}
+            {...defs['work-reports']}
             loading={first}
-            error={rp && !rp.ok ? rp.error : null}
+            hideOk
             okText={
               rep?.todayState.some((t) => t.state === 'open')
                 ? 'Все отчёты прочитаны, пропусков нет · за сегодня ещё не сдан (вовремя — до 10:00 завтра)'
@@ -485,49 +656,13 @@ export default function TodayPage() {
           </TodayCard>
         )}
 
-        {/* 12. Поручения (s240): владельцу — просроченные и ждущие принятия; управляющей — свои в работе */}
-        <TodayCard
-          id="owner-tasks"
-          title={isOwner ? 'Поручения управляющей' : 'Поручения от владельца'}
-          count={tk?.ok ? (isOwner ? tkData!.overdue.length + tkData!.waiting.length : tkData!.overdue.length + tkData!.urgent.length) : null}
-          loading={first}
-          error={tk && !tk.ok ? tk.error : null}
-          okText={
-            tkData && tkData.open > 0
-              ? `Просроченных нет · в работе ${tkData.open}`
-              : isOwner
-                ? 'Нет поручений в работе и ждущих принятия'
-                : 'Поручений в работе нет'
-          }
-          link={isOwner ? { to: '/global/team/tasks', label: 'Úkoly' } : { to: '/vykaz', label: 'Výkaz práce' }}
-        >
-          {(isOwner ? [...(tkData?.waiting ?? []), ...(tkData?.overdue ?? [])] : (tkData?.next ?? [])).map((t) => (
-            <TodayRow
-              key={t.documentId}
-              to={isOwner ? `/global/team/tasks?task=${encodeURIComponent(t.documentId)}` : '/vykaz'}
-              aside={
-                <span className={`${t.status === 'done' ? badgeWarnCls : t.overdue || t.priority === 'urgent' ? badgeNegCls : badgeMutedCls} whitespace-nowrap`}>
-                  {t.status === 'done' ? 'ждёт принятия' : t.overdue ? 'просрочено' : t.priority === 'urgent' ? 'срочно' : 'в работе'}
-                </span>
-              }
-            >
-              <b className="text-ink">{t.title}</b>
-              <div className={smallCls}>
-                {t.dueDate ? `срок ${dm(t.dueDate)}` : 'без срока'}
-                {isOwner && t.personalName ? ` · ${t.personalName}` : ''}
-              </div>
-            </TodayRow>
-          ))}
-        </TodayCard>
-
-        {/* 12–13. Затраты (s237): запросы управляющей — только владельцу; не внесённые постоянные — руководству */}
+        {/* 14–15. Затраты (s237): запросы управляющей — только владельцу; не внесённые постоянные — руководству */}
         {isOwner && (
           <TodayCard
             id="cost-requests"
-            title="Затраты ждут одобрения"
-            count={cp?.ok ? (costPending ?? 0) : null}
+            {...defs['cost-requests']}
             loading={first}
-            error={cp && !cp.ok ? cp.error : null}
+            hideOk
             okText="Нет запросов управляющей по затратам"
             link={{ to: '/global/expenses', label: 'Затраты' }}
           >
@@ -538,10 +673,9 @@ export default function TodayPage() {
         )}
         <TodayCard
           id="costs-missing"
-          title="Постоянные расходы не внесены"
-          count={cp?.ok ? missingCosts.length : null}
+          {...defs['costs-missing']}
           loading={first}
-          error={cp && !cp.ok ? cp.error : null}
+          hideOk
           okText="Постоянные расходы этого месяца внесены (или их день ещё не прошёл)"
           link={{ to: '/global/expenses', label: 'Затраты' }}
         >
@@ -561,62 +695,13 @@ export default function TodayPage() {
             <div className={hintCls}>В «Затратах» — «Повторить прошлый месяц».</div>
           )}
         </TodayCard>
-      </div>
 
-      {/* 8. Кто сегодня работает — во всю ширину */}
-      <div className="mt-3.5">
-        <TodayCard
-          id="working"
-          title="Кто сегодня работает"
-          count={null}
-          loading={first}
-          error={dayPart && !dayPart.ok ? dayPart.error : null}
-          link={{ to: '/calendar', label: 'Календарь' }}
-        >
-          <div className="flex items-center gap-4 flex-wrap text-[13px] font-semibold text-ink-body">
-            <span data-on-duty={onDuty || ''}>
-              Администратор: <b className="text-ink">{onDuty || 'в графике не указан'}</b>
-            </span>
-            {working && (
-              <span data-salon-load={working.loadPct ?? ''}>
-                Загрузка салона: <b className="text-ink">{working.loadPct == null ? '—' : `${working.loadPct} %`}</b>
-              </span>
-            )}
+        {/* s245: скрытые карточки «всё в порядке» — одной строкой (§0.2) */}
+        {okTitles.length > 0 && (
+          <div className={`${hintCls} mt-1`} data-ok-list={okTitles.join('|')}>
+            ✓ В порядке: {okTitles.join(' · ')}
           </div>
-          {working?.masters
-            .slice()
-            .sort((a, b) => Number(a.off) - Number(b.off) || (a.firstMin ?? 1e9) - (b.firstMin ?? 1e9))
-            .map((m) => (
-              <TodayRow
-                key={m.id}
-                aside={
-                  m.off ? (
-                    <span className={`${badgeMutedCls} whitespace-nowrap`}>не работает</span>
-                  ) : (
-                    <span className="text-[13px] font-extrabold text-ink">
-                      {m.loadPct == null ? '—' : `${m.loadPct} %`}
-                    </span>
-                  )
-                }
-              >
-                <span data-master={m.name} data-load={m.loadPct ?? ''} data-off={m.off ? '1' : undefined}>
-                  <b className="text-ink">{m.name}</b>
-                  {!m.off && (
-                    <span className={`${smallCls} ml-2`}>
-                      визитов {m.visits}
-                      {m.internal > 0 && ` + интерных ${m.internal}`}
-                      {m.firstMin != null && m.lastMin != null && ` · ${minToHHMM(m.firstMin)}–${minToHHMM(m.lastMin)}`}
-                    </span>
-                  )}
-                </span>
-                {!m.off && (
-                  <div className="h-1.5 mt-1 rounded-full bg-line-soft overflow-hidden">
-                    <div className="h-full bg-brand rounded-full" style={{ width: `${Math.min(100, m.loadPct ?? 0)}%` }} />
-                  </div>
-                )}
-              </TodayRow>
-            ))}
-        </TodayCard>
+        )}
       </div>
     </div>
   )

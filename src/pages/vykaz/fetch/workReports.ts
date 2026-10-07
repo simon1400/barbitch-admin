@@ -35,6 +35,8 @@ export interface ReportTaskNote {
   title: string
   note: string
   done: boolean
+  /** в этом отчёте «hotovo» снято (s245); ключ есть только когда true */
+  undone?: boolean
 }
 
 export interface ReportComment {

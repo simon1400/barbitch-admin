@@ -2,8 +2,12 @@
 //
 // 🟥 Данные — ТОЛЬКО ручки движка `/engine/admin/tasks…`: у коллекций нет REST.
 // Создать и править — владелец; исполнитель видит свои (сервер сам находит карточку
-// сессии), пишет ход работы, «hotovo», комментарии; вложения — обе стороны.
+// сессии), пишет ход работы, «hotovo» (и снимает его, пока владелец не принял — s245
+// `undone`), комментарии; вложения — обе стороны.
 // Подписи статусов и приоритетов приходят с сервера (services/owner-tasks.ts).
+// s246: управляющая ставит задачи себе и владельцу — у задачи стороны «исполнитель»
+// (`assignee`) и «постановщик» (`createdByRole`); кто что может — `actionsFor(task, role)`,
+// копия серверной `transitionsFor`.
 import { ApiError, makeApiFetch } from '../../../lib/apiFetch'
 import { API_URL } from '../../../lib/config'
 import { getToken } from '../../../services/auth'
@@ -12,7 +16,8 @@ import type { Labeled } from './workReports'
 
 export type TaskStatus = 'open' | 'done' | 'accepted' | 'cancelled'
 export type TaskPriority = 'normal' | 'urgent'
-export type TaskAction = 'done' | 'progress' | 'comment' | 'accept' | 'reopen' | 'cancel'
+export type TaskSide = 'owner' | 'manager'
+export type TaskAction = 'done' | 'undone' | 'progress' | 'comment' | 'accept' | 'reopen' | 'cancel'
 export type TaskScope = 'active' | 'closed' | 'all'
 
 export interface TaskEvent {
@@ -46,6 +51,10 @@ export interface Task {
   status: TaskStatus
   overdue: boolean
   createdByName: string | null
+  /** исполнитель (s246); у ответов старого сервера нет — поручение владельца управляющей */
+  assignee?: TaskSide
+  /** постановщик (s246) */
+  createdByRole?: TaskSide
   doneAt: string | null
   closedAt: string | null
   closedBy: string | null
@@ -61,7 +70,7 @@ export interface TasksList {
   priorities: Labeled[]
   statuses: Labeled[]
   maxFiles: number
-  role: 'owner' | 'manager'
+  role: TaskSide
   scope: TaskScope
   people?: { documentId: string; name: string; isActive: boolean }[]
   tasks: Task[]
@@ -75,6 +84,8 @@ export interface OpenTask {
   priority: TaskPriority
   status: TaskStatus
   overdue: boolean
+  /** своя задача (поставила сама себе, s246) */
+  own?: boolean
 }
 
 export interface TaskBrief {
@@ -89,17 +100,23 @@ export interface TaskBrief {
 }
 
 export interface TasksAttention {
-  role: 'owner' | 'manager'
+  role: TaskSide
   today: string
   open: number
   overdue: TaskBrief[]
   urgent: TaskBrief[]
   waiting: TaskBrief[]
   next: TaskBrief[]
+  /** владельцу (s246): задачи от управляющей ему, в работе */
+  forMe?: { open: number; overdue: number; list: TaskBrief[] }
+  /** управляющей (s246): её задачи владельцу — в работе и выполнено за 7 дней */
+  toOwner?: { open: number; done: number }
 }
 
 export interface TaskInput {
   personal?: string
+  /** управляющая (s246): кому задача — себе или владельцу */
+  assignee?: TaskSide
   title?: string
   description?: string
   dueDate?: string | null
@@ -196,20 +213,73 @@ export const EVENT_LABEL: Record<TaskEvent['kind'], string> = {
   edited: 'upraveno',
   progress: 'průběh',
   done: 'hotovo',
+  undone: 'vráceno — ještě není hotovo',
   accept: 'převzato',
   reopen: 'vráceno do práce',
   cancel: 'zrušeno',
   comment: 'komentář',
 }
 
-/** Действия по роли и статусу — те же правила, что на сервере (TRANSITIONS). */
-export const actionsFor = (role: 'owner' | 'manager', status: TaskStatus): TaskAction[] => {
-  if (role === 'owner') {
-    return [
-      ...(status === 'done' ? (['accept'] as const) : []),
-      ...(status !== 'open' ? (['reopen'] as const) : []),
-      ...(status === 'open' || status === 'done' ? (['cancel'] as const) : []),
-    ]
+type Sided = Pick<Task, 'status' | 'assignee' | 'createdByRole'>
+
+/** Исполнитель и постановщик; у старых строк — поручение владельца управляющей. */
+export const assigneeOf = (t: Pick<Task, 'assignee'>): TaskSide => (t.assignee === 'owner' ? 'owner' : 'manager')
+export const creatorOf = (t: Pick<Task, 'createdByRole'>): TaskSide => (t.createdByRole === 'manager' ? 'manager' : 'owner')
+/** Закрывается сразу по «hotovo»: задача себе или задача владельцу (s246). */
+export const closesOnDone = (t: Pick<Task, 'assignee' | 'createdByRole'>): boolean =>
+  assigneeOf(t) === 'owner' || assigneeOf(t) === creatorOf(t)
+
+/**
+ * Кнопки смены статуса — те же правила, что на сервере (`transitionsFor`): исполнитель —
+ * «hotovo» в работе и снять его, пока постановщик не принял (s245); постановщик — принять,
+ * вернуть, отменить. Задача себе/владельцу закрывается сразу — принимать и снимать нечего.
+ */
+export const actionsFor = (task: Sided, role: TaskSide): TaskAction[] => {
+  const s = task.status
+  const quick = closesOnDone(task)
+  const out: TaskAction[] = []
+  if (assigneeOf(task) === role) {
+    if (s === 'open') out.push('done')
+    if (s === 'done' && !quick) out.push('undone')
   }
-  return status === 'open' ? ['done'] : []
+  if (creatorOf(task) === role) {
+    if (s === 'done' && !quick) out.push('accept')
+    if (s === 'accepted' || s === 'cancelled' || (s === 'done' && !quick)) out.push('reopen')
+    if (s === 'open' || (s === 'done' && !quick)) out.push('cancel')
+  }
+  return out
+}
+
+/** «Zapsat průběh» — исполнителю-управляющей в работе; остальным — комментарий. */
+export const canProgress = (task: Sided, role: TaskSide): boolean =>
+  role === 'manager' && assigneeOf(task) === 'manager' && task.status === 'open'
+
+/** Править задание может постановщик, пока задача не закрыта. */
+export const canEditTask = (task: Sided, role: TaskSide): boolean =>
+  creatorOf(task) === role && task.status !== 'accepted' && task.status !== 'cancelled'
+
+const STATUS_LABEL: Record<TaskStatus, string> = {
+  open: 'v práci',
+  done: 'hotovo — čeká na převzetí',
+  accepted: 'převzato',
+  cancelled: 'zrušeno',
+}
+
+/**
+ * Подпись статуса для того, кто смотрит: у задач, закрывающихся сразу, «převzato» = «splněno»;
+ * управляющей её задача владельцу в работе — «čeká na majitele» (s246).
+ */
+export const statusLabel = (task: Sided, role: TaskSide): string => {
+  if (task.status === 'accepted' && closesOnDone(task)) return 'splněno'
+  if (task.status === 'open' && role === 'manager' && assigneeOf(task) === 'owner') return 'čeká na majitele'
+  return STATUS_LABEL[task.status]
+}
+
+/** Откуда задача — для того, кто смотрит (s246); у поручения владельца в его же списке — нет. */
+export const originLabel = (task: Pick<Task, 'assignee' | 'createdByRole'>, role: TaskSide): string | null => {
+  const a = assigneeOf(task)
+  const c = creatorOf(task)
+  if (role === 'manager') return c === 'owner' ? 'od majitele' : a === 'owner' ? 'pro majitele' : 'můj'
+  if (c === 'manager') return a === 'owner' ? 'od manažerky' : 'sama sobě'
+  return null
 }

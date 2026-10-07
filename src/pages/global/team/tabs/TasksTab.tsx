@@ -4,13 +4,26 @@
 // «Aktivní / Uzavřené / Vše»: раскрыть → лента, вложения, «Převzít», «Vrátit do práce»,
 // «Zrušit», комментарий, «Upravit zadání». Ссылки с «Сегодня» — `?task=<id>` раскрывают его.
 // Поздний ответ прежнего фильтра в экран не ложится (номер запроса).
+// s246: и задачи от управляющей — владельцу (кнопка «Hotovo» закрывает сразу) и её задачи
+// самой себе (только читать и комментировать). Фильтр «Vše / Pro manažerku / Pro mě» —
+// на клиенте; по умолчанию «Vše», чтобы ссылка `?task=` с «Сегодня» всегда находила задачу.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { btnPinkCls, cardPadCls, hintCls, pillCls, toolbarCardCls } from '../../../../ui/kit'
 import { TaskCard, TaskForm } from '../../../vykaz/components/TaskParts'
 import { Notice } from '../../../vykaz/components/ReportParts'
-import { createTask, fetchTasks, updateTask, type Task, type TaskInput, type TaskScope, type TasksList } from '../../../vykaz/fetch/tasks'
+import {
+  assigneeOf,
+  canEditTask,
+  createTask,
+  fetchTasks,
+  updateTask,
+  type Task,
+  type TaskInput,
+  type TaskScope,
+  type TasksList,
+} from '../../../vykaz/fetch/tasks'
 
 const SCOPES: { key: TaskScope; label: string }[] = [
   { key: 'active', label: 'Aktivní' },
@@ -18,9 +31,17 @@ const SCOPES: { key: TaskScope; label: string }[] = [
   { key: 'all', label: 'Vše' },
 ]
 
+type Kind = 'all' | 'manager' | 'owner'
+const KINDS: { key: Kind; label: string }[] = [
+  { key: 'all', label: 'Vše' },
+  { key: 'manager', label: 'Pro manažerku' },
+  { key: 'owner', label: 'Pro mě' },
+]
+
 export default function TasksTab() {
   const [params] = useSearchParams()
   const [scope, setScope] = useState<TaskScope>('active')
+  const [kind, setKind] = useState<Kind>('all')
   const [data, setData] = useState<TasksList | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -77,9 +98,11 @@ export default function TasksTab() {
     }
   }
 
-  const tasks = data?.tasks ?? []
+  const all = data?.tasks ?? []
+  const tasks = kind === 'all' ? all : all.filter((t) => assigneeOf(t) === kind)
   const waiting = tasks.filter((t) => t.status === 'done').length
   const overdue = tasks.filter((t) => t.overdue).length
+  const forMe = scope === 'active' ? all.filter((t) => assigneeOf(t) === 'owner' && t.status === 'open').length : 0
 
   return (
     <div data-testid="tasks-tab">
@@ -90,6 +113,14 @@ export default function TasksTab() {
               {s.label}
             </button>
           ))}
+          <span className="w-px h-5 bg-line-soft mx-1" aria-hidden />
+          <span className="flex gap-2 flex-wrap" role="group" aria-label="Pro koho" data-testid="tasks-kind">
+            {KINDS.map((k) => (
+              <button key={k.key} type="button" className={pillCls(kind === k.key)} aria-pressed={kind === k.key} onClick={() => setKind(k.key)} data-kind={k.key}>
+                {k.label}
+              </button>
+            ))}
+          </span>
         </div>
         <button type="button" className={btnPinkCls} onClick={() => setCreating((v) => !v)} aria-expanded={creating} data-testid="task-new">
           + Nový úkol
@@ -112,10 +143,11 @@ export default function TasksTab() {
         </section>
       )}
 
-      {data && scope === 'active' && (waiting > 0 || overdue > 0) && (
+      {data && scope === 'active' && (waiting > 0 || overdue > 0 || forMe > 0) && (
         <div className={`${hintCls} mb-3`} data-testid="tasks-summary">
           {waiting > 0 && `Čeká na převzetí: ${waiting}. `}
-          {overdue > 0 && `Po termínu: ${overdue}.`}
+          {overdue > 0 && `Po termínu: ${overdue}. `}
+          {forMe > 0 && `Od manažerky pro vás: ${forMe}.`}
         </div>
       )}
 
@@ -154,7 +186,7 @@ export default function TasksTab() {
                   if (scope !== 'all' && nt.status !== t.status) void load(scope)
                 }}
                 onConflict={() => void load(scope, true)}
-                onEdit={() => setEditing(t.documentId)}
+                onEdit={canEditTask(t, 'owner') ? () => setEditing(t.documentId) : undefined}
                 showAssignee={(data.people ?? []).filter((p) => p.isActive).length > 1}
               />
             ),
