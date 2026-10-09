@@ -14,6 +14,7 @@ import {
   tileValueCls,
   toolbarCardCls,
 } from '../../ui/kit'
+import { Pagination } from '../../components/Pagination'
 import { Cell } from '../dashboard/components/Cell'
 import { OwnerProtection } from './components/OwnerProtection'
 import { StatSection } from './components/StatSection'
@@ -33,6 +34,9 @@ const fmtSent = (iso: string): string => {
   )}`
 }
 
+// строк журнала на страницу таблицы (плитки статистики считают по всем)
+const REQUESTS_PAGE_SIZE = 10
+
 const fmtDay = (ymd: string): string =>
   ymd ? new Date(`${ymd}T12:00:00Z`).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) : '—'
 
@@ -41,6 +45,8 @@ const fmtDay = (ymd: string): string =>
 // намеренно: ручная рассылка легко даёт всплеск отзывов, а это флаг для Google.
 function ReviewRequestsSection({ logs, failed }: { logs: ReviewRequestLog[]; failed: boolean }) {
   const stats = statsFromLogs(logs)
+  const [page, setPage] = useState(1)
+  const pageLogs = logs.slice((page - 1) * REQUESTS_PAGE_SIZE, page * REQUESTS_PAGE_SIZE)
 
   return (
     <StatSection title={'Žádosti o recenzi (automatické e-maily)'} id={'review-requests'} count={stats.total}>
@@ -99,7 +105,7 @@ function ReviewRequestsSection({ logs, failed }: { logs: ReviewRequestLog[]; fai
                 </tr>
               </thead>
               <tbody>
-                {logs.map((l) => (
+                {pageLogs.map((l) => (
                   <tr key={l.documentId}>
                     <Cell title={fmtSent(l.sentAt)} className={'whitespace-nowrap'} />
                     <Cell title={l.clientName || l.email || '—'} />
@@ -112,6 +118,13 @@ function ReviewRequestsSection({ logs, failed }: { logs: ReviewRequestLog[]; fai
               </tbody>
             </table>
           </TableWrapper>
+          <Pagination
+            page={page}
+            total={logs.length}
+            pageSize={REQUESTS_PAGE_SIZE}
+            onPage={setPage}
+            unit={'писем'}
+          />
         </>
       )}
     </StatSection>

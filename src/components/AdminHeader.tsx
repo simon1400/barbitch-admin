@@ -93,7 +93,13 @@ export const AdminHeader = ({ userName }: { userName: string }) => {
     <div className={'sticky top-0 z-40'}>
       <div className={'h-[3px] bg-gradient-to-r from-brand to-brand-grad-to'} />
 
-      <header className={'bg-[rgba(255,255,255,.96)] backdrop-blur-md border-b border-line-header'}>
+      {/* relative z-10: backdrop-blur делает header и саб-меню отдельными слоями —
+          без z-index саб-меню (ниже по DOM) перекрывает дропдаун «Ещё» */}
+      <header
+        className={
+          'relative z-10 bg-[rgba(255,255,255,.96)] backdrop-blur-md border-b border-line-header'
+        }
+      >
         <div className={'max-w-[1024px] mx-auto px-5'}>
           {/* Ряд 1: лого + юзер */}
           <div className={'flex items-center justify-between gap-4 pt-3.5 pb-2.5'}>
