@@ -3,6 +3,8 @@
 // одинаково; кнопки — по роли (те же правила, что на сервере, `actionsFor`).
 // s246: и задачи управляющей себе/владельцу — кнопки по стороне (исполнитель/постановщик),
 // бейдж «откуда» (`originLabel`), форма управляющей — «Pro mě / Pro majitele».
+// s253 (жалоба управляющей): раскрытие — заметная кнопка «Detail ⌄» вместо мелкого «▾»; на свёрнутой
+// карточке — последнее событие ленты (кто, когда, начало текста; «vráceno» — жёлтым) и число записей.
 import { useRef, useState } from 'react'
 
 import {
@@ -20,6 +22,7 @@ import {
   selectCls,
 } from '../../../ui/kit'
 import { fmtCsDate, fmtTimePrague, ymdPrague } from '../../../utils/date'
+import { IconChevronDown } from '../../calendar/icons'
 import { ApiError } from '../../../lib/apiFetch'
 import {
   ACCEPT_TASK_FILE,
@@ -166,6 +169,10 @@ export function TaskCard({
 
   const canRemove = (uploadedRole: string | null) => role === 'owner' || uploadedRole === role
   const closed = task.status === 'accepted' || task.status === 'cancelled'
+  // последнее событие ленты, кроме самого «zadáno» — его и так видно по карточке
+  const last = task.events.length ? task.events[task.events.length - 1] : null
+  const lastShown = last && last.kind !== 'created' ? last : null
+  const returned = lastShown?.kind === 'reopen' || lastShown?.kind === 'undone'
   const quick = closesOnDone(task)
   const mineToDo = assigneeOf(task) === role
   // подсказка под кнопками — по стороне задачи (s246)
@@ -186,7 +193,7 @@ export function TaskCard({
 
   return (
     <section
-      className={`${cardPadCls} !mb-0 ${task.overdue ? '!border-neg-line' : actions.includes('accept') ? '!border-warn-line' : ''}`}
+      className={`${cardPadCls} !mb-0 scroll-mt-52 md:scroll-mt-44 ${task.overdue ? '!border-neg-line' : actions.includes('accept') ? '!border-warn-line' : ''}`}
       data-task={task.documentId}
       data-task-status={task.status}
       data-task-assignee={assigneeOf(task)}
@@ -201,8 +208,29 @@ export function TaskCard({
             <span className="block text-[12px] font-semibold text-ink-faint mt-1">{task.personalName}</span>
           )}
         </span>
-        <span className="shrink-0 text-ink-faint text-[14px]">{open ? '▴' : '▾'}</span>
+        <span
+          className="shrink-0 inline-flex items-center gap-1 rounded-full border border-line-btn px-2.5 py-1 text-[12.5px] font-bold text-brand-dark bg-white"
+          data-testid="task-toggle"
+        >
+          {open ? 'Skrýt' : 'Detail'}
+          <IconChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </span>
       </button>
+      {!open && lastShown && (
+        <button
+          type="button"
+          className={`mt-2.5 w-full text-left rounded-lg px-3 py-2 text-[12.5px] font-semibold ${returned ? 'bg-warn-bg text-warn' : 'bg-surface-input text-ink-soft'}`}
+          onClick={onToggle}
+          data-testid="task-last-event"
+          data-event={lastShown.kind}
+        >
+          <span className="font-bold">
+            {EVENT_LABEL[lastShown.kind] ?? lastShown.kind} · {lastShown.by} · {stamp(lastShown.at)}
+          </span>
+          {lastShown.text && <span className="block truncate text-ink-body">{lastShown.text}</span>}
+          {task.events.length > 1 && <span className="block text-ink-faint">Záznamů v průběhu: {task.events.length}</span>}
+        </button>
+      )}
 
       {open && (
         <div className="mt-3.5 pt-3.5 border-t border-line-soft flex flex-col gap-3.5" data-testid="task-detail">

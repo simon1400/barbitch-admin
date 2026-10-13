@@ -12,6 +12,8 @@
 // записи / фактически (те же интервалы, что в дайджесте).
 // s246: владельцу — карточка «Задачи от управляющей» (после «Поручений управляющей»);
 // у управляющей «Поручения от владельца» → «Мои задачи» (+ строка «задачи владельцу: ждут …»).
+// s253: строка задачи у управляющей ведёт на `/vykaz?task=` — вкладка «Úkoly», задача раскрыта (лента,
+// комментарии); ссылка карточки — на всю вкладку «Úkoly».
 // s251: карточка «Склад» (закончилось / ниже минимума) — последней, за «Постоянными расходами».
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -361,12 +363,12 @@ export default function TodayPage() {
                 ? 'Нет поручений в работе и ждущих принятия'
                 : 'Задач в работе нет'
           }
-          link={isOwner ? { to: '/global/team/tasks', label: 'Úkoly' } : { to: '/vykaz', label: 'Výkaz práce' }}
+          link={isOwner ? { to: '/global/team/tasks', label: 'Úkoly' } : { to: '/vykaz?tab=ukoly', label: 'Všechny úkoly' }}
         >
           {(isOwner ? [...(tkData?.waiting ?? []), ...(tkData?.overdue ?? [])] : (tkData?.next ?? [])).map((t) => (
             <TodayRow
               key={t.documentId}
-              to={isOwner ? `/global/team/tasks?task=${encodeURIComponent(t.documentId)}` : '/vykaz'}
+              to={`${isOwner ? '/global/team/tasks' : '/vykaz'}?task=${encodeURIComponent(t.documentId)}`}
               aside={
                 <span className={`${t.status === 'done' ? badgeWarnCls : t.overdue || t.priority === 'urgent' ? badgeNegCls : badgeMutedCls} whitespace-nowrap`}>
                   {t.status === 'done' ? 'ждёт принятия' : t.overdue ? 'просрочено' : t.priority === 'urgent' ? 'срочно' : 'в работе'}

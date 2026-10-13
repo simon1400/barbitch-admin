@@ -5,6 +5,9 @@
 // «Moje úkoly» (от владельца и свои) и «Úkoly pro majitele»; свои — «Upravit zadání».
 // s247: `focus` — задача из push (`/vykaz?task=`): раскрыта и прокручена к себе; закрытой среди
 // активных нет (владелец выполнил её задачу) — список сам переходит на «Uzavřené».
+// s253: живёт на своей вкладке «Úkoly»; `onActiveCount` — сколько активных задач на ней у самой
+// управляющей (счётчик на вкладке). Прокрутка к задаче — к её верху (`block: 'start'` + отступ под
+// закреплённое меню у карточки `scroll-mt-*`): по центру длинная раскрытая задача прятала заголовок.
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { btnPinkCls, cardPadCls, hintCls, labelCls, pillCls } from '../../../ui/kit'
@@ -22,7 +25,15 @@ import {
 import { Notice } from './ReportParts'
 import { TaskCard, TaskForm } from './TaskParts'
 
-export default function MyTasks({ reloadKey, focus = null }: { reloadKey: number; focus?: string | null }) {
+export default function MyTasks({
+  reloadKey,
+  focus = null,
+  onActiveCount,
+}: {
+  reloadKey: number
+  focus?: string | null
+  onActiveCount?: (n: number) => void
+}) {
   const [scope, setScope] = useState<TaskScope>('active')
   const [data, setData] = useState<TasksList | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -57,10 +68,14 @@ export default function MyTasks({ reloadKey, focus = null }: { reloadKey: number
     if (!f || !data || data.scope !== scope) return
     if (data.tasks.some((t) => t.documentId === f)) {
       focusRef.current = null
-      setTimeout(() => document.querySelector(`[data-task="${f}"]`)?.scrollIntoView?.({ block: 'center', behavior: 'smooth' }), 0)
+      setTimeout(() => document.querySelector(`[data-task="${f}"]`)?.scrollIntoView?.({ block: 'start', behavior: 'smooth' }), 0)
     } else if (scope === 'active') setScope('closed')
     else focusRef.current = null
   }, [data, scope])
+
+  useEffect(() => {
+    if (data?.scope === 'active') onActiveCount?.(data.tasks.filter((t) => assigneeOf(t) === 'manager').length)
+  }, [data, onActiveCount])
 
   const replace = (t: Task) => setData((d) => (d ? { ...d, tasks: d.tasks.map((x) => (x.documentId === t.documentId ? t : x)) } : d))
 
@@ -127,7 +142,7 @@ export default function MyTasks({ reloadKey, focus = null }: { reloadKey: number
     )
 
   return (
-    <section className={`${cardPadCls} !mb-0 mt-3.5`} data-testid="my-tasks">
+    <section className={`${cardPadCls} !mb-0`} data-testid="my-tasks">
       <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
         <h2 className="m-0 text-[17px] font-extrabold text-ink">Úkoly</h2>
         <div className="flex gap-1.5 flex-wrap items-center">

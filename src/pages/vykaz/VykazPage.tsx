@@ -12,10 +12,13 @@
 // `undone: true`, сервер возвращает поручение в работу (пока владелец не принял).
 // s247: переход из push — `?date=` (výkaz za včerejšek) выбирает день, `?task=` раскрывает задачу;
 // query читается один раз и чистится (обновление страницы не прыгает туда же). Кнопка «Upozornění».
+// s253 (жалоба управляющей): отчёт и задачи — две вкладки «Výkaz» / «Úkoly» (`?tab=ukoly`), задачи
+// больше не висят под длинным отчётом; `?task=` открывает сразу «Úkoly». Обе вкладки остаются
+// смонтированными (скрыта — `hidden`): черновик формы и раскрытая задача не теряются при переключении.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
-import { btnNeutralCls, btnPinkCls, cardPadCls, hintCls, iconBtnCls, inputCls, kickerCls, labelCls, pageShellCls, selectCls } from '../../ui/kit'
+import { btnNeutralCls, btnPinkCls, cardPadCls, hintCls, iconBtnCls, inputCls, kickerCls, labelCls, pageShellCls, pillCls, selectCls } from '../../ui/kit'
 import { WEEKDAYS_CS, dowOfYmd, fmtCsDate, todayYmd } from '../../utils/date'
 import { ApiError } from '../../lib/apiFetch'
 import {
@@ -105,15 +108,21 @@ const dayTitle = (date: string) => `${WEEKDAYS_CS[dowOfYmd(date)]} ${fmtCsDate(d
 const textAreaCls = `${inputCls} w-full resize-y`
 
 /** Параметры перехода из push: день (не будущий) и задача. */
-const readBoot = (search: string): { date: string | null; task: string | null } => {
+const readBoot = (search: string): { date: string | null; task: string | null; tab: Tab } => {
   const p = new URLSearchParams(search)
   const d = p.get('date') || ''
   const t = p.get('task') || ''
+  const task = /^[a-z0-9]{10,40}$/.test(t) ? t : null
   return {
     date: /^\d{4}-\d{2}-\d{2}$/.test(d) && d <= todayYmd() ? d : null,
-    task: /^[a-z0-9]{10,40}$/.test(t) ? t : null,
+    task,
+    tab: task || p.get('tab') === TASKS_TAB ? 'tasks' : 'report',
   }
 }
+
+type Tab = 'report' | 'tasks'
+const TASKS_TAB = 'ukoly'
+const tabSearch = (t: Tab) => (t === 'tasks' ? `?tab=${TASKS_TAB}` : '')
 
 export default function VykazPage() {
   const navigate = useNavigate()
@@ -122,6 +131,9 @@ export default function VykazPage() {
   if (boot.current === null) boot.current = readBoot(location.search)
   const [date, setDate] = useState(() => boot.current?.date ?? todayYmd())
   const [month, setMonth] = useState(() => (boot.current?.date ?? todayYmd()).slice(0, 7))
+  const [tab, setTabState] = useState<Tab>(() => boot.current?.tab ?? 'report')
+  // активных задач (из списка «Úkoly») — счётчик на вкладке
+  const [activeTasks, setActiveTasks] = useState<number | null>(null)
   const [data, setData] = useState<MyReports | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -177,9 +189,15 @@ export default function VykazPage() {
   // первая загрузка: черновик дня (сегодня или из push); query из push — убрать из адреса
   useEffect(() => {
     setDraft(readDraft(dateRef.current) ?? emptyDraft())
-    if (location.search) navigate(location.pathname, { replace: true })
+    const keep = tabSearch(boot.current?.tab ?? 'report')
+    if (location.search !== keep) navigate(`${location.pathname}${keep}`, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const setTab = (t: Tab) => {
+    setTabState(t)
+    navigate(`${location.pathname}${tabSearch(t)}`, { replace: true })
+  }
 
   const update = (patch: Partial<Draft>) => {
     setDraft((prev) => {
@@ -274,7 +292,7 @@ export default function VykazPage() {
         <div className="min-w-0">
           <div className={kickerCls}>Pro majitele</div>
           <h1 className="m-0 text-[24px] leading-[1.2] font-extrabold text-ink">Výkaz práce</h1>
-          <div className={`${hintCls} mt-1`}>
+          <div className={`${hintCls} mt-1 ${tab === 'report' ? '' : 'hidden'}`}>
             Na konci pracovního dne napište, kolik hodin jste pracovala a na čem. Včas = do 10:00 dalšího dne. Výkaz čte jen majitel.
             Rozepsaný výkaz zůstane uložený v tomto prohlížeči — vyplňujte průběžně, večer stiskněte Odeslat.
           </div>
@@ -283,113 +301,126 @@ export default function VykazPage() {
         <NotificationButton popup="down-end" menuItem className={`${btnNeutralCls} inline-flex items-center !px-3`} />
       </div>
 
-      {!data ? (
-        <div className="py-12 text-center text-[13px] font-semibold">
-          {loading ? <span className="text-ink-faint">Načítání…</span> : <Notice error={error} />}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px] gap-3.5 items-start">
-          <div className="min-w-0 order-2 md:order-1">
-            <section className={cardPadCls} data-testid="vykaz-day" data-date={date}>
-              <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-                <h2 className="m-0 text-[17px] font-extrabold text-ink">{dayTitle(date)}</h2>
-                {dayState && DAY_STATE_LABEL[dayState] && !showForm && (
-                  <span className="text-[12.5px] font-semibold text-ink-soft">{DAY_STATE_LABEL[dayState]}</span>
-                )}
-              </div>
-              <Notice error={error} ok={ok} />
+      <div className="flex gap-1.5 flex-wrap mb-4" role="tablist" data-testid="vykaz-tabs">
+        <button type="button" role="tab" aria-selected={tab === 'report'} className={pillCls(tab === 'report')} onClick={() => setTab('report')} data-tab="report">
+          Výkaz
+        </button>
+        <button type="button" role="tab" aria-selected={tab === 'tasks'} className={pillCls(tab === 'tasks')} onClick={() => setTab('tasks')} data-tab="tasks">
+          Úkoly{activeTasks ? ` · ${activeTasks}` : ''}
+        </button>
+      </div>
 
-              {showForm ? (
-                <Form
-                  data={data}
-                  draft={draft}
-                  dayOff={dayOff}
-                  reason={reason}
-                  saving={saving}
-                  editing={editing}
-                  prevPlan={prevPlan}
-                  onDayOff={setDayOff}
-                  onReason={setReason}
-                  onUpdate={update}
-                  onItem={setItem}
-                  onInsertPlan={insertPlan}
-                  taskTitles={Object.fromEntries((report?.taskNotes ?? []).map((n) => [n.taskId, n.title]))}
-                  onSave={() => void save()}
-                  onCancel={() => setEditing(false)}
-                />
-              ) : report ? (
-                <div className="flex flex-col gap-3.5">
-                  <ReportStatusLine report={report} />
-                  <ReportContentView content={report} categories={data.categories} dayOffReasons={data.dayOffReasons} />
-                  <HistoryList report={report} categories={data.categories} dayOffReasons={data.dayOffReasons} />
-                  {inWindow ? (
-                    <div>
-                      <button type="button" className={btnNeutralCls} onClick={startEdit}>
-                        Upravit
-                      </button>
-                      {report.reviewedAt && (
-                        <div className={`${hintCls} mt-1.5`}>Majitel výkaz už četl — předchozí verze zůstane uložená.</div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className={hintCls}>Tento den už nelze upravit (nejvýš {data.backfillDays} dní zpětně).</div>
-                  )}
-                  <div>
-                    <div className={labelCls}>Komentáře</div>
-                    <CommentThread comments={report.comments} onSend={sendComment} placeholder="Odpovědět majiteli…" />
-                  </div>
-                </div>
-              ) : (
-                <div className={hintCls}>
-                  {date > data.today
-                    ? 'Tento den ještě nenastal.'
-                    : date < data.since
-                      ? `Výkazy se vedou od ${fmtCsDate(data.since)}.`
-                      : `Výkaz za tento den už nelze doplnit (nejvýš ${data.backfillDays} dní zpětně).`}
-                </div>
-              )}
+      <div className={tab === 'tasks' ? '' : 'hidden'} data-testid="vykaz-tab-tasks">
+        <MyTasks reloadKey={tasksKey} focus={boot.current?.task ?? null} onActiveCount={setActiveTasks} />
+      </div>
 
-              {data.month === date.slice(0, 7) && date >= data.since && date <= data.today && (
-                <div className="mt-4">
-                  <SystemFactsStrip key={date} byDay={data.facts} date={date} snapshot={report?.systemFacts} />
-                </div>
-              )}
-            </section>
-
-            <MyTasks reloadKey={tasksKey} focus={boot.current?.task ?? null} />
+      <div className={tab === 'report' ? '' : 'hidden'} data-testid="vykaz-tab-report">
+        {!data ? (
+          <div className="py-12 text-center text-[13px] font-semibold">
+            {loading ? <span className="text-ink-faint">Načítání…</span> : <Notice error={error} />}
           </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px] gap-3.5 items-start">
+            <div className="min-w-0 order-2 md:order-1">
+              <section className={cardPadCls} data-testid="vykaz-day" data-date={date}>
+                <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+                  <h2 className="m-0 text-[17px] font-extrabold text-ink">{dayTitle(date)}</h2>
+                  {dayState && DAY_STATE_LABEL[dayState] && !showForm && (
+                    <span className="text-[12.5px] font-semibold text-ink-soft">{DAY_STATE_LABEL[dayState]}</span>
+                  )}
+                </div>
+                <Notice error={error} ok={ok} />
 
-          <aside className="min-w-0 order-1 md:order-2">
-            <section className={cardPadCls}>
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <button type="button" className={iconBtnCls} disabled={!canPrev} onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Předchozí měsíc">
-                  ‹
-                </button>
-                <div className="text-[14px] font-extrabold text-ink" data-testid="vykaz-month">
-                  {monthLabelCs(month)}
+                {showForm ? (
+                  <Form
+                    data={data}
+                    draft={draft}
+                    dayOff={dayOff}
+                    reason={reason}
+                    saving={saving}
+                    editing={editing}
+                    prevPlan={prevPlan}
+                    onDayOff={setDayOff}
+                    onReason={setReason}
+                    onUpdate={update}
+                    onItem={setItem}
+                    onInsertPlan={insertPlan}
+                    taskTitles={Object.fromEntries((report?.taskNotes ?? []).map((n) => [n.taskId, n.title]))}
+                    onSave={() => void save()}
+                    onCancel={() => setEditing(false)}
+                  />
+                ) : report ? (
+                  <div className="flex flex-col gap-3.5">
+                    <ReportStatusLine report={report} />
+                    <ReportContentView content={report} categories={data.categories} dayOffReasons={data.dayOffReasons} />
+                    <HistoryList report={report} categories={data.categories} dayOffReasons={data.dayOffReasons} />
+                    {inWindow ? (
+                      <div>
+                        <button type="button" className={btnNeutralCls} onClick={startEdit}>
+                          Upravit
+                        </button>
+                        {report.reviewedAt && (
+                          <div className={`${hintCls} mt-1.5`}>Majitel výkaz už četl — předchozí verze zůstane uložená.</div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className={hintCls}>Tento den už nelze upravit (nejvýš {data.backfillDays} dní zpětně).</div>
+                    )}
+                    <div>
+                      <div className={labelCls}>Komentáře</div>
+                      <CommentThread comments={report.comments} onSend={sendComment} placeholder="Odpovědět majiteli…" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className={hintCls}>
+                    {date > data.today
+                      ? 'Tento den ještě nenastal.'
+                      : date < data.since
+                        ? `Výkazy se vedou od ${fmtCsDate(data.since)}.`
+                        : `Výkaz za tento den už nelze doplnit (nejvýš ${data.backfillDays} dní zpětně).`}
+                  </div>
+                )}
+
+                {data.month === date.slice(0, 7) && date >= data.since && date <= data.today && (
+                  <div className="mt-4">
+                    <SystemFactsStrip key={date} byDay={data.facts} date={date} snapshot={report?.systemFacts} />
+                  </div>
+                )}
+              </section>
+            </div>
+
+            <aside className="min-w-0 order-1 md:order-2">
+              <section className={cardPadCls}>
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <button type="button" className={iconBtnCls} disabled={!canPrev} onClick={() => setMonth(shiftMonth(month, -1))} aria-label="Předchozí měsíc">
+                    ‹
+                  </button>
+                  <div className="text-[14px] font-extrabold text-ink" data-testid="vykaz-month">
+                    {monthLabelCs(month)}
+                  </div>
+                  <button type="button" className={iconBtnCls} disabled={!canNext} onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Další měsíc">
+                    ›
+                  </button>
                 </div>
-                <button type="button" className={iconBtnCls} disabled={!canNext} onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Další měsíc">
-                  ›
-                </button>
-              </div>
-              <MonthGrid
-                days={data.month === month ? data.days : []}
-                selected={date}
-                onPick={pickDay}
-                canPick={(d) => d.state !== 'future' && d.state !== 'before'}
-              />
-              {data.month === month && (
-                <div className={`${hintCls} mt-3`} data-testid="vykaz-summary">
-                  Odevzdáno {data.summary.submitted} z {data.summary.expected} očekávaných · {fmtHours(data.summary.hours)}
-                  {data.summary.missing > 0 && ` · chybí ${data.summary.missing}`}
-                  {data.summary.avgRating != null && ` · průměrné hodnocení ${String(data.summary.avgRating).replace('.', ',')}`}
-                </div>
-              )}
-            </section>
-            {data.month === month && <MonthCategories summary={data.summary} testId="vykaz-categories" />}
-          </aside>
-        </div>
-      )}
+                <MonthGrid
+                  days={data.month === month ? data.days : []}
+                  selected={date}
+                  onPick={pickDay}
+                  canPick={(d) => d.state !== 'future' && d.state !== 'before'}
+                />
+                {data.month === month && (
+                  <div className={`${hintCls} mt-3`} data-testid="vykaz-summary">
+                    Odevzdáno {data.summary.submitted} z {data.summary.expected} očekávaných · {fmtHours(data.summary.hours)}
+                    {data.summary.missing > 0 && ` · chybí ${data.summary.missing}`}
+                    {data.summary.avgRating != null && ` · průměrné hodnocení ${String(data.summary.avgRating).replace('.', ',')}`}
+                  </div>
+                )}
+              </section>
+              {data.month === month && <MonthCategories summary={data.summary} testId="vykaz-categories" />}
+            </aside>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
