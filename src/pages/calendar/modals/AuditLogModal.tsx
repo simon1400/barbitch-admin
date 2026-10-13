@@ -208,6 +208,60 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
     label: 'Uzavření směny zrušeno',
     cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
   },
+  // склад расходников (s251): позиция и движения остатка
+  stock_item_create: {
+    label: 'Sklad: nová položka',
+    cls: 'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300',
+  },
+  stock_item_edit: {
+    label: 'Sklad: úprava položky',
+    cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+  },
+  stock_count: {
+    label: 'Sklad: spočítáno',
+    cls: 'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300',
+  },
+  stock_in: {
+    label: 'Sklad: přišlo',
+    cls: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+  },
+  stock_out: {
+    label: 'Sklad: došlo',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
+  // s252: заказы и инвентура
+  stock_order_create: {
+    label: 'Sklad: objednávka',
+    cls: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300',
+  },
+  stock_order_edit: {
+    label: 'Sklad: úprava objednávky',
+    cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+  },
+  stock_order_send: {
+    label: 'Sklad: objednáno',
+    cls: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300',
+  },
+  stock_order_receive: {
+    label: 'Sklad: příjem objednávky',
+    cls: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+  },
+  stock_order_cost: {
+    label: 'Sklad: náklad k příjmu',
+    cls: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+  },
+  stock_order_close: {
+    label: 'Sklad: objednávka uzavřena',
+    cls: 'bg-slate-100 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300',
+  },
+  stock_order_cancel: {
+    label: 'Sklad: objednávka zrušena',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
+  stock_inventory_missed: {
+    label: 'Sklad: inventura neprovedena',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
   // поручения владельца (s240): только название поручения
   task_create: {
     label: 'Úkol: zadán',
@@ -536,6 +590,7 @@ type EntityTab =
   | 'schedule'
   | 'staff'
   | 'cost'
+  | 'stock'
 
 export const AuditLogModal = ({ onClose, canDelete = false }: { onClose: () => void; canDelete?: boolean }) => {
   const [tab, setTab] = useState<EntityTab>('all')
@@ -649,6 +704,7 @@ export const AuditLogModal = ({ onClose, canDelete = false }: { onClose: () => v
         {tabBtn('schedule', 'Plán')}
         {tabBtn('staff', 'Tým')}
         {tabBtn('cost', 'Náklady')}
+        {tabBtn('stock', 'Sklad')}
         <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500">{total} záznamů</span>
       </div>
       <input

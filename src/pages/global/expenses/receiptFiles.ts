@@ -6,6 +6,7 @@ import {
   MAX_COST_FILE_BYTES,
   RECEIPT_TYPES,
   downloadCostFile,
+  downloadRequestFile,
   type CostFile,
   type CostRow,
 } from '../fetch/expenses'
@@ -42,9 +43,18 @@ export async function prepareReceipts(list: File[], room: number): Promise<{ fil
 
 /** Чек в новой вкладке: окно — синхронно по клику, иначе браузер заблокирует его после await. */
 export async function openReceipt(row: Pick<CostRow, 'documentId'>, f: CostFile): Promise<void> {
+  return openWith(() => downloadCostFile(row, f.id), f)
+}
+
+/** s252: чек ждущего запроса на новую затрату со склада. */
+export async function openRequestReceipt(requestId: string, f: CostFile): Promise<void> {
+  return openWith(() => downloadRequestFile(requestId, f.id), f)
+}
+
+async function openWith(load: () => Promise<string>, f: CostFile): Promise<void> {
   const win = window.open('', '_blank')
   try {
-    const url = await downloadCostFile(row, f.id)
+    const url = await load()
     if (win) win.location.href = url
     else {
       const a = document.createElement('a')

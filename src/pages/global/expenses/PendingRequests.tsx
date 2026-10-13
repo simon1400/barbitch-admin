@@ -9,15 +9,18 @@ import {
   cancelCostRequest,
   rejectCostRequest,
   type CostFields,
+  type CostPayment,
   type CostRequest,
   type CostRequestAction,
 } from '../fetch/expenses'
 import { openReceipt } from './receiptFiles'
+import { StockCostRequests } from './StockCostRequests'
 
 const ACTION_TITLES: Record<CostRequestAction, string> = {
   edit: 'Изменить',
   delete: 'Удалить',
   file_delete: 'Удалить чек',
+  create: 'Новая затрата',
 }
 
 const FIELD_LABELS: Record<keyof CostFields, string> = {
@@ -49,13 +52,18 @@ const createdText = (iso: string | null) => (iso ? `${fmtCsDate(ymdPrague(iso))}
 
 // Запросы управляющей на правку и удаление затрат. Владелец — одобряет или
 // отклоняет (с причиной); управляющая видит свои и может отозвать.
+// s252: новые затраты со склада (приход администратора) — отдельным блоком (StockCostRequests).
 export function PendingRequests({
-  pending,
+  pending: all,
   isOwner,
+  categories,
+  payments,
   onChanged,
 }: {
   pending: CostRequest[]
   isOwner: boolean
+  categories: string[]
+  payments: CostPayment[]
   /** что-то решено — странице перечитать месяц; message — что показать */
   onChanged: (message: string) => void
 }) {
@@ -64,7 +72,11 @@ export function PendingRequests({
   const [rejecting, setRejecting] = useState<string | null>(null)
   const [note, setNote] = useState('')
 
-  if (pending.length === 0) return null
+  const creates = all.filter((r) => r.action === 'create')
+  const pending = all.filter((r) => r.action !== 'create')
+  if (all.length === 0) return null
+  const stock = <StockCostRequests list={creates} isOwner={isOwner} categories={categories} payments={payments} onChanged={onChanged} />
+  if (pending.length === 0) return stock
 
   const run = async (id: string, fn: () => Promise<string>) => {
     setBusy(id)
@@ -86,138 +98,141 @@ export function PendingRequests({
   }
 
   return (
-    <section className={`${formCardCls} mb-3.5`} data-testid="pending-requests">
-      <h2 className={`${cardTitleCls} mb-1`}>
-        {isOwner ? 'Ждут одобрения' : 'Мои запросы владельцу'} ({pending.length})
-      </h2>
-      <p className={`${hintCls} mt-0 mb-3`}>
-        {isOwner
-          ? 'Управляющая просит изменить или удалить затрату. До решения в итогах месяца — старые суммы.'
-          : 'Изменения применятся после одобрения владельца. Пока запрос ждёт, его можно отозвать.'}
-      </p>
-      {error && (
-        <div role="alert" className="mb-3 text-[12px] font-semibold text-neg">
-          {error}
-        </div>
-      )}
-      <ul className="list-none m-0 p-0 flex flex-col gap-3">
-        {pending.map((r) => {
-          const cost = r.cost ?? (r.before ? { ...r.before } : null)
-          const lines = r.action === 'edit' ? changeLines(r) : []
-          const file = r.action === 'file_delete' ? (r.cost?.files.find((f) => f.id === r.fileId) ?? null) : null
-          return (
-            <li key={r.id} data-request={r.id} className="border border-line-soft rounded-lg px-4 py-3">
-              <div className="text-[14px] font-bold text-ink">
-                {ACTION_TITLES[r.action]}: «{cost?.name ?? '—'}»{' '}
-                {cost ? `${kc(cost.sum)} · ${fmtCsDate(cost.date)}` : ''}
-              </div>
-              <div className={`${hintCls} mt-0.5`}>
-                {r.requestedBy ?? '—'} · {createdText(r.createdAt)}
-                {!r.cost && ' · затраты уже нет'}
-              </div>
-              {r.action === 'file_delete' && (
-                <div className="mt-2 text-[13px] font-semibold text-ink-body">
-                  {file && r.cost ? (
-                    <button
-                      type="button"
-                      className="bg-transparent border-0 p-0 font-semibold text-brand-dark hover:underline cursor-pointer"
-                      onClick={() => {
-                        setError(null)
-                        openReceipt(r.cost!, file).catch((e: Error) => setError(e.message))
-                      }}
-                    >
-                      📎 {file.fileName}
-                    </button>
-                  ) : (
-                    'чека уже нет'
-                  )}
+    <>
+      {stock}
+      <section className={`${formCardCls} mb-3.5`} data-testid="pending-requests">
+        <h2 className={`${cardTitleCls} mb-1`}>
+          {isOwner ? 'Ждут одобрения' : 'Мои запросы владельцу'} ({pending.length})
+        </h2>
+        <p className={`${hintCls} mt-0 mb-3`}>
+          {isOwner
+            ? 'Управляющая просит изменить или удалить затрату. До решения в итогах месяца — старые суммы.'
+            : 'Изменения применятся после одобрения владельца. Пока запрос ждёт, его можно отозвать.'}
+        </p>
+        {error && (
+          <div role="alert" className="mb-3 text-[12px] font-semibold text-neg">
+            {error}
+          </div>
+        )}
+        <ul className="list-none m-0 p-0 flex flex-col gap-3">
+          {pending.map((r) => {
+            const cost = r.cost ?? (r.before ? { ...r.before } : null)
+            const lines = r.action === 'edit' ? changeLines(r) : []
+            const file = r.action === 'file_delete' ? (r.cost?.files.find((f) => f.id === r.fileId) ?? null) : null
+            return (
+              <li key={r.id} data-request={r.id} className="border border-line-soft rounded-lg px-4 py-3">
+                <div className="text-[14px] font-bold text-ink">
+                  {ACTION_TITLES[r.action]}: «{cost?.name ?? '—'}»{' '}
+                  {cost ? `${kc(cost.sum)} · ${fmtCsDate(cost.date)}` : ''}
                 </div>
-              )}
-              {lines.length > 0 && (
-                <ul className="mt-2 mb-0 pl-4 text-[13px] font-semibold text-ink-body">
-                  {lines.map((l) => (
-                    <li key={l}>{l}</li>
-                  ))}
-                </ul>
-              )}
-
-              {rejecting === r.id ? (
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <input
-                    name="rejectNote"
-                    className={`${inputCls} flex-1 min-w-[200px]`}
-                    placeholder="Причина (необязательно)"
-                    value={note}
-                    maxLength={500}
-                    onChange={(e) => setNote(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className={btnDangerCls}
-                    disabled={busy === r.id}
-                    onClick={() =>
-                      run(r.id, async () => {
-                        await rejectCostRequest(r.id, note.trim())
-                        return 'Запрос отклонён.'
-                      })
-                    }
-                  >
-                    Отклонить
-                  </button>
-                  <button type="button" className={btnNeutralCls} onClick={() => setRejecting(null)}>
-                    Отмена
-                  </button>
+                <div className={`${hintCls} mt-0.5`}>
+                  {r.requestedBy ?? '—'} · {createdText(r.createdAt)}
+                  {!r.cost && ' · затраты уже нет'}
                 </div>
-              ) : (
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {isOwner ? (
-                    <>
+                {r.action === 'file_delete' && (
+                  <div className="mt-2 text-[13px] font-semibold text-ink-body">
+                    {file && r.cost ? (
                       <button
                         type="button"
-                        className={btnPinkCls}
-                        disabled={busy === r.id}
-                        onClick={() =>
-                          run(r.id, async () => {
-                            const res = await approveCostRequest(r.id)
-                            return res.deleted ? 'Затрата удалена.' : r.action === 'file_delete' ? 'Чек удалён.' : 'Изменение применено.'
-                          })
-                        }
+                        className="bg-transparent border-0 p-0 font-semibold text-brand-dark hover:underline cursor-pointer"
+                        onClick={() => {
+                          setError(null)
+                          openReceipt(r.cost!, file).catch((e: Error) => setError(e.message))
+                        }}
                       >
-                        {busy === r.id ? '…' : r.action === 'edit' ? 'Одобрить' : 'Одобрить удаление'}
+                        📎 {file.fileName}
                       </button>
+                    ) : (
+                      'чека уже нет'
+                    )}
+                  </div>
+                )}
+                {lines.length > 0 && (
+                  <ul className="mt-2 mb-0 pl-4 text-[13px] font-semibold text-ink-body">
+                    {lines.map((l) => (
+                      <li key={l}>{l}</li>
+                    ))}
+                  </ul>
+                )}
+
+                {rejecting === r.id ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <input
+                      name="rejectNote"
+                      className={`${inputCls} flex-1 min-w-[200px]`}
+                      placeholder="Причина (необязательно)"
+                      value={note}
+                      maxLength={500}
+                      onChange={(e) => setNote(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className={btnDangerCls}
+                      disabled={busy === r.id}
+                      onClick={() =>
+                        run(r.id, async () => {
+                          await rejectCostRequest(r.id, note.trim())
+                          return 'Запрос отклонён.'
+                        })
+                      }
+                    >
+                      Отклонить
+                    </button>
+                    <button type="button" className={btnNeutralCls} onClick={() => setRejecting(null)}>
+                      Отмена
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {isOwner ? (
+                      <>
+                        <button
+                          type="button"
+                          className={btnPinkCls}
+                          disabled={busy === r.id}
+                          onClick={() =>
+                            run(r.id, async () => {
+                              const res = await approveCostRequest(r.id)
+                              return res.deleted ? 'Затрата удалена.' : r.action === 'file_delete' ? 'Чек удалён.' : 'Изменение применено.'
+                            })
+                          }
+                        >
+                          {busy === r.id ? '…' : r.action === 'edit' ? 'Одобрить' : 'Одобрить удаление'}
+                        </button>
+                        <button
+                          type="button"
+                          className={btnNeutralCls}
+                          disabled={busy === r.id}
+                          onClick={() => {
+                            setRejecting(r.id)
+                            setNote('')
+                          }}
+                        >
+                          Отклонить…
+                        </button>
+                      </>
+                    ) : (
                       <button
                         type="button"
                         className={btnNeutralCls}
                         disabled={busy === r.id}
-                        onClick={() => {
-                          setRejecting(r.id)
-                          setNote('')
-                        }}
+                        onClick={() =>
+                          run(r.id, async () => {
+                            await cancelCostRequest(r.id)
+                            return 'Запрос отозван.'
+                          })
+                        }
                       >
-                        Отклонить…
+                        {busy === r.id ? '…' : 'Отозвать'}
                       </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      className={btnNeutralCls}
-                      disabled={busy === r.id}
-                      onClick={() =>
-                        run(r.id, async () => {
-                          await cancelCostRequest(r.id)
-                          return 'Запрос отозван.'
-                        })
-                      }
-                    >
-                      {busy === r.id ? '…' : 'Отозвать'}
-                    </button>
-                  )}
-                </div>
-              )}
-            </li>
-          )
-        })}
-      </ul>
-    </section>
+                    )}
+                  </div>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      </section>
+    </>
   )
 }

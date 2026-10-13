@@ -43,6 +43,10 @@ const MODULES: ModuleDef[] = [
   // (действуют после согласования руководства); мастер сам себе ничего не меняет
   { path: '/schedule', label: 'График мастеров', roles: ['owner', 'manager', 'administrator'] },
   { path: '/upsell', label: 'Дозаписи', roles: ['owner', 'manager', 'administrator'] },
+  // склад расходников (s251): считать/приход/«došlo» — все три роли; позиции и цены —
+  // руководство (гейт вкладки «Nastavení» и цен — на сервере). hasTabs — подсветка пункта на
+  // /stock/i/… и /stock/l/… (экраны QR-ярлыков).
+  { path: '/stock', label: 'Sklad', roles: ['owner', 'manager', 'administrator'], hasTabs: true },
   { path: '/global/catalog', label: 'Каталог услуг', roles: ['owner', 'manager', 'administrator'] },
   { path: '/global/shift-close', label: 'Uzavření směny', roles: ['owner', 'manager'] },
   { path: '/voucher-confirmation', label: 'Potvrzení voucheru', roles: ['owner', 'manager'] },

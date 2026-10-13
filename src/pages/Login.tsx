@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useCallback, useState } from 'react'
 import { loginUser } from '../services/auth'
 import { LogoIcon } from '../icons/Logo'
@@ -17,8 +17,14 @@ const cardCls =
 
 const loginInputCls = `${inputBaseCls} w-full rounded-[9px] px-[13px] py-[11px] text-[15px] disabled:opacity-55 disabled:pointer-events-none`
 
+// Куда вернуться после входа (s251): только свой путь внутри админки — не `//host`, не сам /login.
+const safeReturn = (from: unknown): string | null =>
+  typeof from === 'string' && /^\/(?!\/)/.test(from) && !from.startsWith('/login') ? from : null
+
 const Login = () => {
   const navigate = useNavigate()
+  const location = useLocation()
+  const returnTo = safeReturn((location.state as { from?: unknown } | null)?.from)
   const [username, setUsername] = useState<string>('')
   const [password, setPassword] = useState<string>('')
   const [error, setError] = useState<string>('')
@@ -55,8 +61,10 @@ const Login = () => {
       // переписать руками и разъехаться с реальной сессией (s181, п. 1.5).
       localStorage.setItem('userJwt', result.jwt)
 
-      // Перенаправляем в зависимости от роли
-      if (result.role === 'owner' || result.role === 'manager') {
+      // Вернуться, откуда пришли (QR склада); роль чужого модуля отправит ModuleRoute домой
+      if (returnTo) {
+        navigate(returnTo, { replace: true })
+      } else if (result.role === 'owner' || result.role === 'manager') {
         navigate('/global')
       } else if (result.role === 'administrator') {
         navigate('/administrator-cabinet')
@@ -67,7 +75,7 @@ const Login = () => {
       console.error('Login error:', err)
       fail('Při přihlášení došlo k chybě. Zkuste to prosím znovu.')
     }
-  }, [username, password, navigate, fail])
+  }, [username, password, navigate, fail, returnTo])
 
   return (
     <main className={'min-h-screen flex flex-col box-border'}>

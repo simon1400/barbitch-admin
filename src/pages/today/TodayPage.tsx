@@ -12,6 +12,7 @@
 // записи / фактически (те же интервалы, что в дайджесте).
 // s246: владельцу — карточка «Задачи от управляющей» (после «Поручений управляющей»);
 // у управляющей «Поручения от владельца» → «Мои задачи» (+ строка «задачи владельцу: ждут …»).
+// s251: карточка «Склад» (закончилось / ниже минимума) — последней, за «Постоянными расходами».
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
@@ -37,6 +38,8 @@ import { cardState } from './cardState'
 import { TodayCard, TodayRow } from './components/TodayCard'
 import { loadToday, type TodayData } from './fetch/todayApi'
 import { summarizeDay, type Iv } from './fetch/workingToday'
+import { StockCardView } from '../stock/components/StockCard'
+import { stockAttentionCount } from '../stock/stockText'
 
 /** Автообновление, пока вкладка видна. */
 const POLL_MS = 120_000
@@ -124,6 +127,8 @@ export default function TodayPage() {
   const isOwner = getSessionRole() === 'owner'
   const cp = data?.costs
   const costPending = cp?.ok ? cp.data.pending : null
+  // s252: новые затраты со склада ждут решения этой сессии (управляющей — её ступень)
+  const stockReceipts = cp?.ok ? (cp.data.stockReceipts ?? 0) : 0
   const missingCosts = cp?.ok ? cp.data.missingRecurring : []
 
   // «Výkaz práce» (s239): непрочитанные отчёты и дни без отчёта; вопросы — отдельной карточкой
@@ -139,6 +144,8 @@ export default function TodayPage() {
   const toOwner = tkData?.toOwner ?? null
   const repLink = (personal: string, d: string) =>
     `/global/team/reports?personal=${encodeURIComponent(personal)}&date=${d}`
+
+  const st = data?.stock
 
   const dayPart = data?.day
   const working = dayPart?.ok ? summarizeDay(dayPart.data) : null
@@ -164,10 +171,16 @@ export default function TodayPage() {
     upsell: { title: 'Дозаписи без результата', count: up?.ok ? needResult.length : null, error: up && !up.ok ? up.error : null },
     korekce: { title: 'Korekce — перенос доли ждёт', count: o ? korekce.length : null, error: overviewErr },
     'work-reports': { title: 'Отчёты управляющей', count: rp?.ok ? repUnread.length + repMissing.length : null, error: rp && !rp.ok ? rp.error : null, show: isOwner },
-    'cost-requests': { title: 'Затраты ждут одобрения', count: cp?.ok ? (costPending ?? 0) : null, error: cp && !cp.ok ? cp.error : null, show: isOwner },
+    'cost-requests': {
+      title: 'Затраты ждут одобрения',
+      count: cp?.ok ? (isOwner ? (costPending ?? 0) : stockReceipts) : null,
+      error: cp && !cp.ok ? cp.error : null,
+    },
     'costs-missing': { title: 'Постоянные расходы не внесены', count: cp?.ok ? missingCosts.length : null, error: cp && !cp.ok ? cp.error : null },
+    // s251: закончилось + ниже минимума; s252: + заказы не пришли, приходы без затраты, инвентура со вторника
+    stock: { title: 'Склад', count: st?.ok ? stockAttentionCount(st.data) : null, error: st && !st.ok ? st.error : null },
   } satisfies Record<string, CardDef>
-  const ORDER: (keyof typeof defs)[] = ['blocks', 'shifts', 'vouchers', 'staff-docs', 'owner-tasks', 'tasks-for-me', 'visits', 'upsell', 'korekce', 'work-reports', 'cost-requests', 'costs-missing']
+  const ORDER: (keyof typeof defs)[] = ['blocks', 'shifts', 'vouchers', 'staff-docs', 'owner-tasks', 'tasks-for-me', 'visits', 'upsell', 'korekce', 'work-reports', 'cost-requests', 'costs-missing', 'stock']
   const okTitles = ORDER.map((id): CardDef => defs[id])
     .filter((d) => d.show !== false && cardState(d.count, first, d.error) === 'ok')
     .map((d) => d.title)
@@ -656,21 +669,27 @@ export default function TodayPage() {
           </TodayCard>
         )}
 
-        {/* 14–15. Затраты (s237): запросы управляющей — только владельцу; не внесённые постоянные — руководству */}
-        {isOwner && (
-          <TodayCard
-            id="cost-requests"
-            {...defs['cost-requests']}
-            loading={first}
-            hideOk
-            okText="Нет запросов управляющей по затратам"
-            link={{ to: '/global/expenses', label: 'Затраты' }}
-          >
+        {/* 14–15. Затраты (s237): запросы управляющей — владельцу; s252: затраты со склада — владельцу и управляющей
+            (её ступень одобрения); не внесённые постоянные — руководству */}
+        <TodayCard
+          id="cost-requests"
+          {...defs['cost-requests']}
+          loading={first}
+          hideOk
+          okText="Нет запросов по затратам"
+          link={{ to: '/global/expenses', label: 'Затраты' }}
+        >
+          {isOwner && (costPending ?? 0) - stockReceipts > 0 && (
             <div className="text-[13px] font-semibold text-ink-body">
-              Управляющая просит изменить или удалить затрату (или чек): <b className="text-ink">{costPending}</b>
+              Управляющая просит изменить или удалить затрату (или чек): <b className="text-ink">{(costPending ?? 0) - stockReceipts}</b>
             </div>
-          </TodayCard>
-        )}
+          )}
+          {stockReceipts > 0 && (
+            <div className="text-[13px] font-semibold text-ink-body" data-stock-receipts={stockReceipts}>
+              {isOwner ? 'Затраты со склада (приход администратора)' : 'Затраты со склада ждут вашего одобрения'}: <b className="text-ink">{stockReceipts}</b>
+            </div>
+          )}
+        </TodayCard>
         <TodayCard
           id="costs-missing"
           {...defs['costs-missing']}
@@ -695,6 +714,9 @@ export default function TodayPage() {
             <div className={hintCls}>В «Затратах» — «Повторить прошлый месяц».</div>
           )}
         </TodayCard>
+
+        {/* s251: склад — закончилось и ниже минимума */}
+        <StockCardView data={st?.ok ? st.data : null} loading={first} error={defs.stock.error} hideOk />
 
         {/* s245: скрытые карточки «всё в порядке» — одной строкой (§0.2) */}
         {okTitles.length > 0 && (

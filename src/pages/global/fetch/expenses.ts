@@ -22,7 +22,7 @@ import { invalidateGlobalMonthData } from '../../dashboard/fetch/monthDataCache'
 export type CostPayment = 'card' | 'cash' | 'transfer' | 'owner'
 /** Ставка DPH: 21 / 12 / без DPH / вручную (смешанный чек — сумма без DPH вводится руками). */
 export type CostVat = 21 | 12 | 0 | 'manual'
-export type CostRequestAction = 'edit' | 'delete' | 'file_delete'
+export type CostRequestAction = 'edit' | 'delete' | 'file_delete' | 'create'
 
 // Порядок — порядок селекта в форме.
 export const PAYMENT_LABELS: Record<CostPayment, string> = {
@@ -38,6 +38,7 @@ export const REQUEST_LABELS: Record<CostRequestAction, string> = {
   edit: 'изменение',
   delete: 'удаление',
   file_delete: 'удаление чека',
+  create: 'новая затрата со склада',
 }
 
 export const VAT_OPTIONS: { value: CostVat; label: string }[] = [
@@ -86,8 +87,18 @@ export interface CostRow extends CostFields {
 
 export interface CostRequest {
   id: string
-  costDocId: string
+  /** create — null, пока владелец не одобрил */
+  costDocId: string | null
   action: CostRequestAction
+  /** s252, create: чья ступень — управляющей (сначала) или владельца */
+  stage: 'manager' | 'owner' | null
+  /** create: откуда — заказ склада */
+  source: string | null
+  sourceDocId: string | null
+  managerApprovedBy: string | null
+  managerApprovedAt: string | null
+  /** create: чеки, приложенные к запросу (до одобрения) */
+  files: CostFile[]
   /** file_delete — какой чек */
   fileId: string | null
   changes: Partial<CostFields> | null
@@ -154,6 +165,7 @@ const CODE_MESSAGES: Record<string, string> = {
   request_closed: 'Запрос уже решён или отозван.',
   not_your_request: 'Отозвать запрос может только тот, кто его подал.',
   cost_changed: 'Затрату изменили после запроса — проверьте актуальные данные и решите заново.',
+  request_at_owner: 'Запрос уже передан владельцу.',
   // Фаза 2: чеки, повтор
   file_required: 'Выберите файл.',
   file_empty: 'Файл пустой.',
@@ -271,10 +283,12 @@ export const cancelCostRequest = async (id: string): Promise<void> => {
 }
 
 /** Одобрение: применённая правка или удаление — сброс кэша обоих месяцев (удаление чека денег не меняет). */
-export const approveCostRequest = async (id: string): Promise<{ row: CostRow | null; deleted: string | null }> => {
+/** s252: `changes` — поправки к новой затрате со склада (сумма, оплата…) при одобрении. */
+export const approveCostRequest = async (id: string, changes?: Partial<CostInput>): Promise<{ row: CostRow | null; deleted: string | null }> => {
   const res = await costsFetch<{ row: CostRow | null; deleted: string | null; before: CostFields | null }>(
     'POST',
     `/costs/requests/${encodeURIComponent(id)}/approve`,
+    changes ? { changes } : undefined,
   )
   invalidateMonthOf(res.before?.date)
   invalidateMonthOf(res.row?.date)
@@ -304,6 +318,16 @@ export const uploadCostFile = async (row: Pick<CostRow, 'documentId'>, file: Fil
   })
   if (!res.ok) return failFrom(res)
   return (await res.json()).file
+}
+
+/** s252: чек ждущего запроса на новую затрату (склад) — как чек затраты, objectURL. */
+export const downloadRequestFile = async (requestId: string, fileId: string): Promise<string> => {
+  const res = await fetch(`${API_URL}/api/engine/admin/costs/requests/${enc(requestId)}/files/${enc(fileId)}`, {
+    headers: { Authorization: `Bearer ${getToken() || ''}` },
+    cache: 'no-store',
+  })
+  if (!res.ok) return failFrom(res)
+  return URL.createObjectURL(await res.blob())
 }
 
 /** Чек — только fetch с Bearer (у ссылки нет заголовка). objectURL освобождать через revokeObjectURL. */
@@ -361,6 +385,8 @@ export interface CostsAttention {
   today: string
   /** ожидающих запросов (только владельцу; управляющей — null) */
   pending: number | null
+  /** s252: новые затраты со склада ждут решения этой сессии (владельцу — все, управляющей — её ступень) */
+  stockReceipts?: number
   missingRecurring: MissingRecurring[]
 }
 

@@ -255,6 +255,8 @@ const ExpensesPage = () => {
         <PendingRequests
           pending={data.pending}
           isOwner={isOwner}
+          categories={data.categories}
+          payments={data.payments}
           onChanged={(msg) => {
             if (msg) setNotice(msg)
             load()

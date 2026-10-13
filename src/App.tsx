@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { lazy, Suspense, useEffect } from 'react'
 import Login from './pages/Login'
 import AdminLayout from './pages/dashboard/AdminLayout'
@@ -60,6 +60,10 @@ const TodayPage = lazy(() => import('./pages/today/TodayPage'))
 const SchedulePage = lazy(() => import('./pages/schedule/SchedulePage'))
 const MyCardPage = lazy(() => import('./pages/me/MyCardPage'))
 const VykazPage = lazy(() => import('./pages/vykaz/VykazPage'))
+const StockPage = lazy(() => import('./pages/stock/StockPage'))
+const StockItemPage = lazy(() => import('./pages/stock/StockItemPage'))
+const StockLocationPage = lazy(() => import('./pages/stock/StockLocationPage'))
+const StockPrintPage = lazy(() => import('./pages/stock/StockPrintPage'))
 
 // Получить домашнюю страницу в зависимости от роли
 const getHomePageByRole = (role: string | null): string => {
@@ -80,9 +84,11 @@ const getHomePageByRole = (role: string | null): string => {
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const userRole = getSessionRole()
   const isAuthenticated = userRole !== null
+  const location = useLocation()
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />
+    // s251: после входа — обратно туда, куда шли (QR-ярлык склада открывает /stock/i/…)
+    return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />
   }
 
   return <>{children}</>
@@ -207,6 +213,52 @@ function App() {
                   <AdminLayout>
                     <VykazPage />
                   </AdminLayout>
+                </ModuleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/stock"
+            element={
+              <ProtectedRoute>
+                <ModuleRoute module="/stock">
+                  <AdminLayout>
+                    <StockPage />
+                  </AdminLayout>
+                </ModuleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/stock/i/:docId"
+            element={
+              <ProtectedRoute>
+                <ModuleRoute module="/stock">
+                  <AdminLayout>
+                    <StockItemPage />
+                  </AdminLayout>
+                </ModuleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/stock/l/:slug"
+            element={
+              <ProtectedRoute>
+                <ModuleRoute module="/stock">
+                  <AdminLayout>
+                    <StockLocationPage />
+                  </AdminLayout>
+                </ModuleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/stock/print"
+            element={
+              <ProtectedRoute>
+                <ModuleRoute module="/stock">
+                  <StockPrintPage />
                 </ModuleRoute>
               </ProtectedRoute>
             }
