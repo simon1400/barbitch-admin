@@ -15,7 +15,6 @@ import { errMsg } from '../../lib/errMsg'
 import { getSessionRole } from '../../services/auth'
 import { isManagement } from '../../types/admin'
 import {
-  btnNeutralCls,
   cardCls,
   countBadgeCls,
   h1Cls,
@@ -29,7 +28,7 @@ import {
 import { WEEKDAYS_CS, addDaysYmd, dowOfYmd, fmtCsDate, todayYmd } from '../../utils/date'
 import { kc } from '../../utils/money'
 import { ClientCard } from './components/ClientCard'
-import { ChevronDown, ChevronLeft, ChevronRight, RefreshIcon } from './components/icons'
+import { ChevronDown, ChevronLeft, ChevronRight } from './components/icons'
 import { MineSection } from './components/MineSection'
 import { ReportSection } from './components/ReportSection'
 import {
@@ -47,6 +46,7 @@ import {
   type UpsellService,
 } from './fetch/upsellApi'
 import { MINE_SECTION_ID, confirmText, plural, upsellCountLabel } from './labels'
+import { RefreshButton } from '../../components/RefreshButton'
 
 const sepCls = 'text-ink-disabled'
 const stripLabelCls = `${headMicroCls} text-ink-muted`
@@ -299,10 +299,7 @@ export default function UpsellPage() {
               сейчас <b className="text-ink">{day.now}</b>
             </span>
           )}
-          <button type="button" className={`${btnNeutralCls} !px-3 inline-flex items-center gap-1.5`} disabled={dayLoading} onClick={() => loadDay(date)}>
-            <RefreshIcon />
-            Обновить
-          </button>
+          <RefreshButton onClick={() => loadDay(date)} loading={dayLoading} />
         </div>
       </div>
 

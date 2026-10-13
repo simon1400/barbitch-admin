@@ -7,7 +7,6 @@ import {
   badgeNegCls,
   badgePosCls,
   bodyBoldCls,
-  btnNeutralCls,
   cardCls,
   cardPadCls,
   cardTitleCls,
@@ -22,6 +21,7 @@ import {
 } from '../../../../ui/kit'
 
 import { kc } from '../../../../utils/money'
+import { RefreshButton } from '../../../../components/RefreshButton'
 
 // Прирост в % против базы; null когда база 0 (сравнивать не с чем)
 const growthPct = (cur: number, base: number): number | null =>
@@ -114,9 +114,7 @@ export default function ForecastTab() {
         <span className={mutedCls}>
           Суммы = цены броней (без скидок/допродаж) — оценка темпа, не касса.
         </span>
-        <button onClick={() => load(true)} className={btnNeutralCls}>
-          ↻ Обновить
-        </button>
+        <RefreshButton onClick={() => load(true)} loading={loading} />
       </div>
 
       {/* Герой-карточка: формула прогноза */}

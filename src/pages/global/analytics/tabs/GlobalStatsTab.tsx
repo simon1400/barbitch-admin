@@ -19,6 +19,7 @@ import {
   type MonthKey,
 } from '../fetch/globalStats'
 import { CHART } from '../../../../ui/chartColors'
+import { RefreshButton } from '../../../../components/RefreshButton'
 
 const PRESETS = [
   { label: '3 месяца', n: 3 },
@@ -31,17 +32,6 @@ const rangeLabel = (months: MonthKey[]): string => {
   const a = months[0]
   const b = months[months.length - 1]
   return `${monthLabels[a.month]} ${a.year} — ${monthLabels[b.month]} ${b.year}`
-}
-
-const formatAgo = (ts: number): string => {
-  if (!ts) return ''
-  const sec = Math.floor((Date.now() - ts) / 1000)
-  if (sec < 60) return 'обновлено только что'
-  const min = Math.floor(sec / 60)
-  if (min < 60) return `обновлено ${min} мин назад`
-  const hour = Math.floor(min / 60)
-  if (hour < 24) return `обновлено ${hour} ч назад`
-  return `обновлено ${Math.floor(hour / 24)} дн назад`
 }
 
 export default function GlobalStatsTab() {
@@ -188,19 +178,7 @@ export default function GlobalStatsTab() {
             {rangeLabel(months)} · {months.length} мес.
           </span>
           <div className="flex items-center gap-2">
-            {result && result.cachedAt > 0 && (
-              <span className="text-xs text-ink-faint whitespace-nowrap">
-                {formatAgo(result.cachedAt)}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => load(true)}
-              disabled={loading}
-              className="px-3 py-2 rounded-lg text-sm font-semibold border bg-white text-ink-body border-line-btn shadow-sm hover:bg-surface-hover hover:border-line-btn-hover disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              {loading ? 'Обновление…' : 'Обновить всё'}
-            </button>
+            <RefreshButton onClick={() => load(true)} loading={loading} updatedAt={result?.cachedAt} title="Пересчитать все месяцы заново" />
           </div>
         </div>
       </div>
@@ -325,14 +303,12 @@ export default function GlobalStatsTab() {
                           <Cell title={kcNum(d.noDphCosts)} />
                           <Cell title={String(d.clients.all)} />
                           <td className="p-4 border-b border-line-soft">
-                            <button
-                              type="button"
+                            <RefreshButton
                               onClick={() => refreshMonth({ month: r.month, year: r.year })}
-                              disabled={refreshingMonth === key}
-                              className="px-2 py-1 rounded text-xs font-semibold border bg-white text-ink-muted border-line-btn hover:bg-surface-hover disabled:opacity-50"
-                            >
-                              {refreshingMonth === key ? '…' : 'Обновить'}
-                            </button>
+                              loading={refreshingMonth === key}
+                              title="Пересчитать этот месяц"
+                              small
+                            />
                           </td>
                         </tr>
                       )

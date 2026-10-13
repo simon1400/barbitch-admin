@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { badgeMutedCls, badgeNegCls, badgeWarnCls, btnNeutralCls, hintCls, kickerCls, pageShellCls } from '../../ui/kit'
+import { badgeMutedCls, badgeNegCls, badgeWarnCls, hintCls, kickerCls, pageShellCls } from '../../ui/kit'
 import { fmtCsDate } from '../../utils/date'
 import {
   DOC_KIND_LABEL,
@@ -11,6 +11,7 @@ import {
 } from '../global/team/fetch/staff'
 import { ErrorLine, Field, SectionCard, StaffAvatar } from '../global/team/tabs/staff/ui'
 import { fetchMyCard, type MyCard, type MyDocument } from './fetch/myCard'
+import { RefreshButton } from '../../components/RefreshButton'
 
 // «Мои данные» `/me` (фаза 2 карточки сотрудника): мастер, администратор и управляющая видят
 // СВОЮ карточку — только чтение. Правок и просьб об исправлении здесь нет (решение
@@ -46,9 +47,7 @@ export default function MyCardPage() {
           <div className={kickerCls}>Только просмотр</div>
           <h1 className="text-[24px] leading-[1.2] font-extrabold text-ink">Мои данные</h1>
         </div>
-        <button type="button" className={`${btnNeutralCls} !px-3 !py-1.5`} onClick={load} disabled={loading}>
-          {loading ? 'Обновляю…' : 'Обновить'}
-        </button>
+        <RefreshButton onClick={() => void load()} loading={loading} />
       </div>
       <div className={`mb-3.5 ${hintCls}`} data-testid="my-card-note">
         Если что-то неверно — скажите руководству салона, они исправят.

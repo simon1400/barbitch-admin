@@ -14,6 +14,7 @@ import {
   type ComebackReport,
   type ComebackRow,
 } from '../fetch/comebackReminders'
+import { RefreshButton } from '../../../../components/RefreshButton'
 
 const PAGE = 50
 
@@ -255,16 +256,7 @@ export default function ComebackTab() {
           Клиент, ответивший «NEZASÍLAT», добавляется сюда в отписки — сервер проверяет этот флаг
           перед каждой отправкой.
         </p>
-        <button
-          type={'button'}
-          onClick={() => load(true)}
-          disabled={loading}
-          className={
-            'px-3 py-2 rounded-lg text-sm font-semibold border border-line-btn bg-white shadow-sm hover:bg-surface-hover disabled:opacity-50'
-          }
-        >
-          {loading ? 'Обновление…' : '↻ Обновить'}
-        </button>
+        <RefreshButton onClick={() => load(true)} loading={loading} />
       </div>
 
       {flash && (

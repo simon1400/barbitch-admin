@@ -10,6 +10,7 @@ import {
   deleteErrorLog,
   deleteAllResolved,
 } from './fetch/errorLogs'
+import { RefreshButton } from '../../components/RefreshButton'
 
 // Журнал приходит целиком (до 200 записей) и раньше рисовался одним списком
 // карточек. Рисуем страницами — раскрытие одной карточки не заставляет браузер
@@ -165,12 +166,7 @@ export default function ErrorLogsPage() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={load}
-              className="px-3 py-1.5 bg-white border border-line-btn rounded-md text-[12.5px] font-semibold text-ink-body hover:bg-surface-hover"
-            >
-              Obnovit
-            </button>
+            <RefreshButton onClick={() => void load()} lang="cs" />
             <button
               onClick={handleDeleteResolved}
               className="px-3 py-1.5 bg-white border border-neg-line rounded-md text-[12.5px] font-semibold text-neg hover:bg-neg-bg"

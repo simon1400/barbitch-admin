@@ -10,7 +10,7 @@ import { useSearchParams } from 'react-router-dom'
 
 import { btnNeutralCls, h1Cls, hintCls, iconBtnCls, kickerCls, mutedCls, pageShellCls, toolbarCardCls } from '../../ui/kit'
 import { fmtCsDate, monthLabelRu, todayYmd } from '../../utils/date'
-import { ChevronLeft, ChevronRight, RefreshIcon } from '../upsell/components/icons'
+import { ChevronLeft, ChevronRight } from '../upsell/components/icons'
 import { ConflictList } from '../global/team/tabs/timeoff/ConflictList'
 import { DayEditor } from './components/DayEditor'
 import { LegacyPanel } from './components/LegacyPanel'
@@ -26,6 +26,7 @@ import {
   type ScheduleGrid,
   type TemplateDays,
 } from './fetch/schedule'
+import { RefreshButton } from '../../components/RefreshButton'
 
 /** Сдвиг месяца YYYY-MM на n (без Date — никакой зависимости от часов браузера). */
 const shiftMonth = (m: string, n: number): string => {
@@ -206,9 +207,7 @@ export default function SchedulePage() {
               ждут согласования: {pendingCount}
             </span>
           )}
-          <button type="button" className={iconBtnCls} aria-label="Обновить" title="Обновить" disabled={loading} onClick={() => void load(month)}>
-            <RefreshIcon className={loading ? 'animate-spin' : undefined} />
-          </button>
+          <RefreshButton onClick={() => void load(month)} loading={loading} />
         </div>
       </div>
 

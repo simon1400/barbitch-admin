@@ -30,6 +30,7 @@ import { EMPTY_PAYLOAD, cleanRestrictions, isLimited, limitSummary, modKeyOf } f
 import type { EditorState } from './parts/model'
 import { LIST_GRID, MODIFIER_GRID, VARIANT_GRID, btnNeutralCls, btnPinkCls, inputCls, kickerCls, rowInputCls } from './parts/styles'
 import { AddDashedBtn, AllowRow, CountBadge, MoveArrows, RemoveBtn, SectionCard, SuffixInput, Toggle } from './parts/ui'
+import { RefreshButton } from '../../../components/RefreshButton'
 
 
 
@@ -649,7 +650,7 @@ const CatalogPage = () => {
 
         {/* Sticky-бар сохранения */}
         <div className="fixed left-0 right-0 bottom-0 z-30 bg-[rgba(255,255,255,0.94)] backdrop-blur-[8px] border-t border-line-header">
-          <div className="max-w-[1024px] mx-auto px-5 py-[13px] box-border flex items-center justify-between gap-4">
+          <div className="max-w-[1024px] mx-auto px-2 md:px-5 py-[13px] box-border flex items-center justify-between gap-4">
             <span
               className={`text-[12.5px] font-medium truncate ${notice.startsWith('⚠') ? 'text-brand-alert font-semibold' : 'text-ink-hint'}`}
             >
@@ -687,9 +688,7 @@ const CatalogPage = () => {
           </h1>
         </div>
         <div className="flex gap-2.5">
-          <button type="button" className={btnNeutralCls} onClick={load} disabled={loading}>
-            Обновить
-          </button>
+          <RefreshButton onClick={() => void load()} loading={loading} />
           <button type="button" className={`${btnPinkCls} px-[22px] py-[9px]`} onClick={() => openEditor(null)}>
             ＋ Услуга
           </button>
@@ -785,7 +784,7 @@ const CatalogPage = () => {
 
   return (
     <div
-      className={`max-w-[1024px] mx-auto box-border px-5 pt-6 text-ink ${editor ? 'pb-[120px]' : 'pb-[60px]'}`}
+      className={`max-w-[1024px] mx-auto box-border px-0 md:px-5 pt-6 text-ink ${editor ? 'pb-[120px]' : 'pb-[60px]'}`}
     >
       {error && <p className="text-[12.5px] font-semibold text-red-600 mb-3">{error}</p>}
       {loading ? (

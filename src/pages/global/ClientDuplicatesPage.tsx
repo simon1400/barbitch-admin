@@ -42,6 +42,7 @@ import {
   unignoreGroup,
   updateClientContacts,
 } from './fetch/clientDedupe'
+import { RefreshButton } from '../../components/RefreshButton'
 
 type Tab = 'strong' | 'weak' | 'conflicts' | 'ignored'
 
@@ -529,9 +530,7 @@ const ClientDuplicatesPage = () => {
         <div className={kickerCls}>Barbitch Admin</div>
         <div className={'mb-2 flex flex-wrap items-center justify-between gap-3'}>
           <h1 className={'m-0 text-[24px] leading-[1.2] font-extrabold text-ink'}>Дубли клиентов</h1>
-          <button onClick={() => void load()} disabled={loading} className={btnNeutralCls}>
-            {loading ? 'Načítám…' : '↻ Обновить'}
-          </button>
+          <RefreshButton onClick={() => void load()} loading={loading} />
         </div>
         <p className={'mb-4 ' + hintCls}>
           Слияние переносит брони, лояльность и награды на главную карточку и удаляет дубли; имя

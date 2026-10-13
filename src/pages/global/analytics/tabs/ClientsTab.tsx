@@ -7,6 +7,7 @@ import { Cell } from '../../../dashboard/components/Cell'
 import { StatSection } from '../../components/StatSection'
 import { TableWrapper } from '../../components/TableWrapper'
 import { tileLabelCls, tileValueAccentCls, tileValueCls } from '../../../../ui/kit'
+import { RefreshButton } from '../../../../components/RefreshButton'
 
 const SummaryCard = ({ label, value, accent }: { label: string; value: string; accent?: boolean }) => (
   <div className={'bg-white rounded-xl shadow-md p-4 flex-1 min-w-[140px]'}>
@@ -44,13 +45,7 @@ export default function ClientsTab() {
     return (
       <div className={'py-12 text-center'}>
         <p className={'text-sm text-neg mb-4'}>{error ?? 'Нет данных'}</p>
-        <button
-          type={'button'}
-          onClick={() => load(true)}
-          className={'px-4 py-2 rounded-lg bg-brand text-white text-sm font-semibold'}
-        >
-          Обновить
-        </button>
+        <RefreshButton onClick={() => load(true)} loading={loading} />
       </div>
     )
   }
@@ -64,13 +59,7 @@ export default function ClientsTab() {
   return (
     <>
       <div className={'mb-6 flex justify-end'}>
-        <button
-          type={'button'}
-          onClick={() => load(true)}
-          className={'px-4 py-2 rounded-lg border border-line-btn bg-white text-sm font-semibold text-ink-body hover:bg-surface-hover'}
-        >
-          Обновить
-        </button>
+        <RefreshButton onClick={() => load(true)} loading={loading} />
       </div>
 
       <StatSection title={'Новые и повторные клиенты по месяцам'} id={'clients-monthly'} defaultOpen>

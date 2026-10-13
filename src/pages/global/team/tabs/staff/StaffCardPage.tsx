@@ -27,6 +27,7 @@ import { NotesSection } from './NotesSection'
 import { PaySection } from './PaySection'
 import { PrivateSection } from './PrivateSection'
 import { ErrorLine, PasswordBox, SectionCard, StaffAvatar } from './ui'
+import { RefreshButton } from '../../../../../components/RefreshButton'
 
 const linkCls = 'font-semibold text-brand-dark underline'
 
@@ -124,9 +125,7 @@ export default function StaffCardPage() {
     <div data-testid="staff-card">
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
         {back}
-        <button type="button" className={`${btnNeutralCls} !px-3 !py-1.5`} onClick={load} disabled={loading}>
-          {loading ? 'Обновляю…' : 'Обновить'}
-        </button>
+        <RefreshButton onClick={() => void load()} loading={loading} />
       </div>
       <ErrorLine text={error} />
 

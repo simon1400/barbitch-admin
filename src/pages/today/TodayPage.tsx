@@ -25,7 +25,6 @@ import {
   btnNeutralCls,
   h1Cls,
   hintCls,
-  iconBtnCls,
   kickerCls,
   pageShellCls,
 } from '../../ui/kit'
@@ -34,7 +33,6 @@ import { kc } from '../../utils/money'
 import { getSessionRole } from '../../services/auth'
 import { BirthdaysCardView } from '../../components/BirthdaysCard'
 import { CONTRACT_LABEL, DOC_KIND_LABEL } from '../global/team/fetch/staff'
-import { RefreshIcon } from '../upsell/components/icons'
 import { NotificationButton } from '../calendar/NotificationButton'
 import { cardState } from './cardState'
 import { TodayCard, TodayRow } from './components/TodayCard'
@@ -42,6 +40,7 @@ import { loadToday, type TodayData } from './fetch/todayApi'
 import { summarizeDay, type Iv } from './fetch/workingToday'
 import { StockCardView } from '../stock/components/StockCard'
 import { stockAttentionCount } from '../stock/stockText'
+import { RefreshButton } from '../../components/RefreshButton'
 
 /** Автообновление, пока вкладка видна. */
 const POLL_MS = 120_000
@@ -199,21 +198,7 @@ export default function TodayPage() {
         <div className="flex items-center gap-2">
           {/* s247: push владельцу и управляющей (výkaz, поручения, блоки) — подписка этого устройства */}
           <NotificationButton popup="down-end" menuItem className={`${btnNeutralCls} inline-flex items-center !px-3`} />
-          {updatedAt && (
-            <span className={smallCls} data-updated>
-              обновлено {fmtTimePrague(new Date(updatedAt).toISOString())}
-            </span>
-          )}
-          <button
-            type="button"
-            className={iconBtnCls}
-            onClick={() => void load()}
-            disabled={loading}
-            aria-label="Обновить"
-            title="Обновить"
-          >
-            <RefreshIcon className={loading ? 'animate-spin' : undefined} />
-          </button>
+          <RefreshButton onClick={() => void load()} loading={loading} updatedAt={updatedAt} />
         </div>
       </div>
 

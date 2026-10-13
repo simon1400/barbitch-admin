@@ -4,7 +4,6 @@ import {
   badgeFaintCls,
   badgeMutedCls,
   badgeWarnCls,
-  btnNeutralCls,
   btnPinkCls,
   cardPadCls,
   mutedCls,
@@ -24,6 +23,7 @@ import {
   type StaffRow,
 } from '../fetch/staff'
 import { StaffAvatar } from './staff/ui'
+import { RefreshButton } from '../../../../components/RefreshButton'
 
 const STATUS_PILLS: { key: ListFilter; label: string }[] = [
   { key: 'active', label: 'Работают' },
@@ -97,9 +97,7 @@ export default function StaffTab() {
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" className={btnNeutralCls} onClick={load} disabled={loading}>
-            Обновить
-          </button>
+          <RefreshButton onClick={() => void load()} loading={loading} />
           <Link to="/global/team/staff/new" className={btnPinkCls}>
             + Добавить сотрудника
           </Link>

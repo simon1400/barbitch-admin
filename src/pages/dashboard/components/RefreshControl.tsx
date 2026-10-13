@@ -5,17 +5,8 @@
 // Используется на главной владельца и во вкладке «Зарплаты» — один компонент, чтобы
 // поведение не разъезжалось.
 
-import { btnNeutralCls, mutedCls } from '../../../ui/kit'
-
-const formatAgo = (ts: number): string => {
-  if (!ts) return ''
-  const sec = Math.floor((Date.now() - ts) / 1000)
-  if (sec < 60) return 'обновлено только что'
-  const min = Math.floor(sec / 60)
-  if (min < 60) return `обновлено ${min} мин назад`
-  const hour = Math.floor(min / 60)
-  return `обновлено ${hour} ч назад`
-}
+// s256: внутри — общая RefreshButton (иконка + «обновлено 20:10»), как во всех модулях.
+import { RefreshButton } from '../../../components/RefreshButton'
 
 export const RefreshControl = ({
   cachedAt,
@@ -25,19 +16,4 @@ export const RefreshControl = ({
   cachedAt: number
   loading: boolean
   refresh: () => void
-}) => (
-  <div className="flex items-center gap-3">
-    {cachedAt > 0 && (
-      <span className={`${mutedCls} whitespace-nowrap`}>{formatAgo(cachedAt)}</span>
-    )}
-    <button
-      type="button"
-      onClick={refresh}
-      disabled={loading}
-      title="Пересчитать месяц заново (минуя кэш)"
-      className={btnNeutralCls}
-    >
-      {loading ? 'Обновление…' : 'Обновить'}
-    </button>
-  </div>
-)
+}) => <RefreshButton onClick={refresh} loading={loading} updatedAt={cachedAt} title="Пересчитать месяц заново (минуя кэш)" />

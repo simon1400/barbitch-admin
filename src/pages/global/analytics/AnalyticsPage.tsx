@@ -13,7 +13,7 @@ export default function AnalyticsPage() {
   return (
     <OwnerProtection>
       <section className="min-h-screen">
-        <div className="max-w-[1024px] mx-auto px-5 pt-7 pb-[60px]">
+        <div className="max-w-[1024px] mx-auto px-0 md:px-5 pt-7 pb-[60px]">
           <div className="text-[11px] font-bold tracking-[.08em] uppercase text-ink-faint mb-1">
             {sub.moduleLabel}
           </div>

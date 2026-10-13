@@ -31,8 +31,10 @@ export const kickerCls =
 /** H1 страницы. */
 export const h1Cls = 'm-0 mb-[18px] text-[24px] leading-[1.2] font-extrabold text-ink'
 
-/** Корневой контейнер страницы (как AnalyticsPage/TeamPage/CatalogPage). */
-export const pageShellCls = 'max-w-[1024px] mx-auto box-border px-5 pt-7 pb-[60px] text-ink'
+/** Корневой контейнер страницы (как AnalyticsPage/TeamPage/CatalogPage).
+ *  s255: на телефоне своих боковых отступов нет — остаются 8px общей обёртки (Container
+ *  в AdminLayout), иначе 8 + 20 px с каждой стороны съедали ширину экрана. */
+export const pageShellCls = 'max-w-[1024px] mx-auto box-border px-0 md:px-5 pt-7 pb-[60px] text-ink'
 
 /** Розовый бейдж-счётчик рядом с заголовком («Мастера 5»). */
 export const countBadgeCls =

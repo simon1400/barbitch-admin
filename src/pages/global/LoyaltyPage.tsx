@@ -6,7 +6,7 @@ import { todayDate } from '../../utils/date'
 import { Pagination } from '../../components/Pagination'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { btnNeutralCls, h1Cls, kickerCls, pageShellCls } from '../../ui/kit'
+import { h1Cls, kickerCls, pageShellCls } from '../../ui/kit'
 import { Cell } from '../dashboard/components/Cell'
 import { OwnerProtection } from './components/OwnerProtection'
 import { TableWrapper } from './components/TableWrapper'
@@ -32,6 +32,7 @@ import { MetricsSection } from './loyalty/MetricsSection'
 import { RewardsSection } from './loyalty/RewardsSection'
 
 import { kc } from '../../utils/money'
+import { RefreshButton } from '../../components/RefreshButton'
 
 
 // ── страница ──
@@ -189,14 +190,9 @@ export default function LoyaltyPage() {
           <div className={kickerCls}>Barbitch Admin</div>
           <div className={'flex items-center justify-between mb-4'}>
             <h1 className={h1Cls}>Лояльность — bitchcard {cardYear}</h1>
-            <button
-              type={'button'}
-              onClick={() => refresh()}
-              disabled={loading}
-              className={`${btnNeutralCls} mb-[18px]`}
-            >
-              {loading ? 'Загрузка…' : 'Обновить'}
-            </button>
+            <span className={'mb-[18px]'}>
+              <RefreshButton onClick={() => refresh()} loading={loading} />
+            </span>
           </div>
 
           {error && (

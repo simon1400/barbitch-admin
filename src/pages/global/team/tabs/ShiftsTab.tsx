@@ -16,6 +16,7 @@ import {
   type WeekDays,
 } from '../fetch/shifts'
 import { WeekCard } from './shifts/WeekCard'
+import { RefreshButton } from '../../../../components/RefreshButton'
 
 const short = (ymd: string) => fmtCsShort(ymdToDate(ymd))
 const clean = (d: WeekDays): WeekDays =>
@@ -155,9 +156,7 @@ export default function ShiftsTab() {
         </div>
         <div className="flex items-center gap-3">
           {dirtyCount > 0 && <span className="text-[12.5px] font-semibold text-warn">не сохранено недель: {dirtyCount}</span>}
-          <button type="button" className={`${btnNeutralCls} !px-3 !py-1.5`} onClick={() => leave(() => setReload((n) => n + 1))}>
-            Обновить
-          </button>
+          <RefreshButton onClick={() => leave(() => setReload((n) => n + 1))} />
         </div>
       </div>
 
