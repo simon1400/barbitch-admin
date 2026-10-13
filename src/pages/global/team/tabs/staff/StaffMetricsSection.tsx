@@ -12,6 +12,7 @@ import {
   tileValueCls,
 } from '../../../../../ui/kit'
 import { monthLabelRu, todayDate, todayYmd } from '../../../../../utils/date'
+import { worksAsMaster } from '../../../../../lib/worksAsMaster'
 import { dec, kc } from '../../../../../utils/money'
 import { Select } from '../../../../dashboard/components/Select'
 import type { StaffCard } from '../../fetch/staff'
@@ -70,7 +71,9 @@ function MetricsBody({ card }: { card: StaffCard }) {
   const [monthData, setMonthData] = useState<MonthMetrics | null>(null)
   const [history, setHistory] = useState<HistoryMetrics | null>(null)
   const seq = useRef(0)
-  const master = card.position === 'master'
+  // загрузка и история визитов — всем, кто работает как мастер (и управляющей с alsoMaster, s249);
+  // дозаписи — всем, кроме мастеров
+  const master = worksAsMaster(card)
   const key = card.booking.noonaEmployeeId
 
   useEffect(() => {
@@ -81,7 +84,7 @@ function MetricsBody({ card }: { card: StaffCard }) {
     })
     // карточку перечитывают после каждой правки — месяц перегружаем только по имени/должности
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [card.documentId, card.name, card.position, month, year])
+  }, [card.documentId, card.name, card.position, card.alsoMaster, month, year])
 
   useEffect(() => {
     if (!master || !key) return
@@ -113,7 +116,7 @@ function MetricsBody({ card }: { card: StaffCard }) {
             Загрузка
           </Link>
         )}
-        {!master && (
+        {card.position !== 'master' && (
           <Link to="/upsell" className={linkCls}>
             Дозаписи
           </Link>

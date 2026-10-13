@@ -12,6 +12,7 @@ import {
   toolbarCardCls,
 } from '../../../../ui/kit'
 import { fmtCsDate } from '../../../../utils/date'
+import { worksAsMaster } from '../../../../lib/worksAsMaster'
 import {
   FLAG_LABEL,
   POSITION_LABEL,
@@ -135,7 +136,8 @@ function StaffListRow({ row, first }: { row: StaffRow; first: boolean }) {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[14px] font-bold text-ink">{row.name}</span>
           <span className="text-[12px] font-semibold text-ink-soft">{positionLabel(row.position)}</span>
-          {row.position === 'master' && row.tier === 'junior' && <span className={badgeMutedCls}>junior</span>}
+          {row.position === 'manager' && row.alsoMaster && <span className={badgeMutedCls}>+ мастер</span>}
+          {worksAsMaster(row) && row.tier === 'junior' && <span className={badgeMutedCls}>junior</span>}
           {!row.published && <span className={badgeWarnCls}>не опубликована</span>}
         </div>
         {row.flags.length > 0 && (

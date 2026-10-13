@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { badgeMutedCls, badgeNegCls, badgeWarnCls, hintCls, kickerCls, pageShellCls } from '../../ui/kit'
 import { fmtCsDate } from '../../utils/date'
+import { worksAsMaster } from '../../lib/worksAsMaster'
 import {
   DOC_KIND_LABEL,
   PRIVATE_KEYS,
@@ -74,7 +75,7 @@ export default function MyCardPage() {
                   <span className="block text-[20px] leading-[1.2] font-extrabold text-ink">{card.name}</span>
                   <span className="block mt-0.5 text-[13px] font-semibold text-ink-soft">
                     {positionLabel(card.position)}
-                    {card.position === 'master' && card.tier === 'junior' ? ' · junior' : ''}
+                    {worksAsMaster(card) && card.tier === 'junior' ? ' · junior' : ''}
                     {card.hiredAt ? ` · работаете с ${fmtCsDate(card.hiredAt)}` : ''}
                   </span>
                 </span>
@@ -88,9 +89,10 @@ export default function MyCardPage() {
                 <Field label="Испытательный срок">до {fmtCsDate(card.contracts.current.probationUntil)}</Field>
               )}
               {card.contracts.current?.type === 'ico' && <Field label="IČO">{card.contracts.current.ico || '—'}</Field>}
-              {card.position === 'master' ? (
+              {worksAsMaster(card) && (
                 <Field label="Доля от услуг">{card.pay.ratePercent == null ? '—' : `${card.pay.ratePercent} %`}</Field>
-              ) : (
+              )}
+              {card.position !== 'master' && (
                 <Field label="Ставка">{card.pay.currentRate ? rateText({ ...card.pay.currentRate, to: null }) : '—'}</Field>
               )}
             </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { btnNeutralCls, btnPinkCls, hintCls, inputCls, labelCls } from '../../../../../ui/kit'
 import { fmtCsDate, todayYmd } from '../../../../../utils/date'
+import { worksAsMaster } from '../../../../../lib/worksAsMaster'
 import {
   POSITION_LABEL,
   bookingsOf,
@@ -30,6 +31,7 @@ const renameBlocker = (card: StaffCard): string | null => {
 export function BasicSection({ card, onCard }: { card: StaffCard; onCard: (c: StaffCard) => void }) {
   const [edit, setEdit] = useState(false)
   const [position, setPosition] = useState<Position | ''>(card.position ?? '')
+  const [alsoMaster, setAlsoMaster] = useState(card.alsoMaster)
   const [tier, setTier] = useState<Tier>(card.tier)
   const [hiredAt, setHiredAt] = useState(card.hiredAt ?? '')
   const [saving, setSaving] = useState(false)
@@ -41,6 +43,7 @@ export function BasicSection({ card, onCard }: { card: StaffCard; onCard: (c: St
   const positionLocked = card.self || card.account?.role === 'owner'
   const startEdit = () => {
     setPosition(card.position ?? '')
+    setAlsoMaster(card.alsoMaster)
     setTier(card.tier)
     setHiredAt(card.hiredAt ?? '')
     setError(null)
@@ -50,9 +53,15 @@ export function BasicSection({ card, onCard }: { card: StaffCard; onCard: (c: St
   }
 
   const posChanged = !!position && position !== card.position
-  const willMaster = (position || card.position) === 'master'
+  // «Принимает клиенток» (s249) — только у управляющей; смену должности сервер снимет сам
+  const isManagerNext = (position || card.position) === 'manager'
+  const alsoMasterNext = isManagerNext && alsoMaster
+  const wasMaster = worksAsMaster(card)
+  const willMaster = worksAsMaster({ position: position || card.position, alsoMaster: alsoMasterNext })
+  const masterChanged = wasMaster !== willMaster
   const data: Record<string, unknown> = {}
   if (posChanged) data.position = position
+  if (isManagerNext && alsoMasterNext !== card.alsoMaster) data.alsoMaster = alsoMasterNext
   if (willMaster && tier !== card.tier) data.tier = tier
   if ((hiredAt || null) !== (card.hiredAt || null)) data.hiredAt = hiredAt || null
   const dirty = Object.keys(data).length > 0
@@ -85,7 +94,10 @@ export function BasicSection({ card, onCard }: { card: StaffCard; onCard: (c: St
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             <Field label="Должность">{positionLabel(card.position)}</Field>
-            {card.position === 'master' && <Field label="Уровень">{card.tier === 'junior' ? 'junior (−20 %)' : 'senior'}</Field>}
+            {card.position === 'manager' && (
+              <Field label="Принимает клиенток">{card.alsoMaster ? 'да — как мастер' : 'нет'}</Field>
+            )}
+            {wasMaster && <Field label="Уровень">{card.tier === 'junior' ? 'junior (−20 %)' : 'senior'}</Field>}
             <Field label="Работает с">{fmtCsDate(card.hiredAt)}</Field>
             <Field label="Статус">
               {card.left ? `Завершил(а) работу${card.leftAt ? ` ${fmtCsDate(card.leftAt)}` : ''}` : 'Работает'}
@@ -115,6 +127,18 @@ export function BasicSection({ card, onCard }: { card: StaffCard; onCard: (c: St
                 ))}
               </select>
             </label>
+            {isManagerNext && (
+              <label className="flex items-center gap-2 self-end pb-2.5 text-[13.5px] font-semibold text-ink cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="alsoMaster"
+                  checked={alsoMaster}
+                  onChange={(e) => setAlsoMaster(e.target.checked)}
+                  data-testid="staff-also-master"
+                />
+                Принимает клиенток как мастер
+              </label>
+            )}
             {willMaster && (
               <label className="block">
                 <span className={labelCls}>Уровень</span>
@@ -140,15 +164,15 @@ export function BasicSection({ card, onCard }: { card: StaffCard; onCard: (c: St
               {card.self ? 'Свою должность менять нельзя — вместе с ней сменится ваша роль входа.' : 'Учётка владельца из карточки не меняется.'}
             </div>
           )}
-          {posChanged && (
+          {(posChanged || masterChanged) && (
             <div className="mt-2 text-[12.5px] font-semibold text-warn" data-testid="staff-position-warning">
-              {card.position === 'master'
+              {wasMaster && !willMaster
                 ? 'Мастер пропадёт из календаря и с сайта. Будущие брони сначала нужно перенести. '
                 : ''}
-              {position === 'master'
-                ? 'Появится колонка в календаре; на сайте — после назначения услуг в Каталоге. '
+              {!wasMaster && willMaster
+                ? 'Появится колонка в календаре; на сайте — после назначения услуг в Каталоге. Долю от услуг задайте в «Оплате». '
                 : ''}
-              {card.account ? 'Роль входа сменится вместе с должностью — сотруднику нужно будет войти заново.' : ''}
+              {posChanged && card.account ? 'Роль входа сменится вместе с должностью — сотруднику нужно будет войти заново.' : ''}
             </div>
           )}
           <ConflictList rows={bookings} title={`Будущие брони мастера (${bookings.length}) — перенесите их на других мастеров:`} />

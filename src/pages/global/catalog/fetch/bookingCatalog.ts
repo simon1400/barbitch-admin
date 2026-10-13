@@ -5,6 +5,7 @@
 
 import { Axios } from '../../../../lib/api'
 import { authHeaders } from '../../../../lib/authHeaders'
+import { worksAsMaster } from '../../../../lib/worksAsMaster'
 
 
 export interface CatalogVariant {
@@ -107,6 +108,8 @@ interface RawService {
 
 interface RawPersonal extends RawDocRef {
   services?: RawDocRef[]
+  position?: string | null
+  alsoMaster?: boolean | null
 }
 
 const mapVariant = (v: RawVariant): CatalogVariant => ({
@@ -163,10 +166,11 @@ export const fetchCatalogServices = async (): Promise<CatalogServiceFull[]> => {
 
 export const fetchMasterOptions = async (): Promise<MasterOption[]> => {
   const data = (await Axios.get(
-    '/api/personals?fields[0]=name&fields[1]=tier&filters[position][$eq]=master&filters[isActive][$eq]=true&populate[services][fields][0]=title&status=published&pagination[pageSize]=100&sort=name:asc',
+    // мастер — worksAsMaster (s249): и управляющая с флагом alsoMaster
+    '/api/personals?fields[0]=name&fields[1]=tier&fields[2]=position&fields[3]=alsoMaster&filters[isActive][$eq]=true&populate[services][fields][0]=title&status=published&pagination[pageSize]=100&sort=name:asc',
     { headers: authHeaders() },
   )) as unknown as RawPersonal[]
-  return (data || []).map((p) => ({
+  return (data || []).filter(worksAsMaster).map((p) => ({
     documentId: p.documentId,
     name: p.name ?? '',
     tier: p.tier === 'junior' ? 'junior' : 'senior',

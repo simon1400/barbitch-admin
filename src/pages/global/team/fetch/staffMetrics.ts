@@ -9,6 +9,7 @@
 //     (`getEventsHistory`, `getRetention`): визиты и сумма по цене броней, не деньги кассы.
 // Грузится только при раскрытии секции: месячные данные тяжёлые.
 import { ym } from '../../../../utils/date'
+import { worksAsMaster } from '../../../../lib/worksAsMaster'
 import { getGlobalMonthData, type GlobalMonthData } from '../../../dashboard/fetch/monthDataCache'
 import { fetchUpsellReport } from '../../../upsell/fetch/upsellApi'
 import { getEventsHistory, isAttended, type HistEvent } from '../../analytics/fetch/eventsHistory'
@@ -52,21 +53,22 @@ export interface MonthMetrics {
 
 /** month — 0-based (как «Зарплаты»). */
 export const loadMonthMetrics = async (card: StaffCard, month: number, year: number): Promise<MonthMetrics> => {
-  const master = card.position === 'master'
+  const master = worksAsMaster(card) // загрузка — и управляющей с alsoMaster (s249)
+  const upsellToo = card.position !== 'master' // дозаписи — всем, кроме мастеров
   const key = card.booking.noonaEmployeeId
   const login = card.account?.username || card.name
   const ym = `${year}-${String(month + 1).padStart(2, '0')}`
   const [rows, load, upsell] = await Promise.allSettled([
     getGlobalMonthData(month, year).then((r) => pickMonthRows(r.data, card.name)),
     master && key ? getMasterLoad(month, year).then((r) => r.rows.find((x) => x.employeeId === key) ?? null) : null,
-    master
+    !upsellToo
       ? null
       : fetchUpsellReport(ym).then((r) => r.byAdmin.find((a) => lower(a.adminUsername) === lower(login)) ?? null),
   ])
   return {
     rows: settle(rows),
     load: master && key ? settle(load as PromiseSettledResult<MasterLoadRow | null>) : null,
-    upsell: master ? null : settle(upsell as PromiseSettledResult<{ booked: number; declined: number; notOffered: number } | null>),
+    upsell: !upsellToo ? null : settle(upsell as PromiseSettledResult<{ booked: number; declined: number; notOffered: number } | null>),
   }
 }
 

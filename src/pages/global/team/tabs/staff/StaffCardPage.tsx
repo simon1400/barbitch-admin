@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { badgeFaintCls, badgeMutedCls, badgeWarnCls, btnNeutralCls, hintCls, mutedCls } from '../../../../../ui/kit'
 import { fmtCsDate } from '../../../../../utils/date'
+import { worksAsMaster } from '../../../../../lib/worksAsMaster'
 import {
   ACCEPT_PHOTO,
   FLAG_LABEL,
@@ -119,7 +120,7 @@ export default function StaffCardPage() {
     )
   }
 
-  const master = card.position === 'master'
+  const master = worksAsMaster(card)
 
   return (
     <div data-testid="staff-card">
@@ -193,7 +194,8 @@ function HeaderCard({ card, onCard }: { card: StaffCard; onCard: (c: StaffCard) 
             </span>
             <span className="block mt-0.5 text-[13px] font-semibold text-ink-soft">
               {positionLabel(card.position)}
-              {card.position === 'master' && card.tier === 'junior' ? ' · junior' : ''}
+              {card.alsoMaster && card.position === 'manager' ? ' · принимает клиенток' : ''}
+              {worksAsMaster(card) && card.tier === 'junior' ? ' · junior' : ''}
               {card.left
                 ? ` · завершил(а) работу${card.leftAt ? ` ${fmtCsDate(card.leftAt)}` : ''}`
                 : card.hiredAt
@@ -269,7 +271,7 @@ function SummarySection({ card }: { card: StaffCard }) {
         <Link to="/global/team/time-off" className={linkCls}>
           Отпуска
         </Link>
-        {card.position === 'master' && (
+        {worksAsMaster(card) && (
           <Link to={`/schedule?master=${encodeURIComponent(card.documentId)}`} className={linkCls}>
             График
           </Link>

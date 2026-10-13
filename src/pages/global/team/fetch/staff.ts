@@ -38,6 +38,8 @@ export interface StaffRow {
   documentId: string
   name: string
   position: Position | null
+  /** управляющая принимает и клиенток (s249) — см. lib/worksAsMaster */
+  alsoMaster: boolean
   tier: Tier
   isActive: boolean
   /** ушёл: isActive=false или «❌» в имени */
@@ -137,6 +139,8 @@ export interface StaffCard {
   documentId: string
   name: string
   position: Position | null
+  /** управляющая принимает и клиенток (s249) — см. lib/worksAsMaster */
+  alsoMaster: boolean
   tier: Tier
   isActive: boolean
   left: boolean
@@ -369,6 +373,7 @@ const CODE_MESSAGES: Record<string, string> = {
   confirm_mismatch: 'Для подтверждения введите имя сотрудника точно.',
   bad_dual_role: 'Совместитель — да или нет.',
   not_manager: 'Оклад управляющей — только у должности «управляющая».',
+  also_master_manager_only: 'Принимать клиенток как мастер может только управляющая.',
   bad_contract_type: 'Тип договора — HPP, DPP или IČO.',
   probation_only_hpp: 'Испытательный срок — только у HPP.',
   ico_required: 'Укажите IČO.',

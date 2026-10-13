@@ -19,6 +19,8 @@ export interface MyCard {
   today: string
   name: string
   position: Position | null
+  /** управляющая принимает и клиенток (s249) */
+  alsoMaster: boolean
   tier: Tier
   hiredAt: string | null
   photo: StaffPhoto | null

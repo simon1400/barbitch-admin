@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { badgeMutedCls, badgeWarnCls, btnNeutralCls, btnPinkCls, hintCls, inputCls, labelCls } from '../../../../../ui/kit'
 import { addDaysYmd, fmtCsDate, todayYmd } from '../../../../../utils/date'
 import { kc } from '../../../../../utils/money'
+import { worksAsMaster } from '../../../../../lib/worksAsMaster'
 import {
   CONTRACT_LABEL,
   addStaffRate,
@@ -25,7 +26,7 @@ const INT = /^\d+$/
 // числом переписала бы посчитанные месяцы).
 export function PaySection({ card, onCard }: { card: StaffCard; onCard: (c: StaffCard) => void }) {
   const p = card.pay
-  const master = card.position === 'master'
+  const master = worksAsMaster(card) // доля — и управляющей с alsoMaster (s249), оклад остаётся
   const [edit, setEdit] = useState(false)
   const [percent, setPercent] = useState('')
   const [threshold, setThreshold] = useState('')
@@ -73,7 +74,7 @@ export function PaySection({ card, onCard }: { card: StaffCard; onCard: (c: Staf
           )}
           <Field label="Порог превышения">{kc(p.excessThreshold ?? 0)}</Field>
           <Field label="Ставка сейчас">
-            {p.currentRate ? rateText(p.currentRate) : master ? '—' : <span className={badgeWarnCls}>не задана</span>}
+            {p.currentRate ? rateText(p.currentRate) : card.position === 'master' ? '—' : <span className={badgeWarnCls}>не задана</span>}
           </Field>
           {contractMismatch(p.currentRate, card.contracts?.current) && (
             <div className={`sm:col-span-3 ${hintCls}`} data-testid="staff-contract-mismatch">

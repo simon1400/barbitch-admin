@@ -1,4 +1,5 @@
 import { Axios } from '../../../lib/api'
+import { worksAsMaster } from '../../../lib/worksAsMaster'
 import { fetchStaffCard, patchStaff } from '../team/fetch/staff'
 
 export interface MasterPriorityData {
@@ -14,14 +15,17 @@ interface RawMasterPersonal {
   name: string
   noonaEmployeeId?: string | null
   bookingPriority?: number | null
+  position?: string | null
+  alsoMaster?: boolean | null
 }
 
 export const fetchMasters = async (): Promise<MasterPriorityData[]> => {
   const data: RawMasterPersonal[] = await Axios.get(
-    '/api/personals?fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=bookingPriority&filters[position][$eq]=master&filters[isActive][$eq]=true&pagination[pageSize]=100&status=published',
+    // мастер — worksAsMaster (s249): и управляющая с флагом alsoMaster
+    '/api/personals?fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=bookingPriority&fields[3]=position&fields[4]=alsoMaster&filters[isActive][$eq]=true&pagination[pageSize]=100&status=published',
   )
 
-  return (data || []).map((item) => ({
+  return (data || []).filter(worksAsMaster).map((item) => ({
     documentId: item.documentId,
     name: item.name,
     noonaEmployeeId: item.noonaEmployeeId || null,

@@ -13,6 +13,7 @@
 // ответа. Сводить их в один загрузчик значило бы возить каждому экрану лишнее.
 import { Axios } from './api'
 import { authHeaders } from './authHeaders'
+import { worksAsMaster } from './worksAsMaster'
 
 /** Мастер календаря/аналитики. Ключ `id` — noonaEmployeeId (стабильный id сотрудника). */
 export interface ActivePersonal {
@@ -32,18 +33,22 @@ interface RawPersonal {
   tier: 'senior' | 'junior' | null
   calendarOrder: number | null
   ratePercent: number | null
+  position?: string | null
+  alsoMaster?: boolean | null
 }
 
 // `status=published` избыточен (Strapi 5 и без него отдаёт только published), но
 // оставлен явным — так у запроса читается намерение. Поле `position` прежний
 // календарный запрос тянул и НЕ читал: убрано.
-// `position=master` (s213): управляющая остаётся активной (получатель интерных услуг,
-// налоги), но колонки в календаре у неё нет — её прошлые брони уходят в колонку
-// «бывшие мастера». Администраторов фильтр не задевает: у них нет noonaEmployeeId.
+// Мастер — `worksAsMaster` (s249): должность master ИЛИ управляющая с флагом alsoMaster.
+// Просто управляющая (s213) остаётся активной (получатель интерных услуг, налоги), но
+// колонки в календаре у неё нет — её прошлые брони уходят в колонку «бывшие мастера».
+// Отсев — в браузере: фильтр `$or` в query сессии мастера не пропускает admin-session.
 const QUERY =
-  '/api/personals?filters[isActive][$eq]=true&filters[position][$eq]=master' +
+  '/api/personals?filters[isActive][$eq]=true' +
   '&fields[0]=name&fields[1]=noonaEmployeeId&fields[2]=tier' +
   '&fields[3]=calendarOrder&fields[4]=ratePercent' +
+  '&fields[5]=position&fields[6]=alsoMaster' +
   '&pagination[pageSize]=100&status=published'
 
 /**
@@ -57,7 +62,7 @@ const QUERY =
 export const fetchActivePersonals = async (): Promise<ActivePersonal[]> => {
   const res = (await Axios.get(QUERY, { headers: authHeaders() })) as RawPersonal[]
   return (res || [])
-    .filter((p) => p.noonaEmployeeId && !p.name.startsWith('❌'))
+    .filter((p) => worksAsMaster(p) && p.noonaEmployeeId && !p.name.startsWith('❌'))
     .map((p) => ({
       id: p.noonaEmployeeId as string,
       docId: p.documentId,
@@ -75,6 +80,8 @@ export interface InternalRecipient {
   name: string
   /** 'master' | 'administrator' | 'manager' — показывается подписью в селекторе */
   position: string | null
+  /** управляющая принимает и клиенток (s249) — для отпусков считается мастером */
+  alsoMaster: boolean
 }
 
 // 🟥 Это ОТДЕЛЬНЫЙ запрос, а не переиспользование fetchActivePersonals, и свести их нельзя:
@@ -83,7 +90,7 @@ export interface InternalRecipient {
 // может не быть вовсе, и они бы молча пропали из списка. Отсев «❌» остаётся.
 const RECIPIENTS_QUERY =
   '/api/personals?filters[isActive][$eq]=true' +
-  '&fields[0]=name&fields[1]=position' +
+  '&fields[0]=name&fields[1]=position&fields[2]=alsoMaster' +
   '&pagination[pageSize]=100&status=published'
 
 export const fetchInternalRecipients = async (): Promise<InternalRecipient[]> => {
@@ -91,9 +98,10 @@ export const fetchInternalRecipients = async (): Promise<InternalRecipient[]> =>
     documentId: string
     name: string
     position: string | null
+    alsoMaster?: boolean | null
   }[]
   return (res || [])
     .filter((p) => p.name && !p.name.startsWith('❌'))
-    .map((p) => ({ docId: p.documentId, name: p.name.trim(), position: p.position ?? null }))
+    .map((p) => ({ docId: p.documentId, name: p.name.trim(), position: p.position ?? null, alsoMaster: p.alsoMaster === true }))
     .sort((a, b) => a.name.localeCompare(b.name, 'cs'))
 }

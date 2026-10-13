@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { InternalRecipient } from '../../../../../lib/personals'
+import { worksAsMaster } from '../../../../../lib/worksAsMaster'
 import { btnNeutralCls, btnPinkCls, cardTitleCls, formCardCls, hintCls, inputCls, labelCls } from '../../../../../ui/kit'
 import {
   MAX_SPAN_DAYS,
@@ -57,7 +58,7 @@ export function TimeOffForm({
   const person = staff.find((p) => p.docId === personal)
   // ушедший сотрудник в правке старой записи — в списке активных его нет
   const personName = person?.name ?? (editing?.personal?.documentId === personal ? editing?.personal?.name : '')
-  const isMaster = person?.position === 'master'
+  const isMaster = worksAsMaster(person)
   // блоки ставятся только с сегодняшнего дня (решение владельца s216) — прошлое не трогаем
   const today = todayYmd()
   const blocksHint = !isMaster
