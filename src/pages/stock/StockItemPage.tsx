@@ -1,5 +1,5 @@
 // Экран одной позиции (/stock/i/:docId, s251) — сюда ведёт QR-ярлык на полке: крупные
-// кнопки «Spočítat / Přišlo / Došlo», текущий остаток и последние движения. Руководству —
+// кнопки «Spočítat / Přišlo / Došlo», текущий остаток и последние движения. Всем трём ролям (s257) —
 // ещё «Upravit» (настройки позиции на вкладке «Nastavení»).
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
@@ -78,7 +78,7 @@ export default function StockItemPage() {
             />
           </section>
 
-          {meta?.canEdit && (
+          {(meta?.canEditItems ?? meta?.canEdit) && (
             <Link to={`/stock?tab=settings&edit=${encodeURIComponent(item.documentId)}`} className={`${btnNeutralCls} self-start no-underline`}>
               Upravit položku
             </Link>

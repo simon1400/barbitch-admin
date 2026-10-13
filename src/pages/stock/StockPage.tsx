@@ -3,7 +3,7 @@
 //
 // Вкладки (`?tab=`): Přehled — весь склад и три действия; Co objednat — что ниже минимума
 // и сколько докупить, текст заказа; Deník — журнал движений; Nastavení — позиции
-// (только руководство); Štítky — печать QR-ярлыков. Статусы, количества и «что заказать»
+// (s257: все три роли, цену — только руководство); Štítky — печать QR-ярлыков. Статусы, количества и «что заказать»
 // считает сервер (fetch/stock.ts), цены администратору не приходят вовсе.
 //
 // Фаза 2 (s252): Objednávky — заказы (черновик → objednáno → přijato, приход с затратой или
@@ -14,9 +14,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { errMsg } from '../../lib/errMsg'
-import { btnNeutralCls, h1Cls, hintCls, iconBtnCls, kickerCls, pageShellCls, pillCls } from '../../ui/kit'
+import { btnNeutralCls, h1Cls, hintCls, kickerCls, pageShellCls, pillCls } from '../../ui/kit'
 import { NotificationButton } from '../calendar/NotificationButton'
-import { RefreshIcon } from '../upsell/components/icons'
 import { fetchStock, type StockItem, type StockMeta } from './fetch/stock'
 import OverviewTab from './tabs/OverviewTab'
 import OrderTab from './tabs/OrderTab'
@@ -25,6 +24,7 @@ import InventoryTab from './tabs/InventoryTab'
 import LogTab from './tabs/LogTab'
 import SettingsTab from './tabs/SettingsTab'
 import LabelsTab from './tabs/LabelsTab'
+import { RefreshButton } from '../../components/RefreshButton'
 
 type Tab = 'overview' | 'order' | 'orders' | 'inventory' | 'log' | 'settings' | 'labels'
 const TABS: { key: Tab; label: string; edit?: boolean }[] = [
@@ -75,7 +75,8 @@ export default function StockPage() {
   }, [])
 
   const raw = params.get('tab') as Tab | null
-  const visible = TABS.filter((t) => !t.edit || meta?.canEdit)
+  // s257: «Nastavení» (позиции) — и администраторам; поле цены там видит только руководство
+  const visible = TABS.filter((t) => !t.edit || (meta?.canEditItems ?? meta?.canEdit))
   const tab: Tab = visible.some((t) => t.key === raw) ? (raw as Tab) : 'overview'
   const setTab = (t: Tab) => setParams(t === 'overview' ? {} : { tab: t }, { replace: true })
   const inventoryLeft = (items || []).filter((i) => i.inventoryDue).length
@@ -95,9 +96,7 @@ export default function StockPage() {
         </div>
         <div className="flex items-center gap-2">
           <NotificationButton popup="down-end" menuItem className={`${btnNeutralCls} inline-flex items-center !px-3`} />
-          <button type="button" className={iconBtnCls} onClick={() => void load()} disabled={loading} aria-label="Obnovit" title="Obnovit">
-            <RefreshIcon className={loading ? 'animate-spin' : undefined} />
-          </button>
+          <RefreshButton onClick={() => void load()} loading={loading} lang="cs" />
         </div>
       </div>
 

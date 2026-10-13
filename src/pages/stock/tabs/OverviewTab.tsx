@@ -62,7 +62,7 @@ export default function OverviewTab({ items, meta, onSaved }: { items: StockItem
     return (
       <div className={`${cardCls} px-5 py-4 ${hintCls}`} data-empty>
         Sklad je zatím prázdný.{' '}
-        {meta.canEdit ? 'Položky přidáte na kartě „Nastavení“.' : 'Položky zakládá vedení salonu.'}
+        Položky přidáte na kartě „Nastavení“.
       </div>
     )
   }

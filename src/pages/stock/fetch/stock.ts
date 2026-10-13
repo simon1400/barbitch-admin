@@ -66,7 +66,10 @@ export interface StockItem {
 export interface StockMeta {
   today: string
   role: string
+  /** руководство: заказы, цены, затраты */
   canEdit: boolean
+  /** s257: позиции заводят и правят все три роли (цену — только руководство) */
+  canEditItems?: boolean
   showPrices: boolean
   categories: (Labeled & { later?: boolean })[]
   units: Labeled[]
