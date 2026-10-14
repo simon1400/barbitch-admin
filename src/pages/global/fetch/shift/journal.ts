@@ -11,3 +11,11 @@ export const reportShiftClose = (date: string, published: number, failures: numb
     console.error('shift-close journal failed', e),
   )
 }
+
+/**
+ * s258: результат смены (месяц «до» → «после», как в плитке страницы) — в ту же запись
+ * журнала; её читает главная владельца («Последняя закрытая смена»). Тоже без ожидания.
+ */
+export const reportShiftResult = (date: string, before: number, after: number): void => {
+  void journalFetch('POST', '/result', { date, before, after }).catch((e) => console.error('shift-close result failed', e))
+}

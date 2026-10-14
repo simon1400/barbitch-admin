@@ -296,6 +296,46 @@ export const PAYMENT_LABEL: Record<OrderPayment, string> = {
   owner: 'Zaplatil majitel',
 }
 
+/**
+ * s258: у какого поля формы показать ошибку сервера (по её `code`). Чего нет в словаре —
+ * общая строка под формой.
+ */
+export const STOCK_ERROR_FIELD: Record<string, string> = {
+  bad_name: 'name',
+  name_required: 'name',
+  bad_category: 'category',
+  bad_location: 'location',
+  location_required: 'location',
+  bad_unit: 'unit',
+  bad_pack_size: 'packSize',
+  bad_min: 'min',
+  bad_target: 'target',
+  target_below_min: 'target',
+  bad_supplier: 'supplier',
+  bad_url: 'url',
+  bad_price: 'lastPrice',
+  bad_count_every: 'countEveryDays',
+  bad_note: 'note',
+  bad_packs: 'packs',
+  bad_units: 'units',
+  qty_required: 'units',
+}
+
+/** Ошибка → [поле | null, текст]. */
+export const stockErrorField = (e: unknown): [string | null, string] => {
+  const code = e instanceof ApiError ? e.code : ''
+  const text = e instanceof Error ? e.message : 'Nepodařilo se uložit'
+  return [STOCK_ERROR_FIELD[code] ?? null, text]
+}
+
+/** Подсказка «сколько это в единицах» для дробных упаковок у ml/g: «0,2 bal. = 1000 ml». */
+export const packsHint = (packs: string, packSize: number, unit: StockUnit): string | null => {
+  if (unit === 'ks' || packSize <= 1) return null
+  const n = Number(packs.trim().replace(',', '.'))
+  if (packs.trim() === '' || !Number.isFinite(n) || n < 0 || Number.isInteger(n)) return null
+  return `${packs.trim()} bal. = ${Math.round(n * packSize * 100) / 100} ${unit}`
+}
+
 const CODE_MESSAGES: Record<string, string> = {
   unauthorized: 'Přihlášení vypršelo — přihlaste se znovu.',
   owner_only: 'Tuto akci může provést jen vedení salonu.',

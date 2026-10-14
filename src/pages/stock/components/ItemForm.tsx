@@ -2,12 +2,15 @@
 // (стартовый остаток — он же первый пересчёт); правка: настройки, остаток не меняется
 // (для этого «Spočítat»). Шлются только изменённые поля. Названия, места и поставщики —
 // автодополнение с сервера (свои позиции + старая коллекция «Склад» + места по умолчанию).
+// s258 (администратор вводил «0,2 канистры»): ошибка сервера — под своим полем (`stockErrorField`),
+// у ml/g упаковки дробные с подсказкой «0,2 bal. = 1000 ml», минимум и «doplnit do» у них тоже дробные (0,2 канистры).
 import { useState } from 'react'
 
-import { errMsg } from '../../../lib/errMsg'
 import { btnNeutralCls, btnPinkCls, hintCls, inputCls, labelCls, selectCls } from '../../../ui/kit'
 import {
   createStockItem,
+  packsHint,
+  stockErrorField,
   updateStockItem,
   type StockItem,
   type StockItemInput,
@@ -62,14 +65,23 @@ const itemPayload = (draft: Draft, item: StockItem | null, showPrices: boolean):
 }
 
 const fieldCls = 'flex flex-col min-w-0'
+const fieldErrCls = 'text-[12.5px] font-semibold text-neg mt-1'
 
 export function ItemForm({ meta, suggest, item, onSaved, onCancel }: Props) {
   const [d, setD] = useState<Draft>(() => draftOf(item))
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  // ошибка сервера: [поле формы | null, текст] — под полем или общей строкой внизу
+  const [error, setError] = useState<[string | null, string] | null>(null)
   const set = (k: keyof Draft) => (e: { target: { value: string } }) => setD((x) => ({ ...x, [k]: e.target.value }))
   const withPacks = Number(d.packSize) > 1
   const unitLabel = d.unit as StockUnit
+  const pieces = d.unit === 'ks'
+  const fieldErr = (k: string) =>
+    error && error[0] === k ? (
+      <span className={fieldErrCls} data-field-error={k}>
+        {error[1]}
+      </span>
+    ) : null
 
   const save = async () => {
     setBusy(true)
@@ -83,7 +95,7 @@ export function ItemForm({ meta, suggest, item, onSaved, onCancel }: Props) {
       const res = item ? await updateStockItem(item.documentId, body) : await createStockItem(body)
       onSaved(res.item)
     } catch (e) {
-      setError(errMsg(e, 'Nepodařilo se uložit'))
+      setError(stockErrorField(e))
     } finally {
       setBusy(false)
     }
@@ -96,7 +108,7 @@ export function ItemForm({ meta, suggest, item, onSaved, onCancel }: Props) {
     try {
       onSaved((await updateStockItem(item.documentId, { active: !item.active })).item)
     } catch (e) {
-      setError(errMsg(e, 'Nepodařilo se uložit'))
+      setError(stockErrorField(e))
     } finally {
       setBusy(false)
     }
@@ -118,6 +130,7 @@ export function ItemForm({ meta, suggest, item, onSaved, onCancel }: Props) {
       <label className={fieldCls}>
         <span className={labelCls}>Název *</span>
         <input className={inputCls} list="stock-names" value={d.name} onChange={set('name')} maxLength={120} required data-field="name" />
+        {fieldErr('name')}
       </label>
       <div className="grid grid-cols-2 gap-3">
         <label className={fieldCls}>
@@ -135,6 +148,7 @@ export function ItemForm({ meta, suggest, item, onSaved, onCancel }: Props) {
         <label className={fieldCls}>
           <span className={labelCls}>Umístění *</span>
           <input className={inputCls} list="stock-locations" value={d.location} onChange={set('location')} maxLength={80} required data-field="location" />
+          {fieldErr('location')}
         </label>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -151,69 +165,83 @@ export function ItemForm({ meta, suggest, item, onSaved, onCancel }: Props) {
         <label className={fieldCls}>
           <span className={labelCls}>V balení ({unitLabel})</span>
           <input className={inputCls} inputMode="numeric" value={d.packSize} onChange={set('packSize')} data-field="packSize" />
+          {fieldErr('packSize')}
         </label>
       </div>
       <div className={hintCls}>
         {withPacks
-          ? `Minimum a „doplnit do“ jsou v baleních (1 bal. = ${d.packSize} ${unitLabel}).`
+          ? `Minimum a „doplnit do“ jsou v baleních (1 bal. = ${d.packSize} ${unitLabel})${pieces ? ', celá čísla.' : `, i desetinná. Příklad: kanystr 5 l → jednotka ml, v balení 5000, minimum 0,2 (= ${Math.round(Number(d.packSize) * 0.2 * 100) / 100} ${unitLabel}).`}`
           : `Kupuje se po kusech — minimum a „doplnit do“ jsou v ${unitLabel}. Pokud se kupuje v balení, vyplňte „V balení“.`}
       </div>
       <div className="grid grid-cols-3 gap-3">
         <label className={fieldCls}>
-          <span className={labelCls}>Minimum</span>
-          <input className={inputCls} inputMode="numeric" value={d.min} onChange={set('min')} placeholder="0" data-field="min" />
+          <span className={labelCls}>Minimum{withPacks ? ' (bal.)' : ''}</span>
+          <input className={inputCls} inputMode={pieces ? 'numeric' : 'decimal'} value={d.min} onChange={set('min')} placeholder="0" data-field="min" />
+          {fieldErr('min')}
         </label>
         <label className={fieldCls}>
-          <span className={labelCls}>Doplnit do</span>
-          <input className={inputCls} inputMode="numeric" value={d.target} onChange={set('target')} placeholder="2× min" data-field="target" />
+          <span className={labelCls}>Doplnit do{withPacks ? ' (bal.)' : ''}</span>
+          <input className={inputCls} inputMode={pieces ? 'numeric' : 'decimal'} value={d.target} onChange={set('target')} placeholder="2× min" data-field="target" />
+          {fieldErr('target')}
         </label>
         <label className={fieldCls}>
           <span className={labelCls}>Počítat (dní)</span>
           <input className={inputCls} inputMode="numeric" value={d.countEveryDays} onChange={set('countEveryDays')} data-field="countEveryDays" />
+          {fieldErr('countEveryDays')}
         </label>
       </div>
       <div className={meta.showPrices ? 'grid grid-cols-2 gap-3' : ''}>
         <label className={fieldCls}>
           <span className={labelCls}>Dodavatel / obchod</span>
           <input className={inputCls} list="stock-suppliers" value={d.supplier} onChange={set('supplier')} maxLength={80} data-field="supplier" />
+          {fieldErr('supplier')}
         </label>
         {meta.showPrices && (
           <label className={fieldCls}>
             <span className={labelCls}>Cena balení (Kč)</span>
             <input className={inputCls} inputMode="decimal" value={d.lastPrice} onChange={set('lastPrice')} data-field="lastPrice" />
+            {fieldErr('lastPrice')}
           </label>
         )}
       </div>
       <label className={fieldCls}>
         <span className={labelCls}>Odkaz (kde koupit)</span>
         <input className={inputCls} type="url" value={d.url} onChange={set('url')} maxLength={500} placeholder="https://…" data-field="url" />
+        {fieldErr('url')}
       </label>
       <label className={fieldCls}>
         <span className={labelCls}>Poznámka</span>
         <textarea className={`${inputCls} min-h-[60px]`} value={d.note} onChange={set('note')} maxLength={500} data-field="note" />
+        {fieldErr('note')}
       </label>
       {!item && (
         <div className="flex flex-col gap-1">
           <span className={labelCls}>Kolik je teď na skladě</span>
           <div className="flex gap-2 items-end">
             {withPacks && (
-              <label className="flex-1 min-w-0">
-                <span className={hintCls}>balení</span>
-                <input className={inputCls} inputMode="numeric" value={d.packs} onChange={set('packs')} data-field="packs" />
+              <label className="flex-1 min-w-0 flex flex-col">
+                <span className={hintCls}>{pieces ? 'balení (celá)' : 'balení (i desetinné)'}</span>
+                <input className={inputCls} inputMode={pieces ? 'numeric' : 'decimal'} value={d.packs} onChange={set('packs')} data-field="packs" />
+                {fieldErr('packs')}
               </label>
             )}
-            <label className="flex-1 min-w-0">
+            <label className="flex-1 min-w-0 flex flex-col">
               <span className={hintCls}>{withPacks ? `+ ${unitLabel} navíc` : unitLabel}</span>
-              <input className={inputCls} inputMode={d.unit === 'ks' ? 'numeric' : 'decimal'} value={d.units} onChange={set('units')} data-field="units" />
+              <input className={inputCls} inputMode={pieces ? 'numeric' : 'decimal'} value={d.units} onChange={set('units')} data-field="units" />
+              {fieldErr('units')}
             </label>
           </div>
-          <div className={hintCls}>Nevyplněno = 0 a položka čeká na první spočítání.</div>
+          <div className={hintCls} data-packs-hint>
+            {packsHint(d.packs, Number(d.packSize), unitLabel) ??
+              (withPacks && !pieces ? `Např. 0,2 bal. = ${Math.round(Number(d.packSize) * 0.2 * 100) / 100} ${unitLabel}. ` : '')}
+            Nevyplněno = 0 a položka čeká na první spočítání.
+          </div>
         </div>
       )}
 
-      {error && (
+      {error && error[0] === null && (
         <div className="text-[12.5px] font-semibold text-neg" data-error>
-          {error}
+          {error[1]}
         </div>
       )}
       <div className="flex gap-2 flex-wrap">

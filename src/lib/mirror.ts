@@ -30,6 +30,8 @@ export interface MirrorBooking {
   client: { documentId: string; name: string; noonaCustomerId: string | null } | null
   // интерная бронь (s203): NULL/undefined у старых строк = обычная
   internal?: boolean | null
+  // бесплатная коррекция «Korekce do 5 dnů» (s203/s210): ставит движок
+  korekce?: boolean | null
 }
 
 const BOOKING_FIELDS = [
@@ -47,6 +49,7 @@ const BOOKING_FIELDS = [
   'noonaCreatedAt',
   'createdAt',
   'internal',
+  'korekce',
 ]
   .map((f, i) => `fields[${i}]=${f}`)
   .join('&')

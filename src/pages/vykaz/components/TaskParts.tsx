@@ -5,6 +5,7 @@
 // бейдж «откуда» (`originLabel`), форма управляющей — «Pro mě / Pro majitele».
 // s253 (жалоба управляющей): раскрытие — заметная кнопка «Detail ⌄» вместо мелкого «▾»; на свёрнутой
 // карточке — последнее событие ленты (кто, когда, начало текста; «vráceno» — жёлтым) и число записей.
+// s258: свой комментарий / ход работы автор удаляет (✕ у записи) — бесследно, без записи в ленте.
 import { useRef, useState } from 'react'
 
 import {
@@ -24,9 +25,11 @@ import {
 import { fmtCsDate, fmtTimePrague, ymdPrague } from '../../../utils/date'
 import { IconChevronDown } from '../../calendar/icons'
 import { ApiError } from '../../../lib/apiFetch'
+import { getSession } from '../../../services/auth'
 import {
   ACCEPT_TASK_FILE,
   EVENT_LABEL,
+  REMOVABLE_EVENTS,
   actionsFor,
   assigneeOf,
   canProgress,
@@ -34,11 +37,13 @@ import {
   deleteTaskFile,
   openTaskFile,
   originLabel,
+  removeTaskEvent,
   statusLabel,
   taskAction,
   uploadTaskFile,
   type Task,
   type TaskAction,
+  type TaskEvent,
   type TaskInput,
   type TaskPriority,
   type TaskSide,
@@ -167,7 +172,18 @@ export function TaskCard({
       onSaved({ ...task, files: task.files.filter((f) => f.documentId !== fid) })
     })
 
+  const removeEvent = (ev: TaskEvent) => {
+    if (!window.confirm('Smazat záznam? V průběhu po něm nezůstane stopa.')) return
+    void run(async () => {
+      const res = await removeTaskEvent(task.documentId, ev.at)
+      onSaved(res.task)
+    })
+  }
+
   const canRemove = (uploadedRole: string | null) => role === 'owner' || uploadedRole === role
+  // своя запись с текстом — та же проверка, что на сервере (автор и роль)
+  const me = getSession()?.username ?? ''
+  const canRemoveEvent = (ev: TaskEvent) => REMOVABLE_EVENTS.includes(ev.kind) && ev.role === role && ev.by === me
   const closed = task.status === 'accepted' || task.status === 'cancelled'
   // последнее событие ленты, кроме самого «zadáno» — его и так видно по карточке
   const last = task.events.length ? task.events[task.events.length - 1] : null
@@ -304,9 +320,24 @@ export function TaskCard({
                     data-event={ev.kind}
                     className={`rounded-lg px-3 py-2 ${ev.role === 'owner' ? 'bg-brand-tint' : 'bg-surface-input'}`}
                   >
-                    <div className="text-[11.5px] font-bold text-ink-soft">
-                      {EVENT_LABEL[ev.kind] ?? ev.kind} · {ev.by} · {ROLE_LABEL[ev.role] ?? ev.role} · {stamp(ev.at)}
-                      {ev.reportDate ? ` · z výkazu ${fmtCsDate(ev.reportDate)}` : ''}
+                    <div className="flex items-start gap-2">
+                      <div className="text-[11.5px] font-bold text-ink-soft min-w-0 flex-1">
+                        {EVENT_LABEL[ev.kind] ?? ev.kind} · {ev.by} · {ROLE_LABEL[ev.role] ?? ev.role} · {stamp(ev.at)}
+                        {ev.reportDate ? ` · z výkazu ${fmtCsDate(ev.reportDate)}` : ''}
+                      </div>
+                      {canRemoveEvent(ev) && (
+                        <button
+                          type="button"
+                          className="shrink-0 text-ink-faint hover:text-neg text-[13px] leading-none"
+                          aria-label="Smazat záznam"
+                          title="Smazat záznam"
+                          disabled={busy}
+                          onClick={() => removeEvent(ev)}
+                          data-testid="task-event-remove"
+                        >
+                          ✕
+                        </button>
+                      )}
                     </div>
                     {ev.text && <div className="text-[14px] font-semibold text-ink-body whitespace-pre-wrap break-words">{ev.text}</div>}
                   </li>

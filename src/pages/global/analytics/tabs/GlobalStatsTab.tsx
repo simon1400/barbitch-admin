@@ -231,7 +231,7 @@ export default function GlobalStatsTab() {
                 { title: 'Все проведенные', value: totals.sumClientsDone },
                 { title: 'Не пришли', value: totals.clientsNoshow },
                 { title: 'Отменили', value: totals.clientsCanceled },
-                { title: 'Оправа', value: totals.clientsFixed },
+                { title: 'Коррекции', value: totals.clientsFixed, addValue: 'бесплатные, Korekce do 5 dnů' },
                 { title: 'Зарезерв. за период', value: totals.countCreatedMonthReservation },
                 { title: 'Индекс резерваций (в день)', value: totals.reservationIndex },
               ]}

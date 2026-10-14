@@ -28,6 +28,7 @@ import {
   type RevertResult,
   type ShiftDelta,
 } from './fetch/shiftClose'
+import { reportShiftResult } from './fetch/shift/journal'
 import {
   ComparisonCard,
   ServiceProvidedCard,
@@ -203,6 +204,8 @@ export default function ShiftClosePage() {
         diffBefore: before.difference + carry.difference,
         diffAfter: after.difference,
       })
+      // результат смены — в журнал, для главной владельца (s258); при провалах смена не закрыта
+      if (failures.length === 0) reportShiftResult(result.date, before.result + carry.result, after.result)
 
       if (failures.length > 0) {
         setPublishFailures(failures)

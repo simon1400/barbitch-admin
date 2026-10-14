@@ -89,7 +89,7 @@ export default function SettingsTab({ items, meta, onSaved, editId }: Props) {
                     </span>
                   </span>
                   <span className={`${smallCls} shrink-0 text-right`}>
-                    min {i.minText} · do {i.packSize > 1 ? `${i.effectiveTarget} bal.` : `${i.effectiveTarget} ${i.unit}`}
+                    min {i.minText} · do {`${String(i.effectiveTarget).replace('.', ',')} ${i.packSize > 1 ? 'bal.' : i.unit}`}
                     <br />
                     {i.packSize > 1 && `bal. = ${i.packSize} ${i.unit}`}
                     {meta.showPrices && i.lastPrice != null && ` · ${kc(i.lastPrice)}`}

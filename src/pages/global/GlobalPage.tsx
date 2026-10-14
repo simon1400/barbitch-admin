@@ -1,3 +1,5 @@
+import { useCallback, useState } from 'react'
+
 import { useMonthYear } from '../../hooks/useMonthYear'
 
 import { BlocksContent } from '../dashboard/components/BlocksContent'
@@ -6,6 +8,7 @@ import { Select } from '../dashboard/components/Select'
 import { useGlobalMonthData } from '../dashboard/hooks/useGlobalMonthData'
 import { h1Cls, kickerCls, pageShellCls, toolbarCardCls } from '../../ui/kit'
 
+import { NowSection } from './components/NowSection'
 import { OwnerProtection } from './components/OwnerProtection'
 import { StatSection } from './components/StatSection'
 import { blockReservationsItems, blockStateItems } from './data'
@@ -13,6 +16,12 @@ import { blockReservationsItems, blockStateItems } from './data'
 const GlobalMonthStates = () => {
   const { month, setMonth, year, setYear } = useMonthYear()
   const { data, loading, cachedAt, refresh } = useGlobalMonthData(month, year)
+  // «Сейчас» (s258) не в кэше месяца — кнопка обновления перечитывает и его
+  const [nowKey, setNowKey] = useState(0)
+  const refreshAll = useCallback(() => {
+    refresh()
+    setNowKey((k) => k + 1)
+  }, [refresh])
 
   return (
     <OwnerProtection>
@@ -23,8 +32,11 @@ const GlobalMonthStates = () => {
         {/* Тулбар: период + обновление кэша месяца */}
         <div className={toolbarCardCls}>
           <Select month={month} setMonth={setMonth} year={year} setYear={setYear} />
-          <RefreshControl cachedAt={cachedAt} loading={loading} refresh={refresh} />
+          <RefreshControl cachedAt={cachedAt} loading={loading} refresh={refreshAll} />
         </div>
+
+        {/* Касса и последняя закрытая смена (s258) */}
+        <NowSection reloadKey={nowKey} />
 
         {/* Overview Section */}
         <StatSection title={'Финансовый обзор'} id={'overview'} defaultOpen>
@@ -49,6 +61,7 @@ const GlobalMonthStates = () => {
               data.sumCombined,
               data.combinedAdminEarnings,
               data.sumManagers,
+              data.sumClientsDone,
             )}
           />
         </StatSection>
@@ -61,9 +74,7 @@ const GlobalMonthStates = () => {
               data.clients.payed,
               data.clients.noshow,
               data.clients.canceled,
-              // data.clients.free,
               data.clients.fixed,
-              // data.clients.personal,
               data.sumClientsDone,
               data.clients.pastPayed,
               data.clients.countCreatedMonthReservation,

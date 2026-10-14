@@ -111,7 +111,9 @@ export const EMPTY_GLOBAL_MONTH_DATA: GlobalMonthData = {
 // v4 (s229): группы совместителей/управляющих — из карточек (payrollGroups.ts). Исправляет
 // месяцы 01–03.2026: «❌ Oleksandra Fishchuk» не находилась по старому имени в списке, и её
 // корректировки считались дважды — посчитанные так месяцы лежали бы в кэше вечно.
-const CACHE_VERSION = 4
+// v5 (s258): резервации — «все» без интерных, «коррекции» (fixed) = брони с `korekce`
+// вместо жёсткого 0, «платные» без бесплатных коррекций.
+const CACHE_VERSION = 5
 const PREFIX = `bb_global_month_v${CACHE_VERSION}_`
 // ключи прошлых версий (и самой первой, без номера) — чистим при старте модуля
 const LEGACY_PREFIXES = ['bb_global_month_']

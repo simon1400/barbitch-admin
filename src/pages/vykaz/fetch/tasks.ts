@@ -146,6 +146,11 @@ export const updateTask = (id: string, body: TaskInput) => tasksFetch<{ task: Ta
 export const taskAction = (id: string, action: TaskAction, text = '') =>
   tasksFetch<{ task: Task }>('POST', `/${enc(id)}/actions`, { action, text })
 
+/** s258: автор удаляет свой комментарий / ход работы — бесследно (без записи в ленте и журнале). */
+export const REMOVABLE_EVENTS: readonly TaskEvent['kind'][] = ['comment', 'progress']
+
+export const removeTaskEvent = (id: string, at: string) => tasksFetch<{ task: Task }>('POST', `/${enc(id)}/events/remove`, { at })
+
 export const deleteTaskFile = (id: string, fid: string) => tasksFetch<{ deleted: string }>('DELETE', `/${enc(id)}/files/${enc(fid)}`)
 
 const failFrom = async (res: Response): Promise<never> => {
