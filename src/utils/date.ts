@@ -40,6 +40,21 @@ export const ymdPrague = (t: Date | string | number): string => PRAGUE_DAY.forma
 export const todayYmd = (): string => PRAGUE_DAY.format(new Date())
 
 /**
+ * Полночь дня салона 'YYYY-MM-DD' как ISO-момент UTC (s258: счётчик «зарезервировано за день»).
+ * Смещение Праги берётся на сам момент полуночи (зима +1, лето +2) — пробуем оба и
+ * оставляем тот, что по Праге даёт 00:00 этого дня.
+ */
+export const pragueDayStartIso = (day: string): string => {
+  const [y, m, d] = day.split('-').map(Number)
+  const utcMidnight = Date.UTC(y, (m || 1) - 1, d || 1)
+  for (const offH of [1, 2, 0]) {
+    const t = new Date(utcMidnight - offH * 3_600_000)
+    if (PRAGUE_DAY.format(t) === day && isoToMinPrague(t.toISOString()) === 0) return t.toISOString()
+  }
+  return new Date(utcMidnight).toISOString()
+}
+
+/**
  * Сегодняшний день салона как Date с ЛОКАЛЬНЫМИ компонентами (полночь).
  * Нужен там, где от «сегодня» дальше идёт недельная/месячная арифметика:
  * так `ymd(todayDate()) === todayYmd()` в любом часовом поясе.

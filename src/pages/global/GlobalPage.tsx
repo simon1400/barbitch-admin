@@ -8,6 +8,7 @@ import { Select } from '../dashboard/components/Select'
 import { useGlobalMonthData } from '../dashboard/hooks/useGlobalMonthData'
 import { h1Cls, kickerCls, pageShellCls, toolbarCardCls } from '../../ui/kit'
 
+import { DayBookingsTile } from './components/DayBookingsTile'
 import { NowSection } from './components/NowSection'
 import { OwnerProtection } from './components/OwnerProtection'
 import { StatSection } from './components/StatSection'
@@ -78,10 +79,12 @@ const GlobalMonthStates = () => {
               data.sumClientsDone,
               data.clients.pastPayed,
               data.clients.countCreatedMonthReservation,
-              data.clients.countCreatedTodayReservation,
               data.clients.monthReservationIndex,
             )}
-          />
+          >
+            {/* «Зарезервировано за день» с переключением дней (s258) — вместо «Сегодня зарезерв.» */}
+            <DayBookingsTile reloadKey={nowKey} />
+          </BlocksContent>
         </StatSection>
       </div>
     </OwnerProtection>

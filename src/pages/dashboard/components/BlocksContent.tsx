@@ -1,13 +1,18 @@
+import type { ReactNode } from 'react'
+
 import { BlockItem } from './BlockItem'
 
 // Сетка плиток-показателей (новый стиль s165). Живёт внутри белой карточки-секции.
+// `children` (s258) — свои плитки в той же сетке после обычных (плитка с переключением дня).
 
 export const BlocksContent = ({
   title,
   items,
+  children,
 }: {
   title?: string
   items: { title: string; value: string | number; addValue?: string; tone?: 'accent' | 'neg' }[]
+  children?: ReactNode
 }) => {
   return (
     <>
@@ -24,6 +29,7 @@ export const BlocksContent = ({
             tone={item.tone}
           />
         ))}
+        {children}
       </div>
     </>
   )
