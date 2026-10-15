@@ -10,6 +10,9 @@
 // запросом на неё; `&order=<docId>` — раскрыть только что созданный); Inventura — понедельничная
 // «Rychlá inventura». Кнопка «Upozornění» — подписка этого телефона на push (администраторам —
 // инвентура, управляющей — «došlo» и сводка).
+//
+// Фаза 3 (s261): Spotřeba — пришло и израсходовано за месяц (деньги — только руководству);
+// прогноз («vystačí ~9 dní», «brzy dojde») сервер кладёт прямо в позиции.
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
@@ -22,16 +25,18 @@ import OrderTab from './tabs/OrderTab'
 import OrdersTab from './tabs/OrdersTab'
 import InventoryTab from './tabs/InventoryTab'
 import LogTab from './tabs/LogTab'
+import UsageTab from './tabs/UsageTab'
 import SettingsTab from './tabs/SettingsTab'
 import LabelsTab from './tabs/LabelsTab'
 import { RefreshButton } from '../../components/RefreshButton'
 
-type Tab = 'overview' | 'order' | 'orders' | 'inventory' | 'log' | 'settings' | 'labels'
+type Tab = 'overview' | 'order' | 'orders' | 'inventory' | 'usage' | 'log' | 'settings' | 'labels'
 const TABS: { key: Tab; label: string; edit?: boolean }[] = [
   { key: 'overview', label: 'Přehled' },
   { key: 'order', label: 'Co objednat' },
   { key: 'orders', label: 'Objednávky' },
   { key: 'inventory', label: 'Inventura' },
+  { key: 'usage', label: 'Spotřeba' },
   { key: 'log', label: 'Deník' },
   { key: 'settings', label: 'Nastavení', edit: true },
   { key: 'labels', label: 'Štítky' },
@@ -118,6 +123,8 @@ export default function StockPage() {
         <OrdersTab reloadKey={reloadKey} focus={params.get('order')} onChanged={() => void load()} />
       ) : tab === 'inventory' ? (
         <InventoryTab items={sorted} meta={meta} onSaved={onSaved} />
+      ) : tab === 'usage' ? (
+        <UsageTab reloadKey={reloadKey} />
       ) : tab === 'log' ? (
         <LogTab reloadKey={reloadKey} />
       ) : tab === 'settings' ? (

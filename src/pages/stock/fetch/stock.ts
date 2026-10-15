@@ -58,9 +58,24 @@ export interface StockItem {
   toOrderPacks: number
   /** s252: в «Rychlá inventura» этой недели (с понедельника не пересчитана, срок на этой неделе) */
   inventoryDue: boolean
-  notifiedStatus?: 'low' | 'out' | null
+  notifiedStatus?: 'low' | 'out' | 'soon' | null
   /** только руководству */
   lastPrice?: number | null
+  // s261, Фаза 3 — прогноз из истории пересчётов (меньше 7 дней наблюдений — всё null)
+  /** средний расход в день, базовая единица */
+  avgDailyUse?: number | null
+  /** на сколько целых дней хватит */
+  daysLeft?: number | null
+  /** ещё «Skladem», но по расходу кончится за ≤ 10 дней — тоже в «Co objednat» */
+  soon?: boolean
+  /** подсказка минимума (упаковки), сама не применяется */
+  suggestedMin?: number | null
+  /** сколько дней наблюдений есть */
+  forecastDays?: number
+  /** «~3 ks za den» */
+  useText?: string | null
+  /** «vystačí ~9 dní» */
+  leftText?: string | null
 }
 
 export interface StockMeta {
@@ -107,6 +122,9 @@ export interface OrderLine {
   /** s252: уже заказано и ещё не пришло */
   onOrderPacks: number
   url: string
+  /** s261: ещё «Skladem», но по расходу скоро кончится */
+  soon?: boolean
+  leftText?: string | null
   /** только руководству */
   price?: number | null
   sum?: number | null
@@ -377,6 +395,65 @@ export const fetchStockOrder = () =>
 export const fetchStockAttention = () => stockFetch<StockAttention>('GET', '/engine/admin/stock/attention')
 
 export const fetchStockSuggest = () => stockFetch<StockSuggest>('GET', '/engine/admin/stock/suggest')
+
+// ── s261, Фаза 3: «Spotřeba» — пришло и израсходовано за месяц ─────────────────────────────
+
+export interface UsageRow {
+  documentId: string
+  name: string
+  category: string
+  location: string
+  unit: StockUnit
+  packSize: number
+  active: boolean
+  inQty: number
+  inText: string
+  usedQty: number
+  usedText: string
+  /** сколько дней месяца покрыто пересчётами (после последнего расход ещё не известен) */
+  coveredDays: number
+  /** только руководству: цена упаковки и оценка по ней */
+  price?: number | null
+  inValue?: number | null
+  usedValue?: number | null
+}
+
+export interface UsageCategory {
+  key: string
+  label: string
+  items: number
+  inValue?: number
+  usedValue?: number
+}
+
+export interface StockReport {
+  month: string
+  from: string
+  to: string
+  /** дней месяца (текущий — до «сейчас») */
+  days: number
+  current: boolean
+  prev: string | null
+  next: string | null
+  items: UsageRow[]
+  categories: UsageCategory[]
+  totals: {
+    items: number
+    withUse: number
+    /** только руководству */
+    inValue?: number
+    usedValue?: number
+    unpriced?: number
+    /** оплачено по приходам заказов за месяц */
+    paid?: number
+    receipts?: number
+    noSum?: number
+  }
+  meta: StockMeta
+}
+
+export const fetchStockReport = (month?: string) =>
+  stockFetch<StockReport>('GET', `/engine/admin/stock/report${month ? `?month=${encodeURIComponent(month)}` : ''}`)
 
 export const fetchStockMoves = (opts: { item?: string; before?: string; limit?: number } = {}) => {
   const q = new URLSearchParams()

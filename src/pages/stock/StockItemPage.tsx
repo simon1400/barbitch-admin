@@ -1,6 +1,7 @@
 // Экран одной позиции (/stock/i/:docId, s251) — сюда ведёт QR-ярлык на полке: крупные
 // кнопки «Spočítat / Přišlo / Došlo», текущий остаток и последние движения. Всем трём ролям (s257) —
 // ещё «Upravit» (настройки позиции на вкладке «Nastavení»).
+// s261 (Фаза 3): прогноз — расход, на сколько хватит, «brzy dojde», подсказка минимума (не применяется сама).
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
@@ -8,8 +9,46 @@ import { errMsg } from '../../lib/errMsg'
 import { btnNeutralCls, cardCls, cardTitleCls, h1Cls, hintCls, kickerCls, pageShellCls } from '../../ui/kit'
 import { fetchStockItem, type StockItem, type StockMeta, type StockMove } from './fetch/stock'
 import { MoveForm } from './components/MoveForm'
-import { MoveRow, StatusChip } from './components/StockParts'
-import { countedText, smallCls } from './stockText'
+import { ItemChip, MoveRow } from './components/StockParts'
+import { countedText, forecastText, smallCls } from './stockText'
+
+/** «Spotřeba ~3 ks za den · vystačí ~9 dní»; «brzy dojde» → «Co objednat»; подсказка минимума → правка. */
+function Forecast({ item, canEdit }: { item: StockItem; canEdit: boolean }) {
+  const text = forecastText(item)
+  if (!text) {
+    return (
+      <div className={`${smallCls} mt-1`} data-forecast="none">
+        Odhad spotřeby: zatím málo dat ({item.forecastDays ?? 0} z 7 dní mezi přepočty)
+      </div>
+    )
+  }
+  const unit = item.packSize > 1 ? 'bal.' : item.unit
+  const minHint = item.suggestedMin != null && item.suggestedMin !== item.min
+  return (
+    <div className={`${smallCls} mt-1 flex flex-col gap-0.5`} data-forecast>
+      <span className={item.soon ? 'text-warn' : undefined}>
+        Spotřeba: {text}
+        {item.soon && (
+          <Link to="/stock?tab=order" className="text-brand-dark hover:underline" data-soon-link>
+            {' '}
+            · objednat
+          </Link>
+        )}
+      </span>
+      {minHint && (
+        <span data-min-hint>
+          Podle spotřeby doporučené minimum {String(item.suggestedMin).replace('.', ',')} {unit} (teď {String(item.min).replace('.', ',')})
+          {canEdit && (
+            <Link to={`/stock?tab=settings&edit=${encodeURIComponent(item.documentId)}`} className="text-brand-dark hover:underline">
+              {' '}
+              · upravit
+            </Link>
+          )}
+        </span>
+      )}
+    </div>
+  )
+}
 
 export default function StockItemPage() {
   const { docId = '' } = useParams()
@@ -47,7 +86,7 @@ export default function StockItemPage() {
             <div className={kickerCls}>📍 {item.location}</div>
             <h1 className={`${h1Cls} !mb-1`}>{item.name}</h1>
             <div className="flex items-center gap-2 flex-wrap">
-              <StatusChip status={item.status} />
+              <ItemChip status={item.status} soon={item.soon} />
               <span className="text-[20px] font-extrabold text-ink" data-qty>
                 {item.qtyText}
               </span>
@@ -64,6 +103,7 @@ export default function StockItemPage() {
                 </Link>
               )}
             </div>
+            <Forecast item={item} canEdit={!!(meta?.canEditItems ?? meta?.canEdit)} />
             {item.note && <div className={`${hintCls} mt-1`}>{item.note}</div>}
           </div>
 

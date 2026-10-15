@@ -5,13 +5,15 @@
 // Фаза 2 (s252): уже заказанное и не пришедшее сервер вычитает (`onOrderPacks`), полностью
 // покрытое — отдельным списком «Už objednáno»; руководству — «Vytvořit objednávku» из группы
 // (черновик с предложенным количеством и ценой упаковки → вкладка «Objednávky»).
+// Фаза 3 (s261): «Brzy dojde» — ещё не ниже минимума, но по расходу кончится за ≤ 10 дней; сервер кладёт
+// такие позиции в те же группы (`soon`), чтобы заказать до того, как кончатся.
 import { useEffect, useState } from 'react'
 
 import { errMsg } from '../../../lib/errMsg'
 import { kc } from '../../../utils/money'
 import { btnNeutralCls, btnPinkCls, cardCls, cardTitleCls, hintCls } from '../../../ui/kit'
 import { createStockOrder, fetchStockOrder, type CoveredItem, type OrderGroup } from '../fetch/stock'
-import { StatusChip } from '../components/StockParts'
+import { ItemChip, StatusChip } from '../components/StockParts'
 import { packsText, smallCls } from '../stockText'
 
 const copyText = async (text: string): Promise<boolean> => {
@@ -129,6 +131,7 @@ export default function OrderTab({ reloadKey, canEdit, onOrderCreated }: { reloa
                 <b className="text-ink">{l.name}</b> — {l.packSize > 1 ? `${l.packs} bal. (à ${l.packSize} ${l.unit})` : `${l.packs} ${l.unit}`}
                 <div className={smallCls}>
                   {l.location} · teď {l.qtyText}
+                  {l.soon && l.leftText && <span className="text-warn"> · {l.leftText}</span>}
                   {l.onOrderPacks > 0 && ` · už objednáno ${l.onOrderPacks}`}
                   {l.url && (
                     <>
@@ -141,7 +144,7 @@ export default function OrderTab({ reloadKey, canEdit, onOrderCreated }: { reloa
                 </div>
               </span>
               <span className="shrink-0 flex flex-col items-end gap-1">
-                <StatusChip status={l.status} />
+                <ItemChip status={l.status} soon={l.soon} />
                 {l.sum != null && <span className={smallCls}>{kc(l.sum)}</span>}
               </span>
             </div>
@@ -164,6 +167,7 @@ export default function OrderTab({ reloadKey, canEdit, onOrderCreated }: { reloa
       <Covered list={covered} />
       <div className={hintCls}>
         Množství = doplnit do „doplnit do“ (nebo do dvojnásobku minima), minus co už je objednané.
+        „Brzy dojde“ ještě není pod minimem, ale podle spotřeby dojde do 10 dní — objednává se včas.
         {canEdit ? ' „Vytvořit objednávku“ ji založí na kartě „Objednávky“ — tam upravíte počty a označíte „Objednáno“.' : ' Objednává vedení salonu.'}
       </div>
     </div>

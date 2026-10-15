@@ -18,6 +18,18 @@ export function StatusChip({ status }: { status: StockStatus }) {
   )
 }
 
+/** s261: ещё «Skladem», но по расходу скоро кончится — вместо зелёного «Skladem». */
+export function ItemChip({ status, soon }: { status: StockStatus; soon?: boolean }) {
+  if (status === 'ok' && soon) {
+    return (
+      <span className={`${badgeWarnCls} whitespace-nowrap`} data-status="soon">
+        Brzy dojde
+      </span>
+    )
+  }
+  return <StatusChip status={status} />
+}
+
 interface RowProps {
   item: StockItem
   expanded: boolean
@@ -38,10 +50,16 @@ export function ItemRow({ item, expanded, onToggle, onSaved, hideLocation }: Row
             {countedText(item)}
             {item.countDue && <span className="text-warn"> · přepočítat</span>}
             {item.onOrderPacks > 0 && <span data-on-order={item.onOrderPacks}> · objednáno {item.onOrderPacks}</span>}
+            {item.leftText && (
+              <span className={item.soon ? 'text-warn' : undefined} data-forecast>
+                {' '}
+                · {item.leftText}
+              </span>
+            )}
           </span>
         </span>
         <span className="shrink-0 text-right flex flex-col items-end gap-1">
-          <StatusChip status={item.status} />
+          <ItemChip status={item.status} soon={item.soon} />
           <span className={`${bodyBoldCls} whitespace-nowrap`} data-qty>
             {item.qtyText}
           </span>

@@ -12,6 +12,12 @@ export const countedText = (item: StockItem): string => {
   return `počítáno ${when}${item.lastCountedBy ? ` · ${item.lastCountedBy}` : ''}`
 }
 
+/**
+ * s261: прогноз одной строкой — «vystačí ~9 dní · ~3 ks za den»; без данных — null.
+ * Тексты считает сервер (`leftText`, `useText`), здесь только склейка.
+ */
+export const forecastText = (item: StockItem): string | null => [item.leftText, item.useText].filter(Boolean).join(' · ') || null
+
 const KIND_TEXT = { create: 'Nová položka', count: 'Spočítáno', in: 'Přišlo', out: 'Došlo', adjust: 'Oprava' } as const
 
 export const moveKindText = (m: StockMove): string => (m.kind === 'out' && m.mode === 'low' ? 'Dochází' : KIND_TEXT[m.kind])

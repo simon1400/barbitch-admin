@@ -4,6 +4,7 @@
 // автодополнение с сервера (свои позиции + старая коллекция «Склад» + места по умолчанию).
 // s258 (администратор вводил «0,2 канистры»): ошибка сервера — под своим полем (`stockErrorField`),
 // у ml/g упаковки дробные с подсказкой «0,2 bal. = 1000 ml», минимум и «doplnit do» у них тоже дробные (0,2 канистры).
+// s261 (Фаза 3): при правке — подсказка минимума по расходу («Použít» подставляет, сохраняет человек).
 import { useState } from 'react'
 
 import { btnNeutralCls, btnPinkCls, hintCls, inputCls, labelCls, selectCls } from '../../../ui/kit'
@@ -66,6 +67,26 @@ const itemPayload = (draft: Draft, item: StockItem | null, showPrices: boolean):
 
 const fieldCls = 'flex flex-col min-w-0'
 const fieldErrCls = 'text-[12.5px] font-semibold text-neg mt-1'
+
+/**
+ * s261: подсказка минимума по расходу. «Doplnit do» должно быть больше минимума (сервер: `target_below_min`) —
+ * если подсказка его догоняет, «Použít» очищает его: пустое = 2× minimum.
+ */
+function MinHint({ suggested, useText, unit, target, onUse }: { suggested: number; useText: string; unit: string; target: string; onUse: (min: string, target: string) => void }) {
+  const t = Number(target.trim().replace(',', '.'))
+  const clash = target.trim() !== '' && Number.isFinite(t) && t <= suggested
+  return (
+    <div className={`${hintCls} flex items-center gap-2 flex-wrap`} data-min-hint>
+      <span>
+        Podle spotřeby ({useText}) doporučuji minimum {String(suggested).replace('.', ',')} {unit} — vystačí na dodání a týden navíc.
+        {clash && ' „Doplnit do“ se vyprázdní (= 2× minimum).'}
+      </span>
+      <button type="button" className={`${btnNeutralCls} !py-1 !px-2.5`} onClick={() => onUse(String(suggested), clash ? '' : target)} data-use-min>
+        Použít
+      </button>
+    </div>
+  )
+}
 
 export function ItemForm({ meta, suggest, item, onSaved, onCancel }: Props) {
   const [d, setD] = useState<Draft>(() => draftOf(item))
@@ -190,6 +211,15 @@ export function ItemForm({ meta, suggest, item, onSaved, onCancel }: Props) {
           {fieldErr('countEveryDays')}
         </label>
       </div>
+      {item?.suggestedMin != null && String(item.suggestedMin) !== d.min.trim().replace(',', '.') && (
+        <MinHint
+          suggested={item.suggestedMin}
+          useText={item.useText ?? ''}
+          unit={withPacks ? 'bal.' : unitLabel}
+          target={d.target}
+          onUse={(min, target) => setD((x) => ({ ...x, min, target }))}
+        />
+      )}
       <div className={meta.showPrices ? 'grid grid-cols-2 gap-3' : ''}>
         <label className={fieldCls}>
           <span className={labelCls}>Dodavatel / obchod</span>
