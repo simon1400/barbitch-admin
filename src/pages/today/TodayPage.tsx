@@ -15,6 +15,8 @@
 // s253: строка задачи у управляющей ведёт на `/vykaz?task=` — вкладка «Úkoly», задача раскрыта (лента,
 // комментарии); ссылка карточки — на всю вкладку «Úkoly».
 // s251: карточка «Склад» (закончилось / ниже минимума) — последней, за «Постоянными расходами».
+// s266: «Смена администраторов» (после «Незакрытых смен») — не заполнены касса/часы за неделю,
+// расхождения кассы в незакрытых сменах, сообщения передачи смены не прочитаны 3+ дня.
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
@@ -143,10 +145,21 @@ export default function TodayPage() {
   // s246: владельцу — задачи от управляющей ему; управляющей — сколько её задач ждут владельца
   const forMe = tkData?.forMe ?? null
   const toOwner = tkData?.toOwner ?? null
+  // s262: управляющей — задачи администраторам (ждут её принятия + просроченные любые)
+  const forAdmins = tkData?.admins ?? null
+  const adminRows = forAdmins ? [...forAdmins.waiting, ...forAdmins.overdue.filter((t) => !forAdmins.waiting.some((w) => w.documentId === t.documentId))] : []
   const repLink = (personal: string, d: string) =>
     `/global/team/reports?personal=${encodeURIComponent(personal)}&date=${d}`
 
   const st = data?.stock
+
+  // s266: смена администраторов; часть источника могла упасть (null) — остальное показываем
+  const sm = data?.smena
+  const smData = sm?.ok ? sm.data : null
+  const smMissing = smData?.missing ?? []
+  const smDiffs = smData?.discrepancies ?? []
+  const smUnread = smData?.handoversUnread ?? []
+  const smPartial = !!smData && (smData.missing === null || smData.discrepancies === null || smData.handoversUnread === null)
 
   const dayPart = data?.day
   const working = dayPart?.ok ? summarizeDay(dayPart.data) : null
@@ -158,16 +171,20 @@ export default function TodayPage() {
   const defs = {
     blocks: { title: 'Блоки ke schválení', count: pb?.ok ? blocksCount : null, error: pb && !pb.ok ? pb.error : null },
     shifts: { title: 'Незакрытые смены', count: o ? shifts.length : null, error: overviewErr },
+    smena: { title: 'Смена администраторов', count: smData ? smMissing.length + smDiffs.length + smUnread.length : null, error: sm && !sm.ok ? sm.error : null },
     // ваучеры: оплаченных нет → «в порядке», даже если есть неоплаченные заказы (это подсказка, не действие)
     vouchers: { title: 'Ваучеры', count: o ? paid.length : null, error: overviewErr },
     'staff-docs': { title: 'Документы и договоры — сроки', count: sr?.ok ? staffDocs.length + staffContracts.length : null, error: sr && !sr.ok ? sr.error : null },
     'owner-tasks': {
-      title: isOwner ? 'Поручения управляющей' : 'Мои задачи',
+      // s262: у владельца здесь и поручения администраторам
+      title: isOwner ? 'Мои поручения' : 'Мои задачи',
       count: tk?.ok ? (isOwner ? tkData!.overdue.length + tkData!.waiting.length : tkData!.overdue.length + tkData!.urgent.length) : null,
       error: tk && !tk.ok ? tk.error : null,
     },
     // s246: задачи, которые управляющая поставила владельцу, — все в работе
-    'tasks-for-me': { title: 'Задачи от управляющей', count: tk?.ok ? (forMe?.open ?? 0) : null, error: tk && !tk.ok ? tk.error : null, show: isOwner },
+    'tasks-for-me': { title: 'Задачи для меня', count: tk?.ok ? (forMe?.open ?? 0) : null, error: tk && !tk.ok ? tk.error : null, show: isOwner },
+    // s262: управляющей — задачи администраторам: ждут её принятия и просроченные
+    'admin-tasks': { title: 'Задачи администраторов', count: tk?.ok ? adminRows.length : null, error: tk && !tk.ok ? tk.error : null, show: !isOwner && !!forAdmins },
     visits: { title: 'Незакрытые визиты', count: o ? visits.length : null, error: overviewErr },
     upsell: { title: 'Дозаписи без результата', count: up?.ok ? needResult.length : null, error: up && !up.ok ? up.error : null },
     korekce: { title: 'Korekce — перенос доли ждёт', count: o ? korekce.length : null, error: overviewErr },
@@ -181,7 +198,7 @@ export default function TodayPage() {
     // s251: закончилось + ниже минимума; s252: + заказы не пришли, приходы без затраты, инвентура со вторника
     stock: { title: 'Склад', count: st?.ok ? stockAttentionCount(st.data) : null, error: st && !st.ok ? st.error : null },
   } satisfies Record<string, CardDef>
-  const ORDER: (keyof typeof defs)[] = ['blocks', 'shifts', 'vouchers', 'staff-docs', 'owner-tasks', 'tasks-for-me', 'visits', 'upsell', 'korekce', 'work-reports', 'cost-requests', 'costs-missing', 'stock']
+  const ORDER: (keyof typeof defs)[] = ['blocks', 'shifts', 'smena', 'vouchers', 'staff-docs', 'owner-tasks', 'tasks-for-me', 'admin-tasks', 'visits', 'upsell', 'korekce', 'work-reports', 'cost-requests', 'costs-missing', 'stock']
   const okTitles = ORDER.map((id): CardDef => defs[id])
     .filter((d) => d.show !== false && cardState(d.count, first, d.error) === 'ok')
     .map((d) => d.title)
@@ -262,6 +279,45 @@ export default function TodayPage() {
               </div>
             </TodayRow>
           ))}
+        </TodayCard>
+
+        {/* s266: смена администраторов — касса/часы не записаны, расхождения, непрочитанные передачи */}
+        <TodayCard
+          id="smena"
+          {...defs.smena}
+          loading={first}
+          hideOk
+          okText="Кассы и часы администраторов за неделю на месте"
+          link={{ to: '/smena', label: 'Směna' }}
+        >
+          {smMissing.map((m) => (
+            <TodayRow key={`m|${m.date}`} to={`/smena?date=${m.date}`} aside={<span className={`${badgeNegCls} whitespace-nowrap`}>не заполнено</span>}>
+              <b className="text-ink">{dayLabel(m.date)}</b> · нет: {[m.cash ? 'касса' : '', m.workTime ? 'часы' : ''].filter(Boolean).join(' и ')}
+              <div className={smallCls}>
+                {m.visits > 0 ? `броней ${m.visits}` : 'броней нет'}
+                {m.duty && ` · по графику: ${m.duty}`}
+              </div>
+            </TodayRow>
+          ))}
+          {smDiffs.map((d) => (
+            <TodayRow key={`d|${d.cashDocId}|${d.diff}|${d.reason}`} to={`/smena?date=${d.date}`} aside={<b className="text-neg whitespace-nowrap">{kc(d.diff)}</b>}>
+              <b className="text-ink">{dayLabel(d.date)}</b> · расхождение в кассе
+              <div className={smallCls}>
+                {d.reason || '—'}
+                {d.by && ` · ${d.by}`}
+              </div>
+            </TodayRow>
+          ))}
+          {smUnread.map((h) => (
+            <TodayRow key={`h|${h.documentId}`} to={`/global/shift-close?date=${h.date}`} aside={<span className={`${badgeWarnCls} whitespace-nowrap`}>{h.days} дн.</span>}>
+              <b className="text-ink">
+                {h.fromName || '—'} → {h.toName || '—'}
+              </b>{' '}
+              · сообщение смены не прочитано
+              <div className={smallCls}>смена {dayLabel(h.date)}</div>
+            </TodayRow>
+          ))}
+          {smPartial && <div className={hintCls}>Часть данных не загрузилась — обновите страницу.</div>}
         </TodayCard>
 
         {/* 3. Ваучеры */}
@@ -363,7 +419,7 @@ export default function TodayPage() {
               <b className="text-ink">{t.title}</b>
               <div className={smallCls}>
                 {t.dueDate ? `срок ${dm(t.dueDate)}` : 'без срока'}
-                {isOwner && t.personalName ? ` · ${t.personalName}` : ''}
+                {isOwner ? (t.allAdmins ? ' · всем администраторам' : t.personalName ? ` · ${t.personalName}` : '') : ''}
               </div>
             </TodayRow>
           ))}
@@ -375,14 +431,14 @@ export default function TodayPage() {
           )}
         </TodayCard>
 
-        {/* 5а. Задачи от управляющей владельцу (s246) — только владельцу */}
+        {/* 5а. Задачи владельцу (s246) — от управляющей и (s259) его собственные; только владельцу */}
         {isOwner && (
           <TodayCard
             id="tasks-for-me"
             {...defs['tasks-for-me']}
             loading={first}
             hideOk
-            okText="Задач от управляющей нет"
+            okText="Задач для вас нет"
             link={{ to: '/global/team/tasks', label: 'Úkoly' }}
           >
             {(forMe?.list ?? []).map((t) => (
@@ -398,7 +454,35 @@ export default function TodayPage() {
                 <b className="text-ink">{t.title}</b>
                 <div className={smallCls}>
                   {t.dueDate ? `срок ${dm(t.dueDate)}` : 'без срока'}
-                  {t.personalName ? ` · от ${t.personalName}` : ''}
+                  {t.personalName ? ` · от ${t.personalName}` : ' · своя'}
+                </div>
+              </TodayRow>
+            ))}
+          </TodayCard>
+        )}
+
+        {/* 5б. Задачи администраторам (s262) — только управляющей; без `admins` (сбой ручки — ошибка уже на «Мои задачи», старый сервер) — нет */}
+        {defs['admin-tasks'].show && (
+          <TodayCard
+            id="admin-tasks"
+            {...defs['admin-tasks']}
+            loading={first}
+            hideOk
+            okText={forAdmins && forAdmins.open > 0 ? `Просроченных нет · в работе ${forAdmins.open}` : 'Задач администраторам в работе нет'}
+            link={{ to: '/vykaz?tab=ukoly', label: 'Všechny úkoly' }}
+          >
+            {adminRows.map((t) => (
+              <TodayRow
+                key={t.documentId}
+                to={`/vykaz?task=${encodeURIComponent(t.documentId)}`}
+                aside={
+                  <span className={`${t.status === 'done' ? badgeWarnCls : badgeNegCls} whitespace-nowrap`}>{t.status === 'done' ? 'ждёт принятия' : 'просрочено'}</span>
+                }
+              >
+                <b className="text-ink">{t.title}</b>
+                <div className={smallCls}>
+                  {t.dueDate ? `срок ${dm(t.dueDate)}` : 'без срока'}
+                  {t.allAdmins ? ' · всем администраторам' : t.personalName ? ` · ${t.personalName}` : ''}
                 </div>
               </TodayRow>
             ))}

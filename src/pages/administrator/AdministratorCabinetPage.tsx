@@ -1,6 +1,8 @@
 import { kcNum, dec, parseMoney } from '../../utils/money'
 import { BirthdaysCard } from '../../components/BirthdaysCard'
 import { StockCard } from '../stock/components/StockCard'
+import { TasksCard } from '../ukoly/TasksCard'
+import { SmenaCard } from '../smena/SmenaCard'
 import { Pagination } from '../../components/Pagination'
 import { useMonthYear } from '../../hooks/useMonthYear'
 import { errMsg } from '../../lib/errMsg'
@@ -210,6 +212,16 @@ const AdministratorCabinetPage = () => {
         {/* Дни рождения сотрудников — ближайшие 30 дней (s221) */}
         <div className="mb-3.5">
           <BirthdaysCard />
+        </div>
+
+        {/* Касса и часы за сегодня (s263) → «Směna» */}
+        <div className="mb-3.5">
+          <SmenaCard />
+        </div>
+
+        {/* Задачи от владельца и управляющей (s262) → «Úkoly» */}
+        <div className="mb-3.5">
+          <TasksCard />
         </div>
 
         {/* Склад (s251): что закончилось и что ниже минимума → «Sklad» */}

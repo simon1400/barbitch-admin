@@ -27,6 +27,10 @@ const MODULES: ModuleDef[] = [
   { path: '/today', label: 'Сегодня', roles: ['owner', 'manager'] },
   // ежедневный отчёт управляющей владельцу (s239) — на виду, не в «Ещё»; администраторам — нет
   { path: '/vykaz', label: 'Výkaz práce', roles: ['manager'] },
+  // «Směna» (s263): касса и часы дня вместо панели Strapi + задачи администраторам (s262, вкладка
+  // «Úkoly»; `/ukoly` — редирект сюда). Руководство видит кассу и часы администраторек дня, свои
+  // задачи — в «Команде → Úkoly» и «/vykaz → Úkoly»
+  { path: '/smena', label: 'Směna', roles: ['owner', 'manager', 'administrator'] },
   // календарь: master попадает только по кнопке (read-only своя неделя), меню у него нет
   { path: '/calendar', label: 'Календарь', roles: ['owner', 'manager', 'administrator', 'master'] },
   { path: '/global/analytics', label: 'Аналитика', roles: ['owner', 'manager'], hasTabs: true },

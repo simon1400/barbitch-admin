@@ -11,6 +11,7 @@ import {
   IconCatalog,
   IconHome,
   IconReport,
+  IconSmena,
   IconShiftClose,
   IconStock,
   IconTeam,
@@ -52,6 +53,7 @@ const NAV_ICONS: Partial<Record<string, IconComp>> = {
   '/global/catalog': IconCatalog,
   '/today': IconToday,
   '/vykaz': IconReport,
+  '/smena': IconSmena,
   '/stock': IconStock,
   '/global/shift-close': IconShiftClose,
 }

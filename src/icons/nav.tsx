@@ -2,7 +2,7 @@
 // «Главная» и «Календарь» в пилюлях рисуются иконкой вместо подписи.
 // Размер задаётся className (дефолт h-[17px] w-[17px]; в шапке с s254 — 21px).
 // s254: + «Сегодня» (солнце), «Výkaz práce» (планшет с листом), «Sklad» (коробка),
-// «Uzavření směny» (чек).
+// «Uzavření směny» (чек). s263: + «Směna» (касса).
 
 const svgProps = {
   fill: 'none',
@@ -86,6 +86,16 @@ export const IconReport = ({ className = 'h-[17px] w-[17px]' }: IconProps) => (
     <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
     <path d="M9 12h6" />
     <path d="M9 16h4" />
+  </svg>
+)
+
+// Směna (s263) — касса: ящик с монетой (пункт заменил «Úkoly» s262 — задачи стали вкладкой)
+export const IconSmena = ({ className = 'h-[17px] w-[17px]' }: IconProps) => (
+  <svg viewBox="0 0 24 24" className={className} {...svgProps}>
+    <rect x="3" y="11" width="18" height="9" rx="1.5" />
+    <path d="M3 15h18" />
+    <path d="M7 11V6.5A1.5 1.5 0 0 1 8.5 5h7A1.5 1.5 0 0 1 17 6.5V11" />
+    <circle cx="12" cy="8" r="1.4" />
   </svg>
 )
 

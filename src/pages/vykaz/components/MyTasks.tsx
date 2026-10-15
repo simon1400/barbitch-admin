@@ -8,6 +8,8 @@
 // s253: живёт на своей вкладке «Úkoly»; `onActiveCount` — сколько активных задач на ней у самой
 // управляющей (счётчик на вкладке). Прокрутка к задаче — к её верху (`block: 'start'` + отступ под
 // закреплённое меню у карточки `scroll-mt-*`): по центру длинная раскрытая задача прятала заголовок.
+// s262: третья группа «Úkoly administrátorek» — все задачи администраторам (поставленные владельцем
+// — только комментарий); в форме «Pro administrátorky».
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { btnPinkCls, cardPadCls, hintCls, labelCls, pillCls } from '../../../ui/kit'
@@ -92,7 +94,7 @@ export default function MyTasks({
         const res = await createTask(body)
         setCreating(false)
         setOpen(res.task.documentId)
-        setOk(body.assignee === 'owner' ? 'Úkol pro majitele zadán.' : 'Úkol zadán.')
+        setOk(body.assignee === 'owner' ? 'Úkol pro majitele zadán.' : body.assignee === 'administrator' ? 'Úkol pro administrátorky zadán.' : 'Úkol zadán.')
         // порядок (просроченные, срочные, по сроку) считает сервер
         void load(scope)
       }
@@ -107,6 +109,7 @@ export default function MyTasks({
   const groups = [
     { key: 'mine', title: 'Moje úkoly', items: tasks.filter((t) => assigneeOf(t) === 'manager') },
     { key: 'owner', title: 'Úkoly pro majitele', items: tasks.filter((t) => assigneeOf(t) === 'owner') },
+    { key: 'admins', title: 'Úkoly administrátorek', items: tasks.filter((t) => assigneeOf(t) === 'administrator') },
   ].filter((g) => g.items.length > 0)
 
   const card = (t: Task) =>
@@ -138,6 +141,7 @@ export default function MyTasks({
         }}
         onConflict={() => void load(scope, true)}
         onEdit={canEditTask(t, 'manager') ? () => setEditing(t.documentId) : undefined}
+        admins={data?.admins ?? []}
       />
     )
 
@@ -165,6 +169,7 @@ export default function MyTasks({
           <TaskForm
             mode="manager"
             people={[]}
+            admins={data.admins ?? []}
             priorities={data.priorities}
             today={data.today}
             busy={busy}

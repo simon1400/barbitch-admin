@@ -1,5 +1,6 @@
 import { todayDate, todayYmd, ymd } from '../../utils/date'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   badgePlainCls,
   btnPinkCls,
@@ -34,6 +35,7 @@ import {
   ServiceProvidedCard,
   CashCard,
   WorkTimeCard,
+  TasksDoneCard,
   PayrollCard,
   PublishSection,
   UpsellCommissionCard,
@@ -368,6 +370,10 @@ export default function ShiftClosePage() {
 
             <StatSection title="Kontrola záznamů" id="checks" defaultOpen>
               <div className="grid gap-3.5">
+                {/* s266: касса и часы администраторок правятся в модуле «Směna» (не в панели Strapi) */}
+                <Link to={`/smena?date=${result.date}`} className="text-sm font-semibold text-brand-dark" data-smena-link>
+                  Pokladnu a hodiny administrátorek opravíte v modulu Směna →
+                </Link>
                 <CashCard data={result.cash} />
                 {/* Отдельная таблица «Rezervace v kalendáři» убрана: записи закрываются
                     прямо в календаре → услуга/čas/cena брони видны в тултипе чипа ⇄,
@@ -378,6 +384,8 @@ export default function ShiftClosePage() {
                   shiftDate={result.date}
                 />
                 <WorkTimeCard data={result.workTime} />
+                {/* s263: задачи администраторек, отмеченные «hotovo» в этот день */}
+                <TasksDoneCard date={result.date} />
                 <PayrollCard data={result.payroll} />
                 <UpsellCommissionCard data={result.upsell} shiftDate={result.date} />
                 <InternalPayrollCard data={result.internalPayroll} shiftDate={result.date} />

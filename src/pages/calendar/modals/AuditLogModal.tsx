@@ -299,6 +299,11 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
     label: 'Úkol: komentář',
     cls: 'bg-gray-100 text-gray-600 dark:bg-gray-500/20 dark:text-gray-300',
   },
+  // s265: передача задачи коллеге
+  task_handover: {
+    label: 'Úkol: předán',
+    cls: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300',
+  },
   task_file_add: {
     label: 'Úkol: příloha',
     cls: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300',
@@ -306,6 +311,43 @@ const ACTION_META: Record<string, { label: string; cls: string }> = {
   task_file_delete: {
     label: 'Úkol: příloha smazána',
     cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
+  // «Směna» (s263/s265): касса, часы, передача смены — без текстов (суммы, время, кому)
+  smena_cash_create: {
+    label: 'Pokladna: zapsána',
+    cls: 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300',
+  },
+  smena_cash_update: {
+    label: 'Pokladna: úprava',
+    cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+  },
+  smena_cash_discrepancy: {
+    label: 'Pokladna: rozdíl',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
+  smena_worktime_create: {
+    label: 'Hodiny: zapsány',
+    cls: 'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300',
+  },
+  smena_worktime_update: {
+    label: 'Hodiny: úprava',
+    cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+  },
+  smena_worktime_delete: {
+    label: 'Hodiny: smazány',
+    cls: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300',
+  },
+  smena_handover: {
+    label: 'Předání směny',
+    cls: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300',
+  },
+  smena_handover_update: {
+    label: 'Předání směny: doplněno',
+    cls: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-300',
+  },
+  smena_handover_read: {
+    label: 'Předání směny: přečteno',
+    cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
   },
   // «Výkaz práce» (s239): без текста отчёта — дата, часы, число пунктов
   report_submit: {
@@ -591,6 +633,7 @@ type EntityTab =
   | 'staff'
   | 'cost'
   | 'stock'
+  | 'smena'
 
 export const AuditLogModal = ({ onClose, canDelete = false }: { onClose: () => void; canDelete?: boolean }) => {
   const [tab, setTab] = useState<EntityTab>('all')
@@ -705,6 +748,7 @@ export const AuditLogModal = ({ onClose, canDelete = false }: { onClose: () => v
         {tabBtn('staff', 'Tým')}
         {tabBtn('cost', 'Náklady')}
         {tabBtn('stock', 'Sklad')}
+        {tabBtn('smena', 'Pokladna')}
         <span className="ml-auto text-[11px] text-gray-400 dark:text-gray-500">{total} záznamů</span>
       </div>
       <input

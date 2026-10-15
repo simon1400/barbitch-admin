@@ -6,6 +6,11 @@
 // s253 (жалоба управляющей): раскрытие — заметная кнопка «Detail ⌄» вместо мелкого «▾»; на свёрнутой
 // карточке — последнее событие ленты (кто, когда, начало текста; «vráceno» — жёлтым) и число записей.
 // s258: свой комментарий / ход работы автор удаляет (✕ у записи) — бесследно, без записи в ленте.
+// s262: задачи администраторам — в форме «Pro administrátorky» + выбор (конкретная или «všem»),
+// на карточке — кому; администраторка видит карточку с ролью `administrator`.
+// s265: «Předat kolegyni» — передать задачу другой администраторке (исполнительнице и руководству,
+// `admins` — кому можно); «předáno · от → кому» в ленте жёлтым; у задачи коллеге кнопки по флагам
+// сервера `forMe`/`byMe` (обе стороны — администраторки).
 import { useRef, useState } from 'react'
 
 import {
@@ -32,15 +37,20 @@ import {
   REMOVABLE_EVENTS,
   actionsFor,
   assigneeOf,
+  canHandover,
   canProgress,
   closesOnDone,
+  creatorOf,
   deleteTaskFile,
+  handoverTask,
+  sidesOf,
   openTaskFile,
   originLabel,
   removeTaskEvent,
   statusLabel,
   taskAction,
   uploadTaskFile,
+  type AdminPerson,
   type Task,
   type TaskAction,
   type TaskEvent,
@@ -98,9 +108,16 @@ const ACTION_LABEL: Record<TaskAction, string> = {
   accept: 'Převzít',
   reopen: 'Vrátit do práce',
   cancel: 'Zrušit úkol',
+  handover: 'Předat kolegyni',
 }
 
-const ROLE_LABEL: Record<string, string> = { owner: 'majitel', manager: 'manažerka' }
+/** «předáno» и «vráceno» — жёлтым (задача поменяла руки или вернулась). */
+const isTurn = (kind: TaskEvent['kind'] | undefined) => kind === 'reopen' || kind === 'undone' || kind === 'handover'
+
+const ROLE_LABEL: Record<string, string> = { owner: 'majitel', manager: 'manažerka', administrator: 'administrátorka' }
+
+/** s262: кому задача администратора — имя или «všem». */
+const ALL_ADMINS_LABEL = 'Všem administrátorkám'
 
 /**
  * Поручение: шапка (раскрыть), описание, вложения, лента, ответ и действия по роли.
@@ -115,6 +132,7 @@ export function TaskCard({
   onConflict,
   onEdit,
   showAssignee,
+  admins = [],
 }: {
   task: Task
   role: TaskSide
@@ -124,8 +142,11 @@ export function TaskCard({
   onConflict: () => void
   onEdit?: () => void
   showAssignee?: boolean
+  /** s265: кому можно передать (работающие администраторки); пусто — кнопки нет */
+  admins?: AdminPerson[]
 }) {
   const [text, setText] = useState('')
+  const [handTo, setHandTo] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -172,6 +193,17 @@ export function TaskCard({
       onSaved({ ...task, files: task.files.filter((f) => f.documentId !== fid) })
     })
 
+  // s265: передать — без текущей исполнительницы; заметка — из общего поля текста
+  const handCandidates = canHandover(task, role) ? admins.filter((a) => a.documentId !== task.personal) : []
+  const handover = () =>
+    handTo &&
+    run(async () => {
+      const res = await handoverTask(task.documentId, handTo, text.trim())
+      setHandTo(null)
+      setText('')
+      onSaved(res.task)
+    })
+
   const removeEvent = (ev: TaskEvent) => {
     if (!window.confirm('Smazat záznam? V průběhu po něm nezůstane stopa.')) return
     void run(async () => {
@@ -188,19 +220,39 @@ export function TaskCard({
   // последнее событие ленты, кроме самого «zadáno» — его и так видно по карточке
   const last = task.events.length ? task.events[task.events.length - 1] : null
   const lastShown = last && last.kind !== 'created' ? last : null
-  const returned = lastShown?.kind === 'reopen' || lastShown?.kind === 'undone'
+  const returned = isTurn(lastShown?.kind)
   const quick = closesOnDone(task)
-  const mineToDo = assigneeOf(task) === role
+  const mineToDo = sidesOf(task, role).isAssignee
   // подсказка под кнопками — по стороне задачи (s246)
+  const creatorLabel = creatorOf(task) === 'owner' ? 'majiteli' : 'manažerce'
+  const toAdmins = assigneeOf(task) === 'administrator'
+  // s265: задача администраторки коллеге
+  const peer = creatorOf(task) === 'administrator'
   const hint =
-    task.status === 'open' && mineToDo && role === 'manager'
+    peer && task.status === 'open'
+      ? role !== 'administrator'
+        ? 'Úkol zadala administrátorka kolegyni — můžete komentovat nebo ho předat.'
+        : mineToDo
+          ? '«Hotovo» úkol uzavře — kolegyně uvidí, že je splněno.'
+          : 'Úkol plní kolegyně — až ho označí jako hotový, přijde vám upozornění.'
+      : task.status === 'open' && mineToDo && role === 'administrator'
+      ? `«Hotovo» pošle úkol ${creatorLabel} k převzetí.`
+      : task.status === 'done' && actions.includes('undone') && role === 'administrator'
+        ? `«Ještě není hotovo» vrátí úkol do práce — ${creatorOf(task) === 'owner' ? 'majitel' : 'manažerka'} ho zatím nepřevzal${creatorOf(task) === 'owner' ? '' : 'a'}.`
+        : toAdmins && task.status === 'open' && creatorOf(task) === role
+          ? 'Úkol plní administrátorka — převezmete ho, až ho označí jako hotový.'
+          : toAdmins && !actions.length && !closed
+            ? `Úkol zadal${creatorOf(task) === 'owner' ? ' majitel' : 'a manažerka'} — můžete jen komentovat.`
+            : task.status === 'open' && mineToDo && role === 'manager'
       ? quick
         ? '«Hotovo» úkol uzavře. Průběh můžete psát i ve výkazu dne.'
         : '«Hotovo» pošle úkol majiteli k převzetí. Průběh můžete psát i ve výkazu dne.'
       : task.status === 'done' && actions.includes('undone')
         ? '«Ještě není hotovo» vrátí úkol do práce — majitel ho zatím nepřevzal.'
         : task.status === 'open' && mineToDo && role === 'owner'
-          ? '«Hotovo» úkol uzavře — manažerka uvidí, že je splněno.'
+          ? creatorOf(task) === 'manager'
+            ? '«Hotovo» úkol uzavře — manažerka uvidí, že je splněno.'
+            : '«Hotovo» úkol uzavře.'
           : task.status === 'open' && !mineToDo && quick && role === 'manager'
             ? 'Úkol splní majitel. Zadání můžete upravit nebo úkol zrušit.'
             : !actions.length && !mineToDo && role === 'owner' && !closed
@@ -220,8 +272,10 @@ export function TaskCard({
           <span className="block mt-1">
             <TaskBadges task={task} role={role} origin={originLabel(task, role)} />
           </span>
-          {showAssignee && task.personalName && (
-            <span className="block text-[12px] font-semibold text-ink-faint mt-1">{task.personalName}</span>
+          {(toAdmins ? (task.allAdmins ? ALL_ADMINS_LABEL : task.personalName) : showAssignee && task.personalName) && (
+            <span className="block text-[12px] font-semibold text-ink-faint mt-1" data-task-for={toAdmins ? (task.allAdmins ? 'all' : 'one') : undefined}>
+              {toAdmins ? (task.allAdmins ? ALL_ADMINS_LABEL : `Pro: ${task.personalName}`) : task.personalName}
+            </span>
           )}
         </span>
         <span
@@ -243,6 +297,11 @@ export function TaskCard({
           <span className="font-bold">
             {EVENT_LABEL[lastShown.kind] ?? lastShown.kind} · {lastShown.by} · {stamp(lastShown.at)}
           </span>
+          {lastShown.kind === 'handover' && (
+            <span className="block truncate text-ink-body">
+              {lastShown.from || '—'} → {lastShown.to || '—'}
+            </span>
+          )}
           {lastShown.text && <span className="block truncate text-ink-body">{lastShown.text}</span>}
           {task.events.length > 1 && <span className="block text-ink-faint">Záznamů v průběhu: {task.events.length}</span>}
         </button>
@@ -318,7 +377,7 @@ export function TaskCard({
                   <li
                     key={i}
                     data-event={ev.kind}
-                    className={`rounded-lg px-3 py-2 ${ev.role === 'owner' ? 'bg-brand-tint' : 'bg-surface-input'}`}
+                    className={`rounded-lg px-3 py-2 ${ev.kind === 'handover' ? 'bg-warn-bg' : ev.role === 'owner' ? 'bg-brand-tint' : 'bg-surface-input'}`}
                   >
                     <div className="flex items-start gap-2">
                       <div className="text-[11.5px] font-bold text-ink-soft min-w-0 flex-1">
@@ -339,6 +398,11 @@ export function TaskCard({
                         </button>
                       )}
                     </div>
+                    {ev.kind === 'handover' && (
+                      <div className="text-[13.5px] font-bold text-warn" data-handover-route>
+                        {ev.from || '—'} → {ev.to || '—'}
+                      </div>
+                    )}
                     {ev.text && <div className="text-[14px] font-semibold text-ink-body whitespace-pre-wrap break-words">{ev.text}</div>}
                   </li>
                 ))}
@@ -386,12 +450,39 @@ export function TaskCard({
                   {ACTION_LABEL[a]}
                 </button>
               ))}
+              {handCandidates.length > 0 && handTo === null && (
+                <button type="button" className={btnNeutralCls} disabled={busy} onClick={() => setHandTo(handCandidates.length === 1 ? handCandidates[0].documentId : '')} data-action="handover">
+                  {ACTION_LABEL.handover}
+                </button>
+              )}
               {onEdit && !closed && (
                 <button type="button" className="text-[12.5px] font-bold text-brand-dark hover:underline ml-auto" onClick={onEdit}>
                   Upravit zadání
                 </button>
               )}
             </div>
+            {handTo !== null && (
+              <div className="flex gap-2 flex-wrap items-end rounded-lg bg-warn-bg px-3 py-2.5" data-testid="task-handover">
+                <label className="block">
+                  <span className={labelCls}>Předat komu</span>
+                  <select className={selectCls} value={handTo} onChange={(e) => setHandTo(e.target.value)} data-testid="task-handover-to">
+                    {handCandidates.length > 1 && <option value="">— vyberte —</option>}
+                    {handCandidates.map((p) => (
+                      <option key={p.documentId} value={p.documentId}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button type="button" className={btnPinkCls} disabled={busy || !handTo} onClick={() => void handover()} data-testid="task-handover-submit">
+                  Předat
+                </button>
+                <button type="button" className={btnNeutralCls} disabled={busy} onClick={() => setHandTo(null)}>
+                  Zrušit
+                </button>
+                <div className={`${hintCls} w-full`}>Text z pole výše se připíše jako poznámka k předání. Kdo úkol zadal, dostane upozornění.</div>
+              </div>
+            )}
             {hint && <div className={hintCls}>{hint}</div>}
           </div>
         </div>
@@ -401,8 +492,10 @@ export function TaskCard({
 }
 
 /**
- * Форма задачи: новое или правка. `mode` — кто ставит: владелец выбирает управляющую («Komu»),
- * управляющая (s246) — «Pro mě / Pro majitele» (карточку сервер берёт из сессии).
+ * Форма задачи: новое или правка. `mode` — кто ставит: владелец — «Pro manažerku / Pro mě»
+ * (s259; управляющей — выбор «Komu», себе — без карточки), управляющая (s246) — «Pro mě /
+ * Pro majitele» (карточку сервер берёт из сессии). `defaultAssignee` — выбор при открытии.
+ * s262: обоим — «Pro administrátorky» (если есть кому): выбор администраторки или «všem».
  */
 export function TaskForm({
   initial,
@@ -414,9 +507,13 @@ export function TaskForm({
   onCancel,
   submitLabel,
   mode = 'owner',
+  defaultAssignee = 'manager',
+  admins = [],
 }: {
   initial?: Partial<Task>
   mode?: TaskSide
+  defaultAssignee?: TaskSide
+  admins?: AdminPerson[]
   people: { documentId: string; name: string; isActive: boolean }[]
   priorities: { key: string; label: string }[]
   today: string
@@ -431,19 +528,31 @@ export function TaskForm({
   const [dueDate, setDueDate] = useState(initial?.dueDate ?? '')
   const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? 'normal')
   const [personal, setPersonal] = useState(initial?.personal ?? (active.length === 1 ? active[0].documentId : ''))
-  const [assignee, setAssignee] = useState<TaskSide>('manager')
+  const [assignee, setAssignee] = useState<TaskSide>(defaultAssignee === 'administrator' && !admins.length ? 'manager' : defaultAssignee)
+  // s262: '*' — всем администраторкам
+  const [adminPick, setAdminPick] = useState(admins.length === 1 ? admins[0].documentId : '')
   const editing = !!initial?.documentId
   const asManager = mode === 'manager'
+  // владельцу «Komu» нужно только для поручения управляющей
+  const needsPersonal = !editing && !asManager && assignee === 'manager'
+  const forAdmins = !editing && assignee === 'administrator'
+  const sides: (readonly [TaskSide, string])[] = [
+    ...(asManager
+      ? ([
+          ['manager', 'Pro mě'],
+          ['owner', 'Pro majitele'],
+        ] as const)
+      : ([
+          ['manager', 'Pro manažerku'],
+          ['owner', 'Pro mě'],
+        ] as const)),
+    ...(admins.length ? ([['administrator', 'Pro administrátorky']] as const) : []),
+  ]
   return (
     <div className="flex flex-col gap-3" data-testid="task-form">
-      {asManager && !editing && (
+      {!editing && (
         <div className="flex gap-1.5" role="group" aria-label="Pro koho" data-testid="task-assignee">
-          {(
-            [
-              ['manager', 'Pro mě'],
-              ['owner', 'Pro majitele'],
-            ] as const
-          ).map(([key, label]) => (
+          {sides.map(([key, label]) => (
             <button key={key} type="button" className={pillCls(assignee === key)} aria-pressed={assignee === key} onClick={() => setAssignee(key)} data-assignee={key}>
               {label}
             </button>
@@ -466,7 +575,21 @@ export function TaskForm({
         />
       </label>
       <div className="flex gap-3 flex-wrap">
-        {!editing && !asManager && active.length > 1 && (
+        {forAdmins && (
+          <label className="block">
+            <span className={labelCls}>Komu *</span>
+            <select className={selectCls} value={adminPick} onChange={(e) => setAdminPick(e.target.value)} data-testid="task-admin">
+              <option value="">— vyberte —</option>
+              <option value="*">{ALL_ADMINS_LABEL}</option>
+              {admins.map((p) => (
+                <option key={p.documentId} value={p.documentId}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {needsPersonal && active.length > 1 && (
           <label className="block">
             <span className={labelCls}>Komu *</span>
             <select className={selectCls} value={personal} onChange={(e) => setPersonal(e.target.value)} data-testid="task-personal">
@@ -505,10 +628,16 @@ export function TaskForm({
         <button
           type="button"
           className={btnPinkCls}
-          disabled={busy || !title.trim() || (!editing && !asManager && !personal)}
+          disabled={busy || !title.trim() || (needsPersonal && !personal) || (forAdmins && !adminPick)}
           onClick={() =>
             onSubmit({
-              ...(editing ? {} : asManager ? { assignee } : { personal }),
+              ...(editing
+                ? {}
+                : forAdmins
+                  ? { assignee, ...(adminPick === '*' ? { allAdmins: true } : { personal: adminPick }) }
+                  : asManager || assignee === 'owner'
+                    ? { assignee }
+                    : { personal }),
               title: title.trim(),
               description,
               dueDate: dueDate || null,

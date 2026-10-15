@@ -8,6 +8,12 @@
 // s246: управляющая ставит задачи себе и владельцу — у задачи стороны «исполнитель»
 // (`assignee`) и «постановщик» (`createdByRole`); кто что может — `actionsFor(task, role)`,
 // копия серверной `transitionsFor`.
+// s262: задачи администраторам — исполнитель `administrator` (конкретная карточка или
+// `allAdmins` — всем); ставят владелец и управляющая, принимает постановщик. Администраторки
+// видят только задачи администраторам (свои и общие), задач не ставят.
+// s265 («Předání směny»): администраторка ставит задачу КОЛЛЕГЕ (постановщик `administrator`,
+// закрывается по «Hotovo» без принятия) и передаёт задачу другой (`handover`); у задачи коллеге обе
+// стороны — одна роль, поэтому сервер отдаёт флаги `forMe` (задача на мне) / `byMe` (поставила я).
 import { ApiError, makeApiFetch } from '../../../lib/apiFetch'
 import { API_URL } from '../../../lib/config'
 import { getToken } from '../../../services/auth'
@@ -16,8 +22,13 @@ import type { Labeled } from './workReports'
 
 export type TaskStatus = 'open' | 'done' | 'accepted' | 'cancelled'
 export type TaskPriority = 'normal' | 'urgent'
-export type TaskSide = 'owner' | 'manager'
-export type TaskAction = 'done' | 'undone' | 'progress' | 'comment' | 'accept' | 'reopen' | 'cancel'
+/** Сторона задачи: исполнитель — любая из трёх; постановщик — тоже (s265: администраторка — коллеге). */
+export type TaskSide = 'owner' | 'manager' | 'administrator'
+export interface AdminPerson {
+  documentId: string
+  name: string
+}
+export type TaskAction = 'done' | 'undone' | 'progress' | 'comment' | 'accept' | 'reopen' | 'cancel' | 'handover'
 export type TaskScope = 'active' | 'closed' | 'all'
 
 export interface TaskEvent {
@@ -28,6 +39,9 @@ export interface TaskEvent {
   text: string
   /** событие пришло из ежедневного отчёта за этот день */
   reportDate?: string
+  /** s265 `handover`: от кого → кому (имена карточек) */
+  from?: string
+  to?: string
 }
 
 export interface TaskFile {
@@ -55,6 +69,11 @@ export interface Task {
   assignee?: TaskSide
   /** постановщик (s246) */
   createdByRole?: TaskSide
+  /** s262: задача всем администраторкам (без карточки) */
+  allAdmins?: boolean
+  /** s265, только администраторке: задача на мне / поставила я (задача коллеге) */
+  forMe?: boolean
+  byMe?: boolean
   doneAt: string | null
   closedAt: string | null
   closedBy: string | null
@@ -73,6 +92,10 @@ export interface TasksList {
   role: TaskSide
   scope: TaskScope
   people?: { documentId: string; name: string; isActive: boolean }[]
+  /** s262: кому из администраторок можно поставить задачу; s265 — и администраторке (кому передать) */
+  admins?: AdminPerson[]
+  /** s265: карточка администраторки, которая смотрит (убрать себя из «кому») */
+  me?: string
   tasks: Task[]
 }
 
@@ -92,6 +115,9 @@ export interface TaskBrief {
   documentId: string
   title: string
   personalName: string | null
+  /** s262 */
+  assignee?: TaskSide
+  allAdmins?: boolean
   dueDate: string | null
   priority: TaskPriority
   status: TaskStatus
@@ -107,16 +133,20 @@ export interface TasksAttention {
   urgent: TaskBrief[]
   waiting: TaskBrief[]
   next: TaskBrief[]
-  /** владельцу (s246): задачи от управляющей ему, в работе */
+  /** владельцу (s246): задачи от управляющей ему, в работе; s259 — и его задачи себе */
   forMe?: { open: number; overdue: number; list: TaskBrief[] }
   /** управляющей (s246): её задачи владельцу — в работе и выполнено за 7 дней */
   toOwner?: { open: number; done: number }
+  /** управляющей (s262): задачи администраторам — в работе, ждут её принятия, просроченные */
+  admins?: { open: number; waiting: TaskBrief[]; overdue: TaskBrief[] }
 }
 
 export interface TaskInput {
   personal?: string
-  /** управляющая (s246): кому задача — себе или владельцу */
+  /** кому задача: управляющая (s246) — себе или владельцу; владелец (s259) — `owner` = себе;
+   *  s262 — `administrator` + `personal` (её карточка) или `allAdmins` */
   assignee?: TaskSide
+  allAdmins?: boolean
   title?: string
   description?: string
   dueDate?: string | null
@@ -126,6 +156,7 @@ export interface TaskInput {
 const CODE_MESSAGES: Record<string, string> = {
   unauthorized: 'Relace vypršela — přihlaste se znovu.',
   owner_only: 'Úkoly zadává a upravuje jen majitel.',
+  cannot_create: 'Úkoly zadává majitel nebo manažerka.',
   task_changed: 'Úkol se mezitím změnil — načetla jsem ho znovu, zkuste to prosím ještě jednou.',
   storage_not_configured: 'Úložiště příloh na serveru zatím není nastavené.',
   // ostatní kódy — text ze serveru (česky)
@@ -145,6 +176,10 @@ export const updateTask = (id: string, body: TaskInput) => tasksFetch<{ task: Ta
 
 export const taskAction = (id: string, action: TaskAction, text = '') =>
   tasksFetch<{ task: Task }>('POST', `/${enc(id)}/actions`, { action, text })
+
+/** s265: передать задачу другой администраторке (`to` — её карточка). */
+export const handoverTask = (id: string, to: string, text = '') =>
+  tasksFetch<{ task: Task }>('POST', `/${enc(id)}/actions`, { action: 'handover', to, text })
 
 /** s258: автор удаляет свой комментарий / ход работы — бесследно (без записи в ленте и журнале). */
 export const REMOVABLE_EVENTS: readonly TaskEvent['kind'][] = ['comment', 'progress']
@@ -223,13 +258,27 @@ export const EVENT_LABEL: Record<TaskEvent['kind'], string> = {
   reopen: 'vráceno do práce',
   cancel: 'zrušeno',
   comment: 'komentář',
+  handover: 'předáno',
 }
 
-type Sided = Pick<Task, 'status' | 'assignee' | 'createdByRole'>
+type Sided = Pick<Task, 'status' | 'assignee' | 'createdByRole'> & Partial<Pick<Task, 'forMe' | 'byMe' | 'personal' | 'allAdmins'>>
 
 /** Исполнитель и постановщик; у старых строк — поручение владельца управляющей. */
-export const assigneeOf = (t: Pick<Task, 'assignee'>): TaskSide => (t.assignee === 'owner' ? 'owner' : 'manager')
-export const creatorOf = (t: Pick<Task, 'createdByRole'>): TaskSide => (t.createdByRole === 'manager' ? 'manager' : 'owner')
+export const assigneeOf = (t: Pick<Task, 'assignee'>): TaskSide =>
+  t.assignee === 'owner' || t.assignee === 'administrator' ? t.assignee : 'manager'
+export const creatorOf = (t: Pick<Task, 'createdByRole'>): TaskSide =>
+  t.createdByRole === 'manager' || t.createdByRole === 'administrator' ? t.createdByRole : 'owner'
+
+/**
+ * Стороны того, кто смотрит (как серверная `transitionsFor`): по роли; у задачи администраторки
+ * коллеге (s265) администраторке — по флагам сервера `forMe` / `byMe`.
+ */
+export const sidesOf = (task: Sided, role: TaskSide) => {
+  if (role === 'administrator' && creatorOf(task) === 'administrator' && (task.forMe != null || task.byMe != null)) {
+    return { isAssignee: !!task.forMe, isCreator: !!task.byMe }
+  }
+  return { isAssignee: assigneeOf(task) === role, isCreator: creatorOf(task) === role }
+}
 /** Закрывается сразу по «hotovo»: задача себе или задача владельцу (s246). */
 export const closesOnDone = (t: Pick<Task, 'assignee' | 'createdByRole'>): boolean =>
   assigneeOf(t) === 'owner' || assigneeOf(t) === creatorOf(t)
@@ -243,11 +292,12 @@ export const actionsFor = (task: Sided, role: TaskSide): TaskAction[] => {
   const s = task.status
   const quick = closesOnDone(task)
   const out: TaskAction[] = []
-  if (assigneeOf(task) === role) {
+  const { isAssignee, isCreator } = sidesOf(task, role)
+  if (isAssignee) {
     if (s === 'open') out.push('done')
     if (s === 'done' && !quick) out.push('undone')
   }
-  if (creatorOf(task) === role) {
+  if (isCreator) {
     if (s === 'done' && !quick) out.push('accept')
     if (s === 'accepted' || s === 'cancelled' || (s === 'done' && !quick)) out.push('reopen')
     if (s === 'open' || (s === 'done' && !quick)) out.push('cancel')
@@ -255,13 +305,27 @@ export const actionsFor = (task: Sided, role: TaskSide): TaskAction[] => {
   return out
 }
 
-/** «Zapsat průběh» — исполнителю-управляющей в работе; остальным — комментарий. */
+/** «Zapsat průběh» — исполнителю (управляющей, s262 — администраторке) в работе; остальным — комментарий. */
 export const canProgress = (task: Sided, role: TaskSide): boolean =>
-  role === 'manager' && assigneeOf(task) === 'manager' && task.status === 'open'
+  role !== 'owner' && sidesOf(task, role).isAssignee && task.status === 'open'
 
 /** Править задание может постановщик, пока задача не закрыта. */
 export const canEditTask = (task: Sided, role: TaskSide): boolean =>
-  creatorOf(task) === role && task.status !== 'accepted' && task.status !== 'cancelled'
+  sidesOf(task, role).isCreator && task.status !== 'accepted' && task.status !== 'cancelled'
+
+/**
+ * s265: передать другой администраторке — задачу администратора с карточкой (общие и так у всех),
+ * в работе; исполнительнице и руководству (в любую сторону).
+ */
+export const canHandover = (task: Sided, role: TaskSide): boolean =>
+  assigneeOf(task) === 'administrator' &&
+  !!task.personal &&
+  !task.allAdmins &&
+  task.status === 'open' &&
+  (role === 'owner' || role === 'manager' || (role === 'administrator' && sidesOf(task, role).isAssignee))
+
+/** s265: задача, которую администраторка поставила коллеге (не на ней). */
+export const isPeerTaskByMe = (task: Sided): boolean => creatorOf(task) === 'administrator' && !!task.byMe && !task.forMe
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
   open: 'v práci',
@@ -281,10 +345,15 @@ export const statusLabel = (task: Sided, role: TaskSide): string => {
 }
 
 /** Откуда задача — для того, кто смотрит (s246); у поручения владельца в его же списке — нет. */
-export const originLabel = (task: Pick<Task, 'assignee' | 'createdByRole'>, role: TaskSide): string | null => {
+export const originLabel = (task: Pick<Task, 'assignee' | 'createdByRole'> & Partial<Pick<Task, 'forMe' | 'byMe'>>, role: TaskSide): string | null => {
   const a = assigneeOf(task)
   const c = creatorOf(task)
+  // s265: задача администраторки коллеге — ей «od kolegyně», автору «pro kolegyni», руководству «od administrátorky»
+  if (c === 'administrator') return role !== 'administrator' ? 'od administrátorky' : task.byMe && !task.forMe ? 'pro kolegyni' : 'od kolegyně'
+  // s262: задачи администраторам — откуда (у своих поручений постановщика — без бейджа)
+  if (a === 'administrator') return role === 'administrator' || c !== role ? (c === 'owner' ? 'od majitele' : 'od manažerky') : null
   if (role === 'manager') return c === 'owner' ? 'od majitele' : a === 'owner' ? 'pro majitele' : 'můj'
   if (c === 'manager') return a === 'owner' ? 'od manažerky' : 'sama sobě'
-  return null
+  // s259: задача владельца самому себе
+  return a === 'owner' ? 'můj' : null
 }

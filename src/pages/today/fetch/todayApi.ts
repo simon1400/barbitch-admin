@@ -18,6 +18,8 @@
 //     свои в работе — `/engine/admin/tasks/attention` (одна ручка, ответ по роли сессии);
 //     s246: там же `forMe` (владельцу — задачи от управляющей) и `toOwner` (управляющей).
 //   • склад (s251): что закончилось и что ниже минимума — `/engine/admin/stock/attention`.
+//   • смена администраторов (s266): незаполненные смены за неделю, расхождения кассы в незакрытых
+//     сменах, непрочитанные передачи смены старше 3 дней — `/engine/admin/smena/attention`.
 import { makeApiFetch } from '../../../lib/apiFetch'
 import { fetchPendingBlocks, type PendingBlock } from '../../calendar/fetch/engineApi'
 import type { PlanRequest } from '../../schedule/fetch/schedule'
@@ -36,6 +38,7 @@ import { fetchTasksAttention, type TasksAttention } from '../../vykaz/fetch/task
 import { fetchReportsAttention, type ReportsAttention } from '../../vykaz/fetch/workReports'
 import { getSessionRole } from '../../../services/auth'
 import { fetchStockAttention, type StockAttention } from '../../stock/fetch/stock'
+import { fetchSmenaAttention, type SmenaAttention } from '../../smena/fetch/smena'
 
 export interface UnclosedVisit {
   documentId: string
@@ -122,6 +125,8 @@ export interface TodayData {
   tasks: Part<TasksAttention>
   /** склад (s251): закончилось / ниже минимума */
   stock: Part<StockAttention>
+  /** смена администраторов (s266): не заполнено, расхождения кассы, непрочитанные передачи */
+  smena: Part<SmenaAttention>
   roster: AdminRoster
 }
 
@@ -133,7 +138,7 @@ const part = <T,>(r: PromiseSettledResult<T>): Part<T> =>
 export async function loadToday(date: string): Promise<TodayData> {
   const pendingRes = fetchPendingBlocks()
   const isOwner = getSessionRole() === 'owner'
-  const [overview, pending, plan, upsell, day, roster, birthdays, staff, costs, reports, tasks, stock] = await Promise.allSettled([
+  const [overview, pending, plan, upsell, day, roster, birthdays, staff, costs, reports, tasks, stock, smena] = await Promise.allSettled([
     fetchTodayOverview(date),
     pendingRes.then((r) => r.items || []),
     pendingRes.then((r) => r.planRequests || []),
@@ -147,6 +152,7 @@ export async function loadToday(date: string): Promise<TodayData> {
     isOwner ? fetchReportsAttention() : Promise.resolve(null),
     fetchTasksAttention(),
     fetchStockAttention(),
+    fetchSmenaAttention(),
   ])
   return {
     overview: part(overview),
@@ -160,6 +166,7 @@ export async function loadToday(date: string): Promise<TodayData> {
     reports: part(reports),
     tasks: part(tasks),
     stock: part(stock),
+    smena: part(smena),
     // график — вспомогательная инфа, fetchAdminRoster сам глотает ошибки
     roster: roster.status === 'fulfilled' ? roster.value : {},
   }

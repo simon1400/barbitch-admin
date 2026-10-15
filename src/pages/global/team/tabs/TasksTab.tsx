@@ -7,6 +7,8 @@
 // s246: и задачи от управляющей — владельцу (кнопка «Hotovo» закрывает сразу) и её задачи
 // самой себе (только читать и комментировать). Фильтр «Vše / Pro manažerku / Pro mě» —
 // на клиенте; по умолчанию «Vše», чтобы ссылка `?task=` с «Сегодня» всегда находила задачу.
+// s259: владелец ставит задачу и себе («Pro mě» в форме; по умолчанию — как выбран фильтр).
+// s262: и администраторкам — фильтр «Pro administrátorky», в форме выбор конкретной или «všem».
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
@@ -16,6 +18,7 @@ import { Notice } from '../../../vykaz/components/ReportParts'
 import {
   assigneeOf,
   canEditTask,
+  creatorOf,
   createTask,
   fetchTasks,
   updateTask,
@@ -31,10 +34,11 @@ const SCOPES: { key: TaskScope; label: string }[] = [
   { key: 'all', label: 'Vše' },
 ]
 
-type Kind = 'all' | 'manager' | 'owner'
+type Kind = 'all' | 'manager' | 'administrator' | 'owner'
 const KINDS: { key: Kind; label: string }[] = [
   { key: 'all', label: 'Vše' },
   { key: 'manager', label: 'Pro manažerku' },
+  { key: 'administrator', label: 'Pro administrátorky' },
   { key: 'owner', label: 'Pro mě' },
 ]
 
@@ -86,6 +90,8 @@ export default function TasksTab() {
       } else {
         const res = await createTask(body)
         setCreating(false)
+        // новая задача не должна спрятаться за фильтром «для кого»
+        setKind((k) => (k === 'all' ? k : assigneeOf(res.task)))
         setOpen(res.task.documentId)
         setOk('Úkol zadán.')
         // порядок (просроченные, срочные, по сроку) считает сервер
@@ -102,7 +108,7 @@ export default function TasksTab() {
   const tasks = kind === 'all' ? all : all.filter((t) => assigneeOf(t) === kind)
   const waiting = tasks.filter((t) => t.status === 'done').length
   const overdue = tasks.filter((t) => t.overdue).length
-  const forMe = scope === 'active' ? all.filter((t) => assigneeOf(t) === 'owner' && t.status === 'open').length : 0
+  const forMe = scope === 'active' ? all.filter((t) => assigneeOf(t) === 'owner' && creatorOf(t) === 'manager' && t.status === 'open').length : 0
 
   return (
     <div data-testid="tasks-tab">
@@ -137,6 +143,8 @@ export default function TasksTab() {
             today={data.today}
             busy={busy}
             submitLabel="Zadat úkol"
+            defaultAssignee={kind === 'all' ? 'manager' : kind}
+            admins={data.admins ?? []}
             onSubmit={(b) => void submit(b)}
             onCancel={() => setCreating(false)}
           />
@@ -188,6 +196,7 @@ export default function TasksTab() {
                 onConflict={() => void load(scope, true)}
                 onEdit={canEditTask(t, 'owner') ? () => setEditing(t.documentId) : undefined}
                 showAssignee={(data.people ?? []).filter((p) => p.isActive).length > 1}
+                admins={data.admins ?? []}
               />
             ),
           )}

@@ -60,6 +60,7 @@ const TodayPage = lazy(() => import('./pages/today/TodayPage'))
 const SchedulePage = lazy(() => import('./pages/schedule/SchedulePage'))
 const MyCardPage = lazy(() => import('./pages/me/MyCardPage'))
 const VykazPage = lazy(() => import('./pages/vykaz/VykazPage'))
+const SmenaPage = lazy(() => import('./pages/smena/SmenaPage'))
 const StockPage = lazy(() => import('./pages/stock/StockPage'))
 const StockItemPage = lazy(() => import('./pages/stock/StockItemPage'))
 const StockLocationPage = lazy(() => import('./pages/stock/StockLocationPage'))
@@ -141,6 +142,13 @@ const ManagementRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>
 }
 
+// «Úkoly» администраторов (s262) с s263 — вкладка модуля «Směna»: `/ukoly[?task=]` → `/smena?tab=ukoly[&task=]`
+function UkolyRedirect() {
+  const { search } = useLocation()
+  const task = new URLSearchParams(search).get('task')
+  return <Navigate to={`/smena?tab=ukoly${task ? `&task=${encodeURIComponent(task)}` : ''}`} replace />
+}
+
 function App() {
   // Статус учётки (деактивирована / сессия отозвана) — раз в 30 секунд.
   // Это ЕДИНСТВЕННЫЙ регулярный опрос: из Axios-интерсептора проверку убрали,
@@ -214,6 +222,27 @@ function App() {
                     <VykazPage />
                   </AdminLayout>
                 </ModuleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/smena"
+            element={
+              <ProtectedRoute>
+                <ModuleRoute module="/smena">
+                  <AdminLayout>
+                    <SmenaPage />
+                  </AdminLayout>
+                </ModuleRoute>
+              </ProtectedRoute>
+            }
+          />
+          {/* s263: «Úkoly» — вкладка «Směna»; старые ссылки (push s262) ведут туда же */}
+          <Route
+            path="/ukoly"
+            element={
+              <ProtectedRoute>
+                <UkolyRedirect />
               </ProtectedRoute>
             }
           />
