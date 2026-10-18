@@ -103,6 +103,8 @@ export interface ClientPatch {
   phone?: string | null
   email?: string | null
   notes?: string | null
+  /** заметка о клиентке (s267): сервер сохраняет строки слияния дублей в `notes` */
+  note?: string | null
   blacklisted?: boolean
   blacklistReason?: string | null
 }
@@ -120,6 +122,8 @@ export interface ClientUpdateResult {
   renamedBookings: number
   /** телефон в том виде, в каком лёг в базу (сервер приводит к +420…) */
   phone: string | null
+  /** заметка о клиентке после правки (без строк слияния); у старого сервера нет */
+  note?: string | null
   /** карточки с тем же контактом — правку не блокируют, лечатся в «Дублях клиентов» */
   duplicates: ContactConflict[]
 }

@@ -66,6 +66,9 @@ export interface CalendarBooking {
     blacklisted?: boolean | null
     blacklistReason?: string | null
   } | null
+  // заметка о клиентке (s267, `clients.notes` без строк слияния дублей) — общая
+  // на все её брони; мастеру сервер отдаёт её только у СВОИХ броней
+  clientNote?: string | null
   // кастомный лейбл (снапшот из справочника booking-label)
   label?: { name: string; color: string } | null
   // структурированная скидка дозаписи с thank-you (rebook −15%, пишет движок);

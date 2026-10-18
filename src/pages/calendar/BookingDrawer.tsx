@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { bookingFullPrice, masterShare } from './pricing'
 import { STATUS_META, fmtTime } from './utils'
 import { ClientHistory } from './drawer/ClientHistory'
+import { ClientNoteCard } from './drawer/ClientNoteCard'
 import { LoyaltyCard } from './drawer/LoyaltyCard'
 import { RebookDiscountCard } from './drawer/RebookDiscountCard'
 import { bookingCreatedLabel, bookingSourceLabel, dateLabelCs } from './drawer/labels'
@@ -27,6 +28,7 @@ export const BookingDrawer = ({
   onStatus,
   onSaveComment,
   onToggleBlacklist,
+  onSaveClientNote,
   onArrived,
   onOpenHistory,
   onChangeService,
@@ -240,6 +242,14 @@ export const BookingDrawer = ({
             </div>
           )}
         </div>
+
+        {/* «O klientce» (s267): заметка о клиентке на все её брони — сразу под главной
+            картой, чтобы мастер видел её до начала работы. Мастеру — только чтение. */}
+        {!isInternal && (
+          // свой префикс ключа: соседние карточки шторки тоже ключуются documentId брони,
+          // а одинаковые ключи у соседей React путает (черновик «переезжал» бы)
+          <ClientNoteCard key={`note-${b.documentId}`} b={b} busy={busy} readOnly={readOnly} onSave={onSaveClientNote} />
+        )}
 
         {/* Закрытие визита: форма (открывается кнопкой «✓ Proběhla») либо карточка
             «Návštěva uzavřena» с суммами и verify-чипами. Мастерам (readOnly) деньги

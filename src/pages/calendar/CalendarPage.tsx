@@ -37,7 +37,7 @@ import {
 } from './fetch/engineApi'
 import { CalendarGrid } from './CalendarGrid'
 import { BookingDrawer } from './BookingDrawer'
-import { setGroupBlacklist } from '../global/fetch/clientDedupe'
+import { setGroupBlacklist, updateClientContacts } from '../global/fetch/clientDedupe'
 import { blacklistErrorCs } from '../../lib/blacklistReasons'
 import { InstallAppButton } from './InstallAppButton'
 import { NotificationButton } from './NotificationButton'
@@ -362,6 +362,26 @@ export default function CalendarPage() {
       await reload(true)
     } catch (e) {
       window.alert(blacklistErrorCs(e))
+    } finally {
+      setMutating(false)
+    }
+  }
+
+  // заметка о клиентке (карточка «O klientce», s267): ручка правки карточки клиента
+  // (та же, что у «Hledat klienta»); имя в бронях не трогаем. Перечитываем день —
+  // у других броней той же клиентки заметка тоже сменилась.
+  const saveClientNote = async (note: string) => {
+    const clientDocId = selected?.client?.documentId
+    if (!selected || !clientDocId) return
+    setMutating(true)
+    try {
+      const res = await updateClientContacts(clientDocId, { note }, false)
+      // старый сервер поле `note` молча игнорирует — не делаем вид, что сохранили
+      if (res.note === undefined) throw new Error('Server zatím poznámku ke klientce neumí uložit.')
+      setSelected({ ...selected, clientNote: res.note })
+      await reload(true)
+    } catch (e) {
+      window.alert((e as Error).message || 'Uložení se nezdařilo')
     } finally {
       setMutating(false)
     }
@@ -1157,6 +1177,7 @@ export default function CalendarPage() {
           onStatus={patchStatus}
           onSaveComment={saveComment}
           onToggleBlacklist={toggleBlacklist}
+          onSaveClientNote={saveClientNote}
           onArrived={patchArrived}
           onOpenHistory={openHistoryBooking}
           onChangeService={() => selected && setChangeService(selected)}

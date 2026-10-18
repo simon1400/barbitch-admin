@@ -639,6 +639,8 @@ export function calcCombo(
 export interface ClientHit extends ClientSearchHit {
   blacklisted: boolean
   blacklistReason?: string | null
+  // сырое поле: показывать через clientNoteOf (lib/clientNote) — там строки слияния
+  notes?: string | null
 }
 
 export async function searchClients(q: string, limit = 8): Promise<ClientHit[]> {
@@ -647,7 +649,7 @@ export async function searchClients(q: string, limit = 8): Promise<ClientHit[]> 
   if (query.length < 2) return []
   const res = (await Axios.get(
     `/api/clients?${clientSearchFilters(query)}` +
-      `&fields[0]=name&fields[1]=phone&fields[2]=email&fields[3]=blacklisted&fields[4]=blacklistReason` +
+      `&fields[0]=name&fields[1]=phone&fields[2]=email&fields[3]=blacklisted&fields[4]=blacklistReason&fields[5]=notes` +
       `&pagination[pageSize]=${limit}&sort=name:asc`,
     { headers: authHeaders() },
   )) as ClientHit[]

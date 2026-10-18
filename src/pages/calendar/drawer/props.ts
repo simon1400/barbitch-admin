@@ -14,6 +14,8 @@ export interface BookingDrawerProps {
   // блэклист клиента (карточка Kontakt) — блокирует ему запись через сайт;
   // reason обязателен при добавлении (s208), при снятии не передаётся
   onToggleBlacklist: (next: boolean, reason?: string) => void
+  // заметка о клиентке (карточка «O klientce», s267) — общая на все её брони
+  onSaveClientNote: (note: string) => void
   onArrived: () => void
   onOpenHistory: (r: ClientHistoryItem) => void
   onChangeService: () => void

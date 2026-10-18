@@ -21,6 +21,7 @@ import {
 } from '../../global/fetch/clientDedupe'
 import { ApiError } from '../../../lib/apiFetch'
 import { blacklistErrorCs, describeBlacklistReason } from '../../../lib/blacklistReasons'
+import { CLIENT_NOTE_MAX, clientNoteOf } from '../../../lib/clientNote'
 import { BlacklistReasonForm } from '../BlacklistReasonForm'
 import { HistoryRow } from '../BookingDrawer'
 import { ModalShell } from './ui'
@@ -33,6 +34,7 @@ const EDIT_ERRORS: Record<string, string> = {
   bad_email: 'Neplatný e-mail.',
   bad_phone: 'Neplatné telefonní číslo — zadejte aspoň 9 číslic.',
   client_not_found: 'Karta klienta nenalezena.',
+  note_too_long: `Poznámka je delší než ${CLIENT_NOTE_MAX} znaků.`,
   unauthorized: 'Přihlášení vypršelo — přihlaste se znovu.',
 }
 
@@ -84,13 +86,20 @@ const ContactEditor = ({
   const [name, setName] = useState(client.name)
   const [phone, setPhone] = useState(client.phone || '')
   const [email, setEmail] = useState(client.email || '')
+  // заметка о клиентке (s267) — людская часть поля notes, без строк слияния дублей
+  const savedNote = clientNoteOf(client.notes) || ''
+  const [note, setNote] = useState(savedNote)
   const [renameBookings, setRenameBookings] = useState(true)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
   const nameChanged = name.trim() !== client.name
+  const noteChanged = note.trim() !== savedNote
   const dirty =
-    nameChanged || phone.trim() !== (client.phone || '') || email.trim() !== (client.email || '')
+    nameChanged ||
+    noteChanged ||
+    phone.trim() !== (client.phone || '') ||
+    email.trim() !== (client.email || '')
 
   const save = async () => {
     if (!dirty) {
@@ -101,10 +110,14 @@ const ContactEditor = ({
     if (nameChanged) patch.name = name.trim()
     if (phone.trim() !== (client.phone || '')) patch.phone = phone.trim() || null
     if (email.trim() !== (client.email || '')) patch.email = email.trim() || null
+    if (noteChanged) patch.note = note.trim()
     setSaving(true)
     setErr(null)
     try {
       const res = await updateClientContacts(client.documentId, patch, nameChanged && renameBookings)
+      // старый сервер поле `note` молча игнорирует — не делаем вид, что сохранили
+      if (noteChanged && res.note === undefined)
+        throw new Error('Server zatím poznámku ke klientce neumí uložit.')
       onSaved(
         {
           ...client,
@@ -112,6 +125,8 @@ const ContactEditor = ({
           // телефон берём из ответа: сервер приводит его к виду +420…
           phone: res.phone,
           email: 'email' in patch ? patch.email ?? null : client.email,
+          // в карточке держим уже чистый текст (clientNoteOf от него — он же)
+          notes: res.note !== undefined ? res.note : client.notes,
         },
         res.duplicates || [],
       )
@@ -161,6 +176,23 @@ const ContactEditor = ({
           placeholder="bez e-mailu"
           onChange={(e) => setEmail(e.target.value)}
         />
+      </div>
+      <div>
+        <label className={labelCls} htmlFor="cl-note">
+          O klientce
+        </label>
+        <textarea
+          id="cl-note"
+          rows={3}
+          maxLength={CLIENT_NOTE_MAX}
+          className={`${inputCls} resize-y`}
+          value={note}
+          placeholder="Např. velmi husté řasy, alergie na lepidlo…"
+          onChange={(e) => setNote(e.target.value)}
+        />
+        <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+          Zobrazí se u každé její rezervace. Vidí ji i mistr u své rezervace, klientka ne.
+        </p>
       </div>
 
       {/* Имя клиента лежит снимком в каждой брони (grid, сверка смены) — без этой
@@ -456,6 +488,19 @@ export const ClientSearchModal = ({
                     <span className="text-gray-400 dark:text-gray-500">✉️ e-mail není uveden</span>
                   )}
                 </div>
+                {clientNoteOf(selected.notes) && (
+                  <div
+                    data-client-note
+                    className="mt-2 rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 dark:border-violet-500/40 dark:bg-violet-500/10"
+                  >
+                    <div className="text-[11px] font-bold uppercase tracking-wide text-violet-700 dark:text-violet-300">
+                      O klientce
+                    </div>
+                    <div className="mt-0.5 whitespace-pre-line text-sm text-gray-800 dark:text-gray-200">
+                      {clientNoteOf(selected.notes)}
+                    </div>
+                  </div>
+                )}
                 <div className="mt-2 flex items-center justify-between gap-2">
                   {selected.blacklisted ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700 dark:bg-red-500/20 dark:text-red-300">

@@ -18,6 +18,7 @@ import {
   type ServiceSelection,
 } from './helpers'
 import { ServicePicker } from './ServicePicker'
+import { clientNoteOf } from '../../../lib/clientNote'
 import { ModalShell, Section, TimeSelect } from './ui'
 
 export interface NewBookingInitial {
@@ -346,6 +347,7 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
               )}
             </div>
           ) : client ? (
+            <>
             <div className="flex items-center justify-between rounded-md border border-gray-200 dark:border-[#2e2e2c] bg-white dark:bg-[#2a2a28] px-3 py-2 text-sm">
               <div>
                 <b>{client.name}</b> <span className="text-gray-500 dark:text-gray-400">{client.phone}</span>
@@ -359,6 +361,16 @@ export const NewBookingModal = ({ employees, initial, slotFit, onClose, onCreate
                 ✕
               </button>
             </div>
+            {/* заметка о клиентке (s267) — чтобы при записи сразу видеть «husté řasy» */}
+            {clientNoteOf(client.notes) && (
+              <div
+                data-client-note
+                className="mt-1.5 whitespace-pre-line rounded-md border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs text-gray-800 dark:border-violet-500/40 dark:bg-violet-500/10 dark:text-gray-200"
+              >
+                <b className="text-violet-700 dark:text-violet-300">O klientce:</b> {clientNoteOf(client.notes)}
+              </div>
+            )}
+            </>
           ) : (
             <div className="relative">
               <input
