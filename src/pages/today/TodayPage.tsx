@@ -132,7 +132,6 @@ export default function TodayPage() {
   const costPending = cp?.ok ? cp.data.pending : null
   // s252: новые затраты со склада ждут решения этой сессии (управляющей — её ступень)
   const stockReceipts = cp?.ok ? (cp.data.stockReceipts ?? 0) : 0
-  const missingCosts = cp?.ok ? cp.data.missingRecurring : []
 
   // «Výkaz práce» (s239): непрочитанные отчёты и дни без отчёта; вопросы — отдельной карточкой
   const rp = data?.reports
@@ -194,11 +193,10 @@ export default function TodayPage() {
       count: cp?.ok ? (isOwner ? (costPending ?? 0) : stockReceipts) : null,
       error: cp && !cp.ok ? cp.error : null,
     },
-    'costs-missing': { title: 'Постоянные расходы не внесены', count: cp?.ok ? missingCosts.length : null, error: cp && !cp.ok ? cp.error : null },
     // s251: закончилось + ниже минимума; s252: + заказы не пришли, приходы без затраты, инвентура со вторника
     stock: { title: 'Склад', count: st?.ok ? stockAttentionCount(st.data) : null, error: st && !st.ok ? st.error : null },
   } satisfies Record<string, CardDef>
-  const ORDER: (keyof typeof defs)[] = ['blocks', 'shifts', 'smena', 'vouchers', 'staff-docs', 'owner-tasks', 'tasks-for-me', 'admin-tasks', 'visits', 'upsell', 'korekce', 'work-reports', 'cost-requests', 'costs-missing', 'stock']
+  const ORDER: (keyof typeof defs)[] = ['blocks', 'shifts', 'smena', 'vouchers', 'staff-docs', 'owner-tasks', 'tasks-for-me', 'admin-tasks', 'visits', 'upsell', 'korekce', 'work-reports', 'cost-requests', 'stock']
   const okTitles = ORDER.map((id): CardDef => defs[id])
     .filter((d) => d.show !== false && cardState(d.count, first, d.error) === 'ok')
     .map((d) => d.title)
@@ -740,8 +738,8 @@ export default function TodayPage() {
           </TodayCard>
         )}
 
-        {/* 14–15. Затраты (s237): запросы управляющей — владельцу; s252: затраты со склада — владельцу и управляющей
-            (её ступень одобрения); не внесённые постоянные — руководству */}
+        {/* 14. Затраты (s237): запросы управляющей — владельцу; s252: затраты со склада — владельцу и управляющей
+            (её ступень одобрения). s269: карточка «Постоянные расходы не внесены» убрана по решению владельца */}
         <TodayCard
           id="cost-requests"
           {...defs['cost-requests']}
@@ -759,30 +757,6 @@ export default function TodayPage() {
             <div className="text-[13px] font-semibold text-ink-body" data-stock-receipts={stockReceipts}>
               {isOwner ? 'Затраты со склада (приход администратора)' : 'Затраты со склада ждут вашего одобрения'}: <b className="text-ink">{stockReceipts}</b>
             </div>
-          )}
-        </TodayCard>
-        <TodayCard
-          id="costs-missing"
-          {...defs['costs-missing']}
-          loading={first}
-          hideOk
-          okText="Постоянные расходы этого месяца внесены (или их день ещё не прошёл)"
-          link={{ to: '/global/expenses', label: 'Затраты' }}
-        >
-          {missingCosts.map((m) => (
-            <TodayRow
-              key={m.name}
-              to="/global/expenses"
-              aside={<span className={`${badgeWarnCls} whitespace-nowrap`}>обычно {m.usualDay}.</span>}
-            >
-              <b className="text-ink">{m.name}</b>
-              <div className={smallCls}>
-                {m.category} · в прошлый раз {kc(m.lastSum)} от {fmtCsDate(m.lastDate)}
-              </div>
-            </TodayRow>
-          ))}
-          {missingCosts.length > 0 && (
-            <div className={hintCls}>В «Затратах» — «Повторить прошлый месяц».</div>
           )}
         </TodayCard>
 

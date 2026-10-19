@@ -373,21 +373,12 @@ export const createCostsBatch = async (items: CostInput[]): Promise<CostRow[]> =
   return Array.isArray(res?.rows) ? res.rows : []
 }
 
-export interface MissingRecurring {
-  name: string
-  category: string
-  usualDay: number
-  lastSum: number
-  lastDate: string
-}
-
 export interface CostsAttention {
   today: string
   /** ожидающих запросов (только владельцу; управляющей — null) */
   pending: number | null
   /** s252: новые затраты со склада ждут решения этой сессии (владельцу — все, управляющей — её ступень) */
   stockReceipts?: number
-  missingRecurring: MissingRecurring[]
 }
 
 export const fetchCostsAttention = (): Promise<CostsAttention> => costsFetch<CostsAttention>('GET', '/costs/attention')

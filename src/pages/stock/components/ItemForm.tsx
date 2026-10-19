@@ -97,6 +97,8 @@ export function ItemForm({ meta, suggest, item, onSaved, onCancel }: Props) {
   const withPacks = Number(d.packSize) > 1
   const unitLabel = d.unit as StockUnit
   const pieces = d.unit === 'ks'
+  // s269: минимум и «doplnit do» целые только у штучных без упаковки (зеркало `wholePacksOnly` сервера)
+  const wholeMin = pieces && !withPacks
   const fieldErr = (k: string) =>
     error && error[0] === k ? (
       <span className={fieldErrCls} data-field-error={k}>
@@ -191,18 +193,18 @@ export function ItemForm({ meta, suggest, item, onSaved, onCancel }: Props) {
       </div>
       <div className={hintCls}>
         {withPacks
-          ? `Minimum a „doplnit do“ jsou v baleních (1 bal. = ${d.packSize} ${unitLabel})${pieces ? ', celá čísla.' : `, i desetinná. Příklad: kanystr 5 l → jednotka ml, v balení 5000, minimum 0,2 (= ${Math.round(Number(d.packSize) * 0.2 * 100) / 100} ${unitLabel}).`}`
+          ? `Minimum a „doplnit do“ jsou v baleních (1 bal. = ${d.packSize} ${unitLabel}), i desetinná. ${pieces ? `Příklad: minimum 0,1 (= ${Math.round(Number(d.packSize) * 0.1 * 100) / 100} ${unitLabel}).` : `Příklad: kanystr 5 l → jednotka ml, v balení 5000, minimum 0,2 (= ${Math.round(Number(d.packSize) * 0.2 * 100) / 100} ${unitLabel}).`}`
           : `Kupuje se po kusech — minimum a „doplnit do“ jsou v ${unitLabel}. Pokud se kupuje v balení, vyplňte „V balení“.`}
       </div>
       <div className="grid grid-cols-3 gap-3">
         <label className={fieldCls}>
           <span className={labelCls}>Minimum{withPacks ? ' (bal.)' : ''}</span>
-          <input className={inputCls} inputMode={pieces ? 'numeric' : 'decimal'} value={d.min} onChange={set('min')} placeholder="0" data-field="min" />
+          <input className={inputCls} inputMode={wholeMin ? 'numeric' : 'decimal'} value={d.min} onChange={set('min')} placeholder="0" data-field="min" />
           {fieldErr('min')}
         </label>
         <label className={fieldCls}>
           <span className={labelCls}>Doplnit do{withPacks ? ' (bal.)' : ''}</span>
-          <input className={inputCls} inputMode={pieces ? 'numeric' : 'decimal'} value={d.target} onChange={set('target')} placeholder="2× min" data-field="target" />
+          <input className={inputCls} inputMode={wholeMin ? 'numeric' : 'decimal'} value={d.target} onChange={set('target')} placeholder="2× min" data-field="target" />
           {fieldErr('target')}
         </label>
         <label className={fieldCls}>
