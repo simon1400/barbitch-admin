@@ -48,8 +48,54 @@ export interface ComebackDay {
   converted: number
 }
 
+// Журнал отписок по ссылке из письма (s271, api::unsubscribe.unsubscribe-log).
+// Пишет только сервер, REST — только чтение. Ручные отписки (кнопка ниже) сюда не попадают.
+export type UnsubscribeReason =
+  | 'too_often'
+  | 'not_interested'
+  | 'not_coming'
+  | 'other_salon'
+  | 'never_signed'
+  | 'other'
+
+export interface UnsubscribeLog {
+  id: number
+  documentId: string
+  clientDocId: string
+  clientName: string | null
+  email: string | null
+  action: 'unsubscribe' | 'resubscribe'
+  via: 'link' | 'one_click' | null
+  origin: 'comeback' | 'review' | 'campaign' | null
+  reason: UnsubscribeReason | null
+  comment: string | null
+  createdAt: string
+}
+
+export const UNSUB_REASON_LABELS: Record<UnsubscribeReason, string> = {
+  too_often: 'Слишком много писем',
+  not_interested: 'Письма неинтересны',
+  not_coming: 'Больше не ходит к нам',
+  other_salon: 'Ходит в другой салон',
+  never_signed: 'Не просила такие письма',
+  other: 'Другое',
+}
+
+export const UNSUB_ORIGIN_LABELS: Record<NonNullable<UnsubscribeLog['origin']>, string> = {
+  comeback: 'Čas na další návštěvu',
+  review: 'Просьба об отзыве',
+  campaign: 'Рассылка',
+}
+
+export const UNSUB_VIA_LABELS: Record<NonNullable<UnsubscribeLog['via']>, string> = {
+  link: 'ссылка в письме',
+  one_click: 'кнопка почтовика',
+}
+
 export interface ComebackReport {
   rows: ComebackRow[] // desc по sentAt
+  /** журнал отписок по ссылке, desc по времени (s271); [] у старого сервера */
+  unsubscribes: UnsubscribeLog[]
   byDay: ComebackDay[] // asc по дате
   optOuts: ClientBrief[]
   totals: {
@@ -72,6 +118,10 @@ export const fmtDay = fmtCsDate
 
 const fetchLogs = (): Promise<ComebackLog[]> =>
   fetchAllPagesStrapi<ComebackLog>('/api/comeback-reminder-logs?sort=sentAt:desc')
+
+// Старый сервер (до s271) коллекции не знает → 404; вкладка работает и без журнала.
+const fetchUnsubscribes = (): Promise<UnsubscribeLog[]> =>
+  fetchAllPagesStrapi<UnsubscribeLog>('/api/unsubscribe-logs?sort=createdAt:desc').catch(() => [])
 
 const fetchOptOuts = (): Promise<ClientBrief[]> =>
   fetchAllPagesStrapi<ClientBrief>(
@@ -96,7 +146,11 @@ const TTL_MS = 2 * 60 * 1000
 export const getComebackReport = async (force = false): Promise<ComebackReport> => {
   if (!force && cache && Date.now() - cache.ts < TTL_MS) return cache.data
 
-  const [logs, optOuts] = await Promise.all([fetchLogs(), fetchOptOuts()])
+  const [logs, optOuts, unsubscribes] = await Promise.all([
+    fetchLogs(),
+    fetchOptOuts(),
+    fetchUnsubscribes(),
+  ])
 
   // конверсии считаем только с самого раннего письма (раньше — не наша заслуга)
   let bookings: ConvBooking[] = []
@@ -147,6 +201,7 @@ export const getComebackReport = async (force = false): Promise<ComebackReport> 
 
   const data: ComebackReport = {
     rows,
+    unsubscribes,
     byDay,
     optOuts,
     totals: {

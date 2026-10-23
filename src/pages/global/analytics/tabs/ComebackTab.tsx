@@ -13,6 +13,11 @@ import {
   type ComebackDay,
   type ComebackReport,
   type ComebackRow,
+  type UnsubscribeLog,
+  type UnsubscribeReason,
+  UNSUB_ORIGIN_LABELS,
+  UNSUB_REASON_LABELS,
+  UNSUB_VIA_LABELS,
 } from '../fetch/comebackReminders'
 import { RefreshButton } from '../../../../components/RefreshButton'
 
@@ -123,6 +128,95 @@ const SendsTable = ({
     </table>
   </TableWrapper>
 )
+
+// Отписки по ссылке из письма (s271): сводка причин из опроса + журнал.
+const UnsubscribeSection = ({ logs }: { logs: UnsubscribeLog[] }) => {
+  const outs = logs.filter((l) => l.action === 'unsubscribe')
+  const withReason = outs.filter((l) => l.reason)
+  const counts = new Map<UnsubscribeReason, number>()
+  for (const l of withReason) {
+    const r = l.reason as UnsubscribeReason
+    counts.set(r, (counts.get(r) || 0) + 1)
+  }
+  const reasons = [...counts.entries()].sort((a, b) => b[1] - a[1])
+  const max = reasons.reduce((m, [, n]) => Math.max(m, n), 0) || 1
+  const fmtWhen = (iso: string) => `${fmtDay(dayKeyPrague(iso))} ${fmtTimePrague(iso)}`
+
+  if (!logs.length) {
+    return <p className={'text-sm text-ink-faint'}>По ссылке пока никто не отписывался</p>
+  }
+
+  return (
+    <>
+      <div className={'bg-white rounded-xl shadow-md p-4 mb-4'}>
+        <p className={'text-sm text-ink-muted mb-3'}>
+          Отписались по ссылке: <b className={'text-ink'}>{outs.length}</b>, указали причину:{' '}
+          <b className={'text-ink'}>{withReason.length}</b>
+        </p>
+        {reasons.length ? (
+          <div className={'flex flex-col gap-2'}>
+            {reasons.map(([r, n]) => (
+              <div key={r} className={'flex items-center gap-3'}>
+                <span className={'text-xs text-ink-soft w-28 sm:w-48 shrink-0 leading-tight'}>
+                  {UNSUB_REASON_LABELS[r]}
+                </span>
+                <div className={'flex-1 bg-line-soft rounded h-5 overflow-hidden'}>
+                  <div
+                    className={'h-full bg-warn/70 rounded'}
+                    style={{ width: `${Math.round((n / max) * 100)}%` }}
+                  />
+                </div>
+                <span className={'text-xs font-semibold text-ink w-8 text-right'}>{n}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className={'text-sm text-ink-faint'}>Причину пока никто не указал</p>
+        )}
+      </div>
+
+      <TableWrapper additionalInfo={`Записей: ${logs.length}`}>
+        <table className={'w-full text-left min-w-[760px]'}>
+          <thead>
+            <tr>
+              <Cell title={'Когда'} asHeader />
+              <Cell title={'Клиент'} asHeader />
+              <Cell title={'Что'} asHeader />
+              <Cell title={'Из письма'} asHeader />
+              <Cell title={'Причина'} asHeader />
+              <Cell title={'Комментарий'} asHeader />
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map((l) => (
+              <tr key={l.documentId} className={'hover:bg-surface-hover'}>
+                <Cell title={fmtWhen(l.createdAt)} />
+                {/* как Cell: 13.5px/600, вторая строка мельче и бледнее */}
+                <td className={'px-3 py-[10px] border-b border-line-soft'}>
+                  <span className={'block text-[13.5px] font-semibold text-ink-body'}>
+                    {l.clientName || '—'}
+                  </span>
+                  <span className={'block text-[12px] font-medium text-ink-faint'}>{l.email || ''}</span>
+                </td>
+                <td className={'px-3 py-[10px] border-b border-line-soft whitespace-nowrap'}>
+                  {l.action === 'unsubscribe' ? (
+                    <span className={'block text-[13.5px] font-semibold text-warn'}>отписалась</span>
+                  ) : (
+                    <span className={'block text-[13.5px] font-semibold text-pos'}>вернулась</span>
+                  )}
+                  {l.via && <span className={'block text-[12px] font-medium text-ink-faint'}>{UNSUB_VIA_LABELS[l.via]}</span>}
+                </td>
+                <Cell title={l.origin ? UNSUB_ORIGIN_LABELS[l.origin] : '—'} className={'text-ink-muted'} />
+                <Cell title={l.reason ? UNSUB_REASON_LABELS[l.reason] : '—'} />
+                <Cell title={l.comment || '—'} className={'text-ink-muted whitespace-pre-wrap'} />
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableWrapper>
+    </>
+  )
+}
 
 const OptOutTable = ({
   list,
@@ -253,8 +347,9 @@ export default function ComebackTab() {
         <p className={'text-sm text-ink-soft max-w-3xl'}>
           Автоматическое письмо «Čas na další návštěvu» уходит клиенту через ~25 дней после
           последнего визита (крон в 11:00). Одно письмо на визит, кулдаун 20 дней, дневной лимит.
-          Клиент, ответивший «NEZASÍLAT», добавляется сюда в отписки — сервер проверяет этот флаг
-          перед каждой отправкой.
+          В каждом письме есть ссылка «odhlaste se jedním kliknutím» и кнопка отписки в самом
+          почтовике — клиентка отписывается сама и может указать причину. Отписка снимает её со всех
+          напоминаний, просьб об отзыве и рассылок; сервер проверяет флаг перед каждой отправкой.
         </p>
         <RefreshButton onClick={() => load(true)} loading={loading} />
       </div>
@@ -272,7 +367,7 @@ export default function ComebackTab() {
           hint={`${t.convRate}% получателей`}
           accent={'text-pos'}
         />
-        <Card label={'Отписок (NEZASÍLAT)'} value={String(t.optOut)} accent={'text-warn'} />
+        <Card label={'Отписано всего'} value={String(t.optOut)} accent={'text-warn'} />
       </div>
 
       <StatSection title={'Отправки по дням'} id={'comeback-days'}>
@@ -318,10 +413,15 @@ export default function ComebackTab() {
         </p>
       </StatSection>
 
-      <StatSection title={'Отписки от напоминаний (NEZASÍLAT)'} id={'comeback-optout'}>
+      <StatSection title={'Отписки по ссылке и причины'} id={'comeback-unsubscribes'}>
+        <UnsubscribeSection logs={data.unsubscribes} />
+      </StatSection>
+
+      <StatSection title={'Все отписавшиеся'} id={'comeback-optout'}>
         <div className={'bg-white rounded-xl shadow-md p-4 mb-4'}>
           <p className={'text-sm text-ink-muted mb-2'}>
-            Пришёл ответ «NEZASÍLAT» — найди клиента по e-mail (или имени) и отпиши.
+            Если кто-то всё же ответил «NEZASÍLAT» — найди клиента по e-mail (или имени) и отпиши
+            вручную.
           </p>
           <div className={'flex gap-2 flex-wrap'}>
             <input
