@@ -3,6 +3,7 @@ import { errMsg } from '../../lib/errMsg'
 import { formCardCls, hintCls, kickerCls, pageShellCls } from '../../ui/kit'
 import { Axios } from '../../lib/api'
 import { sendVoucherConfirmation } from '../../lib/campaignApi'
+import { CardPaymentsCard } from './CardPaymentsCard'
 
 interface FormData {
   email: string
@@ -29,6 +30,8 @@ interface Voucher {
   idVoucher: string
   /** Voucher na službu (web od s274) — jinak na částku. */
   serviceName?: string | null
+  /** s275: `paid` = zaplaceno kartou (e-mail s PDF odešel sám), `refunded` = peníze vráceny. */
+  paymentStatus?: 'manual' | 'pending' | 'paid' | 'cancelled' | 'refunded' | null
 }
 
 const VoucherConfirmationPage = () => {
@@ -52,7 +55,8 @@ const VoucherConfirmationPage = () => {
       try {
         const response = await Axios.get<Voucher[]>('/api/vouchers?filters[dateRealized][$null]=true&filters[datePay][$notNull]=true&sort=dateOrder:desc')
         // Axios interceptor returns response.data.data, so response is already the array
-        setVouchers((response || []) as unknown as Voucher[])
+        // s275: vouchery s vrácenými penězi už neplatí — nenabízet
+        setVouchers(((response || []) as unknown as Voucher[]).filter((v) => v.paymentStatus !== 'refunded'))
       } catch (error) {
         console.error('Error fetching vouchers:', error)
         setMessage({ type: 'error', text: 'Nepodařilo se načíst vouchery' })
@@ -143,6 +147,8 @@ const VoucherConfirmationPage = () => {
             Odeslat email klientovi s potvrzením, že voucher byl zaplacen a je aktivní
           </p>
 
+          <CardPaymentsCard />
+
           <div className={`${formCardCls} max-w-3xl`}>
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Voucher Select */}
@@ -164,13 +170,13 @@ const VoucherConfirmationPage = () => {
                     <option value="">-- Vyberte voucher nebo vyplňte ručně --</option>
                     {vouchers.map((voucher) => (
                       <option key={voucher.id} value={voucher.id}>
-                        #{voucher.idVoucher} - {voucher.name} → {voucher.for} ({voucher.serviceName ? `${voucher.serviceName}, ` : ''}{voucher.sum} Kč) - {new Date(voucher.dateOrder).toLocaleDateString('cs-CZ')}
+                        {voucher.paymentStatus === 'paid' ? '💳 ' : ''}#{voucher.idVoucher} - {voucher.name} → {voucher.for} ({voucher.serviceName ? `${voucher.serviceName}, ` : ''}{voucher.sum} Kč) - {new Date(voucher.dateOrder).toLocaleDateString('cs-CZ')}
                       </option>
                     ))}
                   </select>
                 )}
                 <p className="text-sm font-normal text-ink-soft mt-1">
-                  Zobrazeny pouze vouchery bez dateRealized
+                  Zobrazeny pouze vouchery bez dateRealized. 💳 = zaplaceno kartou, e-mail s PDF už odešel sám.
                 </p>
                 {formData.serviceName && (
                   <p className="text-sm font-semibold text-pink-700 mt-1">

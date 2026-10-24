@@ -48,6 +48,7 @@ const CODE_MESSAGES: Record<string, string> = {
   not_booking_linked: 'Záznam není napojen na rezervaci.',
   voucher_not_found: 'Voucher nenalezen.',
   voucher_not_paid: 'Voucher není zaplacený.',
+  voucher_refunded: 'Za voucher byly vráceny peníze — už neplatí.',
   client_required: 'U rezervace chybí jméno klientky.',
   employee_required: 'U rezervace chybí mistrová.',
   // подтверждение блоков владельцем
@@ -439,13 +440,16 @@ export interface PayableVoucher {
   for: string | null
   /** s274: voucher na konkrétní službu (web); null = na částku */
   serviceName?: string | null
+  /** s275: `refunded` = peníze za voucher vráceny (Comgate) — neplatí */
+  paymentStatus?: string | null
 }
 
 export const fetchPayableVouchers = async (): Promise<PayableVoucher[]> => {
   const res = await Axios.get<PayableVoucher[]>(
     '/api/vouchers?filters[dateRealized][$null]=true&filters[datePay][$notNull]=true&sort=dateOrder:desc&pagination[pageSize]=200',
   )
-  return Array.isArray(res) ? res : []
+  // s275: ten samý zákaz hlídá i server (visit-close: voucher_refunded)
+  return Array.isArray(res) ? res.filter((v) => v.paymentStatus !== 'refunded') : []
 }
 
 // ── скидка дозаписи (rebook −15%, thank-you) ──
