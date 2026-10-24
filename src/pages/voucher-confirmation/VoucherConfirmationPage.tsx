@@ -25,6 +25,8 @@ interface Voucher {
   commentAdmin: string
   comentUser: string
   idVoucher: string
+  /** Voucher na službu (web od s274) — jinak na částku. */
+  serviceName?: string | null
 }
 
 const VoucherConfirmationPage = () => {
@@ -159,7 +161,7 @@ const VoucherConfirmationPage = () => {
                     <option value="">-- Vyberte voucher nebo vyplňte ručně --</option>
                     {vouchers.map((voucher) => (
                       <option key={voucher.id} value={voucher.id}>
-                        #{voucher.idVoucher} - {voucher.name} → {voucher.for} ({voucher.sum} Kč) - {new Date(voucher.dateOrder).toLocaleDateString('cs-CZ')}
+                        #{voucher.idVoucher} - {voucher.name} → {voucher.for} ({voucher.serviceName ? `${voucher.serviceName}, ` : ''}{voucher.sum} Kč) - {new Date(voucher.dateOrder).toLocaleDateString('cs-CZ')}
                       </option>
                     ))}
                   </select>
