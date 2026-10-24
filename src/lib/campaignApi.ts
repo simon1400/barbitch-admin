@@ -60,6 +60,8 @@ export interface VoucherConfirmationInput {
   recipientName: string
   voucherId: string
   validUntil: string
+  /** s274: voucher na konkrétní službu — jiná pravidla v e-mailu */
+  serviceName?: string
 }
 
 // Письмо «voucher zaplacen» покупателю. Раньше страница «Potvrzení voucheru»

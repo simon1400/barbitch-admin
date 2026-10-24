@@ -293,7 +293,13 @@ export interface VisitCheckout {
   korekceBaseUsedKc?: number | null
   published: boolean
   personalName: string
-  voucher: { documentId: string; idVoucher: string; sum: string } | null
+  voucher: {
+    documentId: string
+    idVoucher: string
+    sum: string
+    /** s274: voucher na konkrétní službu (web); null = na částku */
+    serviceName?: string | null
+  } | null
 }
 
 // Подсказка расчёта для формы (НЕ автозаполнение — суммы вводит админ руками):
@@ -431,6 +437,8 @@ export interface PayableVoucher {
   sum: string
   name: string
   for: string | null
+  /** s274: voucher na konkrétní službu (web); null = na částku */
+  serviceName?: string | null
 }
 
 export const fetchPayableVouchers = async (): Promise<PayableVoucher[]> => {

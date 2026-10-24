@@ -10,6 +10,8 @@ interface FormData {
   recipientName: string
   voucherId: string
   validUntil: string
+  /** s274: z vybraného voucheru — e-mail pak píše pravidla voucheru na službu */
+  serviceName?: string
 }
 
 interface Voucher {
@@ -92,6 +94,7 @@ const VoucherConfirmationPage = () => {
         recipientName: voucher.for || '',
         voucherId: voucher.idVoucher || '',
         validUntil: formattedDate,
+        serviceName: voucher.serviceName || undefined,
       })
     }
   }
@@ -169,6 +172,11 @@ const VoucherConfirmationPage = () => {
                 <p className="text-sm font-normal text-ink-soft mt-1">
                   Zobrazeny pouze vouchery bez dateRealized
                 </p>
+                {formData.serviceName && (
+                  <p className="text-sm font-semibold text-pink-700 mt-1">
+                    🎟 Voucher na službu „{formData.serviceName}“ — e-mail uvede pravidla pro voucher na službu.
+                  </p>
+                )}
               </div>
 
               <div className="border-t border-line pt-6"></div>

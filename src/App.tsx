@@ -11,6 +11,7 @@ const AdminPage = lazy(() => import('./pages/dashboard/AdminPage'))
 const GlobalPage = lazy(() => import('./pages/global/GlobalPage'))
 const ExpensesPage = lazy(() => import('./pages/global/ExpensesPage'))
 const VoucherConfirmationPage = lazy(() => import('./pages/voucher-confirmation/VoucherConfirmationPage'))
+const FirmInquiriesPage = lazy(() => import('./pages/firm-inquiries/FirmInquiriesPage'))
 const EmailCampaignPage = lazy(() => import('./pages/email-campaign/EmailCampaignPage'))
 const AdministratorCabinetPage = lazy(() => import('./pages/administrator/AdministratorCabinetPage'))
 const ShiftClosePage = lazy(() => import('./pages/global/ShiftClosePage'))
@@ -454,6 +455,18 @@ function App() {
                 <ModuleRoute module="/voucher-confirmation">
                   <AdminLayout>
                     <VoucherConfirmationPage />
+                  </AdminLayout>
+                </ModuleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/firemni-poptavky"
+            element={
+              <ProtectedRoute>
+                <ModuleRoute module="/firemni-poptavky">
+                  <AdminLayout>
+                    <FirmInquiriesPage />
                   </AdminLayout>
                 </ModuleRoute>
               </ProtectedRoute>

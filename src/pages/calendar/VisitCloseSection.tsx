@@ -307,6 +307,9 @@ export const VisitCloseSection = ({
   if (manualKc !== 0) discountParts.push(`cena změněna ručně ${manualKc > 0 ? '+' : '−'}${Math.abs(manualKc)} Kč`)
   if (saleKc > 0) discountParts.push(`ruční sleva −${Math.round(saleKc)} Kč`)
 
+  // s274: vybraný voucher na konkrétní službu → nápověda pod výběrem
+  const selectedServiceVoucher = vouchers.find((v) => v.documentId === form.voucherDocId && v.serviceName)
+
   if (loading) return null
   // Ни записи, ни открытой формы — секции нет (drawer остаётся компактным)
   if (!checkout && !formOpen) return null
@@ -358,6 +361,7 @@ export const VisitCloseSection = ({
               {checkout.voucher && (
                 <span className="rounded bg-pink-100 px-1.5 py-0.5 text-pink-800">
                   🎟 #{checkout.voucher.idVoucher}
+                  {checkout.voucher.serviceName ? ` · ${checkout.voucher.serviceName}` : ''}
                 </span>
               )}
             </div>
@@ -527,10 +531,17 @@ export const VisitCloseSection = ({
               <option value="">— bez voucheru —</option>
               {vouchers.map((v) => (
                 <option key={v.documentId} value={v.documentId}>
-                  #{v.idVoucher} · {v.sum} Kč · {v.for || v.name}
+                  #{v.idVoucher} · {v.serviceName ? `${v.serviceName} (${v.sum} Kč)` : `${v.sum} Kč`} ·{' '}
+                  {v.for || v.name}
                 </option>
               ))}
             </select>
+            {selectedServiceVoucher && (
+              <p className="mt-1 text-[11px] text-pink-700 dark:text-pink-300" data-service-voucher-hint>
+                🎟 Voucher na službu „{selectedServiceVoucher.serviceName}“ — pokrývá tuto službu celou
+                (i když se cena mezitím zvýšila). Doplácí se jen doplňky navíc.
+              </p>
+            )}
           </div>
 
           <div className="mt-2">

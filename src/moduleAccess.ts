@@ -57,6 +57,8 @@ const MODULES: ModuleDef[] = [
   { path: '/global/catalog', label: 'Каталог услуг', roles: ['owner', 'manager', 'administrator'] },
   { path: '/global/shift-close', label: 'Uzavření směny', roles: ['owner', 'manager'] },
   { path: '/voucher-confirmation', label: 'Potvrzení voucheru', roles: ['owner', 'manager'] },
+  // s274: poptávky firemních voucherů z webu /firemni-vouchery — stav a poznámka
+  { path: '/firemni-poptavky', label: 'Firemní poptávky', roles: ['owner', 'manager'] },
   { path: '/global/expenses', label: 'Затраты', roles: ['owner', 'manager'], more: true },
   { path: '/email-campaign', label: 'Email kampaň', roles: ['owner'], more: true },
   { path: '/global/loyalty', label: 'Лояльность', roles: ['owner', 'manager'], more: true },
