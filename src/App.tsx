@@ -61,6 +61,7 @@ const SchedulePage = lazy(() => import('./pages/schedule/SchedulePage'))
 const MyCardPage = lazy(() => import('./pages/me/MyCardPage'))
 const VykazPage = lazy(() => import('./pages/vykaz/VykazPage'))
 const SmenaPage = lazy(() => import('./pages/smena/SmenaPage'))
+const RozpisPage = lazy(() => import('./pages/rozpis/RozpisPage'))
 const StockPage = lazy(() => import('./pages/stock/StockPage'))
 const StockItemPage = lazy(() => import('./pages/stock/StockItemPage'))
 const StockLocationPage = lazy(() => import('./pages/stock/StockLocationPage'))
@@ -232,6 +233,19 @@ function App() {
                 <ModuleRoute module="/smena">
                   <AdminLayout>
                     <SmenaPage />
+                  </AdminLayout>
+                </ModuleRoute>
+              </ProtectedRoute>
+            }
+          />
+          {/* s278: недельный график смен — администраторки заполняют сами */}
+          <Route
+            path="/rozpis"
+            element={
+              <ProtectedRoute>
+                <ModuleRoute module="/rozpis">
+                  <AdminLayout>
+                    <RozpisPage />
                   </AdminLayout>
                 </ModuleRoute>
               </ProtectedRoute>

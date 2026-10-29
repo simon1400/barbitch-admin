@@ -1,7 +1,9 @@
 // Смены администраторов (s217, Фаза E плана «Управляющая»): график недели
 // «кто дежурит» — коллекция shift («Рабочие смены»). Раньше — только Strapi CM.
-// Чтение и запись — ручки движка `/engine/admin/shifts` (руководство): они же
-// публикуют неделю и пишут журнал. Календарь, «Сегодня» и отчёт дозаписей
+// Чтение и запись — ручки движка `/engine/admin/shifts`: они же публикуют неделю
+// и пишут журнал. s278: список и сохранение открыты и администраторкам (вкладка
+// «Rozpis směn» в «Směna», по-чешски — `lang: 'cs'`), сервер не даёт им прошлые
+// недели (`week_locked`); удаление — только руководство. Календарь, «Сегодня» и отчёт дозаписей
 // читают тот же график (fetchAdminRoster, status=draft) — сброс кэша не нужен.
 //
 // Значение дня — свободный текст («Вика», «Юля», «-», «Ремонт»): связи с
@@ -12,16 +14,6 @@ import { makeApiFetch } from '../../../../lib/apiFetch'
 export const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
 export type DayKey = (typeof DAY_KEYS)[number]
 export type WeekDays = Record<DayKey, string>
-
-export const DAY_LABELS: Record<DayKey, string> = {
-  monday: 'Пн',
-  tuesday: 'Вт',
-  wednesday: 'Ср',
-  thursday: 'Чт',
-  friday: 'Пт',
-  saturday: 'Сб',
-  sunday: 'Вс',
-}
 
 export interface ShiftWeek {
   monday: string
@@ -49,6 +41,7 @@ export const MAX_NAME = 60
 
 const CODE_MESSAGES: Record<string, string> = {
   owner_only: 'График меняет только руководство салона.',
+  week_locked: 'Прошлую неделю меняет только руководство салона.',
   unauthorized: 'Сессия истекла — войдите снова.',
   bad_monday: 'Неделя начинается с понедельника.',
   date_too_old: 'Такой старой недели в графике нет.',
@@ -60,7 +53,25 @@ const CODE_MESSAGES: Record<string, string> = {
   shift_not_found: 'Графика на эту неделю уже нет.',
 }
 
-const shiftsFetch = makeApiFetch('/api/engine/admin', CODE_MESSAGES, (s) => `Ошибка ${s}`)
+const CODE_MESSAGES_CS: Record<string, string> = {
+  owner_only: 'Rozpis může měnit jen vedení salonu.',
+  week_locked: 'Minulý týden může měnit jen vedení salonu.',
+  unauthorized: 'Přihlášení vypršelo — přihlaste se znovu.',
+  bad_monday: 'Týden začíná pondělím.',
+  date_too_old: 'Tak starý týden v rozpisu není.',
+  date_too_far: 'Týden je příliš daleko v budoucnosti.',
+  bad_days: 'Dny týdne se nepodařilo přečíst.',
+  // day_required / name_too_long — текст сервера (по-русски называет день; поле подсвечено)
+  shift_changed: 'Rozpis tohoto týdne právě někdo změnil v jiném okně — klikněte na „Obnovit“.',
+  shift_duplicate: 'Na tento týden jsou v databázi dva rozpisy — opraví vedení.',
+  shift_not_found: 'Rozpis na tento týden už není.',
+}
+
+const FETCH = {
+  ru: makeApiFetch('/api/engine/admin', CODE_MESSAGES, (s) => `Ошибка ${s}`),
+  cs: makeApiFetch('/api/engine/admin', CODE_MESSAGES_CS, (s) => `Chyba ${s}`),
+}
+export type ShiftsLang = keyof typeof FETCH
 
 /** Первая неделя окна по умолчанию: прошлая (видно, как было, — есть что копировать). */
 export const defaultWindowStart = (today: string): string => addDaysYmd(mondayOfYmd(today), -7)
@@ -72,9 +83,10 @@ export const defaultWindowStart = (today: string): string => addDaysYmd(mondayOf
 export const fetchShiftWindow = async (
   start: string,
   weeks = WINDOW_WEEKS,
+  lang: ShiftsLang = 'ru',
 ): Promise<ShiftWindow & { before: ShiftWeek | null }> => {
   const q = new URLSearchParams({ from: addDaysYmd(start, -7), weeks: String(weeks + 1) }).toString()
-  const res = await shiftsFetch<{ weeks: ShiftWeek[]; names: string[] }>('GET', `/shifts?${q}`)
+  const res = await FETCH[lang]<{ weeks: ShiftWeek[]; names: string[] }>('GET', `/shifts?${q}`)
   const all = Array.isArray(res?.weeks) ? res.weeks : []
   return {
     before: all[0] ?? null,
@@ -83,16 +95,20 @@ export const fetchShiftWindow = async (
   }
 }
 
-export const saveShiftWeek = (monday: string, days: WeekDays, base: string | null) =>
-  shiftsFetch<{ week: ShiftWeek; unchanged: boolean }>('PUT', `/shifts/${encodeURIComponent(monday)}`, {
+export const saveShiftWeek = (monday: string, days: WeekDays, base: string | null, lang: ShiftsLang = 'ru') =>
+  FETCH[lang]<{ week: ShiftWeek; unchanged: boolean }>('PUT', `/shifts/${encodeURIComponent(monday)}`, {
     days,
     base,
   })
 
-export const deleteShiftWeek = (monday: string, base: string | null) => {
+export const deleteShiftWeek = (monday: string, base: string | null, lang: ShiftsLang = 'ru') => {
   const q = base ? `?${new URLSearchParams({ base }).toString()}` : ''
-  return shiftsFetch<{ deleted: string }>('DELETE', `/shifts/${encodeURIComponent(monday)}${q}`)
+  return FETCH[lang]<{ deleted: string }>('DELETE', `/shifts/${encodeURIComponent(monday)}${q}`)
 }
+
+/** s278: администраторка правит только текущую и будущие недели (как сервер, `week_locked`). */
+export const isWeekLocked = (administrator: boolean, monday: string, today: string): boolean =>
+  administrator && monday < mondayOfYmd(today)
 
 // ── логика формы (чистые функции) ──────────────────────────────────────────
 

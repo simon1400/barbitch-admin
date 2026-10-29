@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react'
 import { errMsg } from '../../lib/errMsg'
 import { todayYmd } from '../../utils/date'
 import { TodayCard, TodayRow } from '../today/components/TodayCard'
-import { badgeNegCls, badgePosCls, badgeWarnCls } from '../../ui/kit'
+import { badgeMutedCls, badgeNegCls, badgePosCls, badgeWarnCls } from '../../ui/kit'
 import { fetchSmenaDay, fmtHours, fmtKc, type SmenaDay } from './fetch/smena'
 
 export function SmenaCard() {
@@ -58,6 +58,10 @@ export function SmenaCard() {
               Незакрытые визиты
             </TodayRow>
           )}
+          {/* s278: администраторки заполняют недельный график смен сами — модуль «Rozpis směn» */}
+          <TodayRow to="/rozpis" aside={<span className={badgeMutedCls}>Rozpis směn</span>}>
+            График смен администраторов на неделю
+          </TodayRow>
         </>
       )}
     </TodayCard>

@@ -9,13 +9,16 @@ import {
   deleteShiftWeek,
   fetchShiftWindow,
   isDirty,
+  isWeekLocked,
   mergeNames,
   saveShiftWeek,
   DAY_KEYS,
   type ShiftWeek,
+  type ShiftsLang,
   type WeekDays,
 } from '../fetch/shifts'
 import { WeekCard } from './shifts/WeekCard'
+import { SHIFTS_TEXT } from './shifts/texts'
 import { RefreshButton } from '../../../../components/RefreshButton'
 
 const short = (ymd: string) => fmtCsShort(ymdToDate(ymd))
@@ -33,7 +36,11 @@ const emptyWeek = (w: ShiftWeek): ShiftWeek => ({
 // «Смены администраторов» (s217, Фаза E плана «Управляющая»): график недели
 // «кто дежурит» вместо Strapi CM. Тот же график показывают плашка календаря,
 // «Сегодня» и отчёт дозаписей.
-export default function ShiftsTab() {
+// s278: тот же экран по-чешски для администраторок (`lang='cs'`, `administrator`) —
+// вкладка «Rozpis směn» в «Směna»: прошлые недели только для чтения (сервер:
+// `week_locked`), удаления недели нет.
+export default function ShiftsTab({ lang = 'ru', administrator = false }: { lang?: ShiftsLang; administrator?: boolean }) {
+  const t = SHIFTS_TEXT[lang]
   const today = todayYmd()
   const [start, setStart] = useState(() => defaultWindowStart(today))
   const [reload, setReload] = useState(0)
@@ -51,7 +58,7 @@ export default function ShiftsTab() {
     let alive = true
     setLoading(true)
     setLoadError(null)
-    fetchShiftWindow(start)
+    fetchShiftWindow(start, WINDOW_WEEKS, lang)
       .then((res) => {
         if (!alive) return
         setWeeks(res.weeks)
@@ -64,17 +71,17 @@ export default function ShiftsTab() {
       .catch((e: Error) => {
         if (!alive) return
         setWeeks([])
-        setLoadError(e.message || 'Не удалось загрузить график')
+        setLoadError(e.message || t.loadError)
       })
       .finally(() => alive && setLoading(false))
     return () => {
       alive = false
     }
-  }, [start, reload])
+  }, [start, reload, lang, t.loadError])
 
   const dirtyCount = weeks.filter((w) => drafts[w.monday] && isDirty(w.days, drafts[w.monday])).length
   const leave = (next: () => void) => {
-    if (dirtyCount && !window.confirm('Есть несохранённые правки графика. Уйти без сохранения?')) return
+    if (dirtyCount && !window.confirm(t.confirmLeave)) return
     next()
   }
 
@@ -94,11 +101,11 @@ export default function ShiftsTab() {
     setBusy(w.monday)
     setNote(w.monday, null)
     try {
-      const res = await saveShiftWeek(w.monday, days, w.updatedAt)
+      const res = await saveShiftWeek(w.monday, days, w.updatedAt, lang)
       replaceWeek(res.week)
       setDrafts((p) => ({ ...p, [w.monday]: { ...(res.week.days ?? days) } }))
       setNames((p) => mergeNames(p, res.week.days))
-      setNote(w.monday, res.unchanged ? 'Без изменений.' : 'Сохранено — календарь уже показывает этот график.')
+      setNote(w.monday, res.unchanged ? t.noteUnchanged : t.noteSaved)
     } catch (e) {
       setErrors((p) => ({ ...p, [w.monday]: (e as Error).message }))
     } finally {
@@ -107,14 +114,14 @@ export default function ShiftsTab() {
   }
 
   const remove = async (w: ShiftWeek) => {
-    if (!window.confirm(`Удалить график недели ${short(w.monday)} – ${short(w.sunday)}? В календаре будет «rozpis není vyplněn».`)) return
+    if (!window.confirm(t.confirmDelete(`${short(w.monday)} – ${short(w.sunday)}`))) return
     setBusy(w.monday)
     setNote(w.monday, null)
     try {
-      await deleteShiftWeek(w.monday, w.updatedAt)
+      await deleteShiftWeek(w.monday, w.updatedAt, lang)
       replaceWeek(emptyWeek(w))
       setDrafts((p) => ({ ...p, [w.monday]: { ...EMPTY_DAYS } }))
-      setNote(w.monday, 'График недели удалён.')
+      setNote(w.monday, t.noteDeleted)
     } catch (e) {
       setErrors((p) => ({ ...p, [w.monday]: (e as Error).message }))
     } finally {
@@ -132,7 +139,7 @@ export default function ShiftsTab() {
           <button
             type="button"
             className={iconBtnCls}
-            aria-label="Раньше"
+            aria-label={t.prev}
             onClick={() => leave(() => setStart(addDaysYmd(start, -7 * WINDOW_WEEKS)))}
           >
             ‹
@@ -143,30 +150,27 @@ export default function ShiftsTab() {
           <button
             type="button"
             className={iconBtnCls}
-            aria-label="Позже"
+            aria-label={t.next}
             onClick={() => leave(() => setStart(addDaysYmd(start, 7 * WINDOW_WEEKS)))}
           >
             ›
           </button>
           {start !== home && (
             <button type="button" className={`${btnNeutralCls} !px-3 !py-1.5`} onClick={() => leave(() => setStart(home))}>
-              К этой неделе
+              {t.thisWeek}
             </button>
           )}
         </div>
         <div className="flex items-center gap-3">
-          {dirtyCount > 0 && <span className="text-[12.5px] font-semibold text-warn">не сохранено недель: {dirtyCount}</span>}
-          <RefreshButton onClick={() => leave(() => setReload((n) => n + 1))} />
+          {dirtyCount > 0 && <span className="text-[12.5px] font-semibold text-warn">{t.dirtyWeeks(dirtyCount)}</span>}
+          <RefreshButton onClick={() => leave(() => setReload((n) => n + 1))} lang={lang} />
         </div>
       </div>
 
-      <p className={`${hintCls} mb-3.5`}>
-        Кто из администраторов дежурит в какой день. График сразу видят календарь (плашка над сеткой), «Сегодня» и отчёт
-        дозаписей. В списке — имена из недавних недель; новое имя или «Ремонт» — через «Другое…».
-      </p>
+      <p className={`${hintCls} mb-3.5`}>{administrator ? t.hintAdministrator : t.hint}</p>
 
       {loading ? (
-        <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">Načítání…</div>
+        <div className="py-12 text-center text-[13px] font-semibold text-ink-faint">{t.loading}</div>
       ) : loadError ? (
         <div role="alert" className="py-12 text-center text-[13px] font-semibold text-neg">
           {loadError}
@@ -185,6 +189,9 @@ export default function ShiftsTab() {
               busy={busy === w.monday}
               error={errors[w.monday] || null}
               note={notes[w.monday] || null}
+              t={t}
+              locked={isWeekLocked(administrator, w.monday, today)}
+              canDelete={!administrator}
               onChange={(k, v) => edit(w.monday, { ...(drafts[w.monday] ?? EMPTY_DAYS), [k]: v })}
               onCopyPrev={() => prev && edit(w.monday, { ...prev })}
               onReset={() => edit(w.monday, { ...(w.days ?? EMPTY_DAYS) })}
@@ -194,7 +201,7 @@ export default function ShiftsTab() {
           )
         })
       )}
-      {!loading && !loadError && <div className={`${mutedCls} mt-1`}>Все 7 дней обязательны: «-» — если дежурного нет.</div>}
+      {!loading && !loadError && <div className={`${mutedCls} mt-1`}>{t.allDays}</div>}
     </>
   )
 }
