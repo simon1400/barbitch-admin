@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getMonthRange } from '../../../utils/getMonthRange'
 
-import { fetchAllCost, fetchDayDrafts, fetchDayPayrollDrafts } from './fetchHelpers'
+import { PAGE_SIZE, buildQuery, fetchAllCost, fetchAllPages, fetchDayDrafts, fetchDayPayrollDrafts, monthsBetween, periodFilter } from './fetchHelpers'
 
 // Preview a shift close without saving: merge a day's drafts + use the entered card values.
 export interface ShiftPreview {
@@ -62,7 +62,17 @@ export const getMoney = async (
     fetchAllCost<IDataCosts>('/api/vouchers', ['sum'], 'dateRealized', firstDay, lastDay),
     fetchAllCost<IDataCosts>('/api/vouchers', ['sum'], 'datePay', firstDay, lastDay),
     fetchAllCost<IDataCosts>('/api/qr-pays', ['sum'], 'date', firstDay, lastDay),
-    fetchAllCost<IDataCosts>('/api/taxes', ['sum'], 'date', firstDay, lastDay),
+    // s285: налоги — по месяцу «за какой» (period), без периода — по дате: владелец платит
+    // в следующем месяце за прошлый, и «Результат за месяц» должен лечь в тот же месяц,
+    // что и «Зарплаты» (allWorks/allAdminsHours читают так же).
+    fetchAllPages<IDataCosts>('/api/taxes', (page) =>
+      buildQuery(
+        periodFilter(monthsBetween(firstDay, lastDay), { $gte: firstDay.toISOString(), $lte: lastDay.toISOString() }),
+        ['sum'],
+        undefined,
+        { page, pageSize: PAGE_SIZE },
+      ),
+    ),
   ])
 
   const sumReducer = (arr: { sum: number }[]) =>
