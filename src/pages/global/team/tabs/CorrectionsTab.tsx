@@ -24,9 +24,12 @@ import {
   SOURCE_LABELS,
   TAX_TYPE_LABELS,
   defaultDateFor,
+  defaultPeriodFor,
   deleteCorrection,
+  effectiveMonth,
   fetchCorrections,
   monthKey,
+  periodLabel,
   sumLabel,
   totalsByKind,
   type CorrectionRow,
@@ -80,12 +83,17 @@ export default function CorrectionsTab() {
   const totals = totalsByKind(visible)
   const key = monthKey(month, year)
 
+  // запись видна в месяце, за который считается: у выплаты — «за какой», у штрафа — месяца даты
   const onCreated = (row: CorrectionRow) => {
-    if (row.date?.startsWith(key)) {
+    if (effectiveMonth(row) === key) {
       setNotice(null)
       load()
     } else {
-      setNotice(`Запись добавлена в ${fmtCsDate(row.date)} — это другой месяц, здесь она не видна.`)
+      setNotice(
+        row.period
+          ? `Запись добавлена ${periodLabel(row.period)} (выплачено ${fmtCsDate(row.date)}) — это другой месяц, здесь она не видна.`
+          : `Запись добавлена в ${fmtCsDate(row.date)} — это другой месяц, здесь она не видна.`,
+      )
     }
   }
 
@@ -129,6 +137,8 @@ export default function CorrectionsTab() {
         key={key}
         staff={staff}
         defaultDate={defaultDateFor(month, year, todayYmd())}
+        defaultPeriod={defaultPeriodFor(month, year, todayYmd())}
+        today={todayYmd()}
         onCreated={onCreated}
       />
 
@@ -184,6 +194,11 @@ export default function CorrectionsTab() {
                         {CORRECTION_KINDS[r.kind]?.label ?? r.kind}
                         {r.taxType ? ` · ${TAX_TYPE_LABELS[r.taxType] ?? r.taxType}` : ''}
                       </span>
+                      {r.period && (
+                        <span className={`${badgeMutedCls} ml-1.5 whitespace-nowrap`} data-period={r.period}>
+                          {periodLabel(r.period)}
+                        </span>
+                      )}
                       {r.draft && <span className={`${badgeWarnCls} ml-1.5`}>черновик</span>}
                     </td>
                     <Cell
@@ -216,6 +231,7 @@ export default function CorrectionsTab() {
           </TableWrapper>
         )}
         <p className={`${mutedCls} mt-3 mb-0`}>
+          Аванс, выплата и налог показаны в месяце «за какой» (дата — когда реально выплачено).
           Черновик — запись без публикации (например, списание, которое опубликует закрытие смены): в
           «Зарплатах» её пока нет и в итоги сверху она не входит.
         </p>

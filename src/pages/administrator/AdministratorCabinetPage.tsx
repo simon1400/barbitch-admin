@@ -1,4 +1,5 @@
 import { kcNum, dec, parseMoney } from '../../utils/money'
+import { monthLabelRu } from '../../utils/date'
 import { BirthdaysCard } from '../../components/BirthdaysCard'
 import { StockCard } from '../stock/components/StockCard'
 import { TasksCard } from '../ukoly/TasksCard'
@@ -494,6 +495,7 @@ const AdministratorCabinetPage = () => {
                   <tr>
                     <Cell title={'Дата'} asHeader />
                     <Cell title={'Тип'} asHeader />
+                    <Cell title={'За месяц'} asHeader className="cab-period" />
                     <Cell title={'Сумма'} asHeader />
                     <Cell title={'Комментарий'} asHeader />
                   </tr>
@@ -503,6 +505,7 @@ const AdministratorCabinetPage = () => {
                     <tr key={`${payment.type}-${payment.id}`} className={'hover:bg-surface-hover transition-colors'}>
                       <Cell title={new Date(payment.date).toLocaleDateString('ru-RU')} />
                       <Cell title={getPaymentTypeLabel(payment.type)} />
+                      <Cell title={payment.period ? monthLabelRu(payment.period) : '—'} className="cab-period" />
                       <Cell
                         title={`${kcNum(Number(payment.sum))} Kč`}
                         className={`${getPaymentTypeColor(payment.type)} font-semibold`}

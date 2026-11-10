@@ -30,6 +30,30 @@ export const buildQuery = (
   )
 }
 
+/** Все 'YYYY-MM' между двумя датами включительно (границы — как в фильтре, по UTC-ISO). */
+export const monthsBetween = (first: Date, last: Date): string[] => {
+  const out: string[] = []
+  let [y, m] = first.toISOString().slice(0, 7).split('-').map(Number)
+  const end = last.toISOString().slice(0, 7)
+  for (let i = 0; i < 120; i++) {
+    const key = `${y}-${String(m).padStart(2, '0')}`
+    out.push(key)
+    if (key >= end) break
+    if (++m > 12) { m = 1; y++ }
+  }
+  return out
+}
+
+/**
+ * s285: аванс/выплата/налог засчитываются за месяц `period` («за какой месяц»),
+ * а не за месяц даты — владелец платит в следующем месяце за прошлый. Строки без
+ * периода (до s285 / панель Strapi) — по дате, как раньше.
+ * 🟥 `period: { $null: true }` — не `$eq: null` и не `$ne` (память: `$ne`+NULL).
+ */
+export const periodFilter = (months: string[], date: { $gte: string; $lte: string }) => ({
+  $or: [{ period: { $in: months } }, { period: { $null: true }, date }],
+})
+
 const buildQueryCost = (
   fields: string[],
   dateField: string,

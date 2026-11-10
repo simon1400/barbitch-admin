@@ -17,20 +17,33 @@ const POSITION_LABEL: Record<string, string> = {
   manager: 'управляющая',
 }
 
+const YM_RE = /^\d{4}-(0[1-9]|1[0-2])$/
+
 // Форма новой корректировки. Сервер перепроверяет всё то же самое (сумма, дата,
-// «за что») — здесь только чтобы кнопка не отправляла заведомо пустое.
+// «за что», месяц выплаты) — здесь только чтобы кнопка не отправляла заведомо пустое.
+//
+// s285: у аванса, выплаты и налога два поля времени — «Дата» (когда реально
+// выплачено; по умолчанию сегодня) и «За какой месяц» (куда запись попадает в
+// «Зарплатах»; по умолчанию прошлый месяц — владелец платит за прошлый).
 export function CorrectionForm({
   staff,
   defaultDate,
+  defaultPeriod,
+  today,
   onCreated,
 }: {
   staff: InternalRecipient[]
   defaultDate: string
+  /** месяц выплаты по умолчанию, YYYY-MM */
+  defaultPeriod: string
+  /** пражское сегодня — дата выплаты по умолчанию у типов с периодом */
+  today: string
   onCreated: (row: CorrectionRow) => void
 }) {
   const [kind, setKind] = useState<CorrectionKind>('penalty')
   const [personal, setPersonal] = useState('')
   const [date, setDate] = useState(defaultDate)
+  const [period, setPeriod] = useState(defaultPeriod)
   const [sum, setSum] = useState('')
   const [text, setText] = useState('')
   const [taxType, setTaxType] = useState<TaxType>('all')
@@ -40,7 +53,17 @@ export function CorrectionForm({
   const meta = CORRECTION_KINDS[kind]
   const sumNum = Number(sum.replace(/\s/g, ''))
   const sumOk = Number.isInteger(sumNum) && sumNum > 0
-  const canSave = !saving && !!personal && !!date && sumOk && (!meta.textRequired || text.trim() !== '')
+  const periodOk = !meta.hasPeriod || YM_RE.test(period)
+  const canSave = !saving && !!personal && !!date && sumOk && periodOk && (!meta.textRequired || text.trim() !== '')
+
+  // смена типа: у выплаты дата — сегодня (реальный день), у штрафа — дата открытого месяца
+  const changeKind = (next: CorrectionKind) => {
+    const was = CORRECTION_KINDS[kind].hasPeriod
+    const now = CORRECTION_KINDS[next].hasPeriod
+    if (now && !was) setDate(today)
+    if (!now && was) setDate(defaultDate)
+    setKind(next)
+  }
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,6 +77,8 @@ export function CorrectionForm({
         date,
         sum: sumNum,
         text: text.trim(),
+        // месяц выплаты — только у аванса/выплаты/налога (s285)
+        ...(meta.hasPeriod ? { period } : {}),
         // вид налога уходит только у налога — у остальных коллекций поля type нет
         ...(kind === 'tax' ? { taxType } : {}),
       })
@@ -78,7 +103,7 @@ export function CorrectionForm({
             name="kind"
             className={`${inputCls} w-full`}
             value={kind}
-            onChange={(e) => setKind(e.target.value as CorrectionKind)}
+            onChange={(e) => changeKind(e.target.value as CorrectionKind)}
           >
             {KIND_ORDER.map((k) => (
               <option key={k} value={k}>
@@ -105,7 +130,7 @@ export function CorrectionForm({
           </select>
         </label>
         <label className="block">
-          <span className={labelCls}>Дата</span>
+          <span className={labelCls}>{meta.hasPeriod ? 'Дата выплаты' : 'Дата'}</span>
           <input
             name="date"
             type="date"
@@ -114,6 +139,18 @@ export function CorrectionForm({
             onChange={(e) => setDate(e.target.value)}
           />
         </label>
+        {meta.hasPeriod && (
+          <label className="block">
+            <span className={labelCls}>За какой месяц</span>
+            <input
+              name="period"
+              type="month"
+              className={`${inputCls} w-full`}
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+            />
+          </label>
+        )}
         <label className="block">
           <span className={labelCls}>Сумма, Kč</span>
           <input
@@ -160,6 +197,11 @@ export function CorrectionForm({
       {sum !== '' && !sumOk && (
         <div className="mt-2 text-[12px] font-normal text-neg">Сумма — целое положительное число крон.</div>
       )}
+      {meta.hasPeriod && (
+        <div className="mt-2 text-[12px] font-normal text-ink-soft" data-testid="correction-period-hint">
+          Дата — когда реально выплачено. В «Зарплаты» запись попадёт за выбранный месяц, а не за месяц даты.
+        </div>
+      )}
       {error && (
         <div role="alert" className="mt-3 text-[12px] font-semibold text-neg">
           {error}
@@ -171,8 +213,9 @@ export function CorrectionForm({
           {saving ? 'Сохраняю…' : 'Добавить'}
         </button>
         <span className={hintCls}>
-          Запись сразу попадает в «Зарплаты» месяца её даты. Мастеру без услуг в этом месяце
-          (администратору без смен) строка в «Зарплатах» не появится — запись будет видна здесь.
+          Запись сразу попадает в «Зарплаты» своего месяца (у аванса, выплаты и налога — месяца «за
+          какой», у остальных — месяца даты). Мастеру без услуг в этом месяце (администратору без
+          смен) строка в «Зарплатах» не появится — запись будет видна здесь.
         </span>
       </div>
     </form>

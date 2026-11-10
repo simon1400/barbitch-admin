@@ -6,12 +6,17 @@
 // не используется — без журнала не видно, кто и когда завёл штраф.
 //
 // 🟥 Итоги месяца кэшируются (прошлый месяц — навсегда, monthDataCache), поэтому
-// после записи/удаления сбрасывается кэш месяца ДАТЫ записи — иначе «Зарплаты»
+// после записи/удаления сбрасывается кэш месяца записи — иначе «Зарплаты»
 // показывали бы старую сумму до ручного «Обновить».
+//
+// s285: у аванса, выплаты и налога есть `period` («за какой месяц», YYYY-MM):
+// владелец платит в следующем месяце за прошлый. `date` — реальный день выплаты,
+// а в «Зарплаты» и список месяца запись попадает по периоду. У старых строк
+// сервер отдаёт период = месяц даты.
 import { makeApiFetch } from '../../../../lib/apiFetch'
 import { invalidateGlobalMonthData } from '../../../dashboard/fetch/monthDataCache'
 import { kc } from '../../../../utils/money'
-import { monthEndYmd } from '../../../../utils/date'
+import { monthEndYmd, monthLabelRu } from '../../../../utils/date'
 
 export type CorrectionKind = 'penalty' | 'add-money' | 'payroll' | 'avans' | 'salary' | 'tax'
 
@@ -22,16 +27,18 @@ export interface CorrectionKindMeta {
   /** без комментария сервер не примет (за что штраф / премия / списание) */
   textRequired: boolean
   textLabel: string
+  /** запись засчитывается за месяц `period`, а не за месяц даты (s285) */
+  hasPeriod: boolean
 }
 
 // Порядок — порядок селекта в форме.
 export const CORRECTION_KINDS: Record<CorrectionKind, CorrectionKindMeta> = {
-  penalty: { label: 'Штраф', effect: '−', textRequired: true, textLabel: 'За что' },
-  'add-money': { label: 'Доп. заработок', effect: '+', textRequired: true, textLabel: 'За что' },
-  payroll: { label: 'Списание с зарплаты', effect: '−', textRequired: true, textLabel: 'За что' },
-  avans: { label: 'Аванс', effect: 'выдано', textRequired: false, textLabel: 'Комментарий' },
-  salary: { label: 'Выплата зарплаты', effect: 'выдано', textRequired: false, textLabel: 'Комментарий' },
-  tax: { label: 'Налоги', effect: 'за сотрудника', textRequired: false, textLabel: 'Комментарий' },
+  penalty: { label: 'Штраф', effect: '−', textRequired: true, textLabel: 'За что', hasPeriod: false },
+  'add-money': { label: 'Доп. заработок', effect: '+', textRequired: true, textLabel: 'За что', hasPeriod: false },
+  payroll: { label: 'Списание с зарплаты', effect: '−', textRequired: true, textLabel: 'За что', hasPeriod: false },
+  avans: { label: 'Аванс', effect: 'выдано', textRequired: false, textLabel: 'Комментарий', hasPeriod: true },
+  salary: { label: 'Выплата зарплаты', effect: 'выдано', textRequired: false, textLabel: 'Комментарий', hasPeriod: true },
+  tax: { label: 'Налоги', effect: 'за сотрудника', textRequired: false, textLabel: 'Комментарий', hasPeriod: true },
 }
 
 /** Вид налога — enum `tax.type` схемы Strapi. Порядок — порядок селекта. */
@@ -56,6 +63,8 @@ export interface CorrectionRow {
   kind: CorrectionKind
   documentId: string
   date: string | null
+  /** за какой месяц (YYYY-MM) — только у аванса/выплаты/налога; у остальных null */
+  period: string | null
   sum: number
   text: string
   /** только у налога: вид (enum схемы) */
@@ -73,6 +82,8 @@ export interface CorrectionInput {
   kind: CorrectionKind
   personal: string
   date: string
+  /** обязателен у аванса/выплаты/налога (YYYY-MM), у остальных не отправляется */
+  period?: string
   sum: number
   text: string
   /** обязателен у налога, у остальных не отправляется */
@@ -95,6 +106,10 @@ const CODE_MESSAGES: Record<string, string> = {
   correction_engine_owned: 'Эту запись ведёт календарь — удалить её здесь нельзя.',
   bad_month: 'Неверный месяц.',
   bad_tax_type: 'Выберите вид налога.',
+  period_required: 'Выберите, за какой месяц выплата.',
+  bad_period: 'Неверный месяц выплаты.',
+  period_in_future: 'Месяц выплаты позже даты выплаты.',
+  period_too_old: 'Месяц выплаты слишком давно — проверьте год.',
 }
 
 const correctionsFetch = makeApiFetch('/api/engine/admin', CODE_MESSAGES, (s) => `Ошибка ${s}`)
@@ -110,21 +125,31 @@ export const fetchCorrections = async (month: number, year: number, personal?: s
   return Array.isArray(res?.rows) ? res.rows : []
 }
 
-// Кэш итогов месяца — по дате записи (она может быть вне открытого месяца).
-const invalidateMonthOf = (ymd: string | null | undefined) => {
-  const m = /^(\d{4})-(\d{2})-\d{2}$/.exec(String(ymd ?? ''))
+/** Месяц, за который запись считается: период (аванс/выплата/налог), иначе месяц даты. */
+export const effectiveMonth = (row: { kind: CorrectionKind; date: string | null; period?: string | null }): string | null => {
+  if (CORRECTION_KINDS[row.kind]?.hasPeriod && row.period) return row.period
+  const m = /^(\d{4}-\d{2})-\d{2}$/.exec(String(row.date ?? ''))
+  return m ? m[1] : null
+}
+
+// Кэш итогов месяца — по месяцу, за который запись считается (он может быть вне
+// открытого месяца: выплата 10.11 за октябрь сбрасывает октябрь, не ноябрь).
+const invalidateMonthOf = (ym: string | null | undefined) => {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(ym ?? ''))
   if (m) invalidateGlobalMonthData(Number(m[2]) - 1, Number(m[1]))
 }
 
 export const createCorrection = async (input: CorrectionInput): Promise<CorrectionRow> => {
   const res = await correctionsFetch<{ row: CorrectionRow }>('POST', '/corrections', input)
-  invalidateMonthOf(input.date)
+  invalidateMonthOf(effectiveMonth(res.row ?? { kind: input.kind, date: input.date, period: input.period }))
   return res.row
 }
 
-export const deleteCorrection = async (row: Pick<CorrectionRow, 'kind' | 'documentId' | 'date'>): Promise<void> => {
+export const deleteCorrection = async (
+  row: Pick<CorrectionRow, 'kind' | 'documentId' | 'date'> & { period?: string | null },
+): Promise<void> => {
   await correctionsFetch('DELETE', `/corrections/${encodeURIComponent(row.kind)}/${encodeURIComponent(row.documentId)}`)
-  invalidateMonthOf(row.date)
+  invalidateMonthOf(effectiveMonth(row))
 }
 
 /** Подпись суммы: штраф/списание «−», доп. заработок «+», аванс/выплата без знака (уже выдано). */
@@ -140,6 +165,26 @@ export const defaultDateFor = (month: number, year: number, today: string): stri
   if (today.startsWith(key)) return today
   return key < today.slice(0, 7) ? monthEndYmd(year, month) : `${key}-01`
 }
+
+/** 'YYYY-MM' − 1 месяц. */
+export const prevMonthKey = (ym: string): string => {
+  const [y, m] = ym.split('-').map(Number)
+  return m === 1 ? `${y - 1}-12` : `${y}-${pad2(m - 1)}`
+}
+
+/**
+ * Месяц выплаты по умолчанию (s285, решение владельца: «оба прошлый»): открыт
+ * текущий или будущий месяц → прошлый от сегодняшнего; открыт прошлый → он сам
+ * (владелец зашёл в октябрь, чтобы довнести выплату за октябрь).
+ */
+export const defaultPeriodFor = (month: number, year: number, today: string): string => {
+  const key = monthKey(month, year)
+  const cur = today.slice(0, 7)
+  return key < cur ? key : prevMonthKey(cur)
+}
+
+/** «за Окт 2026» — подпись периода в списке. */
+export const periodLabel = (ym: string | null | undefined): string => (ym ? `за ${monthLabelRu(ym)}` : '')
 
 /** Итог по типам за видимые строки (черновики не считаются — в зарплатах их нет). */
 export const totalsByKind = (rows: CorrectionRow[]): Record<CorrectionKind, number> => {

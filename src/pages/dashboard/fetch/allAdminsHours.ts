@@ -8,6 +8,8 @@ import {
   fetchAllPages,
   fetchDayDrafts,
   fetchDayUpsellCommissionDrafts,
+  monthsBetween,
+  periodFilter,
   PAGE_SIZE,
   summarizeGeneric,
 } from './fetchHelpers'
@@ -209,15 +211,18 @@ export const getAdminsHours = async (month: number, year: number, previewDay?: s
 
   const genericQuery = (page: number) =>
     buildQuery(filters, ['sum'], { personal: { fields: ['name'] } }, { page, pageSize: PAGE_SIZE })
+  // аванс/выплата/налог — по месяцу «за какой» (s285), без периода — по дате
+  const periodQuery = (page: number) =>
+    buildQuery(periodFilter(monthsBetween(firstDay, lastDay), filters.date), ['sum'], { personal: { fields: ['name'] } }, { page, pageSize: PAGE_SIZE })
 
   const [data, penalties, extras, payrolls, advance, salaries, taxes] = await Promise.all([
     fetchAllPages<PersonalSumData>('/api/work-times', queryWorkTimes),
     fetchAllPages<PersonalSumData>('/api/penalties', genericQuery),
     fetchAllPages<PersonalSumData>('/api/add-moneys', genericQuery),
     fetchAllPages<PersonalSumData>('/api/payrolls', genericQuery),
-    fetchAllPages<PersonalSumData>('/api/avanses', genericQuery),
-    fetchAllPages<PersonalSumData>('/api/salaries', genericQuery),
-    fetchAllPages<PersonalSumData>('/api/taxes', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/avanses', periodQuery),
+    fetchAllPages<PersonalSumData>('/api/salaries', periodQuery),
+    fetchAllPages<PersonalSumData>('/api/taxes', periodQuery),
   ])
 
   // Preview: merge the day's draft work-times + payrolls (what a close publishes that
@@ -284,15 +289,18 @@ export const getAdminsHoursByDateRange = async (startDate: Date, endDate: Date) 
 
   const genericQuery = (page: number) =>
     buildQuery(filters, ['sum'], { personal: { fields: ['name'] } }, { page, pageSize: PAGE_SIZE })
+  // аванс/выплата/налог — по месяцу «за какой» (s285), без периода — по дате
+  const periodQuery = (page: number) =>
+    buildQuery(periodFilter(monthsBetween(startDate, endDate), filters.date), ['sum'], { personal: { fields: ['name'] } }, { page, pageSize: PAGE_SIZE })
 
   const [data, penalties, extras, payrolls, advance, salaries, taxes] = await Promise.all([
     fetchAllPages<PersonalSumData>('/api/work-times', queryWorkTimes),
     fetchAllPages<PersonalSumData>('/api/penalties', genericQuery),
     fetchAllPages<PersonalSumData>('/api/add-moneys', genericQuery),
     fetchAllPages<PersonalSumData>('/api/payrolls', genericQuery),
-    fetchAllPages<PersonalSumData>('/api/avanses', genericQuery),
-    fetchAllPages<PersonalSumData>('/api/salaries', genericQuery),
-    fetchAllPages<PersonalSumData>('/api/taxes', genericQuery),
+    fetchAllPages<PersonalSumData>('/api/avanses', periodQuery),
+    fetchAllPages<PersonalSumData>('/api/salaries', periodQuery),
+    fetchAllPages<PersonalSumData>('/api/taxes', periodQuery),
   ])
 
   const { summary, sumAdmins } = summarizeAdmins(

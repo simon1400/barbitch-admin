@@ -37,6 +37,8 @@ export interface MasterData {
     id: number
     sum: number
     date: string
+    /** за какой месяц, YYYY-MM (s285); пусто у старых строк → месяц даты */
+    period?: string | null
     comment: string
   }>
   extraProfits: Array<{
@@ -49,6 +51,8 @@ export interface MasterData {
     id: number
     sum: number
     date: string
+    /** за какой месяц, YYYY-MM (s285); пусто у старых строк → месяц даты */
+    period?: string | null
     comment: string
   }>
 }
@@ -87,12 +91,16 @@ export interface AdministratorData {
     id: number
     sum: number
     date: string
+    /** за какой месяц, YYYY-MM (s285); пусто у старых строк → месяц даты */
+    period?: string | null
     comment: string
   }>
   salaries: Array<{
     id: number
     sum: number
     date: string
+    /** за какой месяц, YYYY-MM (s285); пусто у старых строк → месяц даты */
+    period?: string | null
     comment: string
   }>
   extraProfits: Array<{
@@ -108,6 +116,8 @@ export interface Payment {
   id: number
   sum: number | string
   date: string
+  /** за какой месяц, YYYY-MM (s285) */
+  period?: string | null
   comment?: string
   title?: string
   type: 'advance' | 'salary' | 'bonus'

@@ -9,6 +9,19 @@
 import { parseMoney } from '../../../utils/money'
 import type { AdministratorData, MasterData, Payment } from './types'
 
+// s285: аванс и выплата засчитываются за месяц `period` («за какой месяц»), а не
+// за месяц даты — владелец платит в следующем месяце за прошлый. У строк без
+// периода (до s285) — месяц даты, как раньше. Штрафы/списания/премии — по дате.
+const periodOf = (item: { period?: string | null; date: string }): string => {
+  if (typeof item.period === 'string' && /^\d{4}-\d{2}$/.test(item.period)) return item.period
+  const d = new Date(item.date)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+const filterByPeriod = <T extends { period?: string | null; date: string }>(items: T[], month: number, year: number): T[] => {
+  const key = `${year}-${String(month + 1).padStart(2, '0')}`
+  return items.filter((item) => periodOf(item) === key)
+}
+
 export const selectMonthly = (
   data: AdministratorData,
   selectedMonth: number,
@@ -31,10 +44,10 @@ export const selectMonthly = (
     payrolls: filterByMonth(data.payrolls, 'date').sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     ),
-    advances: filterByMonth(data.advances, 'date').sort(
+    advances: filterByPeriod(data.advances, selectedMonth, selectedYear).sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     ),
-    salaries: filterByMonth(data.salaries, 'date').sort(
+    salaries: filterByPeriod(data.salaries, selectedMonth, selectedYear).sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     ),
     extraProfits: filterByMonth(data.extraProfits, 'date').sort(
@@ -65,13 +78,13 @@ export const selectMasterMonthly = (
     payrolls: filterByMonth(masterData.payrolls, 'date').sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     ),
-    advances: filterByMonth(masterData.advances, 'date').sort(
+    advances: filterByPeriod(masterData.advances, selectedMonth, selectedYear).sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     ),
     extraProfits: filterByMonth(masterData.extraProfits, 'date').sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     ),
-    salaries: filterByMonth(masterData.salaries, 'date').sort(
+    salaries: filterByPeriod(masterData.salaries, selectedMonth, selectedYear).sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
     ),
   }
@@ -79,8 +92,8 @@ export const selectMasterMonthly = (
 
 export const buildPayments = (filteredData: ReturnType<typeof selectMonthly>) => {
   const payments: Payment[] = [
-    ...filteredData.advances.map((a) => ({ ...a, type: 'advance' as const })),
-    ...filteredData.salaries.map((s) => ({ ...s, type: 'salary' as const })),
+    ...filteredData.advances.map((a) => ({ ...a, period: periodOf(a), type: 'advance' as const })),
+    ...filteredData.salaries.map((s) => ({ ...s, period: periodOf(s), type: 'salary' as const })),
   ]
 
   return payments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
