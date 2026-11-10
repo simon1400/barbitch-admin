@@ -35,6 +35,7 @@ import {
   type CorrectionRow,
 } from '../fetch/corrections'
 import { CorrectionForm } from './corrections/CorrectionForm'
+import { Toast, type ToastMessage } from '../../../../components/Toast'
 
 // «Корректировки» (s215, Фаза C плана «Управляющая»): штрафы, доп. заработок,
 // списания, авансы, выплаты и налоги — из админки, а не из Strapi CM. Руководство.
@@ -45,7 +46,11 @@ export default function CorrectionsTab() {
   const [error, setError] = useState<string | null>(null)
   const [staff, setStaff] = useState<InternalRecipient[]>([])
   const [who, setWho] = useState('')
-  const [notice, setNotice] = useState<string | null>(null)
+  // всплывающее подтверждение (s285): по нажатию «Добавить» раньше только
+  // очищалась сумма — владельцу было не видно, что запись легла
+  const [toast, setToast] = useState<ToastMessage | null>(null)
+  const closeToast = useCallback(() => setToast(null), [])
+  const showToast = (text: string, tone: ToastMessage['tone'] = 'ok') => setToast({ id: Date.now(), text, tone })
   const [deleting, setDeleting] = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -83,16 +88,20 @@ export default function CorrectionsTab() {
   const totals = totalsByKind(visible)
   const key = monthKey(month, year)
 
+  const describe = (row: CorrectionRow) =>
+    `${CORRECTION_KINDS[row.kind]?.label ?? row.kind} · ${row.personal?.name ?? '—'} · ${kc(row.sum)}`
+
   // запись видна в месяце, за который считается: у выплаты — «за какой», у штрафа — месяца даты
   const onCreated = (row: CorrectionRow) => {
     if (effectiveMonth(row) === key) {
-      setNotice(null)
+      showToast(`Добавлено: ${describe(row)}${row.period ? ` · ${periodLabel(row.period)}` : ''}`)
       load()
     } else {
-      setNotice(
+      showToast(
         row.period
-          ? `Запись добавлена ${periodLabel(row.period)} (выплачено ${fmtCsDate(row.date)}) — это другой месяц, здесь она не видна.`
-          : `Запись добавлена в ${fmtCsDate(row.date)} — это другой месяц, здесь она не видна.`,
+          ? `Добавлено ${periodLabel(row.period)} (выплачено ${fmtCsDate(row.date)}): ${describe(row)} — это другой месяц, здесь запись не видна.`
+          : `Добавлено в ${fmtCsDate(row.date)}: ${describe(row)} — это другой месяц, здесь запись не видна.`,
+        'info',
       )
     }
   }
@@ -106,6 +115,7 @@ export default function CorrectionsTab() {
     try {
       await deleteCorrection(row)
       setRows((prev) => prev.filter((r) => r.documentId !== row.documentId))
+      showToast(`Удалено: ${describe(row)}`)
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -142,11 +152,7 @@ export default function CorrectionsTab() {
         onCreated={onCreated}
       />
 
-      {notice && (
-        <div role="status" className="mb-3.5 text-[12px] font-semibold text-ink-soft">
-          {notice}
-        </div>
-      )}
+      <Toast message={toast} onClose={closeToast} />
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-3.5">
         {KIND_ORDER.map((k) => (
