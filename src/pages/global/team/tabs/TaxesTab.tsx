@@ -25,11 +25,16 @@ import { fetchTimeOffs, buildSummaries, daysInMonth } from '../fetch/timeOff'
 
 
 import { kc } from '../../../../utils/money'
+import { todayYmd } from '../../../../utils/date'
+import { Toast, type ToastMessage } from '../../../../components/Toast'
+import { periodLabel, type CorrectionRow } from '../fetch/corrections'
 import { newRow, type Row } from './taxes/model'
 import { tileLabCls } from './taxes/styles'
 import { OdvodyBox, ResultGrid } from './taxes/ResultBoxes'
 import { ParamInput } from './taxes/Fields'
 import { EmployeeCard } from './taxes/EmployeeCard'
+import { TaxWriteBlock } from './taxes/TaxWriteBlock'
+import { fetchWrittenTaxes, periodOfTab, taxEntriesFor, writeTaxCorrections } from './taxes/writeTaxes'
 const num = (s: string): number => {
   const n = Number(String(s).replace(',', '.').replace(/\s/g, ''))
   return Number.isFinite(n) && n > 0 ? n : 0
@@ -52,6 +57,67 @@ export default function TaxesTab() {
       .then(setPeople)
       .catch(() => setPeople([]))
   }, [])
+
+  // s285: уплаченные налоги пишутся в «Корректировки» за месяц расчёта (period),
+  // датой сегодня. Уже записанные за месяц — чтобы не задвоить и показать «записано».
+  const period = periodOfTab(month, year)
+  const [written, setWritten] = useState<Map<string, CorrectionRow[]>>(new Map())
+  const [writing, setWriting] = useState<string | null>(null)
+  const [toast, setToast] = useState<ToastMessage | null>(null)
+  const closeToast = useCallback(() => setToast(null), [])
+  const showToast = (text: string, tone: ToastMessage['tone'] = 'ok') => setToast({ id: Date.now(), text, tone })
+  useEffect(() => {
+    let alive = true
+    setWritten(new Map())
+    fetchWrittenTaxes(month, year)
+      .then((m) => {
+        if (alive) setWritten(m)
+      })
+      .catch(() => {
+        /* список корректировок недоступен — кнопка всё равно работает, просто без «записано» */
+      })
+    return () => {
+      alive = false
+    }
+  }, [month, year])
+
+  const personOf = useCallback((name: string) => people.find((p) => p.name === name) ?? null, [people])
+
+  const writeFor = async (targets: { row: Row; res: EmployeeTaxResult }[], all: boolean) => {
+    const date = todayYmd()
+    const done: string[] = []
+    let total = 0
+    for (const { row, res } of targets) {
+      const person = personOf(row.name)
+      const entries = taxEntriesFor(res)
+      if (!person || entries.length === 0) continue
+      const existing = written.get(person.documentId) ?? []
+      if (existing.length > 0) {
+        if (all) continue // «всем» — только тех, за кого ещё не записано
+        const q = `За ${person.name} ${periodLabel(period)} налоги уже записаны (${kc(existing.reduce((a, r) => a + r.sum, 0))}). Записать ещё раз?`
+        if (!window.confirm(q)) return
+      }
+      setWriting(person.documentId)
+      const r = await writeTaxCorrections({ personal: person.documentId, period, date, entries })
+      if (r.rows.length > 0) {
+        setWritten((prev) => {
+          const next = new Map(prev)
+          next.set(person.documentId, [...(next.get(person.documentId) ?? []), ...r.rows])
+          return next
+        })
+        done.push(person.name)
+        total += r.rows.reduce((a, x) => a + x.sum, 0)
+      }
+      if (r.error) {
+        setWriting(null)
+        showToast(`${person.name}: ${r.error.message}${r.rows.length ? ` (записано ${r.rows.length} из ${entries.length})` : ''}`, 'info')
+        return
+      }
+    }
+    setWriting(null)
+    if (done.length === 0) showToast(all ? 'Записывать некого: у всех либо уже записано, либо нет сотрудника из списка.' : 'Нечего записывать.', 'info')
+    else showToast(`Записано ${periodLabel(period)}: ${done.join(', ')} · ${kc(total)}. Видно в «Корректировки» и «Зарплаты».`)
+  }
 
   const patch = useCallback((id: string, p: Partial<Row>) => {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...p } : r)))
@@ -154,6 +220,7 @@ export default function TaxesTab() {
 
   return (
     <>
+      <Toast message={toast} onClose={closeToast} />
       {/* один общий список имён для автокомплита во всех карточках */}
       <datalist id="tax-personals">
         {people.map((p) => (
@@ -183,19 +250,46 @@ export default function TaxesTab() {
             <button onClick={() => setRows([newRow()])} className={btnNeutralCls}>
               Очистить
             </button>
+            <span data-testid="tax-write-all">
+              <button
+                type="button"
+                onClick={() => writeFor(results, true)}
+                disabled={!!writing || !results.some(({ row, res }) => personOf(row.name) && taxEntriesFor(res).length > 0 && !(written.get(personOf(row.name)!.documentId)?.length))}
+                className={btnNeutralCls}
+                title="Записать налоги в «Корректировки» за всех, за кого ещё не записано"
+              >
+                {writing ? 'Записываю…' : `Записать налоги всем · ${periodLabel(period)}`}
+              </button>
+              <span data-tax-write-end="true"></span>
+            </span>
           </div>
         </div>
 
-        {results.map(({ row, res }) => (
-          <EmployeeCard
-            key={row.id}
-            row={row}
-            res={res}
-            people={people}
-            onPatch={(p) => patch(row.id, p)}
-            onRemove={() => setRows((prev) => prev.filter((r) => r.id !== row.id))}
-          />
-        ))}
+        {results.map(({ row, res }) => {
+          const person = personOf(row.name)
+          return (
+            <EmployeeCard
+              key={row.id}
+              row={row}
+              res={res}
+              people={people}
+              onPatch={(p) => patch(row.id, p)}
+              onRemove={() => setRows((prev) => prev.filter((r) => r.id !== row.id))}
+              footer={
+                res.gross > 0 && row.contract !== 'osvc' ? (
+                  <TaxWriteBlock
+                    personDocId={person?.documentId ?? null}
+                    entries={taxEntriesFor(res)}
+                    existing={person ? (written.get(person.documentId) ?? []) : []}
+                    period={period}
+                    busy={!!writing}
+                    onWrite={() => writeFor([{ row, res }], false)}
+                  />
+                ) : null
+              }
+            />
+          )
+        })}
 
         {/* Итог по всем сотрудникам — те же ячейки, что в карточке */}
         <div className="bg-surface-tile rounded-[10px] px-4 py-3.5">

@@ -1,4 +1,5 @@
 // Карточка одного сотрудника. Перенесено из TaxesTab.tsx (этап 6) дословно.
+import type React from 'react'
 import { chipCls, labelCls, selectCls } from '../../../../../ui/kit'
 import { kc } from '../../../../../utils/money'
 import type {
@@ -28,12 +29,15 @@ export function EmployeeCard({
   people,
   onPatch,
   onRemove,
+  footer,
 }: {
   row: Row
   res: EmployeeTaxResult
   people: PersonalOption[]
   onPatch: (p: Partial<Row>) => void
   onRemove: () => void
+  /** s285: блок «Записать налоги в корректировки» — рендерится после результата */
+  footer?: React.ReactNode
 }) {
   const isOsvc = row.contract === 'osvc'
 
@@ -190,6 +194,8 @@ export function EmployeeCard({
           ))}
         </div>
       )}
+
+      {footer}
     </div>
   )
 }
