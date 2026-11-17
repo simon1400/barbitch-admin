@@ -132,6 +132,14 @@ const czechHolidays = (year: number): Set<string> => {
   return set
 }
 
+/** Рабочий день по-чешски: Пн–Пт и не госпраздник. ymd — 'YYYY-MM-DD'. */
+export const isCzechWorkingDay = (ymd: string): boolean => {
+  const [y, m, d] = ymd.split('-').map(Number)
+  const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay()
+  if (dow === 0 || dow === 6) return false
+  return !czechHolidays(y).has(ymd)
+}
+
 export const workingDaysInMonth = (month: number, year: number): number => {
   const holidays = czechHolidays(year)
   const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()

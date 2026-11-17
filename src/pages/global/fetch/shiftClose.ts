@@ -141,8 +141,8 @@ export const fetchMonthlyResult = async (
 
   // Совместители (мастер+администратор) — своя группа: итоги через splitTeam, иначе их
   // корректировки задвоятся (sumMasters и sumAdmins оба их содержат). Группы — из карточек
-  // (s229). Управляющие (s213): оклад входит в месяц целиком с 1-го числа — «до» и «после»
-  // смены одинаковый, дельта смены от него не зависит.
+  // (s229). Управляющие (s213; с 11.2026 — по часам výkazů, s294): закрытие смены их часы
+  // не меняет — «до» и «после» смены начисление одно, дельта смены от него не зависит.
   const team = splitTeam(worksRes.summary, adminsRes.summary, periodStart, groups, managerFixed)
   const totalLabor = team.sumMasters + team.sumAdmins + team.sumCombined + team.sumManagers
 

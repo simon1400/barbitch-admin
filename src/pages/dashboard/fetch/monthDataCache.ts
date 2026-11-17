@@ -113,7 +113,8 @@ export const EMPTY_GLOBAL_MONTH_DATA: GlobalMonthData = {
 // корректировки считались дважды — посчитанные так месяцы лежали бы в кэше вечно.
 // v5 (s258): резервации — «все» без интерных, «коррекции» (fixed) = брони с `korekce`
 // вместо жёсткого 0, «платные» без бесплатных коррекций.
-const CACHE_VERSION = 5
+// v6 (s294): управляющая с 11.2026 — по часам закрытых výkazů (строка `managers[].pay`).
+const CACHE_VERSION = 6
 const PREFIX = `bb_global_month_v${CACHE_VERSION}_`
 // ключи прошлых версий (и самой первой, без номера) — чистим при старте модуля
 const LEGACY_PREFIXES = ['bb_global_month_']

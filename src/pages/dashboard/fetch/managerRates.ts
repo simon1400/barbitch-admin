@@ -1,9 +1,11 @@
 import { Axios } from '../../../lib/api'
+import { makeApiFetch } from '../../../lib/apiFetch'
 import { strapiQuery } from '../../../lib/strapiQuery'
-import { daysInMonth } from '../../../utils/date'
+import { todayYmd, ymd as ymdOf } from '../../../utils/date'
 
+import { MANAGER_HOURLY_SINCE, managerPayForMonth, managerPayForRange, type ManagerHoursFacts, type ManagerPay } from './managerPay'
 import { fetchPayrollGroups } from './payrollGroups'
-import { managerMonthlyFixed, managersFor, type ManagerRateItem } from './teamSplit'
+import { managersFor, type ManagerRateItem } from './teamSplit'
 
 // Ставки управляющих (s213) — один запрос на период, только когда роль в периоде есть
 // (до `since` запроса нет вовсе, и прошлые месяцы считаются ровно как раньше).
@@ -20,48 +22,72 @@ const fetchManagerRates = async (docIds: string[]): Promise<Map<string, ManagerR
   return new Map((rows || []).map((r) => [r.documentId, r.rates || []]))
 }
 
+const engineFetch = makeApiFetch('/api/engine/admin', {}, (s) => `Ошибка ${s}`)
+
+// s294: часы поданных výkazů и отпуска/больничные управляющих (по documentId карточки).
+// 🟥 Ошибка НЕ глотается: месяц, посчитанный «без часов», лёг бы в вечный кэш прошлых
+// месяцев с нулевой зарплатой управляющей.
+const fetchManagerHours = async (from: string, to: string): Promise<Map<string, ManagerHoursFacts>> => {
+  const res = await engineFetch<{ people?: ({ documentId: string } & ManagerHoursFacts)[] }>(
+    'GET',
+    `/work-reports/hours?from=${from}&to=${to}`,
+  )
+  return new Map((res?.people || []).map((p) => [p.documentId, { days: p.days || [], timeOffs: p.timeOffs || [] }]))
+}
+
 /**
- * Оклад каждой управляющей за ЦЕЛЫЙ месяц: по записи, действующей в последний день
- * месяца. Отсутствия оклад не уменьшают (решение владельца), поэтому оклад целиком
- * входит в месяц с первого числа — закрытие смены его «до» и «после» видит одинаково.
+ * Начисление каждой управляющей за ЦЕЛЫЙ месяц (имя → ManagerPay).
+ * До MANAGER_HOURLY_SINCE — полный оклад по записи на последний день месяца (как раньше);
+ * с него — ставка в час × часы закрытых výkazů + оплачиваемые отпуска (managerPay.ts).
+ * Закрытие смены не меняет часы управляющей, поэтому «до» и «после» смены начисление одно.
  */
 export const fetchManagerMonthFixed = async (
   periodStart: string,
   monthEndStr: string,
-): Promise<Map<string, number | null>> => {
+): Promise<Map<string, ManagerPay>> => {
   const list = managersFor(await fetchPayrollGroups(), periodStart)
   if (!list.length) return new Map()
-  const rates = await fetchManagerRates(list.map((m) => m.docId))
-  return new Map(list.map((m) => [m.name, managerMonthlyFixed(rates.get(m.docId), m.since, monthEndStr)]))
+  const hourly = periodStart >= MANAGER_HOURLY_SINCE
+  const [rates, hours] = await Promise.all([
+    fetchManagerRates(list.map((m) => m.docId)),
+    hourly ? fetchManagerHours(`${periodStart}-01`, monthEndStr) : Promise.resolve(new Map<string, ManagerHoursFacts>()),
+  ])
+  const today = todayYmd()
+  return new Map(
+    list.map((m) => [
+      m.name,
+      managerPayForMonth({
+        rates: rates.get(m.docId),
+        since: m.since,
+        facts: hours.get(m.docId),
+        periodStart,
+        monthEnd: monthEndStr,
+        today,
+      }),
+    ]),
+  )
 }
 
 /**
- * Доля оклада за произвольный диапазон дней (обзор недели): каждый день — оклад
- * своего месяца / число дней в этом месяце. Сумма = 0, пока оклад не задан.
+ * Начисление управляющим за произвольный диапазон дней (обзор недели): дни до
+ * MANAGER_HOURLY_SINCE — доля оклада (оклад / дней в месяце), с него — по часам.
  */
 export const fetchManagersFixedForRange = async (firstDay: Date, lastDay: Date): Promise<number> => {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const days: Date[] = []
-  const cur = new Date(firstDay.getFullYear(), firstDay.getMonth(), firstDay.getDate())
-  const end = new Date(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate())
-  while (cur <= end) {
-    days.push(new Date(cur))
-    cur.setDate(cur.getDate() + 1)
-  }
-  const lastYm = `${end.getFullYear()}-${pad(end.getMonth() + 1)}`
-  const list = managersFor(await fetchPayrollGroups(), lastYm)
-  if (!list.length || !days.length) return 0
-  const rates = await fetchManagerRates(list.map((m) => m.docId))
+  const from = ymdOf(firstDay)
+  const to = ymdOf(lastDay)
+  if (from > to) return 0
+  const list = managersFor(await fetchPayrollGroups(), to.slice(0, 7))
+  if (!list.length) return 0
+  const hourly = to.slice(0, 7) >= MANAGER_HOURLY_SINCE
+  const [rates, hours] = await Promise.all([
+    fetchManagerRates(list.map((m) => m.docId)),
+    hourly ? fetchManagerHours(from, to) : Promise.resolve(new Map<string, ManagerHoursFacts>()),
+  ])
+  const today = todayYmd()
   let total = 0
-  for (const d of days) {
-    const ymStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
-    const dayStr = `${ymStr}-${pad(d.getDate())}`
-    const inMonth = daysInMonth(d.getFullYear(), d.getMonth())
-    for (const m of list) {
-      if (m.since > ymStr) continue
-      const fixed = managerMonthlyFixed(rates.get(m.docId), m.since, dayStr)
-      if (fixed) total += fixed / inMonth
-    }
+  for (const m of list) {
+    const pay = managerPayForRange({ rates: rates.get(m.docId), since: m.since, facts: hours.get(m.docId), from, to, today })
+    total += pay.amount ?? 0
   }
   return total
 }

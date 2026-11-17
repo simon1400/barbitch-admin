@@ -1,5 +1,6 @@
 import type { ResultAdmins } from './allAdminsHours'
 import type { Result } from './allWorks'
+import type { ManagerPay } from './managerPay'
 import type { ManagerGroup, PayrollGroups } from './payrollGroups'
 
 // Сотрудники, которые работают И мастером, И администратором. Их данные собираются
@@ -97,8 +98,10 @@ export interface CombinedResult {
 
 export interface ManagerResult {
   name: string
-  fixed: number // оклад за период (0, если не задан)
+  fixed: number // начислено за период: полный оклад или (s294) ставка в час × часы; 0, если оклад не задан
   fixedMissing: boolean // нет записи оклада с from ≥ since — показать предупреждение
+  /** s294: как посчитано (часы výkazů, отпуск, ставка); нет — старый расчёт полным окладом */
+  pay?: ManagerPay
   countClient: number // услуги как мастер (в порядке исключения) — обычно 0
   sum: number
   sumTip: number
@@ -134,8 +137,8 @@ export interface TeamSplit {
 // месяца численно прежний.
 //
 // groups — зарплатные группы из карточек (payrollGroups.ts).
-// managerFixed — оклад по имени за период (уже рассчитанный: целый месяц или доля
-// недели); нет имени в карте → оклад не задан.
+// managerFixed — начисление по имени за период (уже рассчитанное: число — полный оклад
+// или доля недели, ManagerPay — s294, по часам); нет имени в карте → оклад не задан.
 // ⚠️ Корректировки управляющей приходят из строки мастеров: getAllWorks заводит её
 // строку заранее (seed), иначе штрафы/списывания без услуг молча пропали бы.
 export function splitTeam(
@@ -143,7 +146,7 @@ export function splitTeam(
   admins: ResultAdmins[],
   periodStart: string,
   groups: PayrollGroups,
-  managerFixed: Map<string, number | null> = new Map(),
+  managerFixed: Map<string, number | null | ManagerPay> = new Map(),
 ): TeamSplit {
   const managerNames = managerNamesFor(groups, periodStart)
   const dual = dualRoleNames(groups, periodStart)
@@ -187,11 +190,14 @@ export function splitTeam(
     const a = adminByName.get(name)
     // Корректировки одинаковы в обеих сводках (один источник по имени) → из любой.
     const corr = w ?? a
-    const fixed = managerFixed.get(name) ?? null
+    const given = managerFixed.get(name) ?? null
+    const pay = given != null && typeof given === 'object' ? given : undefined
+    const fixed = pay ? pay.amount : (given as number | null)
     managers.push({
       name,
       fixed: fixed ?? 0,
       fixedMissing: fixed == null,
+      ...(pay?.mode === 'hourly' ? { pay } : {}),
       countClient: w?.countClient ?? 0,
       sum: w?.sum ?? 0,
       sumTip: w?.sumTip ?? 0,

@@ -46,7 +46,7 @@ export const useGlobalWeekData = (params: WeekDataParams = {}) => {
     const [worksRes, adminsRes, managersFixed, groups] = await Promise.all([
       getAllWorksByDateRange(firstDay, lastDay),
       getAdminsHoursByDateRange(firstDay, lastDay),
-      // оклад управляющих — доля дней диапазона в своём месяце (s213)
+      // управляющие: до 11.2026 — доля оклада по дням, с 11.2026 — по часам výkazů (s294)
       fetchManagersFixedForRange(firstDay, lastDay),
       fetchPayrollGroups(),
     ])

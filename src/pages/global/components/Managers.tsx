@@ -8,12 +8,21 @@ import { Cell } from '../../dashboard/components/Cell'
 
 import { TableWrapper } from './TableWrapper'
 
-// Таблица «Управляющие» (s213): фиксированный оклад за месяц + обычные корректировки.
-// Строка есть всегда, даже без активности. Услуги как мастер — в порядке исключения
-// (обычно их нет: бронь ставится на другого мастера, деньги переносятся корректировками).
+// Таблица «Управляющие» (s213): оклад + обычные корректировки. Строка есть всегда, даже
+// без активности. Услуги как мастер — в порядке исключения.
+// s294: с ноября 2026 оклад начисляется по часам закрытых výkazů (+ оплачиваемые отпуска),
+// под таблицей — как посчитано (managerPay.ts).
+const hoursFmt = (h: number) => (Number.isInteger(h) ? String(h) : h.toFixed(1).replace('.', ','))
+const rateFmt = (n: number) => n.toFixed(2).replace('.', ',')
+const shortName = (name: string) => {
+  const parts = name.split(' ')
+  return parts.length > 1 ? `${parts[0][0]}. ${parts[1]}` : name
+}
+
 export const Managers = ({ data, sumManagers }: { data: ManagerResult[]; sumManagers: number }) => {
   const emptyKeys = new Set(findCommonZeroKeys(data))
   const hasRemaining = !emptyKeys.has('advance') || !emptyKeys.has('salaries')
+  const hourly = data.some((m) => m.pay)
 
   return (
     <TableWrapper totalSum={`${kcNum(sumManagers)} Kč`} totalLabel={'Общая сумма'}>
@@ -21,7 +30,7 @@ export const Managers = ({ data, sumManagers }: { data: ManagerResult[]; sumMana
         <thead>
           <tr>
             <Cell title={'Имя'} asHeader />
-            <Cell title={'Оклад'} asHeader className={NUM_CELL} />
+            <Cell title={hourly ? 'За часы' : 'Оклад'} asHeader className={NUM_CELL} />
             {!emptyKeys.has('countClient') && <Cell title={'Кл.'} asHeader className={NUM_CELL} />}
             {!emptyKeys.has('sum') && <Cell title={'Зарб.'} asHeader className={NUM_CELL} />}
             {!emptyKeys.has('sumTip') && <Cell title={'Чай'} asHeader className={NUM_CELL} />}
@@ -40,12 +49,11 @@ export const Managers = ({ data, sumManagers }: { data: ManagerResult[]; sumMana
           {data.map((item) => {
             const result = managerRowResult(item)
             const remaining = result - item.advance - item.salaries
-            const splitName = item.name.split(' ')
 
             return (
               <tr key={item.name} className={'hover:bg-surface-hover transition-colors'}>
                 <Cell
-                  title={splitName.length > 1 ? `${splitName[0][0]}. ${splitName[1]}` : item.name}
+                  title={shortName(item.name)}
                   className={NAME_CELL}
                   onClick={() => navigator.clipboard.writeText(item.name)}
                 />
@@ -86,6 +94,19 @@ export const Managers = ({ data, sumManagers }: { data: ManagerResult[]; sumMana
           })}
         </tbody>
       </table>
+      {data
+        .filter((m) => m.pay && !m.fixedMissing)
+        .map((m) => {
+          const p = m.pay!
+          return (
+            <p key={`pay-${m.name}`} className={'mt-2 text-[12px] font-normal text-ink-muted'} data-testid={'manager-pay-note'}>
+              {shortName(m.name)}: оклад {kcNum(p.monthFixed)} / ({p.workDays} раб. дн. × 8 ч) ={' '}
+              {rateFmt(p.hourRate)} Kč/ч × {hoursFmt(p.workedHours + p.leaveHours)} ч (výkazy {hoursFmt(p.workedHours)} ч
+              {p.leaveHours ? ` + отпуск/больничный ${hoursFmt(p.leaveHours)} ч` : ''}) = {kcNum(m.fixed)} Kč. День без
+              поданного výkazu не оплачивается.
+            </p>
+          )
+        })}
       {data.some((m) => m.fixedMissing) && (
         <p className={'mt-2 text-[12px] font-normal text-warn'}>
           Оклад не задан: в «Персонал → Ставки» нужна запись HPP с «from» не раньше первого дня роли.
