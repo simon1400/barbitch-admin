@@ -60,7 +60,7 @@ export const getMoney = async (
     fetchAllCost<IDataCash>('/api/cashs', ['profit'], 'date', firstDay, lastDay),
     fetchAllCost<IDataCosts>('/api/payrolls', ['sum'], 'date', firstDay, lastDay),
     fetchAllCost<IDataCosts>('/api/vouchers', ['sum'], 'dateRealized', firstDay, lastDay),
-    fetchAllCost<IDataCosts>('/api/vouchers', ['sum'], 'datePay', firstDay, lastDay),
+    fetchAllCost<IDataCosts & { paymentStatus?: string | null }>('/api/vouchers', ['sum', 'paymentStatus'], 'datePay', firstDay, lastDay),
     fetchAllCost<IDataCosts>('/api/qr-pays', ['sum'], 'date', firstDay, lastDay),
     // s285: налоги — по месяцу «за какой» (period), без периода — по дате: владелец платит
     // в следующем месяце за прошлый, и «Результат за месяц» должен лечь в тот же месяц,
@@ -128,7 +128,8 @@ export const getMoney = async (
     cashMoney: maxProfit,
     payrollSum: sumReducer(payrollArr),
     voucherRealizedSum: sumReducer(realizedArr),
-    voucherPayedSum: sumReducer(dataVouchersPayed as any),
+    // Возвращённый ваучер (Comgate): деньги ушли обратно, в продажи месяца не входит
+    voucherPayedSum: sumReducer((dataVouchersPayed as any[]).filter((v) => v.paymentStatus !== 'refunded')),
     extraMoneySum: sumReducer(dataExtra as any),
     qrMoney: sumReducer(dataQrMoney as any),
     taxesSum: sumReducer(dataTaxes as any),

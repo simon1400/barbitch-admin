@@ -16,6 +16,7 @@ interface VoucherRecord {
   datePay: string | null
   dateRealized: string | null
   idVoucher: string
+  paymentStatus: string | null
 }
 
 interface VoucherMonthRow {
@@ -46,7 +47,7 @@ const fetchAllVouchers = async (): Promise<VoucherRecord[]> => {
   const data = await fetchAllPagesAxios<Record<string, unknown>>('/api/vouchers', (page) =>
     strapiQuery(
       {
-        fields: ['name', 'for', 'sum', 'dateOrder', 'datePay', 'dateRealized', 'idVoucher'],
+        fields: ['name', 'for', 'sum', 'dateOrder', 'datePay', 'dateRealized', 'idVoucher', 'paymentStatus'],
         sort: ['dateOrder:desc'],
         pagination: { page, pageSize: 500 },
       },
@@ -63,6 +64,7 @@ const fetchAllVouchers = async (): Promise<VoucherRecord[]> => {
       datePay: v.datePay ? String(v.datePay) : null,
       dateRealized: v.dateRealized ? String(v.dateRealized) : null,
       idVoucher: String(v.idVoucher ?? ''),
+      paymentStatus: v.paymentStatus ? String(v.paymentStatus) : null,
     })
   }
   return result
@@ -97,6 +99,8 @@ export const getVouchersReport = async (): Promise<VouchersReport> => {
 
   for (const v of vouchers) {
     if (v.dateOrder) monthRow(v.dateOrder.slice(0, 7)).orderedCount++
+    // Возвращённый ваучер не продан и не «висит»: деньги ушли обратно клиенту
+    if (v.paymentStatus === 'refunded') continue
     if (v.datePay) {
       paidTotalCount++
       paidTotalSum += v.sum
